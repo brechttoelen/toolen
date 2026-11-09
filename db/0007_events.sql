@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Toolen · 0007_events.sql
--- Project: toolen (hlpurcdeouegvphvwygu). Na 0006.
+-- Project: toolen (hlpurcdeouegvphvwygu). Na 0006. Uitgevoerd op 9 nov 2026.
 --
 -- Events: het overzicht groepeert plannen per event (datum, kleur, plek).
 -- Een plan hoort bij hoogstens één event (plannen.event_id). Een event weg = de
