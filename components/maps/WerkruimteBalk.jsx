@@ -18,13 +18,26 @@ export default function WerkruimteBalk({ actief, onKies, badges = {} }) {
   const w = WERKRUIMTES.find((x) => x.id === actief) || WERKRUIMTES[0];
   const plan = w.id === 'plan';
   return (
+    <>
+    <div className="fm-wr-tabs" role="tablist" aria-label="Werkplek">
+      {WERKRUIMTES.map((x) => {
+        const slot = !!WR_MODULE[x.id] && !heeftModule(WR_MODULE[x.id]);
+        return (
+          <button key={x.id} type="button" role="tab" aria-selected={x.id === actief} className={x.id === actief ? 'aan' : ''} disabled={slot}
+            title={slot ? nietInPakket(WR_MODULE[x.id]) : `${x.naam} (Alt ${x.toets})`} aria-label={x.naam} style={{ '--wr': x.kleur }} onClick={() => onKies(x.id)}>
+            <i className="bol" aria-hidden="true" /><span className="naam">{x.naam}</span>
+            {badges[x.id] > 0 && <span className="fm-wr-badge">{badges[x.id]}</span>}
+          </button>
+        );
+      })}
+    </div>
     <div className="fm-wr-kies" ref={ref}>
       <button type="button" className={`fm-wr-knop${plan ? '' : ' aan'}`} aria-haspopup="listbox" aria-expanded={open} title="Werkplek kiezen"
         style={plan ? undefined : { background: w.kleur, borderColor: w.kleur }} onClick={() => setOpen((o) => !o)}>
         <span className="lbl">Werkplek</span>
         {!plan && <i className="bol" style={{ background: '#fff' }} aria-hidden="true" />}
         <span className="naam">{w.naam}</span>
-        {w.beta && <span className="fm-wr-beta" style={plan ? undefined : { color: '#fff', borderColor: 'rgba(255,255,255,.7)' }}>beta</span>}
+        {w.beta && <span className="fm-wr-beta" style={plan ? undefined : { color: '#fff', borderColor: 'rgba(255,255,255,.7)' }}>Beta</span>}
         {badges[w.id] > 0 && <span className="fm-wr-badge" style={plan ? undefined : { background: '#fff', color: w.kleur }}>{badges[w.id]}</span>}
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.5" /></svg>
       </button>
@@ -36,8 +49,8 @@ export default function WerkruimteBalk({ actief, onKies, badges = {} }) {
               onClick={() => { setOpen(false); onKies(x.id); }}>
               <i className="bol" style={{ background: x.kleur }} aria-hidden="true" />
               <span className="naam">{x.naam}</span>
-              {x.beta && <span className="fm-wr-beta">beta</span>}
-              {!!WR_MODULE[x.id] && !heeftModule(WR_MODULE[x.id]) && <span className="fm-wr-beta">niet in pakket</span>}
+              {x.beta && <span className="fm-wr-beta">Beta</span>}
+              {!!WR_MODULE[x.id] && !heeftModule(WR_MODULE[x.id]) && <span className="fm-wr-beta">Niet in pakket</span>}
               {badges[x.id] > 0 && <span className="fm-wr-badge">{badges[x.id]}</span>}
               <kbd>Alt {x.toets}</kbd>
             </button>
@@ -45,6 +58,7 @@ export default function WerkruimteBalk({ actief, onKies, badges = {} }) {
         </div>
       )}
     </div>
+    </>
   );
 }
 

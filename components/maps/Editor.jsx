@@ -4802,6 +4802,11 @@ export default function Editor({ planId }) {
 
         <div className="fm-kaartvak" style={{ '--fm-l': paneelOpen ? '256px' : '0px', '--fm-r': eigenschappenOpen || vastOpen || (schrijven && !volScherm && !item && gereedschap === 'element' && gekozenElement) ? '320px' : '0px' }}>
           <div ref={kaartRef} className="fm-kaart" />
+          {controleFouten > 0 && tab !== 'controle' && !binnenScherm && (
+            <button type="button" className="fm-controlechip" onClick={() => setTab('controle')} title="Controle openen">
+              <span className="fm-controlechip-getal">{controleFouten}</span>{controleFouten === 1 ? 'Fout in de controle' : 'Fouten in de controle'}
+            </button>
+          )}
           {olBewerk && !binnen && kaartKlaar && (() => {
             const lijst = plan?.instellingen?.onderleggers || []; const o = lijst.find((x) => x.id === olBewerk);
             if (!o || o.binnen) return null;

@@ -42,7 +42,7 @@ export const elKraan = (el) => !!el.eigenschappen?.kraan || /crane|kraan|jib/i.t
 export const elCompound = (el) => el.categorie === 'TV-compound' && !elTvCamera(el) && !isKabelcam(el) && !el.eigenschappen?.kraan;
 
 export const WERKRUIMTES = [
-  { id: 'plan', naam: 'Plan', kleur: '#1d1d1b', toets: '1', tab: null, tools: null, exports: [] },
+  { id: 'plan', naam: 'Plan', kleur: '#022056', toets: '1', tab: null, tools: null, exports: [] },
   {
     id: 'sign', naam: 'Signalisatie', beta: true, kleur: '#2563EB', toets: '2', tab: 'sign',
     // Twee modi: wegwijzers (parkings, bestemmingen) en verkeer (C3, E1, afsluitingen, omleidingen met F41).
