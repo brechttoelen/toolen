@@ -7,13 +7,35 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { cookieOpties } from '@/lib/supabase/cookie';
 import { SUPABASE_URL, SUPABASE_KEY } from '@/lib/supabase/env';
+import { getOrganisatie } from './merk';
 
 const URL = SUPABASE_URL;
 const KEY = SUPABASE_KEY;
 
+// Elke vraag aan de databank draagt de actieve organisatie (header x-organisatie).
+// Zo ziet en bewaart de databank enkel in die organisatie (RLS), zonder dat elk scherm
+// er rekening mee moet houden. Weigert de browser de header (CORS), dan zonder header
+// verder: de databank valt dan terug op je organisaties.
+let metHeader = true;
+async function fetchMetOrganisatie(input, init = {}) {
+  const url = typeof input === 'string' ? input : input?.url || '';
+  const slug = getOrganisatie()?.slug;
+  if (!slug || !metHeader || !url.includes('/rest/v1/')) return fetch(input, init);
+  const headers = new Headers(init.headers || (typeof input !== 'string' ? input.headers : undefined));
+  headers.set('x-organisatie', slug);
+  try {
+    return await fetch(input, { ...init, headers });
+  } catch (e) {
+    if (!(e instanceof TypeError) || init.signal?.aborted) throw e;
+    metHeader = false;
+    console.warn('Toolen: header x-organisatie geweigerd, verder zonder', e);
+    return fetch(input, init);
+  }
+}
+
 let _sb = null;
 export function sb() {
-  if (!_sb) _sb = createBrowserClient(URL, KEY, { db: { schema: 'maps' }, cookieOptions: cookieOpties() });
+  if (!_sb) _sb = createBrowserClient(URL, KEY, { db: { schema: 'maps' }, cookieOptions: cookieOpties(), global: { fetch: fetchMetOrganisatie } });
   return _sb;
 }
 export function maps() {

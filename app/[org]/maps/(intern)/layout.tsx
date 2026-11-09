@@ -8,10 +8,11 @@ import FeedbackKnop from "@/components/maps/Feedback";
 // van deze organisatie). Zonder login naar het centrale inlogscherm.
 export const metadata: Metadata = { title: { default: "Toolen Maps", template: "%s · Toolen Maps" } };
 
-type Ik = { role?: string; email?: string; display_name?: string } | null;
+type Ik = { role?: string; email?: string; display_name?: string; organisatie?: { naam?: string; kort?: string } } | null;
 
-export default async function MapsLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await supabaseServer();
+export default async function MapsLayout({ children, params }: { children: React.ReactNode; params: Promise<{ org: string }> }) {
+  const { org } = await params;
+  const supabase = await supabaseServer(org);
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login?verder=/maps");
   const profiel = (await supabase.schema("maps").rpc("ik")).data as Ik;
@@ -32,6 +33,7 @@ export default async function MapsLayout({ children }: { children: React.ReactNo
           <span aria-hidden style={{ width: 14, height: 14, background: "#E11D48", display: "inline-block" }} />
           Toolen Maps
         </Link>
+        {profiel.organisatie?.naam && <span style={{ color: "#a9a9a5", fontSize: 14 }}>{profiel.organisatie.naam}</span>}
         <Link href="/maps" style={{ color: "#d6d6d3", textDecoration: "none", fontSize: 14 }}>Plannen</Link>
         <Link href="/maps/bibliotheek" style={{ color: "#d6d6d3", textDecoration: "none", fontSize: 14 }}>Bibliotheek</Link>
         <Link href="/maps/leveranciers" style={{ color: "#d6d6d3", textDecoration: "none", fontSize: 14 }}>Leveranciers</Link>

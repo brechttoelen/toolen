@@ -4,7 +4,8 @@ import { cookieOpties } from "./cookie";
 import { SUPABASE_URL, SUPABASE_KEY } from "./env";
 
 // Serverclient met sessie in cookies. Standaardschema maps.
-export async function supabaseServer() {
+// org: slug van de actieve organisatie (header x-organisatie voor RLS).
+export async function supabaseServer(org?: string) {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -13,6 +14,7 @@ export async function supabaseServer() {
     {
       db: { schema: "maps" },
       cookieOptions: cookieOpties(),
+      global: org ? { headers: { "x-organisatie": org } } : undefined,
       cookies: {
         getAll() {
           return cookieStore.getAll();
