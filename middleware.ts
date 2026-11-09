@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { HOOFDDOMEIN, geldigeSlug, isEigenDomein, subdomein } from "@/lib/org";
 import { cookieOpties } from "@/lib/supabase/cookie";
+import { SUPABASE_URL, SUPABASE_KEY, supabaseIngesteld } from "@/lib/supabase/env";
 
 // Adressen:
 //   <org>.toolen.be/...   → intern /<org>/...  (bv. flcs.toolen.be/maps → /flcs/maps)
@@ -13,6 +14,16 @@ const ORG_COOKIE = "toolen_org";
 const ZONDER_ORG = ["/login", "/auth"]; // centraal, nooit onder een organisatie
 
 export async function middleware(req: NextRequest) {
+  // Een fout hier mag nooit de hele site laten vallen: dan gewoon zonder herschrijving verder.
+  try {
+    return await route(req);
+  } catch (e) {
+    console.error("middleware", e);
+    return NextResponse.next();
+  }
+}
+
+async function route(req: NextRequest) {
   const url = req.nextUrl.clone();
   const host = req.headers.get("host") || "";
   const pad = url.pathname;
@@ -43,20 +54,23 @@ export async function middleware(req: NextRequest) {
   const res = doel ? NextResponse.rewrite(doel) : NextResponse.next();
   if (zetOrg) res.cookies.set(ORG_COOKIE, zetOrg, { path: "/", sameSite: "lax" });
 
-  // Sessie verversen (Supabase SSR).
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (supabaseUrl && anon) {
-    const sb = createServerClient(supabaseUrl, anon, {
-      cookieOptions: cookieOpties(),
-      cookies: {
-        getAll: () => req.cookies.getAll(),
-        setAll: (lijst: { name: string; value: string; options: CookieOptions }[]) => {
-          lijst.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
+  // Sessie verversen (Supabase SSR), enkel als er een sessie-cookie is.
+  const heeftSessie = req.cookies.getAll().some((c) => c.name.startsWith("sb-"));
+  if (heeftSessie && supabaseIngesteld()) {
+    try {
+      const sb = createServerClient(SUPABASE_URL, SUPABASE_KEY, {
+        cookieOptions: cookieOpties(),
+        cookies: {
+          getAll: () => req.cookies.getAll(),
+          setAll: (lijst: { name: string; value: string; options: CookieOptions }[]) => {
+            lijst.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
+          },
         },
-      },
-    });
-    await sb.auth.getUser();
+      });
+      await sb.auth.getUser();
+    } catch (e) {
+      console.error("sessie verversen", e);
+    }
   }
   return res;
 }

@@ -3,7 +3,9 @@
 // Wijzigt GridLab de export, kopieer dan dit bestand opnieuw (zelfde inhoud, enkel de imports zijn aangepast).
 export const LOGO_BUCKET = 'gridlab-logos'
 
-const STORAGE_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL
+import { SUPABASE_URL } from '@/lib/supabase/env'
+
+const STORAGE_BASE = SUPABASE_URL
   + `/storage/v1/object/public/${LOGO_BUCKET}/`
 
 // Cache-buster-tokens per logo (filename → token, uit de bucket-listing). Module-scope omdat

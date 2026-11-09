@@ -6,9 +6,10 @@
 // als in de rest van de app, alleen het schema verschilt.
 import { createBrowserClient } from '@supabase/ssr';
 import { cookieOpties } from '@/lib/supabase/cookie';
+import { SUPABASE_URL, SUPABASE_KEY } from '@/lib/supabase/env';
 
-const URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const URL = SUPABASE_URL;
+const KEY = SUPABASE_KEY;
 
 let _sb = null;
 export function sb() {

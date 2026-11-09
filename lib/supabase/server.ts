@@ -1,14 +1,15 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { cookieOpties } from "./cookie";
+import { SUPABASE_URL, SUPABASE_KEY } from "./env";
 
 // Serverclient met sessie in cookies. Standaardschema maps.
 export async function supabaseServer() {
   const cookieStore = await cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    SUPABASE_URL,
+    SUPABASE_KEY,
     {
       db: { schema: "maps" },
       cookieOptions: cookieOpties(),
