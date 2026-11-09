@@ -1,12 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans } from "next/font/google";
+// Lettertype in de app zelf (geen Google Fonts tijdens de build).
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/500.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/ibm-plex-sans/700.css";
 import "./globals.css";
-
-const sans = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-sans",
-});
 
 export const metadata: Metadata = {
   title: { default: "Toolen", template: "%s · Toolen" },
@@ -22,7 +20,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="nl" className={sans.variable} suppressHydrationWarning>
+    <html lang="nl" suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );
