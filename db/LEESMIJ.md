@@ -55,6 +55,12 @@ Lokaal getest met een nagebootste FLCS-bron (adressen omgezet, gebruikers gekopp
 
 Koppelingen met stock en GridLab staan enkel aan voor organisaties met de module `stock` of `gridlab` (in `organisaties.modules`). In Toolen bestaan die schema's niet, dus voorlopig uit.
 
+## 0003_beheer.sql
+
+Rechten voor het platformbeheer (`/beheer`) en het ledenbeheer per organisatie (`/instellingen`): platform ziet leden, uitnodigingen en profielen van alle organisaties; organisatie aanmaken met eerste eigenaar; uitnodigen als eigenaar (enkel platform of eigenaar); logboek bij wijzigingen van pakket, plaatsen, modules en status. Getest: `test_0003.sql` (18 controles).
+
+Uitvoeren: plakken in de SQL Editor van Toolen → Run. Mag vóór 0002.
+
 ### Nog open
 
 - Bestanden: lezen is publiek, opladen kan iedereen die in een organisatie mag schrijven, wijzigen en wissen enkel wie het bestand opleverde of een beheerder. Paden per organisatie (`<organisatie_id>/…`) volgen bij de dataverhuis.

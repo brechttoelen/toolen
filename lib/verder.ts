@@ -2,7 +2,7 @@ import { HOOFDDOMEIN } from "./org";
 
 // Waar mag een gebruiker na het inloggen naartoe? Enkel een pad op dezelfde host of een
 // adres onder het eigen hoofddomein (geen open redirect).
-export function veiligVerder(verder: string | null | undefined, standaard = "/maps"): string {
+export function veiligVerder(verder: string | null | undefined, standaard = "/kies"): string {
   if (!verder) return standaard;
   if (verder.startsWith("/") && !verder.startsWith("//")) return verder;
   try {

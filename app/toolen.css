@@ -1,0 +1,127 @@
+/* Toolen — huisstijl als tokens. Eén bron: alle schermen (ook de editor via --fm-*) lezen hier.
+   Regels (zie ONTWERP-huisstijl.md):
+   - licht werkvlak, navy enkel voor de kop en tekst; blauw = actie, groen = bevestiging
+   - één accent per actie, geen verlopen, geen gloed; schaduw enkel op zwevende lagen
+   - afgeronde vormen: 6 px op knoppen en velden, 10 px op kaarten, 14 px op grote vlakken
+   - spacing in stappen van 4 (4, 8, 12, 16, 24, 32, 48)
+   - geen hoofdletterlabels, geen emoji of icoontekens als versiering */
+:root {
+  /* merk */
+  --t-navy: #022056;
+  --t-navy-2: #0B2C6B;       /* hover op navy */
+  --t-blauw: #108AED;
+  --t-blauw-donker: #0B6FC2; /* hover / ingedrukt */
+  --t-blauw-zacht: #E8F3FD;
+  --t-groen: #28B571;
+  --t-groen-zacht: #E7F6EE;
+  --t-wit: #FFFFFF;
+
+  /* neutraal (navy-getint) */
+  --t-tekst: #0E1A33;
+  --t-tekst-2: #4A5A75;
+  --t-tekst-3: #8492A8;
+  --t-rand: #E3E8EF;
+  --t-rand-2: #CFD7E3;
+  --t-vlak: #F5F7FA;          /* pagina */
+  --t-vlak-2: #EEF2F7;        /* geselecteerd, hover */
+  --t-kaart: #FFFFFF;
+
+  /* betekenis */
+  --t-fout: #D93A3A;
+  --t-fout-zacht: #FDECEC;
+  --t-let-op: #C77700;
+  --t-let-op-zacht: #FFF4E0;
+  --t-ok: var(--t-groen);
+  --t-ok-zacht: var(--t-groen-zacht);
+
+  /* vorm */
+  --t-r-klein: 6px;
+  --t-r: 10px;
+  --t-r-groot: 14px;
+  --t-schaduw-zweef: 0 8px 28px rgba(2, 32, 86, 0.14), 0 1px 3px rgba(2, 32, 86, 0.08);
+
+  /* letter */
+  --font-sans: "IBM Plex Sans";
+  --t-gewicht-titel: 600;
+
+  /* hoogtes */
+  --t-kop: 52px;
+  --t-knop: 34px;
+  --t-knop-klein: 28px;
+}
+
+/* ----- Basisonderdelen buiten de editor ----- */
+.t-pagina { min-height: 100vh; background: var(--t-vlak); color: var(--t-tekst); }
+.t-inhoud { max-width: 1120px; margin: 0 auto; padding: 32px 24px 64px; }
+.t-titel { font-size: 24px; font-weight: var(--t-gewicht-titel); margin: 0; letter-spacing: -0.01em; color: var(--t-tekst); }
+.t-sub { font-size: 14px; color: var(--t-tekst-2); margin: 4px 0 0; }
+.t-kaart { background: var(--t-kaart); border: 1px solid var(--t-rand); border-radius: var(--t-r); }
+.t-knop {
+  height: var(--t-knop); padding: 0 14px; border-radius: var(--t-r-klein); border: 1px solid var(--t-rand-2);
+  background: var(--t-wit); color: var(--t-tekst); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; text-decoration: none;
+}
+.t-knop:hover { border-color: var(--t-tekst-3); }
+.t-knop:disabled { opacity: .5; cursor: default; }
+.t-knop.hoofd { background: var(--t-blauw); border-color: var(--t-blauw); color: var(--t-wit); }
+.t-knop.hoofd:hover { background: var(--t-blauw-donker); border-color: var(--t-blauw-donker); }
+.t-knop.gevaar { color: var(--t-fout); }
+.t-knop.gevaar:hover { border-color: var(--t-fout); }
+.t-knop.klein { height: var(--t-knop-klein); padding: 0 10px; font-size: 12.5px; }
+.t-knop.stil { border-color: transparent; background: transparent; }
+.t-knop.stil:hover { background: var(--t-vlak-2); }
+.t-veld {
+  height: var(--t-knop); padding: 0 10px; border-radius: var(--t-r-klein); border: 1px solid var(--t-rand-2);
+  background: var(--t-wit); color: var(--t-tekst); font: inherit; font-size: 13.5px; width: 100%;
+}
+.t-veld:focus { outline: none; border-color: var(--t-blauw); box-shadow: 0 0 0 3px var(--t-blauw-zacht); }
+select.t-veld { padding-right: 6px; }
+.t-label { display: block; font-size: 12.5px; font-weight: 500; color: var(--t-tekst-2); margin: 0 0 6px; }
+.t-tabel { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.t-tabel th { text-align: left; font-weight: 500; font-size: 12.5px; color: var(--t-tekst-3); padding: 10px 12px; border-bottom: 1px solid var(--t-rand); }
+.t-tabel td { padding: 12px; border-bottom: 1px solid var(--t-rand); vertical-align: middle; }
+.t-tabel tr:last-child td { border-bottom: 0; }
+.t-tabel tr.klik { cursor: pointer; }
+.t-tabel tr.klik:hover td { background: var(--t-vlak); }
+.t-pil { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 11px; font-size: 12px; font-weight: 500;
+  background: var(--t-vlak-2); color: var(--t-tekst-2); white-space: nowrap; }
+.t-pil.ok { background: var(--t-ok-zacht); color: #1B7F4F; }
+.t-pil.blauw { background: var(--t-blauw-zacht); color: var(--t-blauw-donker); }
+.t-pil.let-op { background: var(--t-let-op-zacht); color: var(--t-let-op); }
+.t-pil.fout { background: var(--t-fout-zacht); color: var(--t-fout); }
+.t-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--t-rand); margin: 24px 0 20px; }
+.t-tabs a, .t-tabs button { border: 0; background: none; font: inherit; font-size: 14px; color: var(--t-tekst-2); padding: 10px 12px;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+.t-tabs .aan { color: var(--t-tekst); font-weight: 500; border-bottom-color: var(--t-blauw); }
+.t-melding { padding: 10px 14px; border-radius: var(--t-r-klein); font-size: 13.5px; background: var(--t-vlak-2); color: var(--t-tekst-2); }
+.t-melding.fout { background: var(--t-fout-zacht); color: var(--t-fout); }
+.t-melding.ok { background: var(--t-ok-zacht); color: #1B7F4F; }
+.t-balk { height: 8px; border-radius: 4px; background: var(--t-vlak-2); overflow: hidden; }
+.t-balk > i { display: block; height: 100%; background: var(--t-blauw); border-radius: 4px; }
+.t-balk.vol > i { background: var(--t-let-op); }
+.t-dialoog-achter { position: fixed; inset: 0; background: rgba(2, 32, 86, 0.28); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.t-dialoog { background: var(--t-kaart); border-radius: var(--t-r-groot); box-shadow: var(--t-schaduw-zweef); width: 100%; max-width: 480px; padding: 24px; }
+.t-dialoog h2 { margin: 0 0 16px; font-size: 18px; font-weight: 600; }
+.t-rij { display: flex; gap: 12px; align-items: center; }
+.t-stapel { display: grid; gap: 14px; }
+.t-stil { color: var(--t-tekst-3); }
+
+/* ----- Kop van de app (navy) ----- */
+.t-kop { height: var(--t-kop); background: var(--t-navy); color: var(--t-wit); display: flex; align-items: center; gap: 20px; padding: 0 16px 0 20px; flex: 0 0 auto; }
+.t-kop a { color: rgba(255,255,255,0.72); text-decoration: none; font-size: 14px; }
+.t-kop a:hover, .t-kop a.aan { color: var(--t-wit); }
+.t-kop .merk { display: flex; align-items: center; gap: 10px; color: var(--t-wit); font-weight: 600; font-size: 15px; }
+.t-kop .merk .org { color: rgba(255,255,255,0.6); font-weight: 400; }
+.t-kop .rechts { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.t-kop-knop { height: 32px; padding: 0 10px; border-radius: var(--t-r-klein); border: 0; background: transparent; color: rgba(255,255,255,0.85);
+  font: inherit; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.t-kop-knop:hover { background: var(--t-navy-2); color: var(--t-wit); }
+.t-menu { position: absolute; top: calc(100% + 6px); right: 0; min-width: 240px; background: var(--t-kaart); color: var(--t-tekst); border-radius: var(--t-r);
+  box-shadow: var(--t-schaduw-zweef); padding: 6px; z-index: 60; }
+.t-menu a, .t-menu button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--t-r-klein); border: 0; background: none;
+  font: inherit; font-size: 13.5px; color: var(--t-tekst); text-align: left; cursor: pointer; text-decoration: none; }
+.t-menu a:hover, .t-menu button:hover { background: var(--t-vlak); }
+.t-menu .kop { padding: 8px 10px 4px; font-size: 12px; color: var(--t-tekst-3); }
+.t-menu hr { border: 0; border-top: 1px solid var(--t-rand); margin: 6px 0; }
+.t-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--t-blauw); color: var(--t-wit); display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; }

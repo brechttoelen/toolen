@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { veiligVerder } from "@/lib/verder";
+import { ToolenWoordmerk } from "./ToolenLogo";
 
 // Inloggen met een link per mail, Microsoft (werk- of schoolaccount) of Google.
 export default function InlogScherm() {
@@ -41,45 +42,39 @@ export default function InlogScherm() {
     if (error) setFout(error.message);
   }
 
-  const knop: React.CSSProperties = { width: "100%", padding: "11px 14px", border: "1px solid #d6d6d3", background: "#fff", fontSize: 15, cursor: "pointer", textAlign: "left" };
-
   return (
-    <main style={{ maxWidth: 400, margin: "0 auto", padding: "96px 24px" }}>
-      <h1 style={{ fontSize: 28, fontWeight: 600, margin: "0 0 24px" }}>Inloggen bij Toolen</h1>
-      <div style={{ display: "grid", gap: 10 }}>
-        <button type="button" style={knop} onClick={() => via("azure")}>Verder met Microsoft</button>
-        <button type="button" style={knop} onClick={() => via("google")}>Verder met Google</button>
-      </div>
-      <div style={{ margin: "24px 0 12px", color: "#888", fontSize: 13 }}>
-        {metWachtwoord ? "of met je wachtwoord" : "of met een link per mail"}
-        {" · "}
-        <button type="button" onClick={() => { setMetWachtwoord(!metWachtwoord); setFout(""); }}
-          style={{ border: 0, background: "none", padding: 0, color: "#555", textDecoration: "underline", cursor: "pointer", fontSize: 13 }}>
-          {metWachtwoord ? "link per mail" : "wachtwoord"}
-        </button>
-      </div>
-      {metWachtwoord ? (
-        <form onSubmit={viaWachtwoord} style={{ display: "grid", gap: 10 }}>
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="naam@bedrijf.be" autoComplete="username"
-            style={{ padding: "11px 12px", border: "1px solid #d6d6d3", fontSize: 15 }} />
-          <input type="password" required value={wachtwoord} onChange={(e) => setWachtwoord(e.target.value)} placeholder="Wachtwoord" autoComplete="current-password"
-            style={{ padding: "11px 12px", border: "1px solid #d6d6d3", fontSize: 15 }} />
-          <button type="submit" disabled={status === "bezig"} style={{ ...knop, background: "#1d1d1b", color: "#fff", border: 0, textAlign: "center" }}>
-            {status === "bezig" ? "Bezig…" : "Inloggen"}
+    <div className="t-pagina" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div className="t-kaart" style={{ width: "100%", maxWidth: 400, padding: 32 }}>
+        <ToolenWoordmerk op="licht" product="maps" />
+        <h1 className="t-titel" style={{ fontSize: 20, margin: "28px 0 20px" }}>Inloggen</h1>
+        <div className="t-stapel" style={{ gap: 10 }}>
+          <button type="button" className="t-knop" style={{ justifyContent: "flex-start" }} onClick={() => via("azure")}>Verder met Microsoft</button>
+          <button type="button" className="t-knop" style={{ justifyContent: "flex-start" }} onClick={() => via("google")}>Verder met Google</button>
+        </div>
+        <div className="t-stil" style={{ margin: "24px 0 12px", fontSize: 13 }}>
+          {metWachtwoord ? "of met je wachtwoord" : "of met een link per mail"}
+          {" · "}
+          <button type="button" onClick={() => { setMetWachtwoord(!metWachtwoord); setFout(""); }}
+            style={{ border: 0, background: "none", padding: 0, color: "var(--t-blauw)", cursor: "pointer", font: "inherit" }}>
+            {metWachtwoord ? "link per mail" : "wachtwoord"}
           </button>
-        </form>
-      ) : status === "verstuurd" ? (
-        <p>Kijk in je mailbox: we stuurden een link naar {email}.</p>
-      ) : (
-        <form onSubmit={viaMail} style={{ display: "grid", gap: 10 }}>
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="naam@bedrijf.be"
-            style={{ padding: "11px 12px", border: "1px solid #d6d6d3", fontSize: 15 }} />
-          <button type="submit" disabled={status === "bezig"} style={{ ...knop, background: "#1d1d1b", color: "#fff", border: 0, textAlign: "center" }}>
-            {status === "bezig" ? "Bezig…" : "Stuur me een link"}
-          </button>
-        </form>
-      )}
-      {fout && <p style={{ color: "#B91C1C", marginTop: 16 }}>{fout}</p>}
-    </main>
+        </div>
+        {metWachtwoord ? (
+          <form onSubmit={viaWachtwoord} className="t-stapel" style={{ gap: 10 }}>
+            <input className="t-veld" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="naam@bedrijf.be" autoComplete="username" />
+            <input className="t-veld" type="password" required value={wachtwoord} onChange={(e) => setWachtwoord(e.target.value)} placeholder="Wachtwoord" autoComplete="current-password" />
+            <button type="submit" className="t-knop hoofd" disabled={status === "bezig"}>{status === "bezig" ? "Bezig…" : "Inloggen"}</button>
+          </form>
+        ) : status === "verstuurd" ? (
+          <p className="t-melding ok">Kijk in je mailbox: we stuurden een link naar {email}. Niets gekregen? Kijk ook bij spam.</p>
+        ) : (
+          <form onSubmit={viaMail} className="t-stapel" style={{ gap: 10 }}>
+            <input className="t-veld" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="naam@bedrijf.be" autoComplete="email" />
+            <button type="submit" className="t-knop hoofd" disabled={status === "bezig"}>{status === "bezig" ? "Bezig…" : "Stuur me een link"}</button>
+          </form>
+        )}
+        {fout && <p className="t-melding fout" style={{ marginTop: 16 }}>{fout}</p>}
+      </div>
+    </div>
   );
 }
