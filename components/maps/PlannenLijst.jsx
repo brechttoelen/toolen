@@ -8,6 +8,7 @@ import { startLobby } from './live';
 import { Avatar } from './Aanwezigheid';
 import { STANDAARD_LAGEN, STANDAARD_FASEN } from './stijl';
 import { regioVan } from './geo';
+import { laadEvents, maakEvent, kleurVoor, eventDatum } from './events';
 
 const nieuwId = () => crypto.randomUUID();
 
@@ -42,8 +43,10 @@ async function kopieerInhoud(bronId, doelId) {
   }
 }
 
-function NieuwPlan({ plannen, onSluit }) {
-  const [v, setV] = useState({ naam: '', editie: '', zoek: '', plaats: null, start: 'leeg', bron: '', fasen: [...STANDAARD_FASEN] });
+export function NieuwPlan({ plannen, onSluit, startEvent = '' }) {
+  const [v, setV] = useState({ naam: '', editie: '', event: startEvent, evNaam: '', evDatum: '', zoek: '', plaats: null, start: 'leeg', bron: '', fasen: [...STANDAARD_FASEN] });
+  const [ev, setEv] = useState({ events: [], ok: false });
+  useEffect(() => { laadEvents().then(setEv); }, []);
   const [resultaten, setResultaten] = useState([]);
   const [fout, setFout] = useState('');
   const [bezig, setBezig] = useState(false);
@@ -62,8 +65,13 @@ function NieuwPlan({ plannen, onSluit }) {
       const bron = v.start === 'kopie' ? plannen.find((p) => p.id === v.bron) : null;
       const centrum = v.plaats?.centrum || bron?.centrum || [3.6031, 50.8456];
       const wie = await wieBenIk();
+      let event = ev.events.find((e) => e.id === v.event) || null;
+      if (ev.ok && v.event === 'nieuw') {
+        if (!v.evNaam.trim()) throw new Error('Geef het nieuwe event een naam.');
+        event = await maakEvent({ naam: v.evNaam, datum: v.evDatum, kleur: kleurVoor(ev.events.length) });
+      }
       const { data: plan, error } = await maps().from('plannen').insert({
-        naam: v.naam.trim(), editie_naam: v.editie.trim() || null, locatie: v.plaats ? v.plaats.naam.split(',').slice(0, 2).join(',') : (bron?.locatie || null),
+        naam: v.naam.trim(), editie_naam: event?.naam || v.editie.trim() || null, ...(event ? { event_id: event.id } : {}), locatie: v.plaats ? v.plaats.naam.split(',').slice(0, 2).join(',') : (bron?.locatie || null),
         centrum, zoom: bron?.zoom || 17, basiskaart: bron?.basiskaart || 'luchtfoto', titelblok: bron?.titelblok || {}, aangemaakt_door: wie?.id || null,
       }).select().single();
       if (error) throw error;
@@ -91,8 +99,24 @@ function NieuwPlan({ plannen, onSluit }) {
         <div className="inhoud">
           <div className="fm-raster2">
             <label className="fm-veld">Naam van het plan<input value={v.naam} onChange={(e) => setV({ ...v, naam: e.target.value })} placeholder="Finishzone Oudenaarde" autoFocus /></label>
-            <label className="fm-veld">Wedstrijd of editie<input value={v.editie} onChange={(e) => setV({ ...v, editie: e.target.value })} placeholder="Ronde van Vlaanderen 2027" /></label>
+            {ev.ok ? (
+              <label className="fm-veld">Event
+                <select value={v.event} onChange={(e) => setV({ ...v, event: e.target.value })}>
+                  <option value="">Zonder event</option>
+                  {ev.events.map((e) => <option key={e.id} value={e.id}>{e.naam}{e.datum ? ` · ${eventDatum(e.datum)}` : ''}</option>)}
+                  <option value="nieuw">Nieuw event…</option>
+                </select>
+              </label>
+            ) : (
+              <label className="fm-veld">Wedstrijd of editie<input value={v.editie} onChange={(e) => setV({ ...v, editie: e.target.value })} placeholder="Ronde van Vlaanderen 2027" /></label>
+            )}
           </div>
+          {v.event === 'nieuw' && (
+            <div className="fm-raster2">
+              <label className="fm-veld">Naam van het event<input value={v.evNaam} onChange={(e) => setV({ ...v, evNaam: e.target.value })} placeholder="Ronde van Vlaanderen 2027" /></label>
+              <label className="fm-veld">Datum<input type="date" value={v.evDatum} onChange={(e) => setV({ ...v, evDatum: e.target.value })} /></label>
+            </div>
+          )}
           <div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
               <label className="fm-veld" style={{ flex: 1 }}>Waar ligt het?
@@ -168,6 +192,9 @@ export default function PlannenLijst() {
   const [zoek, setZoek] = useState('');
   const [nieuw, setNieuw] = useState(false);
   const [aanwezig, setAanwezig] = useState(new Map());
+  const [ev, setEv] = useState({ events: [], ok: false });
+  useEffect(() => { laadEvents().then(setEv); }, []);
+  const eventVan = (p) => ev.events.find((e) => e.id === p.event_id) || null;
   useEffect(() => { const l = startLobby({ client: sb(), onState: (st) => setAanwezig(wieIn(st)) }); return () => l.stop(); }, []);
 
   useEffect(() => {
@@ -211,7 +238,7 @@ export default function PlannenLijst() {
       <AppDialogen />
       <header style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', padding: '20px 32px', background: '#fff', borderBottom: '1px solid #e8e8e6' }}>
         <div style={{ flex: '1 1 280px' }}>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>Plannen</h1>
+          <h1 className="t-titel">Plannen</h1>
         </div>
         <label className="fm-veld" style={{ flex: '0 1 320px' }}><span style={{ position: 'absolute', left: -9999 }}>Zoek een plan</span>
           <input type="search" value={zoek} onChange={(e) => setZoek(e.target.value)} placeholder="Zoek op naam, editie of plaats" style={{ height: 40 }} />
@@ -227,9 +254,9 @@ export default function PlannenLijst() {
         {lijst.map((p) => (
           <div key={p.id} className="fm-kaartje">
             <a href={`/maps/${p.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: 6, background: p.status === 'definitief' ? '#16865C' : '#E11D48' }} />
+              <div style={{ height: 6, background: eventVan(p)?.kleur || '#CFD7E3' }} />
               <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span className="fm-sub">{p.editie_naam || 'Zonder editie'}</span>
+                <span className="fm-sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{eventVan(p) && <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: eventVan(p).kleur }} />}{eventVan(p)?.naam || p.editie_naam || 'Zonder event'}</span>
                 <strong style={{ fontSize: 16 }}>{p.naam}</strong>
                 {(aanwezig.get(p.id) || []).length > 0 && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }} title={(aanwezig.get(p.id) || []).map((x) => x.naam).join(', ')}>

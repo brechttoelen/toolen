@@ -4307,7 +4307,7 @@ export default function Editor({ planId }) {
   };
   // ---------- Weergave ----------
   if (laden) return <div className="fm" style={{ padding: 40 }}>Plan laden…</div>;
-  if (fout && !plan) return <div className="fm" style={{ padding: 40, maxWidth: 640 }}><div className="fm-melding fout">{fout}</div><p><a className="fm-knop" href="/maps">Terug naar de plannen</a></p></div>;
+  if (fout && !plan) return <div className="fm" style={{ padding: 40, maxWidth: 640 }}><div className="fm-melding fout">{fout}</div><p><a className="fm-knop" href="/maps/plannen">Terug naar de plannen</a></p></div>;
 
   // Bronnen voor Ctrl K.
   const paletBronnen = () => {
@@ -4498,7 +4498,7 @@ export default function Editor({ planId }) {
   return (
     <div className="fm fm-editor" onClick={() => { if (menu) setMenu(null); if (uitklap) setUitklap(null); }}>
       <header className={`fm-topbalk fm-wr-${werkruimte}`} style={{ '--fm-wr': wr.kleur }}>
-        <a className="fm-terug" href="/maps" aria-label="Terug naar de plannen"><Icoon naam="terug" /></a>
+        <a className="fm-terug" href="/maps/plannen" aria-label="Terug naar de plannen"><Icoon naam="terug" /></a>
         <div className="fm-titel">
           <small>{plan.editie_naam || 'Eventplan'}{plan.locatie ? ` · ${plan.locatie}` : ''}</small>
           <strong>{plan.naam}</strong>
