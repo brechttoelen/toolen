@@ -1,5 +1,6 @@
 'use client';
 
+import { heeftModule, nietInPakket } from './merk';
 import { zorgVoorVeldpuntLagen, zetVeldpunten } from './veldpunten';
 import { zetCursor } from './cursor';
 import { bevestig, vraagTekst, AppDialogen, useSluitBuiten } from './dialoog';
@@ -60,7 +61,7 @@ import ControlePaneel, { DefinitiefDialoog } from './ControlePaneel';
 import { isSign, instSign, volgendNr, richtingUitRoutes, signGeojson, zorgVoorKijkIcoon } from './signalisatie';
 import { laadVasteAansluitingen, uitPlekItem, naarGeojsonVa, zorgVoorVaIconen, vaKaartLagen, zetVaDekking, vaId, isVaId, vaUuid, alsStroomItem } from './vasteAansluitingen';
 import VasteAansluitingPaneel from './VasteAansluitingPaneel';
-import { WERKRUIMTES, werkruimteOp, onthoudWerkruimte, laatsteWerkruimte, relevanteItems, kerncijfers, tvTelling } from './werkruimtes';
+import { WR_MODULE, WERKRUIMTES, werkruimteOp, onthoudWerkruimte, laatsteWerkruimte, relevanteItems, kerncijfers, tvTelling } from './werkruimtes';
 import WerkruimteBalk, { WerkruimteExport } from './WerkruimteBalk';
 import SignPuntDetail, { signPunten } from './SignPuntDetail';
 import VerkeerPaneel, { VerkeerDetail } from './VerkeerPaneel';
@@ -296,7 +297,7 @@ export default function Editor({ planId }) {
   const [bouwMenu, setBouwMenu] = useState(null); // { y, tent: open? }
   useSluitBuiten(!!bouwMenu, () => setBouwMenu(null));
   const bouwerRef = useRef(null); // { soort: 'tent' | 'binnen' | 'teken', el }
-  useEffect(() => { setWerkruimte(laatsteWerkruimte()); }, []);
+  useEffect(() => { const w = laatsteWerkruimte(); setWerkruimte(WR_MODULE[w] && !heeftModule(WR_MODULE[w]) ? 'plan' : w); }, []);
 
   const schrijven = kanSchrijven(profiel);
 
@@ -1992,6 +1993,7 @@ export default function Editor({ planId }) {
   }, [wijzigItem]);
   const openBinnenRef = useRef(null);
   const openBinnen = useCallback((hostId, verd = null) => {
+    if (!heeftModule('binnen')) { setMelding(nietInPakket('binnen')); return; }
     const host = st.current.items.find((x) => x.id === hostId);
     if (!host?.geometrie) return;
     const vs = verdiepingenVan(host);
@@ -4169,6 +4171,7 @@ export default function Editor({ planId }) {
   const kiesWerkruimteRef = useRef(null);
   const kiesWerkruimte = (id) => {
     if (id === werkruimte) return;
+    if (WR_MODULE[id] && !heeftModule(WR_MODULE[id])) { setMelding(nietInPakket(WR_MODULE[id])); return; }
     const w = werkruimteOp(id);
     if (werkruimte === 'plan') tabVoorWr.current = tab;
     setWerkruimte(id); onthoudWerkruimte(id);
@@ -4324,7 +4327,7 @@ export default function Editor({ planId }) {
       ['Volledig scherm', () => setVolScherm((v) => !v), ''],
       ...WERKRUIMTES.map((w) => [`Werkruimte ${w.naam}`, () => kiesWerkruimte(w.id), `alt ${w.toets}`]),
       [uitgebreid ? 'Eenvoudige weergave' : 'Alle opties tonen', () => setUitgebreid(!uitgebreid), 'uitgebreid eenvoudig'],
-      ['Opbouwmodus (gsm)', () => { window.location.href = `/maps/${planId}/opbouw`; }, ''],
+      ...(heeftModule('terrein') ? [['Opbouwmodus (gsm)', () => { window.location.href = `/maps/${planId}/opbouw`; }, '']] : []),
     ];
     acties.forEach(([titel, doe, extra], k) => r.push({ groep: 'Acties', titel, doe, extra, standaard: k < 8 }));
     if (schrijven) {
@@ -4585,7 +4588,7 @@ export default function Editor({ planId }) {
                 )); });
               })()}
               <button onClick={() => { setMenu(null); setDialoog('bestand'); }}>Importeren of exporteren<small>KML, GPX, CSV, PNG</small></button>
-              <a href={`/maps/${planId}/opbouw`}>Opbouwmodus (gsm)</a>
+              {heeftModule('terrein') && <a href={`/maps/${planId}/opbouw`}>Opbouwmodus (gsm)</a>}
             </div>
           )}
         </div>
@@ -4658,7 +4661,9 @@ export default function Editor({ planId }) {
             </button>
           )}
           <hr />
-          {[...PANELEN.slice(0, 4), ...(uitgebreid || tab === 'draaiboek' ? [['draaiboek', 'Draaiboek', 'lijstje']] : []), ...PANELEN.slice(4)].map(([id, label, ic]) => {
+          {[...PANELEN.slice(0, 4), ...(uitgebreid || tab === 'draaiboek' ? [['draaiboek', 'Draaiboek', 'lijstje']] : []), ...PANELEN.slice(4)]
+            .filter(([id]) => (id !== 'stroom' || heeftModule('stroom')) && (id !== 'sign' || heeftModule('signalisatie')))
+            .map(([id, label, ic]) => {
             // Materiaal opent het volledige materiaalscherm (geen zijpaneel).
             const aan = id === 'materiaal' ? materiaalOpen : tab === id;
             return (

@@ -61,6 +61,12 @@ Rechten voor het platformbeheer (`/beheer`) en het ledenbeheer per organisatie (
 
 Uitvoeren: plakken in de SQL Editor van Toolen → Run. Mag vóór 0002.
 
+## 0004_modules.sql
+
+Modules uit het pakket afdwingen: items van Signalisatie, Stroom, Stellingbouwer, Binnenplan en Branding kunnen zonder die module niet gemaakt of gewijzigd worden (verwijderen mag, bestaande blijven zichtbaar). De editor schermt hetzelfde af: werkruimtes, panelen, stellingbouwer, binnenplan, vrij papierformaat en rasterplan, opbouwmodus, deellink per leverancier. Getest: `test_0004.sql`.
+
+Na het uitvoeren: in `/beheer` bij elke organisatie de juiste modules aanvinken (een organisatie zonder modules heeft enkel de basis).
+
 ### Nog open
 
 - Bestanden: lezen is publiek, opladen kan iedereen die in een organisatie mag schrijven, wijzigen en wissen enkel wie het bestand opleverde of een beheerder. Paden per organisatie (`<organisatie_id>/…`) volgen bij de dataverhuis.

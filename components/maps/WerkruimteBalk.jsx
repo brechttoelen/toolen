@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { WERKRUIMTES } from './werkruimtes';
+import { WERKRUIMTES, WR_MODULE } from './werkruimtes';
+import { heeftModule, nietInPakket } from './merk';
 
 // Werkplek kiezen in de topbalk: één knop met de huidige werkplek, de rest in een uitklaplijst
 // (met beta-label, sneltoets en badge voor open brandveiligheidsfouten).
@@ -30,10 +31,13 @@ export default function WerkruimteBalk({ actief, onKies, badges = {} }) {
       {open && (
         <div className="fm-uitklap fm-wr-menu" role="listbox" aria-label="Werkplek">
           {WERKRUIMTES.map((x) => (
-            <button key={x.id} type="button" role="option" aria-selected={x.id === actief} className={x.id === actief ? 'aan' : ''} onClick={() => { setOpen(false); onKies(x.id); }}>
+            <button key={x.id} type="button" role="option" aria-selected={x.id === actief} className={x.id === actief ? 'aan' : ''}
+              disabled={!!WR_MODULE[x.id] && !heeftModule(WR_MODULE[x.id])} title={WR_MODULE[x.id] && !heeftModule(WR_MODULE[x.id]) ? nietInPakket(WR_MODULE[x.id]) : undefined}
+              onClick={() => { setOpen(false); onKies(x.id); }}>
               <i className="bol" style={{ background: x.kleur }} aria-hidden="true" />
               <span className="naam">{x.naam}</span>
               {x.beta && <span className="fm-wr-beta">beta</span>}
+              {!!WR_MODULE[x.id] && !heeftModule(WR_MODULE[x.id]) && <span className="fm-wr-beta">niet in pakket</span>}
               {badges[x.id] > 0 && <span className="fm-wr-badge">{badges[x.id]}</span>}
               <kbd>Alt {x.toets}</kbd>
             </button>

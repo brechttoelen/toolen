@@ -13,6 +13,8 @@ import { dragerVan, brandingCijfers } from './branding';
 import { isKabelcam } from './kabelcam';
 
 export const WR_SLEUTEL = 'fm-werkruimte';
+// Module uit het pakket die een werkruimte nodig heeft (Plan heeft er geen nodig).
+export const WR_MODULE = { sign: 'signalisatie', stroom: 'stroom', veiligheid: 'veiligheid', branding: 'branding' };
 
 // Gereedschap van een werkruimte. Soorten:
 //   { id }                       bestaand gereedschap uit gereedschap.js (selecteer, route, meten, vast …)

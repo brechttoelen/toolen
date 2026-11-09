@@ -1,6 +1,7 @@
 'use client';
 
 // In het zijpaneel van een stellinglijn: 3D-voorbeeld en de knop naar de stellingbouwer.
+import { heeftModule, nietInPakket } from './merk';
 import { useEffect, useMemo, useState } from 'react';
 import StellingStudio, { StellingDrie } from './StellingStudio';
 import { isStellingBouw, stellingDoorgangen, functieNaam } from './stellingbouw';
@@ -24,13 +25,13 @@ export function DoorgangLijst({ st, titel = 'Doorgangen (vrije breedte × hoogte
 export function StellingBlok({ it, el, schrijven, onZet, doeken = [] }) {
   const doekMap = useMemo(() => new Map(doeken.map((d) => [d.id, d])), [doeken]);
   const [open, setOpen] = useState(false); const [kijk, setKijk] = useState(false);
-  useEffect(() => { if (neemBouwer(it.id)) setOpen(true); }, [it.id]);
+  useEffect(() => { if (neemBouwer(it.id) && heeftModule('stelling')) setOpen(true); }, [it.id]);
   const gebouwd = isStellingBouw(it);
   const n = gebouwd ? Object.keys(it.velden.stelling.vakken).length : 0;
   return (
     <div className="fm-truss-blok fm-sectie">
-      {gebouwd && <button type="button" className="fm-wand-mini" onClick={() => setOpen(true)} title="Stellingbouwer openen"><StellingDrie st={it.velden.stelling} doekMap={doekMap} mini /></button>}
-      <button className="fm-knop zwart" onClick={() => setOpen(true)}>{gebouwd ? (schrijven ? 'Stelling bouwen' : 'Stelling bekijken') : 'Stelling bouwen in 3D (brug, podium, tribune)'}</button>
+      {gebouwd && <button type="button" className="fm-wand-mini" onClick={() => heeftModule('stelling') && setOpen(true)} title="Stellingbouwer openen"><StellingDrie st={it.velden.stelling} doekMap={doekMap} mini /></button>}
+      {!heeftModule('stelling') ? <p className="fm-sub" style={{ margin: '6px 0' }}>{nietInPakket('stelling')}</p> : <button className="fm-knop zwart" onClick={() => setOpen(true)}>{gebouwd ? (schrijven ? 'Stelling bouwen' : 'Stelling bekijken') : 'Stelling bouwen in 3D (brug, podium, tribune)'}</button>}
       {gebouwd && <button className="fm-knop" onClick={() => setKijk(true)}>⤢ In 3D bekijken</button>}
       {kijk && <Groot3D it={it} el={el} schrijven={schrijven} elementenMap={new Map(doeken.map((d) => [d.id, d]))} onSluit={() => setKijk(false)} />}
       {gebouwd && <DoorgangLijst st={it.velden.stelling} />}

@@ -1,5 +1,6 @@
 'use client';
 
+import { heeftModule } from './merk';
 import { bevestig, toonTekst } from './dialoog';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -135,7 +136,7 @@ export default function DeelDialoog({ plan, lagen, fasen, items = [], elementenM
               <>
                 <div className="fm-kop"><b className="fm-stap">1</b>Voor wie</div>
                 <div className="fm-vinkrij" style={{ gap: 6, flexWrap: 'wrap' }}>
-                  {PROFIELEN.map((pr) => (
+                  {PROFIELEN.filter((pr) => (pr.id !== 'leverancier' || heeftModule('leveranciers')) && (pr.id !== 'stroom' || heeftModule('stroom'))).map((pr) => (
                     <button key={pr.id} className={`fm-knop klein ${vorm.opties.profiel === pr.id ? 'zwart' : ''}`} title={pr.uitleg}
                       onClick={() => setVorm({ ...vorm, naam: vorm.naam || pr.naam, opties: { ...vorm.opties, stroom: false, ...pr.opties, profiel: pr.id, leverancier: pr.id === 'leverancier' ? vorm.opties.leverancier : null } })}>{pr.label}</button>
                   ))}

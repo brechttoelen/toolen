@@ -4,6 +4,7 @@
 // rechts een kaart met het afdrukkader. Het kader verschuif je door erin te
 // slepen; een hoek slepen verandert de schaal. Uitsneden blijven bij het plan
 // bewaard voor een volgende export, en meerdere uitsneden kunnen samen in één PDF.
+import { heeftModule } from './merk';
 import Info from './info';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
@@ -320,7 +321,7 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
               <label className="fm-veld">Papier
                 <select value={inst.papier} onChange={(e) => zet({ papier: e.target.value })}>
                   {Object.keys(PAPIER).map((p) => <option key={p}>{p}</option>)}
-                  <option value="vrij">Vrij formaat</option>
+                  {heeftModule('groot') && <option value="vrij">Vrij formaat</option>}
                 </select>
               </label>
               <label className="fm-veld">Richting
@@ -390,8 +391,8 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
             )}
             <label className="fm-vink"><input type="checkbox" checked={!!inst.bladen} onChange={(e) => zet({ bladen: e.target.checked })} />Bladindeling: alles op vaste schaal over meerdere bladen</label>
             {inst.bladen && !inst.schaal && <div className="fm-sub" style={{ color: '#8A4D00' }}>Kies hierboven een vaste schaal.</div>}
-            <label className="fm-vink"><input type="checkbox" checked={inst.raster.aan} onChange={(e) => zet({ raster: { ...inst.raster, aan: e.target.checked } })} />Rasterplan met vakken (A, B, C … en 1, 2, 3 …)</label>
-            {inst.raster.aan && (
+            {heeftModule('groot') && <label className="fm-vink"><input type="checkbox" checked={inst.raster.aan} onChange={(e) => zet({ raster: { ...inst.raster, aan: e.target.checked } })} />Rasterplan met vakken (A, B, C … en 1, 2, 3 …)</label>}
+            {inst.raster.aan && heeftModule('groot') && (
               <div className="fm-raster2">
                 <label className="fm-veld">Kolommen<input value={inst.raster.kolommen} inputMode="numeric" onChange={(e) => zet({ raster: { ...inst.raster, kolommen: e.target.value } })} /></label>
                 <label className="fm-vink" style={{ alignSelf: 'end' }}><input type="checkbox" checked={inst.raster.index !== false} onChange={(e) => zet({ raster: { ...inst.raster, index: e.target.checked } })} />Index met vakken</label>
