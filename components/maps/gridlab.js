@@ -6,6 +6,7 @@
 // - Het beeld wordt in de Toolen Maps-bucket bewaard (zo werkt het ook in de deellink en de PDF) en
 //   vernieuwd zodra het ontwerp in GridLab gewijzigd is (vernieuwGridlabDoeken).
 import { sb, maps, BUCKET } from './db';
+import { heeftKoppeling } from './merk';
 import { renderJpegBlob } from './gridlab/exportJpeg';
 import { setLogoVersions, LOGO_BUCKET } from './gridlab/logoUrl';
 import { withRecalcMargins } from './gridlab/formatGeometry';
@@ -84,7 +85,7 @@ export async function gridlabAlsDoek({ ontwerp, canvasId, planId, alle = false, 
 let _bezig = false;
 export async function vernieuwGridlabDoeken(doeken = []) {
   const gekoppeld = doeken.filter((d) => d?.eigenschappen?.gridlab?.id);
-  if (!gekoppeld.length || _bezig) return [];
+  if (!gekoppeld.length || _bezig || !heeftKoppeling('gridlab')) return [];
   _bezig = true;
   try {
     const ids = [...new Set(gekoppeld.map((d) => d.eigenschappen.gridlab.id))];

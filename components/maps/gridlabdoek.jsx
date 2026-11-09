@@ -4,13 +4,14 @@
 // Toont alle ontwerpen die je in GridLab mag zien, ook die in bewerking, met status en versie.
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { heeftKoppeling } from './merk';
 import { gridlabOntwerpen, tekenGridlab, gridlabAlsDoek, statusVan, afmetingVan } from './gridlab';
 import { foutTekst, wieBenIk } from './db';
 import { dragerOp } from './branding';
 
 export function GridlabKnop({ planId, drager = 'hek', onNieuw, klein = false }) {
   const [open, setOpen] = useState(false);
-  if (!planId) return null;
+  if (!planId || !heeftKoppeling('gridlab')) return null;
   return (
     <>
       <button type="button" className={`fm-knop${klein ? ' klein' : ''} fm-gl-knop`} title="Een backdrop uit GridLab als doek gebruiken (ook ontwerpen in bewerking)" onClick={() => setOpen(true)}>Uit GridLab</button>

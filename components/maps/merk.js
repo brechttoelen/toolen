@@ -3,8 +3,10 @@
 export const PRODUCT = 'Toolen Maps';
 export const BEDRIJF = 'Toolen';
 
-let organisatie = null; // { slug, naam, kort }
+let organisatie = null; // { slug, naam, kort, modules }
 export function setOrganisatie(o) { organisatie = o || null; }
 export function getOrganisatie() { return organisatie; }
 // Korte naam voor het titelblok van een PDF: de organisatie, anders het product.
+// Koppelingen met andere systemen (stock, GridLab) staan als module bij de organisatie.
+export function heeftKoppeling(naam) { return !!organisatie?.modules?.includes(naam); }
 export function merkKort() { return organisatie?.kort || organisatie?.naam || PRODUCT; }

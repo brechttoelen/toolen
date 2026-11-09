@@ -42,6 +42,19 @@ select id from auth.users where email = 'JOUW@ADRES';
 
 Dan werkt `flcs.toolen.be/maps` (nog leeg: de FLCS-data verhuist in fase 5).
 
+## 0002_import_flcs.sql
+
+Kopieert FLCS Maps uit het Publitool-project naar de organisatie `flcs` in Toolen. De FLCS-databank wordt enkel gelezen; Publitool blijft werken. Mag opnieuw gedraaid worden (wist eerst de vorige import van flcs).
+
+1. In het **Publitool-project**: Connect → Session pooler → noteer de host (bv. `aws-0-eu-central-1.pooler.supabase.com`). Het databankwachtwoord vind je onder Database settings.
+2. In de SQL Editor van **Toolen**: `0002_import_flcs.sql` plakken, `HOST` en `WACHTWOORD` invullen (stap 1 van het script), Run.
+3. Onderaan staat de controle: per tabel bron = toolen → `ok`. Op het einde worden de verbinding en het wachtwoord weer verwijderd.
+4. Bestanden: open `flcs.toolen.be/maps/beheer/import` (of `toolen-theta.vercel.app/maps/beheer/import?org=flcs`) → Kopiëren. Enkel voor platformbeheerders.
+
+Lokaal getest met een nagebootste FLCS-bron (adressen omgezet, gebruikers gekoppeld, twee keer na elkaar gedraaid).
+
+Koppelingen met stock en GridLab staan enkel aan voor organisaties met de module `stock` of `gridlab` (in `organisaties.modules`). In Toolen bestaan die schema's niet, dus voorlopig uit.
+
 ### Nog open
 
 - Bestanden: lezen is publiek, opladen kan iedereen die in een organisatie mag schrijven, wijzigen en wissen enkel wie het bestand opleverde of een beheerder. Paden per organisatie (`<organisatie_id>/…`) volgen bij de dataverhuis.

@@ -1,5 +1,6 @@
 'use client';
 
+import { heeftKoppeling } from './merk';
 import { Beachvlag } from './BrandingPaneel';
 import { voorbeeldVan } from './branding';
 import Info from './info';
@@ -67,6 +68,7 @@ export default function BibliotheekBeheer() {
   const [artikels, setArtikels] = useState([]);
   useEffect(() => {
     // Stock-artikels (alleen lezen) om een element aan te koppelen.
+    if (!heeftKoppeling('stock')) return;
     sb().schema('logistiek').from('artikels').select('id, code, naam, aantal_totaal').order('naam').limit(2000)
       .then(({ data }) => setArtikels(data || []));
   }, []);

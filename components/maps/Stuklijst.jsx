@@ -1,5 +1,6 @@
 'use client';
 
+import { heeftKoppeling } from './merk';
 import { POWERLOCK_ADERS, kabelStukken } from './stroom';
 import Info from './info';
 import { useEffect, useMemo, useState } from 'react';
@@ -393,7 +394,7 @@ export default function Stuklijst({ items: alleItems, elementen, lagen, actieveF
   const [stock, setStock] = useState({});
   const artikelIds = [...new Set(s.elementen.map((e) => e.artikel_id).filter(Boolean))].join(',');
   useEffect(() => {
-    if (!artikelIds) return;
+    if (!artikelIds || !heeftKoppeling('stock')) return;
     sb().schema('logistiek').from('artikels').select('id, aantal_totaal').in('id', artikelIds.split(','))
       .then(({ data }) => setStock(Object.fromEntries((data || []).map((a) => [a.id, a.aantal_totaal]))));
   }, [artikelIds]);
