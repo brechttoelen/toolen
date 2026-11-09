@@ -1,10 +1,10 @@
 import { supabaseServer } from "@/lib/supabase/server";
-import { ToolenWoordmerk } from "@/components/ToolenLogo";
+import Inlogkader from "@/components/Inlogkader";
 import Aanvaarden from "./Aanvaarden";
 
 export const metadata = { title: "Uitnodiging" };
 
-const ROL: Record<string, string> = { eigenaar: "eigenaar", beheerder: "beheerder", bewerker: "bewerker", lezer: "lezer" };
+const ROL: Record<string, string> = { eigenaar: "eigenaar", beheerder: "beheerder", bewerker: "bewerker", lezer: "lezer" }; // midden in een zin
 type Info = { email: string; rol: string; organisatie: string; slug: string; geldig: boolean; aanvaard: boolean; door: string | null } | null;
 
 export default async function Uitnodiging({ params }: { params: Promise<{ token: string }> }) {
@@ -15,18 +15,17 @@ export default async function Uitnodiging({ params }: { params: Promise<{ token:
   const ik = auth.user?.email?.toLowerCase();
 
   return (
-    <div className="t-pagina" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div className="t-kaart" style={{ width: "100%", maxWidth: 440, padding: 32 }}>
-        <ToolenWoordmerk op="licht" product="maps" />
+    <Inlogkader>
+      <div>
         {!info || !info.geldig ? (
           <>
-            <h1 className="t-titel" style={{ fontSize: 20, marginTop: 24 }}>Uitnodiging niet geldig</h1>
+            <h1 className="t-titel" style={{ fontSize: 28 }}>Uitnodiging niet geldig</h1>
             <p className="t-sub">{info?.aanvaard ? "Deze uitnodiging is al aanvaard." : "Deze link is verlopen of bestaat niet. Vraag een nieuwe uitnodiging."}</p>
             <p style={{ marginTop: 20 }}><a className="t-knop" href="/kies">Naar je organisaties</a></p>
           </>
         ) : (
           <>
-            <h1 className="t-titel" style={{ fontSize: 20, marginTop: 24 }}>Uitnodiging voor {info.organisatie}</h1>
+            <h1 className="t-titel" style={{ fontSize: 28 }}>Uitnodiging voor {info.organisatie}</h1>
             <p className="t-sub">
               {info.door ? `${info.door} nodigt je uit` : "Je bent uitgenodigd"} als {ROL[info.rol] || info.rol} van {info.organisatie} in Toolen Maps.
             </p>
@@ -43,6 +42,6 @@ export default async function Uitnodiging({ params }: { params: Promise<{ token:
           </>
         )}
       </div>
-    </div>
+    </Inlogkader>
   );
 }

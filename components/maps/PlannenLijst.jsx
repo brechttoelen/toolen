@@ -1,14 +1,14 @@
 'use client';
 
 import { bevestig, AppDialogen } from './dialoog';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './maps.css';
 import { maps, sb, foutTekst, wieBenIk, magSchrijven } from './db';
 import { startLobby } from './live';
 import { Avatar } from './Aanwezigheid';
 import { STANDAARD_LAGEN, STANDAARD_FASEN } from './stijl';
 import { regioVan } from './geo';
-import { laadEvents, maakEvent, kleurVoor, eventDatum } from './events';
+import { laadEvents, maakEvent, kleurVoor, eventDatum, groepeer } from './events';
 
 const nieuwId = () => crypto.randomUUID();
 
@@ -183,6 +183,55 @@ function wieIn(state) {
 
 // Zo lang blijft een plan in de prullenbak voor het definitief verwijderd kan worden.
 const BEWAAR = 90;
+const datumKort = (t) => new Date(t).toLocaleDateString('nl-BE', { day: 'numeric', month: 'short' });
+
+// Kaart met alle plannen: een punt per plan in de kleur van zijn event.
+function PlannenKaart({ plannen, kleurVan, onKies }) {
+  const ref = useRef(null); const kaart = useRef(null);
+  const [klaar, setKlaar] = useState(false);
+  const klikRef = useRef(onKies); klikRef.current = onKies;
+  const punten = useMemo(() => ({
+    type: 'FeatureCollection',
+    features: plannen.filter((p) => Array.isArray(p.centrum) && p.centrum.length === 2).map((p) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: p.centrum }, properties: { id: p.id, naam: p.naam, kleur: kleurVan(p) } })),
+  }), [plannen, kleurVan]);
+  useEffect(() => {
+    let weg = false; let map = null;
+    (async () => {
+      const maplibregl = (await import('maplibre-gl')).default;
+      await import('maplibre-gl/dist/maplibre-gl.css');
+      const { basisStijl, registreerProtocollen } = await import('./ondergronden');
+      if (weg || !ref.current) return;
+      registreerProtocollen();
+      map = new maplibregl.Map({ container: ref.current, style: basisStijl('lijntekening'), center: [4.2, 50.95], zoom: 7.4, attributionControl: { compact: true } });
+      kaart.current = map;
+      const opzet = () => {
+        if (weg || map.getSource('plannen')) return;
+        map.addSource('plannen', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addLayer({ id: 'plannen-rand', type: 'circle', source: 'plannen', paint: { 'circle-radius': 9, 'circle-color': '#fff' } });
+        map.addLayer({ id: 'plannen', type: 'circle', source: 'plannen', paint: { 'circle-radius': 6, 'circle-color': ['get', 'kleur'] } });
+        map.addLayer({ id: 'plannen-naam', type: 'symbol', source: 'plannen', layout: { 'text-field': ['get', 'naam'], 'text-font': ['Noto Sans Regular'], 'text-size': 12, 'text-offset': [0, 1.3], 'text-anchor': 'top', 'text-optional': true }, paint: { 'text-color': '#0E1A33', 'text-halo-color': '#fff', 'text-halo-width': 1.6 } });
+        map.on('click', 'plannen', (e) => { const id = e.features?.[0]?.properties?.id; if (id) klikRef.current(id); });
+        map.on('mouseenter', 'plannen', () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', 'plannen', () => { map.getCanvas().style.cursor = ''; });
+        setKlaar(true);
+      };
+      // Bronnen mogen erbij zodra de stijl er is; 'load' wacht ook op alle tegels (die soms nooit komen).
+      const probeer = () => { if (map.style?._loaded) { opzet(); return true; } return false; };
+      if (!probeer()) { const h = () => { if (probeer()) map.off('styledata', h); }; map.on('styledata', h); }
+    })();
+    return () => { weg = true; map?.remove(); kaart.current = null; setKlaar(false); };
+  }, []);
+  useEffect(() => {
+    const map = kaart.current; const bron = klaar && map?.getSource('plannen'); if (!bron) return;
+    bron.setData(punten);
+    const c = punten.features.map((f) => f.geometry.coordinates);
+    if (c.length) {
+      const xs = c.map((x) => x[0]); const ys = c.map((x) => x[1]);
+      map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: 60, maxZoom: 14, duration: 0 });
+    }
+  }, [punten, klaar]);
+  return <div ref={ref} role="region" aria-label="Kaart met alle plannen" style={{ position: 'absolute', inset: 0 }} />;
+}
 
 export default function PlannenLijst() {
   const [plannen, setPlannen] = useState([]);
@@ -190,11 +239,12 @@ export default function PlannenLijst() {
   const [fout, setFout] = useState('');
   const [laden, setLaden] = useState(true);
   const [zoek, setZoek] = useState('');
-  const [nieuw, setNieuw] = useState(false);
+  const [filter, setFilter] = useState('');
+  const [nieuw, setNieuw] = useState(null);
   const [aanwezig, setAanwezig] = useState(new Map());
   const [ev, setEv] = useState({ events: [], ok: false });
+  const [kaartAan, setKaartAan] = useState(true);
   useEffect(() => { laadEvents().then(setEv); }, []);
-  const eventVan = (p) => ev.events.find((e) => e.id === p.event_id) || null;
   useEffect(() => { const l = startLobby({ client: sb(), onState: (st) => setAanwezig(wieIn(st)) }); return () => l.stop(); }, []);
 
   useEffect(() => {
@@ -209,85 +259,125 @@ export default function PlannenLijst() {
   // Verwijderen = naar de prullenbak. Definitief wissen kan pas na 90 dagen in de prullenbak (de database bewaakt dat ook).
   const [prullenbak, setPrullenbak] = useState(false);
   const zet = (id, patch) => setPlannen((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  const bewaar = async (p, patch) => {
+    const { error } = await maps().from('plannen').update(patch).eq('id', p.id);
+    if (error) { setFout(foutTekst(error)); return false; }
+    zet(p.id, patch); return true;
+  };
   const verwijder = async (p) => {
-    if (!await bevestig(`Plan "${p.naam}" naar de prullenbak? Je kan het daar terugzetten; definitief verwijderen kan pas na ${BEWAAR} dagen.`)) return;
-    const patch = { verwijderd_op: new Date().toISOString(), verwijderd_door: profiel?.id || null };
-    const { error } = await maps().from('plannen').update(patch).eq('id', p.id);
-    if (error) { setFout(foutTekst(error)); return; }
-    zet(p.id, patch);
+    if (!await bevestig(`Plan "${p.naam}" naar de prullenbak? Je kan het daar terugzetten. Definitief verwijderen kan pas na ${BEWAAR} dagen.`)) return;
+    bewaar(p, { verwijderd_op: new Date().toISOString(), verwijderd_door: profiel?.id || null });
   };
-  const terugzetten = async (p) => {
-    const patch = { verwijderd_op: null, verwijderd_door: null };
-    const { error } = await maps().from('plannen').update(patch).eq('id', p.id);
-    if (error) { setFout(foutTekst(error)); return; }
-    zet(p.id, patch);
-  };
+  const terugzetten = (p) => bewaar(p, { verwijderd_op: null, verwijderd_door: null });
   const wis = async (p) => {
     if (!await bevestig(`Plan "${p.naam}" en alles erin definitief verwijderen? Dit kan niet ongedaan gemaakt worden.`)) return;
     const { error } = await maps().from('plannen').delete().eq('id', p.id);
     if (error) { setFout(foutTekst(error)); return; }
     setPlannen((l) => l.filter((x) => x.id !== p.id));
   };
+  const koppel = (p, eventId) => {
+    const e = ev.events.find((x) => x.id === eventId);
+    bewaar(p, { event_id: eventId || null, ...(e ? { editie_naam: e.naam } : {}) });
+  };
 
   const schrijven = magSchrijven(profiel);
   const weg = plannen.filter((p) => p.verwijderd_op);
-  const lijst = plannen.filter((p) => !!p.verwijderd_op === prullenbak).filter((p) => !zoek || [p.naam, p.editie_naam, p.locatie].join(' ').toLowerCase().includes(zoek.toLowerCase()));
+  const q = zoek.trim().toLowerCase();
+  const lijst = plannen.filter((p) => !!p.verwijderd_op === prullenbak)
+    .filter((p) => !q || [p.naam, p.editie_naam, p.locatie].join(' ').toLowerCase().includes(q))
+    .filter((p) => !filter || (filter === 'geen' ? !p.event_id : p.event_id === filter));
+  const groepen = useMemo(() => {
+    const g = groepeer(lijst, ev.events, ev.ok).filter((x) => x.plannen.length);
+    const vandaag = new Date().toISOString().slice(0, 10);
+    g.sort((a, b) => (!a.datum) - (!b.datum) || ((a.datum < vandaag) - (b.datum < vandaag)) || String(a.datum || a.naam).localeCompare(String(b.datum || b.naam)));
+    const los = lijst.filter((p) => !g.some((x) => x.plannen.includes(p)));
+    if (los.length) g.push({ id: 'geen', naam: 'Zonder event', kleur: '#CFD7E3', datum: null, plannen: los, los: true });
+    return g;
+  }, [lijst, ev]);
+  const kleurVan = useMemo(() => { const m = new Map(groepen.flatMap((g) => g.plannen.map((p) => [p.id, g.kleur]))); return (p) => m.get(p.id) || '#8492A8'; }, [groepen]);
+
+  const pil = (d) => <span className={`t-pil ${d ? 'ok' : 'let-op'}`}>{d ? 'Definitief' : 'Concept'}</span>;
 
   return (
-    <div className="fm">
+    <div className="fm" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--t-vlak)', fontFamily: 'var(--font-sans)' }}>
       <AppDialogen />
-      <header style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', padding: '20px 32px', background: '#fff', borderBottom: '1px solid #e8e8e6' }}>
-        <div style={{ flex: '1 1 280px' }}>
-          <h1 className="t-titel">Plannen</h1>
-        </div>
-        <label className="fm-veld" style={{ flex: '0 1 320px' }}><span style={{ position: 'absolute', left: -9999 }}>Zoek een plan</span>
-          <input type="search" value={zoek} onChange={(e) => setZoek(e.target.value)} placeholder="Zoek op naam, editie of plaats" style={{ height: 40 }} />
+      <header style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', padding: '24px 28px 16px', background: '#fff', borderBottom: '1px solid var(--t-rand)' }}>
+        <h1 className="t-titel" style={{ flex: '1 1 200px' }}>{prullenbak ? 'Prullenbak' : 'Plannen'}</h1>
+        <label style={{ display: 'flex', alignItems: 'center', height: 40, padding: '0 12px', border: '1px solid var(--t-rand-2)', borderRadius: 8, flex: '0 1 300px', background: '#fff' }}>
+          <span style={{ position: 'absolute', left: -9999 }}>Zoek een plan</span>
+          <input type="search" value={zoek} onChange={(e) => setZoek(e.target.value)} placeholder="Zoek op naam, event of plaats" style={{ all: 'unset', flex: 1, fontSize: 14 }} />
         </label>
-        {(weg.length > 0 || prullenbak) && <button className={`fm-knop${prullenbak ? ' zwart' : ''}`} style={{ height: 40 }} onClick={() => setPrullenbak((x) => !x)}>{prullenbak ? 'Terug naar de plannen' : `Prullenbak (${weg.length})`}</button>}
-        {schrijven && !prullenbak && <button className="fm-knop rood" style={{ height: 40 }} onClick={() => setNieuw(true)}>Nieuw plan</button>}
+        {ev.ok && !prullenbak && (
+          <label><span style={{ position: 'absolute', left: -9999 }}>Event</span>
+            <select className="t-veld" style={{ height: 40, width: 'auto' }} value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="">Alle events</option>
+              {ev.events.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}
+              <option value="geen">Zonder event</option>
+            </select>
+          </label>
+        )}
+        {!prullenbak && <button className="t-knop" style={{ height: 40 }} aria-pressed={kaartAan} onClick={() => setKaartAan(!kaartAan)}>{kaartAan ? 'Kaart verbergen' : 'Kaart tonen'}</button>}
+        {(weg.length > 0 || prullenbak) && <button className="t-knop" style={{ height: 40 }} onClick={() => setPrullenbak((x) => !x)}>{prullenbak ? 'Terug naar de plannen' : `Prullenbak · ${weg.length}`}</button>}
+        {schrijven && !prullenbak && <button className="t-knop hoofd" style={{ height: 40, padding: '0 16px', fontSize: 14 }} onClick={() => setNieuw('')}>Nieuw plan</button>}
       </header>
-      {fout && <div style={{ padding: '16px 32px' }}><div className="fm-melding fout">{fout}</div></div>}
-      {laden && <div style={{ padding: 32 }} className="fm-sub">Laden…</div>}
-      {!laden && !fout && !lijst.length && <div style={{ padding: 32 }} className="fm-sub">{prullenbak ? 'De prullenbak is leeg.' : plannen.length ? 'Geen plannen gevonden.' : 'Nog geen plannen. Maak het eerste aan met "Nieuw plan".'}</div>}
-      {prullenbak && lijst.length > 0 && <div style={{ padding: '12px 32px 0' }} className="fm-sub">Plannen in de prullenbak blijven {BEWAAR} dagen bewaard voor je ze definitief kan verwijderen. Terugzetten kan altijd.</div>}
-      <div className="fm-lijst">
-        {lijst.map((p) => (
-          <div key={p.id} className="fm-kaartje">
-            <a href={`/maps/${p.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: 6, background: eventVan(p)?.kleur || '#CFD7E3' }} />
-              <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span className="fm-sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{eventVan(p) && <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: eventVan(p).kleur }} />}{eventVan(p)?.naam || p.editie_naam || 'Zonder event'}</span>
-                <strong style={{ fontSize: 16 }}>{p.naam}</strong>
-                {(aanwezig.get(p.id) || []).length > 0 && (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }} title={(aanwezig.get(p.id) || []).map((x) => x.naam).join(', ')}>
-                    {(aanwezig.get(p.id) || []).slice(0, 4).map((x) => <Avatar key={x.uid} p={x} maat={22} />)}
-                    <span className="fm-sub">{(aanwezig.get(p.id) || []).map((x) => x.naam).join(', ')} {(aanwezig.get(p.id) || []).length === 1 ? 'werkt' : 'werken'} hierin</span>
-                  </span>
-                )}
-                <span className="fm-sub">Versie {p.versie} · {p.items?.[0]?.count ?? 0} items · bewerkt {new Date(p.updated_at).toLocaleDateString('nl-BE')}</span>
-                <span style={{ display: 'flex', gap: 6 }}>
-                  <span className={`fm-tag ${p.status === 'definitief' ? 'groen' : 'oranje'}`}>{p.status === 'definitief' ? 'Definitief' : 'Concept'}</span>
-                  {p.locatie && <span className="fm-tag">{p.locatie}</span>}
-                </span>
+
+      <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', minHeight: 0 }}>
+        <section aria-label="Lijst van plannen" style={{ flex: '1 1 520px', minWidth: 0, padding: '18px 24px 40px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {fout && <div className="t-melding fout">{fout}</div>}
+          {laden && <p className="t-stil">Laden…</p>}
+          {!laden && !fout && !lijst.length && <p className="t-sub">{prullenbak ? 'De prullenbak is leeg.' : plannen.length ? 'Geen plannen gevonden.' : 'Nog geen plannen. Maak het eerste aan met "Nieuw plan".'}</p>}
+          {prullenbak && lijst.length > 0 && <p className="t-sub" style={{ margin: 0 }}>Plannen in de prullenbak blijven {BEWAAR} dagen bewaard voor je ze definitief kan verwijderen. Terugzetten kan altijd.</p>}
+          {groepen.map((g) => (
+            <div key={g.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <h2 style={{ margin: 0, background: g.los ? 'transparent' : g.kleur, color: g.los ? 'var(--t-tekst-2)' : '#fff', fontFamily: 'var(--font-titel)', fontStretch: '112%', fontWeight: 700, fontSize: 15, padding: g.los ? 0 : '5px 11px', borderRadius: 6 }}>{g.naam}</h2>
+                {g.datum && <span className="t-sub" style={{ margin: 0 }}>{eventDatum(g.datum)}</span>}
+                <span className="t-stil" style={{ fontSize: 12.5 }}>{g.plannen.length} {g.plannen.length === 1 ? 'plan' : 'plannen'}</span>
+                {schrijven && !prullenbak && !g.los && ev.ok && <button className="t-knop klein stil" style={{ marginLeft: 'auto' }} onClick={() => setNieuw(g.id)}>Plan toevoegen</button>}
               </div>
-            </a>
-            {schrijven && !p.verwijderd_op && <div style={{ padding: '0 16px 12px' }}><button className="fm-knop klein gevaar" onClick={() => verwijder(p)}>Naar de prullenbak</button></div>}
-            {schrijven && p.verwijderd_op && (() => {
-              const vanaf = new Date(new Date(p.verwijderd_op).getTime() + BEWAAR * 864e5); const mag = Date.now() >= vanaf.getTime();
-              return (
-                <div style={{ padding: '0 16px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <span className="fm-sub">In de prullenbak sinds {new Date(p.verwijderd_op).toLocaleDateString('nl-BE')}</span>
-                  <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <button className="fm-knop klein" onClick={() => terugzetten(p)}>Terugzetten</button>
-                    <button className="fm-knop klein gevaar" disabled={!mag} title={mag ? 'Plan en alles erin definitief verwijderen' : `Kan vanaf ${vanaf.toLocaleDateString('nl-BE')}`} onClick={() => wis(p)}>{mag ? 'Definitief verwijderen' : `Wissen vanaf ${vanaf.toLocaleDateString('nl-BE')}`}</button>
-                  </span>
-                </div>
-              );
-            })()}
-          </div>
-        ))}
+              <div style={{ background: '#fff', border: '1px solid var(--t-rand)', borderRadius: 10, overflow: 'hidden' }}>
+                {g.plannen.map((p, k) => {
+                  const wie = aanwezig.get(p.id) || [];
+                  const vanaf = p.verwijderd_op ? new Date(new Date(p.verwijderd_op).getTime() + BEWAAR * 864e5) : null;
+                  return (
+                    <div key={p.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: k ? '1px solid #EEF1F5' : 0 }}>
+                      <span aria-hidden="true" style={{ width: 4, alignSelf: 'stretch', borderRadius: 2, background: g.kleur }} />
+                      <a href={p.verwijderd_op ? undefined : `/maps/${p.id}`} style={{ flex: '1 1 220px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2, color: 'var(--t-tekst)', textDecoration: 'none' }}>
+                        <span style={{ fontSize: 15, fontWeight: 600 }}>{p.naam}</span>
+                        <span className="t-stil" style={{ fontSize: 12.5 }}>{[p.locatie, `${p.items?.[0]?.count ?? 0} items`, `Versie ${p.versie}`, `Bewerkt ${datumKort(p.updated_at)}`].filter(Boolean).join(' · ')}</span>
+                      </a>
+                      {wie.length > 0 && <span style={{ display: 'flex', gap: 4 }} title={`${wie.map((x) => x.naam).join(', ')} ${wie.length === 1 ? 'werkt' : 'werken'} hierin`}>{wie.slice(0, 4).map((x) => <Avatar key={x.uid} p={x} maat={24} />)}</span>}
+                      {!p.verwijderd_op && pil(p.status === 'definitief')}
+                      {schrijven && !p.verwijderd_op && ev.ok && (
+                        <label><span style={{ position: 'absolute', left: -9999 }}>Event van {p.naam}</span>
+                          <select className="t-veld" style={{ height: 30, width: 'auto', fontSize: 12.5 }} value={p.event_id || ''} onChange={(e) => koppel(p, e.target.value)}>
+                            <option value="">Zonder event</option>
+                            {ev.events.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}
+                          </select>
+                        </label>
+                      )}
+                      {schrijven && !p.verwijderd_op && <button className="t-knop klein stil gevaar" onClick={() => verwijder(p)}>Naar de prullenbak</button>}
+                      {schrijven && p.verwijderd_op && (
+                        <span className="t-rij" style={{ gap: 6 }}>
+                          <span className="t-stil" style={{ fontSize: 12.5 }}>In de prullenbak sinds {datumKort(p.verwijderd_op)}</span>
+                          <button className="t-knop klein" onClick={() => terugzetten(p)}>Terugzetten</button>
+                          <button className="t-knop klein gevaar" disabled={Date.now() < vanaf.getTime()} title={Date.now() >= vanaf.getTime() ? 'Plan en alles erin definitief verwijderen' : `Kan vanaf ${vanaf.toLocaleDateString('nl-BE')}`} onClick={() => wis(p)}>{Date.now() >= vanaf.getTime() ? 'Definitief verwijderen' : `Wissen vanaf ${datumKort(vanaf)}`}</button>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </section>
+        {kaartAan && !prullenbak && (
+          <section style={{ flex: '1 1 420px', minHeight: 480, position: 'relative', borderLeft: '1px solid var(--t-rand)', background: '#EDF0F4' }}>
+            <PlannenKaart plannen={lijst} kleurVan={kleurVan} onKies={(id) => { window.location.href = `/maps/${id}`; }} />
+          </section>
+        )}
       </div>
-      {nieuw && <NieuwPlan plannen={plannen} onSluit={() => setNieuw(false)} />}
+      {nieuw !== null && <NieuwPlan plannen={plannen} startEvent={nieuw} onSluit={() => setNieuw(null)} />}
     </div>
   );
 }

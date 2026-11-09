@@ -1568,7 +1568,7 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-link { background: none; border: 0; padding: 0; color: #1E3A8A; text-decoration: underline; cursor: pointer; font-size: inherit; }
 
 .fm-fblijst { max-width: 980px; width: 100%; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 12px; }
-.fm-fblijst-kop h1 { font-size: 20px; margin: 0 0 4px; }
+.fm-fblijst-kop h1 { margin: 0 0 4px; }
 .fm-fblijst-filter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .fm-fblijst-filter input { height: 28px; border: 1px solid var(--fm-rand2); padding: 0 8px; min-width: 220px; flex: 1; font: inherit; }
 .fm-fblijst-plekken { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -1800,7 +1800,7 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 /* Leverancierslijst */
 .fm-levb { height: calc(100vh - 48px); display: flex; flex-direction: column; background: var(--fm-bg); font-size: 12.5px; }
 .fm-levb-kop { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 20px 32px; background: #fff; border-bottom: 1px solid #e8e8e6; }
-.fm-levb-kop h1 { margin: 0; font-size: 22px; font-weight: 600; }
+.fm-levb-kop h1 { margin: 0; }
 .fm-levb-kop p { margin: 4px 0 0; font-size: 13px; }
 .fm-levb-zoek { height: 40px; border: 1px solid var(--fm-rand2); padding: 0 10px; flex: 0 1 340px; min-width: 0; }
 .fm-levb-body { display: grid; grid-template-columns: 220px minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); flex: 1 1 auto; min-height: 0; }

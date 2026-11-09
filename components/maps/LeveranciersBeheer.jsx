@@ -93,7 +93,7 @@ export default function LeveranciersBeheer() {
       <AppDialogen />
       <header className="fm-levb-kop">
         <div style={{ flex: '1 1 280px' }}>
-          <h1>Leveranciers</h1>
+          <h1 className="t-titel">Leveranciers</h1>
           <p className="fm-sub">Wie levert wat, waar en met wie je contact hebt. Dezelfde categorieën als de bibliotheek. <a href="/maps/bibliotheek">Naar de bibliotheek</a></p>
         </div>
         <input type="search" className="fm-levb-zoek" placeholder="Zoek op naam, gemeente, contact of project" aria-label="Zoek leverancier" value={zoek} onChange={(e) => setZoek(e.target.value)} />

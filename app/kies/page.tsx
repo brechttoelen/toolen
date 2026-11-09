@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { supabaseServer } from "@/lib/supabase/server";
 import { HOOFDDOMEIN } from "@/lib/org";
-import Kop from "@/components/Kop";
+import Inlogkader from "@/components/Inlogkader";
 
 export const metadata = { title: "Je organisaties" };
 
@@ -33,31 +33,29 @@ export default async function Kies() {
   if (lijst.length === 1 && !pb) redirect(adres(lijst[0].slug));
 
   return (
-    <div className="t-pagina">
-      <Kop gebruiker={{ naam: profiel?.naam, email: auth.user.email }} platform={!!pb} organisaties={lijst.map((o) => ({ slug: o.slug, naam: o.naam, rol: o.rol }))} />
-      <main className="t-inhoud" style={{ maxWidth: 640 }}>
-        <h1 className="t-titel">Je organisaties</h1>
-        <p className="t-sub">Kies waar je wil werken.</p>
-        <div className="t-kaart" style={{ marginTop: 24 }}>
-          {lijst.length === 0 && (
-            <p style={{ padding: 20, margin: 0 }} className="t-stil">
-              {auth.user.email} is nog geen lid van een organisatie. Vraag een uitnodiging aan de beheerder van je organisatie.
-            </p>
-          )}
-          {lijst.map((o, i) => (
-            <a key={o.id} href={adres(o.slug)} className="t-rij"
-              style={{ padding: "16px 20px", borderTop: i ? "1px solid var(--t-rand)" : 0, color: "var(--t-tekst)" }}>
-              <span style={{ flex: 1 }}>
-                <span style={{ display: "block", fontWeight: 500, fontSize: 15 }}>{o.naam}</span>
-                <span className="t-stil" style={{ fontSize: 13 }}>{o.slug}.{HOOFDDOMEIN}</span>
-              </span>
-              {STATUS[o.status] && <span className={`t-pil ${o.status === "proef" ? "blauw" : "let-op"}`}>{STATUS[o.status]}</span>}
-              <span className="t-pil">{ROL[o.rol] || o.rol}</span>
-            </a>
-          ))}
-        </div>
-        {pb && <p style={{ marginTop: 24 }}><a className="t-knop" href="/beheer">Platformbeheer</a></p>}
-      </main>
-    </div>
+    <Inlogkader>
+      <h2 className="t-titel" style={{ fontSize: 28 }}>Je organisaties</h2>
+      <p className="t-sub" style={{ marginBottom: 20 }}>Kies waar je wil werken.</p>
+      {lijst.length === 0 && (
+        <p className="t-melding">{auth.user.email} is nog geen lid van een organisatie. Vraag een uitnodiging aan de beheerder van je organisatie.</p>
+      )}
+      <div className="t-stapel" style={{ gap: 10 }}>
+        {lijst.map((o) => (
+          <a key={o.id} href={adres(o.slug)} className="t-kaart t-rij" style={{ padding: 12, color: "var(--t-tekst)", textDecoration: "none" }}>
+            <span style={{ width: 40, height: 40, borderRadius: 8, background: "var(--t-navy)", color: "#fff", fontSize: 11, fontWeight: 700, display: "grid", placeItems: "center", flex: "none" }}>{o.naam.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase()}</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontWeight: 600, fontSize: 15 }}>{o.naam}</span>
+              <span className="t-stil" style={{ fontSize: 13 }}>{o.slug}.{HOOFDDOMEIN}</span>
+            </span>
+            {STATUS[o.status] && <span className={`t-pil ${o.status === "proef" ? "blauw" : "let-op"}`}>{STATUS[o.status]}</span>}
+            <span className="t-pil">{ROL[o.rol] || o.rol}</span>
+          </a>
+        ))}
+      </div>
+      <div className="t-rij" style={{ marginTop: 24, justifyContent: "space-between" }}>
+        <span className="t-stil" style={{ fontSize: 13 }}>Ingelogd als {profiel?.naam || auth.user.email}</span>
+        {pb && <a className="t-knop" href="/beheer">Platformbeheer</a>}
+      </div>
+    </Inlogkader>
   );
 }

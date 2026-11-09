@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { veiligVerder } from "@/lib/verder";
-import { ToolenWoordmerk } from "./ToolenLogo";
+import Inlogkader from "./Inlogkader";
 
 // Inloggen met een link per mail, Microsoft (werk- of schoolaccount) of Google.
 export default function InlogScherm() {
@@ -43,38 +43,39 @@ export default function InlogScherm() {
   }
 
   return (
-    <div className="t-pagina" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div className="t-kaart" style={{ width: "100%", maxWidth: 400, padding: 32 }}>
-        <ToolenWoordmerk op="licht" product="maps" />
-        <h1 className="t-titel" style={{ fontSize: 20, margin: "28px 0 20px" }}>Inloggen</h1>
-        <div className="t-stapel" style={{ gap: 10 }}>
-          <button type="button" className="t-knop" style={{ justifyContent: "flex-start" }} onClick={() => via("azure")}>Verder met Microsoft</button>
-          <button type="button" className="t-knop" style={{ justifyContent: "flex-start" }} onClick={() => via("google")}>Verder met Google</button>
-        </div>
-        <div className="t-stil" style={{ margin: "24px 0 12px", fontSize: 13 }}>
-          {metWachtwoord ? "of met je wachtwoord" : "of met een link per mail"}
-          {" · "}
+    <Inlogkader>
+        <div>
+          <h2 className="t-titel" style={{ fontSize: 28, marginBottom: 6 }}>Inloggen</h2>
+          <p className="t-sub" style={{ marginBottom: 22 }}>Gebruik het account van je werk.</p>
+          <div className="t-stapel" style={{ gap: 10 }}>
+            <button type="button" className="t-knop" style={{ height: 46, fontSize: 14.5 }} onClick={() => via("azure")}>Verder met Microsoft</button>
+            <button type="button" className="t-knop" style={{ height: 46, fontSize: 14.5 }} onClick={() => via("google")}>Verder met Google</button>
+          </div>
+          <div className="t-stil" style={{ margin: "22px 0 12px", fontSize: 13, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ flex: 1, height: 1, background: "var(--t-rand-2)" }} />
+            {metWachtwoord ? "Of met je wachtwoord" : "Of met een link per mail"}
+            <span style={{ flex: 1, height: 1, background: "var(--t-rand-2)" }} />
+          </div>
+          {metWachtwoord ? (
+            <form onSubmit={viaWachtwoord} className="t-stapel" style={{ gap: 10 }}>
+              <label><span className="t-label">E-mailadres</span><input className="t-veld" style={{ height: 44 }} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="naam@bedrijf.be" autoComplete="username" /></label>
+              <label><span className="t-label">Wachtwoord</span><input className="t-veld" style={{ height: 44 }} type="password" required value={wachtwoord} onChange={(e) => setWachtwoord(e.target.value)} autoComplete="current-password" /></label>
+              <button type="submit" className="t-knop hoofd" style={{ height: 46, fontSize: 14.5 }} disabled={status === "bezig"}>{status === "bezig" ? "Bezig…" : "Inloggen"}</button>
+            </form>
+          ) : status === "verstuurd" ? (
+            <p className="t-melding ok">Kijk in je mailbox: we stuurden een link naar {email}. Niets gekregen? Kijk ook bij spam.</p>
+          ) : (
+            <form onSubmit={viaMail} className="t-stapel" style={{ gap: 10 }}>
+              <label><span className="t-label">E-mailadres</span><input className="t-veld" style={{ height: 44 }} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="naam@bedrijf.be" autoComplete="email" /></label>
+              <button type="submit" className="t-knop hoofd" style={{ height: 46, fontSize: 14.5 }} disabled={status === "bezig"}>{status === "bezig" ? "Bezig…" : "Stuur me een inloglink"}</button>
+            </form>
+          )}
           <button type="button" onClick={() => { setMetWachtwoord(!metWachtwoord); setFout(""); }}
-            style={{ border: 0, background: "none", padding: 0, color: "var(--t-blauw)", cursor: "pointer", font: "inherit" }}>
-            {metWachtwoord ? "link per mail" : "wachtwoord"}
+            style={{ border: 0, background: "none", padding: "14px 0 0", color: "var(--t-blauw-donker)", cursor: "pointer", font: "inherit", fontSize: 13.5 }}>
+            {metWachtwoord ? "Liever een link per mail" : "Liever met een wachtwoord"}
           </button>
+          {fout && <p className="t-melding fout" style={{ marginTop: 16 }}>{fout}</p>}
         </div>
-        {metWachtwoord ? (
-          <form onSubmit={viaWachtwoord} className="t-stapel" style={{ gap: 10 }}>
-            <input className="t-veld" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="naam@bedrijf.be" autoComplete="username" />
-            <input className="t-veld" type="password" required value={wachtwoord} onChange={(e) => setWachtwoord(e.target.value)} placeholder="Wachtwoord" autoComplete="current-password" />
-            <button type="submit" className="t-knop hoofd" disabled={status === "bezig"}>{status === "bezig" ? "Bezig…" : "Inloggen"}</button>
-          </form>
-        ) : status === "verstuurd" ? (
-          <p className="t-melding ok">Kijk in je mailbox: we stuurden een link naar {email}. Niets gekregen? Kijk ook bij spam.</p>
-        ) : (
-          <form onSubmit={viaMail} className="t-stapel" style={{ gap: 10 }}>
-            <input className="t-veld" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="naam@bedrijf.be" autoComplete="email" />
-            <button type="submit" className="t-knop hoofd" disabled={status === "bezig"}>{status === "bezig" ? "Bezig…" : "Stuur me een link"}</button>
-          </form>
-        )}
-        {fout && <p className="t-melding fout" style={{ marginTop: 16 }}>{fout}</p>}
-      </div>
-    </div>
+    </Inlogkader>
   );
 }

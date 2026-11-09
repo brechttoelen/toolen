@@ -55,13 +55,12 @@ function Kopieer({ tekst, label = "Kopieer link" }: { tekst: string; label?: str
   );
 }
 
-export default function PlatformBeheer() {
+export default function PlatformBeheer({ blad = "organisaties" }: { blad?: "organisaties" | "pakketten" }) {
   const [orgs, setOrgs] = useState<Org[] | null>(null);
   const [fout, setFout] = useState("");
   const [zoek, setZoek] = useState("");
   const [nieuw, setNieuw] = useState(false);
   const [open, setOpen] = useState<Org | null>(null);
-  const [blad, setBlad] = useState<"organisaties" | "pakketten">("organisaties");
   const pk = usePakketten();
 
   async function laad() {
@@ -74,34 +73,36 @@ export default function PlatformBeheer() {
   const tel = (s: string) => (orgs || []).filter((o) => o.status === s).length;
 
   return (
-    <main className="t-inhoud">
-      <div className="t-rij" style={{ alignItems: "flex-end" }}>
-        <div style={{ flex: 1 }}>
-          <h1 className="t-titel">Platformbeheer</h1>
-          <p className="t-sub">Organisaties, pakketten en toegang. Je ziet hier geen plannen van klanten.</p>
+    <main className="t-inhoud" style={{ maxWidth: 1240, margin: 0, padding: "28px 32px 64px" }}>
+      <div className="t-rij" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 300px" }}>
+          <h1 className="t-titel">{blad === "pakketten" ? "Pakketten" : "Organisaties"}</h1>
+          <p className="t-sub">{blad === "pakketten" ? "Standaardwaarden voor nieuwe organisaties: plaatsen, lezers, modules en prijzen." : "Abonnementen en gebruik. Je ziet hier nooit de plannen van klanten."}</p>
         </div>
         {blad === "organisaties" && <button className="t-knop hoofd" onClick={() => setNieuw(true)}>Nieuwe organisatie</button>}
       </div>
 
-      <div className="t-tabs" style={{ marginTop: 20 }}>
-        <button className={blad === "organisaties" ? "aan" : ""} onClick={() => setBlad("organisaties")}>Organisaties</button>
-        <button className={blad === "pakketten" ? "aan" : ""} onClick={() => setBlad("pakketten")}>Pakketten</button>
-      </div>
+<div style={{ height: 16 }} />
 
       {blad === "pakketten" && <PakkettenBeheer pk={pk} orgs={orgs || []} />}
       {blad === "organisaties" && <>
 
       {fout && <p className="t-melding fout" style={{ marginTop: 16 }}>{fout}</p>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginTop: 8 }}>
-        {[["Organisaties", (orgs || []).length], ["Actief", tel("actief")], ["In proef", tel("proef")], ["Aandacht nodig", tel("achterstallig") + tel("alleen_lezen") + tel("geblokkeerd")],
-          ["Plaatsen in gebruik", (orgs || []).reduce((t, o) => t + Number(o.plaatsen_gebruikt || 0), 0)]].map(([k, v]) => (
-          <div key={k as string} className="t-kaart" style={{ padding: "14px 16px" }}>
-            <div className="t-stil" style={{ fontSize: 12.5 }}>{k}</div>
-            <div style={{ fontSize: 24, fontWeight: 600, marginTop: 2 }}>{v as number}</div>
-          </div>
-        ))}
+      <div className="t-kaart" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", overflow: "hidden", marginTop: 8 }}>
+        {STATUSSEN.filter((st) => st.id !== "verwijderd").map((st, i) => {
+          const wie = (orgs || []).filter((o) => o.status === st.id);
+          const kleur = { proef: "var(--t-blauw)", actief: "var(--t-groen)", achterstallig: "var(--t-let-op)", alleen_lezen: "var(--t-let-op)", geblokkeerd: "var(--t-fout)" }[st.id] || "var(--t-rand-2)";
+          return (
+            <div key={st.id} style={{ padding: "14px 18px", borderTop: `4px solid ${kleur}`, borderLeft: i ? "1px solid var(--t-rand)" : 0, display: "flex", flexDirection: "column", gap: 2 }}>
+              <span className="t-stil" style={{ fontSize: 12.5 }}>{st.naam}</span>
+              <span style={{ fontFamily: "var(--font-titel)", fontStretch: "125%", fontWeight: 800, fontSize: 28 }}>{wie.length}</span>
+              <span className="t-sub" style={{ margin: 0, fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{wie.map((o) => o.kort || o.naam).join(", ") || "–"}</span>
+            </div>
+          );
+        })}
       </div>
+      <p className="t-sub" style={{ marginTop: 10 }}>{(orgs || []).length} organisaties · {(orgs || []).reduce((t, o) => t + Number(o.plaatsen_gebruikt || 0), 0)} plaatsen in gebruik</p>
 
       <div className="t-rij" style={{ marginTop: 28, marginBottom: 12 }}>
         <input className="t-veld" style={{ maxWidth: 320 }} placeholder="Zoek op naam, adres of eigenaar" value={zoek} onChange={(e) => setZoek(e.target.value)} />
@@ -131,7 +132,7 @@ export default function PlatformBeheer() {
                   <td>{o.plaatsen_gebruikt} / {o.plaatsen}</td>
                   <td>{o.lezers_gebruikt} / {o.lezers_max}</td>
                   <td>{o.plannen}</td>
-                  <td style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.eigenaars || <span className="t-stil">uitgenodigd</span>}</td>
+                  <td style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.eigenaars || <span className="t-stil">Uitgenodigd</span>}</td>
                   <td className="t-stil">{o.laatste_wijziging ? tijdstip(o.laatste_wijziging) : "–"}</td>
                 </tr>
               );
@@ -449,14 +450,14 @@ function PakkettenBeheer({ pk, orgs }: { pk: ReturnType<typeof usePakketten>; or
             {pk.lijst.map((p) => (
               <tr key={p.id} className={pk.uitDb ? "klik" : ""} onClick={() => pk.uitDb && setOpen(p)}>
                 <td>
-                  <div style={{ fontWeight: 500 }}>{p.naam} {!p.actief && <span className="t-pil">niet actief</span>}</div>
+                  <div style={{ fontWeight: 500 }}>{p.naam} {!p.actief && <span className="t-pil">Niet actief</span>}</div>
                   {p.omschrijving && <div className="t-stil" style={{ fontSize: 12.5 }}>{p.omschrijving}</div>}
                 </td>
                 <td>{p.plaatsen}</td>
                 <td>{p.lezers}</td>
                 <td style={{ maxWidth: 320 }}>
-                  {p.modules.length === MODULES.length - 1 && !p.modules.includes("integraties") ? "alle behalve Integraties"
-                    : p.modules.length === MODULES.length ? "alle" : p.modules.map(moduleNaam).join(", ") || <span className="t-stil">basis</span>}
+                  {p.modules.length === MODULES.length - 1 && !p.modules.includes("integraties") ? "Alle behalve Integraties"
+                    : p.modules.length === MODULES.length ? "Alle" : p.modules.map(moduleNaam).join(", ") || <span className="t-stil">Basis</span>}
                   {p.modules_keuze > 0 && <span className="t-stil"> + {p.modules_keuze} naar keuze</span>}
                 </td>
                 <td>{euro(p.prijs_jaar)}</td>

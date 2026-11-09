@@ -162,3 +162,9 @@ select.t-veld { padding-right: 6px; }
   .t-zij-kop { display: none; }
   .t-zij-voet { margin-top: 0; }
 }
+
+/* ----- Inloggen ----- */
+.t-inlog { min-height: 100vh; display: flex; flex-wrap: wrap; background: var(--t-vlak); color: var(--t-tekst); }
+.t-inlog-merk { flex: 1 1 480px; background: var(--t-navy); color: var(--t-wit); padding: 48px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px; min-height: 320px; }
+.t-inlog-vak { flex: 1 1 420px; display: flex; align-items: center; justify-content: center; padding: 48px 24px; box-sizing: border-box; }
+@media (max-width: 820px) { .t-inlog-merk { padding: 28px 24px; min-height: 0; } .t-inlog-merk h1 { font-size: 28px !important; margin-top: 24px !important; } }

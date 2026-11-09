@@ -69,7 +69,7 @@ export default function FeedbackLijst() {
   return (
     <div className="fm fm-fblijst">
       <div className="fm-fblijst-kop">
-        <h1>Feedback <span className="fm-sub">beta</span></h1>
+        <h1 className="t-titel">Feedback <span className="fm-sub" style={{ fontFamily: "var(--font-sans)", fontStretch: "100%", fontSize: 13, fontWeight: 500 }}>Beta</span></h1>
         <span className="fm-sub">{beheer ? 'Alle feedback van testers.' : 'Je eigen feedback.'} Geef feedback met de knop Feedback in elk scherm.</span>
       </div>
       <div className="fm-fblijst-filter">

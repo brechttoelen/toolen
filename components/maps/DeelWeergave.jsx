@@ -285,7 +285,7 @@ export default function DeelWeergave({ token }) {
   if (data === null) {
     return (
       <div className="fm" style={{ padding: 32, maxWidth: 560 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600 }}>Toolen Maps</h1>
+        <h1 className="t-titel" style={{ fontSize: 26 }}>Toolen Maps</h1>
         <p>{T.nl.weg}</p><p className="fm-sub">{T.fr.weg}</p><p className="fm-sub">{T.en.weg}</p>
       </div>
     );
@@ -304,10 +304,10 @@ export default function DeelWeergave({ token }) {
 
   return (
     <div className="fm" style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column' }}>
-      <header className="fm-deelkop" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '8px 16px', background: '#1d1d1b', color: '#fff' }}>
-        <span aria-hidden style={{ width: 12, height: 12, background: '#E11D48' }} />
+      <header className="fm-deelkop" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '8px 16px', background: '#022056', color: '#fff' }}>
+        <span aria-hidden style={{ width: 12, height: 12, borderRadius: 3, background: '#108AED' }} />
         <div className="fm-deeltitel" style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <strong style={{ fontSize: 15 }}>{data.plan.naam}</strong>
+          <strong style={{ fontSize: 16, fontFamily: 'var(--font-titel)', fontStretch: '112%', fontWeight: 700 }}>{data.plan.naam}</strong>
           <span style={{ fontSize: 13, color: '#a9a9a5', marginLeft: 8 }}>{[data.plan.editie_naam, data.plan.locatie, `${t.versie} ${data.plan.versie}`, data.link.stand ? new Date(data.link.stand.op).toLocaleDateString(taal === 'en' ? 'en-GB' : taal === 'fr' ? 'fr-BE' : 'nl-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : (data.link.live ? 'live' : null)].filter(Boolean).join(' · ')}</span>
         </div>
         <div className="fm-deel-tools">

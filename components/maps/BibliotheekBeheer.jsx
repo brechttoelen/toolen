@@ -229,7 +229,7 @@ export default function BibliotheekBeheer() {
       <AppDialogen />
       <header style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', padding: '20px 32px', background: '#fff', borderBottom: '1px solid #e8e8e6' }}>
         <div style={{ flex: '1 1 280px' }}>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>Bibliotheek</h1>
+          <h1 className="t-titel">Bibliotheek</h1>
           <p className="fm-sub" style={{ margin: '4px 0 0', fontSize: 14 }}>Gedeeld over alle plannen. Elk element heeft echte maten.</p>
           <div className="fm-segment" style={{ marginTop: 10, width: 'auto', display: 'inline-flex' }}>
             <button className={weergave === 'elementen' ? 'aan' : ''} onClick={() => setWeergave('elementen')}>Elementen · {lijst.length}</button>

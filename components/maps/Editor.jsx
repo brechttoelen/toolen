@@ -310,6 +310,7 @@ export default function Editor({ planId }) {
 
   const lagenMap = useMemo(() => new Map(lagen.map((l) => [l.id, l])), [lagen]);
   const [doeken, setDoeken] = useState([]);
+  const [planEvent, setPlanEvent] = useState(null); // event van dit plan (naam, kleur)
   const elementenMap = useMemo(() => new Map([...elementen, ...doeken].map((e) => [e.id, e])), [elementen, doeken]);
   // Een doek opgeladen vanuit een bouwer (stelling, truss, wand): meteen in de lijsten.
   useEffect(() => {
@@ -1986,6 +1987,7 @@ export default function Editor({ planId }) {
     }
   }, [wijzigItem]);
   // Binnenplan openen in een eigen scherm.
+  useEffect(() => { if (!plan?.event_id) { setPlanEvent(null); return; } maps().from('events').select('naam, kleur').eq('id', plan.event_id).maybeSingle().then(({ data }) => setPlanEvent(data || null)); }, [plan?.event_id]);
   const openBinnenScherm = useCallback((hostId, verd = null) => {
     if (!heeftModule('binnen')) { setMelding(nietInPakket('binnen')); return; }
     const host = st.current.items.find((x) => x.id === hostId);
@@ -4500,7 +4502,7 @@ export default function Editor({ planId }) {
       <header className={`fm-topbalk fm-wr-${werkruimte}`} style={{ '--fm-wr': wr.kleur }}>
         <a className="fm-terug" href="/maps/plannen" aria-label="Terug naar de plannen"><Icoon naam="terug" /></a>
         <div className="fm-titel">
-          <small>{plan.editie_naam || 'Eventplan'}{plan.locatie ? ` · ${plan.locatie}` : ''}</small>
+          <small style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{planEvent && <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: planEvent.kleur, flex: 'none' }} />}{planEvent?.naam || plan.editie_naam || 'Eventplan'}{plan.locatie ? ` · ${plan.locatie}` : ''}</small>
           <strong>{plan.naam}</strong>
         </div>
         <WerkruimteBalk actief={werkruimte} onKies={kiesWerkruimte} badges={{ veiligheid: brandFouten }} />

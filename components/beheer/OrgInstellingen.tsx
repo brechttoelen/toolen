@@ -24,8 +24,8 @@ function Teller({ label, n, max }: { label: string; n: number; max: number }) {
     <div className="t-kaart" style={{ padding: "14px 16px", flex: 1 }}>
       <div className="t-rij" style={{ justifyContent: "space-between" }}>
         <span className="t-stil" style={{ fontSize: 13 }}>{label}</span>
-        <span style={{ fontWeight: 600 }}>{n} van {max}</span>
       </div>
+      <div style={{ fontFamily: "var(--font-titel)", fontStretch: "125%", fontWeight: 800, fontSize: 28, marginTop: 4 }}>{n} <span style={{ fontSize: 18, color: "var(--t-tekst-3)" }}>/ {max}</span></div>
       <div className={`t-balk${n >= max ? " vol" : ""}`} style={{ marginTop: 10 }}><i style={{ width: `${pct}%` }} /></div>
     </div>
   );
@@ -99,8 +99,8 @@ export default function OrgInstellingen() {
 
   return (
     <main className="t-inhoud">
-      <h1 className="t-titel">Instellingen</h1>
-      <p className="t-sub">{ik.organisatie.naam} · je bent {rolNaam(ik.rol).toLowerCase()}</p>
+      <h1 className="t-titel">{ik.organisatie.naam}</h1>
+      <p className="t-sub">Leden, organisatie en abonnement · Je bent {rolNaam(ik.rol).toLowerCase()}</p>
       <div className="t-tabs">
         <button className={tab === "leden" ? "aan" : ""} onClick={() => { setTab("leden"); setMelding(null); }}>Leden</button>
         <button className={tab === "organisatie" ? "aan" : ""} onClick={() => { setTab("organisatie"); setMelding(null); }}>Organisatie</button>
