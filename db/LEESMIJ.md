@@ -75,6 +75,10 @@ Ook: enkel gekende modules in `organisaties.modules`; een nieuwe organisatie nee
 
 Uitvoeren: plakken in de SQL Editor van Toolen → Run.
 
+## 0006_beveiliging.sql
+
+Opruiming na de beveiligingscontrole van Supabase: `maps.toegang` is geen security definer view meer (nu een functie plus een view met security_invoker, enkel lezen); functies voor ingelogde gebruikers zijn niet meer zonder login aan te roepen (deellinks en `uitnodiging_info` blijven open); vaste search_path voor de laatste hulpfuncties. Uitgevoerd op 9 nov 2026.
+
 ### Nog open
 
 - Bestanden: lezen is publiek, opladen kan iedereen die in een organisatie mag schrijven, wijzigen en wissen enkel wie het bestand opleverde of een beheerder. Paden per organisatie (`<organisatie_id>/…`) volgen bij de dataverhuis.
