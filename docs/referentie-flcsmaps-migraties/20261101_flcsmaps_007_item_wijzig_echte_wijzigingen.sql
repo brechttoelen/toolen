@@ -1,0 +1,4 @@
+-- FLCS Maps 007 – item_wijzig: enkel velden die echt verschillen van de huidige stand tellen
+-- als eigen wijziging. Zo geeft een rebase na live binnengekomen wijzigingen (of een offline
+-- wachtrij) geen valse botsing, en een wijziging zonder verschil verhoogt de rev niet.
+-- (Uitgevoerd via apply_migration op 1/11/2026; volledige functie: zie Supabase, flcsmaps.item_wijzig.)

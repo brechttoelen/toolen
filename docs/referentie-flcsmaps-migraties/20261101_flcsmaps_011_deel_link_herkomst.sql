@@ -1,0 +1,5 @@
+-- flcsmaps 011 (toegepast 2026-11-01): deel_link_lezen
+-- * filter "enkel de items van een leverancier" volgt nu "geleverd door" per item
+--   (velden.herkomst), anders de leverancier van het element;
+-- * elk item krijgt 'herkomst' mee, zodat de ontvanger kan filteren en een materiaallijst ziet.
+-- Volledige functie: zie pg_get_functiondef('flcsmaps.deel_link_lezen'::regproc).

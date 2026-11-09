@@ -1,0 +1,3 @@
+-- FLCS Maps 009 – plan_lijst_id(p_plan, p_pad, p_zet, p_weg, p_volgorde): lijsten van objecten met een id
+-- in plannen.instellingen (signalisatie-routes en -borden, …) per regel bijwerken in plaats van de hele lijst.
+-- Uitgevoerd via apply_migration op 1/11/2026; zie flcsmaps.plan_lijst_id in Supabase.

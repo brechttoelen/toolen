@@ -1,0 +1,5 @@
+-- flcsmaps 010 (toegepast 2026-11-01): item_wijzig
+-- * eigen wijzigingen (bv. ander tabblad van dezelfde persoon) tellen niet als botsing;
+-- * bij een botsing wordt de collega genoemd die het laatst aan precies die velden zat
+--   (voorheen: de laatste wijziger van het item, wat jezelf of een derde kon zijn).
+-- Volledige functie: zie pg_get_functiondef('flcsmaps.item_wijzig'::regproc).

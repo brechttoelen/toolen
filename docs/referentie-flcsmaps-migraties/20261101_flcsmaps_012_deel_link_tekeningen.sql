@@ -1,0 +1,4 @@
+-- Toegepast via MCP (flcsmaps_012_deel_link_tekeningen):
+-- deel_link_lezen stuurt per element nu ook 'eigenschappen' mee, beperkt tot wat
+-- nodig is om te tekenen (tekening_ref, tekening, doek, totem, vlag, kleur, ...),
+-- en de ontwerp-rijen (doeken, panelen, vlaggen) die op zichtbare items hangen.

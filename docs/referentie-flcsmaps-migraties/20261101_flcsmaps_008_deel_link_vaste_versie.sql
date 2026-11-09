@@ -1,0 +1,6 @@
+-- FLCS Maps 008 – deel-links tonen standaard een vaste versie (deel_links.live = false + versie_id,
+-- kolommen uit migratie 006). Live blijft mogelijk per link. Bestaande links bleven live.
+-- deel_link_lezen() leest bij een vaste versie de items en lagen uit versies.momentopname,
+-- met dezelfde filters (lagen, fasen, leverancier, verborgen items/elementen/soorten),
+-- en geeft link.stand = { versie, op } terug.
+-- Uitgevoerd via apply_migration op 1/11/2026; zie flcsmaps.deel_link_lezen in Supabase voor de volledige tekst.
