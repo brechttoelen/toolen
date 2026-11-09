@@ -1,5 +1,6 @@
 'use client';
 import { StellingDrie } from './StellingStudio';
+import { elementMag, elementModule, nietInPakket } from './modules';
 import { publiekeUrl } from './db';
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -175,19 +176,21 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
       onClick={(e) => { e.stopPropagation(); wisselFav(el.id); }}>{fav.includes(el.id) ? '★' : '☆'}</button>
   );
   const icoon = (el) => <span className="ic">{el.eigenschappen?.fotos?.[0] ? <img src={publiekeUrl(el.eigenschappen.fotos[0])} alt="" style={{ width: 34, height: 34, objectFit: 'cover' }} /> : <ElementIcoon el={el} />}</span>;
-  const rij = (el, key, extra = null, titel = null) => (
-    <div key={key} className={`fm-element${gekozen?.id === el.id ? ' aan' : ''}`} role="button" tabIndex={0} aria-disabled={!schrijven}
-      onClick={() => { verbergInfo(); if (schrijven) kies(el); }} onKeyDown={(e) => { if (schrijven && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); kies(el); } }}
+  const rij = (el, key, extra = null, titel = null) => { const mag = elementMag(el); const kan = schrijven && mag; return (
+    <div key={key} className={`fm-element${gekozen?.id === el.id ? ' aan' : ''}${mag ? '' : ' fm-uitpakket'}`} role="button" tabIndex={0} aria-disabled={!kan}
+      title={mag ? undefined : nietInPakket(elementModule(el))}
+      onClick={() => { verbergInfo(); if (kan) kies(el); }} onKeyDown={(e) => { if (kan && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); kies(el); } }}
       onMouseEnter={(e) => toonInfo(el, e)} onMouseLeave={verbergInfo}>
       {icoon(el)}
       <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>{titel || el.naam}</span>
         <span className="fm-sub">{elementMaat(el)}</span>
         {(el.leverancier || extra) && <span className="fm-sub">{[el.leverancier, extra].filter(Boolean).join(' · ')}</span>}
+        {!mag && <span className="fm-sub">niet in pakket</span>}
       </span>
       {ster(el)}
     </div>
-  );
+  ); };
   // Familie met varianten: één rij (naam + gekozen variant); klik opent het overzicht van alle varianten in dit paneel.
   const kortModel = (m, f) => { const k = String(f || '').slice(0, 3).toLowerCase(); const [w, ...r] = String(m).split(' '); return k && r.length && w.toLowerCase().startsWith(k) ? r.join(' ') : m; };
   const familieRij = (vf, leden, key) => {

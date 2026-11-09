@@ -36,6 +36,7 @@ import { isWand, zijLengtes } from './framewand';
 import { isPubliekeStructuur, capaciteit, instBrand } from './veiligheid';
 import { sorteerCategorieen } from './categorieen';
 import { familieVan } from './familie';
+import { magModule } from './modules';
 import { PaneelKop, Kern, PaneelTabs } from './Paneel';
 
 const SOORT = { punt: 'Punt', lijn: 'Lijn', vlak: 'Vlak', rechthoek: 'Rechthoek', cirkel: 'Cirkel', tekst: 'Tekst', element: 'Element', veelhoek: 'Regelmatige veelhoek', ellips: 'Ellips', sector: 'Kijkhoek', notitie: 'Notitie met pijl' };
@@ -601,7 +602,7 @@ export default function Eigenschappen(props) {
   ));
   const binnenplanJsx = (
     <>
-        {binnenplan && (binnenplan.open ? (
+        {binnenplan && magModule('binnen') && (binnenplan.open ? (
           <div className="fm-binnenknop">
             <button className="fm-knop klein zwart" onClick={binnenplan.open}>{binnenplan.aantal ? `Binnenplan openen · ${binnenplan.aantal} items` : 'Binnenplan maken'}</button>
             <Info>Een binnenplan per verdieping, met een grondplan (PDF of foto) als onderlegger om over te tekenen. Wat je erin zet, telt mee in de stuklijst maar staat niet op de gewone kaart.</Info>
@@ -711,7 +712,7 @@ export default function Eigenschappen(props) {
   ) : null;
   // Branding altijd op een eigen tab: doeken per hek, vlagontwerp, beachvlaggen in de hekken, panelen.
   const heeftDoek = g?.type === 'LineString' && !item.parameters?.route && el && el.tekenwijze === 'lijn' && el.eigenschappen?.doek && el.eigenschappen.doek !== 'geen';
-  const heeftBranding = !!(heeftDoek || (el && isVlagHek(el)) || isVlag(el) || (Array.isArray(velden.vlaggen) && velden.vlaggen.some(Boolean)) || panelenJsx);
+  const heeftBranding = magModule('branding') && !!(heeftDoek || (el && isVlagHek(el)) || isVlag(el) || (Array.isArray(velden.vlaggen) && velden.vlaggen.some(Boolean)) || panelenJsx);
   const brandingJsx = heeftBranding ? (
     <div className="fm-sectie">
         {(() => {
@@ -1171,10 +1172,10 @@ export default function Eigenschappen(props) {
         </Blok>
       )}
 
-      {familie !== 'stroom' && <StroomSectie item={item} el={el} items={items} elementenMap={elementenMap} ro={ro} isLijn={isLijn} vast={vast}
+      {familie !== 'stroom' && magModule('stroom') && <StroomSectie item={item} el={el} items={items} elementenMap={elementenMap} ro={ro} isLijn={isLijn} vast={vast}
         onZet={(patch) => onWijzig({ velden: { ...velden, stroom: { ...(velden.stroom || {}), ...patch } } })} onKabel={onKabel} />}
 
-      {item.soort !== 'tekst' && (
+      {item.soort !== 'tekst' && magModule('veiligheid') && (
         <Blok titel={`Keuringsattesten${velden.attesten?.length ? ` · ${velden.attesten.length}` : ''}`} open={!!velden.attesten?.length}>
           <AttestenBewerken item={item} planId={item.plan_id} ro={ro} onZet={(l) => zetVeld('attesten', l)} />
         </Blok>
@@ -1283,8 +1284,8 @@ export default function Eigenschappen(props) {
     const metStijl = !tekening && !isBouwer0;
     const isBouwer = familie === 'bouwers' && !!el && (isTentBouw(el) || !!el.eigenschappen?.stelling || !!el.eigenschappen?.stelling3d || isWand(el) || (el.tekenwijze === 'lijn' && /truss/i.test(el.categorie || '')) || isTentCategorie(el.categorie));
     // Binnen: tenten, units en vrije vlakken; geen stellingen, truss of wanden.
-    const metBinnen = !!binnenplan && !!(binnenplan.ruimte || (binnenplan.open && (['units', 'vormen'].includes(familie) || (familie === 'bouwers' && isTentBouw(el)))));
-    const stroomTab = familie === 'stroom';
+    const metBinnen = magModule('binnen') && !!binnenplan && !!(binnenplan.ruimte || (binnenplan.open && (['units', 'vormen'].includes(familie) || (familie === 'bouwers' && isTentBouw(el)))));
+    const stroomTab = familie === 'stroom' && magModule('stroom');
     const standaard = isBouwer ? 'bouwer' : brandingJsx && (familie === 'branding' || panelenJsx) ? 'branding' : stroomTab ? 'stroom' : familie === 'vormen' && item.soort !== 'notitie' ? 'stijl' : 'in';
     const tab = tabKeuze || standaard;
     const tabs = [isBouwer && { k: 'bouwer', naam: cameraJsx ? 'Camera' : 'Bouwer' }, stroomTab && { k: 'stroom', naam: lichtJsx ? 'Licht' : 'Stroom' }, { k: 'in', naam: legTab ? 'Leggen' : 'Instellen' }, brandingJsx && { k: 'branding', naam: 'Branding' }, metBinnen && { k: 'binnen', naam: 'Binnen' }, metStijl && { k: 'stijl', naam: g.type === 'Point' && familie === 'vormen' ? 'Icoon' : 'Stijl' }, { k: 'meer', naam: 'Meer' }];

@@ -4,6 +4,7 @@
 // Een duidelijke voortgang per blad en per kaarttegel; tegels die al eens geladen werden komen uit de bewaarde
 // tegels (service worker), zodat een tweede export veel sneller gaat.
 import { useEffect, useRef, useState } from 'react';
+import { heeftModule } from './merk';
 import { laadPlanData } from './planLaden';
 import { maps } from './db';
 import { berekenStroom } from './stroom';
@@ -64,7 +65,7 @@ export default function ExportScherm({ planId }) {
           } else {
             zetStap(0, 1, 'Kaart');
             const args = { plan: d.plan, lagen: d.lagen, items, elementenMap: d.elementenMap, fase, inst, voortgang: setTekst, stap: zetStap };
-            const r = inst.bladen ? await maakBladen(args) : await maakPdf(args);
+            const r = inst.bladen && heeftModule('groot') ? await maakBladen(args) : await maakPdf(args);
             doc = r.doc; m = r.meldingen;
           }
           doc.save(`${o.bestandsnaam || d.plan.naam}.pdf`);

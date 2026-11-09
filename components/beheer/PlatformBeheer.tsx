@@ -17,8 +17,34 @@ type Org = {
 type Lid = { user_id: string; email: string; naam: string | null; rol: string; actief: boolean; sinds: string };
 type Uitn = { id: string; email: string; rol: string; token: string; geldig_tot: string; aanvaard_op: string | null; created_at: string };
 type Log = { id: number; actie: string; details: Record<string, unknown>; op: string };
+export type Pakket = {
+  id: string; naam: string; omschrijving: string | null; plaatsen: number; lezers: number; modules: string[]; modules_keuze: number;
+  prijs_jaar: number | null; prijs_plaats: number | null; prijs_module: number | null; proef_dagen: number | null; sso: boolean; actief: boolean; volgorde: number;
+};
 
 const sb = () => supabaseBrowser();
+const KOPPELING_IDS = KOPPELINGEN.map((k) => k.id);
+
+// Pakketten uit de databank (0005_pakketten.sql); zolang die tabel er niet is, de vaste lijst uit de code.
+function vastePakketten(): Pakket[] {
+  return PAKKETTEN.map((p, i) => ({ ...p, omschrijving: null, modules_keuze: 0, prijs_jaar: null, prijs_plaats: null, prijs_module: null,
+    proef_dagen: p.id === "proef" ? 30 : null, sso: false, actief: true, volgorde: i }));
+}
+function usePakketten() {
+  const [lijst, setLijst] = useState<Pakket[]>(vastePakketten());
+  const [uitDb, setUitDb] = useState(false);
+  async function laad() {
+    const { data, error } = await sb().from("pakketten").select("*").order("volgorde").order("naam");
+    if (!error && data) { setLijst(data as Pakket[]); setUitDb(true); }
+  }
+  useEffect(() => { laad(); }, []);
+  const van = (id: string) => lijst.find((p) => p.id === id) || { ...pakketVan(id), omschrijving: null, modules_keuze: 0, prijs_jaar: null, prijs_plaats: null, prijs_module: null, proef_dagen: null, sso: false, actief: true, volgorde: 0 };
+  return { lijst, uitDb, laad, van };
+}
+// Modules van een pakket, met de koppelingen die de organisatie al had.
+const metKoppelingen = (p: Pakket, huidig: string[]) => [...new Set([...p.modules, ...huidig.filter((m) => KOPPELING_IDS.includes(m))])];
+const moduleNaam = (id: string) => [...MODULES, ...KOPPELINGEN].find((m) => m.id === id)?.naam || id;
+const euro = (n: number | null) => (n == null ? "–" : new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n));
 
 function Kopieer({ tekst, label = "Kopieer link" }: { tekst: string; label?: string }) {
   const [ok, setOk] = useState(false);
@@ -35,6 +61,8 @@ export default function PlatformBeheer() {
   const [zoek, setZoek] = useState("");
   const [nieuw, setNieuw] = useState(false);
   const [open, setOpen] = useState<Org | null>(null);
+  const [blad, setBlad] = useState<"organisaties" | "pakketten">("organisaties");
+  const pk = usePakketten();
 
   async function laad() {
     const { data, error } = await sb().rpc("platform_overzicht");
@@ -52,12 +80,20 @@ export default function PlatformBeheer() {
           <h1 className="t-titel">Platformbeheer</h1>
           <p className="t-sub">Organisaties, pakketten en toegang. Je ziet hier geen plannen van klanten.</p>
         </div>
-        <button className="t-knop hoofd" onClick={() => setNieuw(true)}>Nieuwe organisatie</button>
+        {blad === "organisaties" && <button className="t-knop hoofd" onClick={() => setNieuw(true)}>Nieuwe organisatie</button>}
       </div>
+
+      <div className="t-tabs" style={{ marginTop: 20 }}>
+        <button className={blad === "organisaties" ? "aan" : ""} onClick={() => setBlad("organisaties")}>Organisaties</button>
+        <button className={blad === "pakketten" ? "aan" : ""} onClick={() => setBlad("pakketten")}>Pakketten</button>
+      </div>
+
+      {blad === "pakketten" && <PakkettenBeheer pk={pk} orgs={orgs || []} />}
+      {blad === "organisaties" && <>
 
       {fout && <p className="t-melding fout" style={{ marginTop: 16 }}>{fout}</p>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginTop: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginTop: 8 }}>
         {[["Organisaties", (orgs || []).length], ["Actief", tel("actief")], ["In proef", tel("proef")], ["Aandacht nodig", tel("achterstallig") + tel("alleen_lezen") + tel("geblokkeerd")],
           ["Plaatsen in gebruik", (orgs || []).reduce((t, o) => t + Number(o.plaatsen_gebruikt || 0), 0)]].map(([k, v]) => (
           <div key={k as string} className="t-kaart" style={{ padding: "14px 16px" }}>
@@ -91,7 +127,7 @@ export default function PlatformBeheer() {
                     <span className={`t-pil ${st.pil}`}>{st.naam}</span>
                     {o.status === "proef" && o.proef_tot && <div className="t-stil" style={{ fontSize: 12, marginTop: 4 }}>tot {datum(o.proef_tot)}</div>}
                   </td>
-                  <td>{pakketVan(o.pakket).naam}</td>
+                  <td>{pk.van(o.pakket).naam}</td>
                   <td>{o.plaatsen_gebruikt} / {o.plaatsen}</td>
                   <td>{o.lezers_gebruikt} / {o.lezers_max}</td>
                   <td>{o.plannen}</td>
@@ -104,17 +140,19 @@ export default function PlatformBeheer() {
         </table>
       </div>
 
-      {nieuw && <NieuweOrganisatie onSluit={() => setNieuw(false)} onKlaar={() => laad()} />}
-      {open && <OrganisatieDetail org={open} onSluit={() => setOpen(null)} onGewijzigd={() => laad()} />}
+      </>}
+
+      {nieuw && <NieuweOrganisatie pk={pk} onSluit={() => setNieuw(false)} onKlaar={() => laad()} />}
+      {open && <OrganisatieDetail pk={pk} org={open} onSluit={() => setOpen(null)} onGewijzigd={() => laad()} />}
     </main>
   );
 }
 
-function ModuleKeuze({ waarde, onWijzig }: { waarde: string[]; onWijzig: (m: string[]) => void }) {
+function ModuleKeuze({ waarde, onWijzig, zonderKoppelingen = false }: { waarde: string[]; onWijzig: (m: string[]) => void; zonderKoppelingen?: boolean }) {
   const zet = (id: string, aan: boolean) => onWijzig(aan ? [...new Set([...waarde, id])] : waarde.filter((x) => x !== id));
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
-      {[...MODULES, ...KOPPELINGEN.map((k) => ({ ...k, uitleg: "koppeling" }))].map((m) => (
+      {[...MODULES, ...(zonderKoppelingen ? [] : KOPPELINGEN.map((k) => ({ ...k, uitleg: "koppeling" })))].map((m) => (
         <label key={m.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13.5, cursor: "pointer" }}>
           <input type="checkbox" checked={waarde.includes(m.id)} onChange={(e) => zet(m.id, e.target.checked)} style={{ marginTop: 3 }} />
           <span>{m.naam}<span className="t-stil" style={{ display: "block", fontSize: 12 }}>{m.uitleg}</span></span>
@@ -124,7 +162,7 @@ function ModuleKeuze({ waarde, onWijzig }: { waarde: string[]; onWijzig: (m: str
   );
 }
 
-function NieuweOrganisatie({ onSluit, onKlaar }: { onSluit: () => void; onKlaar: () => void }) {
+function NieuweOrganisatie({ pk, onSluit, onKlaar }: { pk: ReturnType<typeof usePakketten>; onSluit: () => void; onKlaar: () => void }) {
   const [naam, setNaam] = useState("");
   const [slug, setSlug] = useState("");
   const [slugAangepast, setSlugAangepast] = useState(false);
@@ -141,10 +179,11 @@ function NieuweOrganisatie({ onSluit, onKlaar }: { onSluit: () => void; onKlaar:
   const [klaar, setKlaar] = useState<{ slug: string; token: string | null; lid: boolean } | null>(null);
 
   function kiesPakket(id: string) {
-    const p = pakketVan(id);
+    const p = pk.van(id);
     setPakket(id); setPlaatsen(p.plaatsen); setLezers(p.lezers); setModules(p.modules);
-    setStatus(id === "proef" ? "proef" : "actief");
+    setStatus(p.proef_dagen ? "proef" : "actief"); if (p.proef_dagen) setDagen(p.proef_dagen);
   }
+  const gekozen = pk.van(pakket);
 
   async function maak(e: React.FormEvent) {
     e.preventDefault();
@@ -195,7 +234,7 @@ function NieuweOrganisatie({ onSluit, onKlaar }: { onSluit: () => void; onKlaar:
               </div></label>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               <label><span className="t-label">Pakket</span>
-                <select className="t-veld" value={pakket} onChange={(e) => kiesPakket(e.target.value)}>{PAKKETTEN.map((p) => <option key={p.id} value={p.id}>{p.naam}</option>)}</select></label>
+                <select className="t-veld" value={pakket} onChange={(e) => kiesPakket(e.target.value)}>{pk.lijst.filter((p) => p.actief || p.id === pakket).map((p) => <option key={p.id} value={p.id}>{p.naam}</option>)}</select></label>
               <label><span className="t-label">Plaatsen</span>
                 <input className="t-veld" type="number" min={1} value={plaatsen} onChange={(e) => setPlaatsen(Number(e.target.value))} /></label>
               <label><span className="t-label">Lezers</span>
@@ -208,7 +247,9 @@ function NieuweOrganisatie({ onSluit, onKlaar }: { onSluit: () => void; onKlaar:
               {status === "proef" && <label><span className="t-label">Proef (dagen)</span>
                 <input className="t-veld" type="number" min={1} value={dagen} onChange={(e) => setDagen(Number(e.target.value))} /></label>}
             </div>
-            <div><span className="t-label">Modules</span><ModuleKeuze waarde={modules} onWijzig={setModules} /></div>
+            <div><span className="t-label">Modules</span>
+              <Afwijking p={gekozen} plaatsen={plaatsen} lezers={lezers} modules={modules} />
+              <ModuleKeuze waarde={modules} onWijzig={setModules} /></div>
             <label><span className="t-label">Eerste eigenaar (e-mail)</span>
               <input className="t-veld" type="email" value={eigenaar} onChange={(e) => setEigenaar(e.target.value)} placeholder="naam@bedrijf.be" /></label>
             {fout && <p className="t-melding fout" style={{ margin: 0 }}>{fout}</p>}
@@ -223,7 +264,7 @@ function NieuweOrganisatie({ onSluit, onKlaar }: { onSluit: () => void; onKlaar:
   );
 }
 
-function OrganisatieDetail({ org, onSluit, onGewijzigd }: { org: Org; onSluit: () => void; onGewijzigd: () => void }) {
+function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<typeof usePakketten>; org: Org; onSluit: () => void; onGewijzigd: () => void }) {
   const [tab, setTab] = useState<"abonnement" | "leden" | "logboek">("abonnement");
   const [v, setV] = useState({ naam: org.naam, kort: org.kort || "", pakket: org.pakket, plaatsen: org.plaatsen, lezers_max: org.lezers_max,
     modules: org.modules || [], status: org.status, proef_tot: org.proef_tot ? org.proef_tot.slice(0, 10) : "" });
@@ -291,7 +332,8 @@ function OrganisatieDetail({ org, onSluit, onGewijzigd }: { org: Org; onSluit: (
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               <label><span className="t-label">Pakket</span>
-                <select className="t-veld" value={v.pakket} onChange={(e) => setV({ ...v, pakket: e.target.value })}>{PAKKETTEN.map((p) => <option key={p.id} value={p.id}>{p.naam}</option>)}</select></label>
+                <select className="t-veld" value={v.pakket} onChange={(e) => { const p = pk.van(e.target.value); setV({ ...v, pakket: p.id, plaatsen: Math.max(p.plaatsen, org.plaatsen_gebruikt || 1), lezers_max: p.lezers, modules: metKoppelingen(p, v.modules) }); }}>
+                  {pk.lijst.filter((p) => p.actief || p.id === v.pakket).map((p) => <option key={p.id} value={p.id}>{p.naam}</option>)}</select></label>
               <label><span className="t-label">Plaatsen ({org.plaatsen_gebruikt} in gebruik)</span>
                 <input className="t-veld" type="number" min={1} value={v.plaatsen} onChange={(e) => setV({ ...v, plaatsen: Number(e.target.value) })} /></label>
               <label><span className="t-label">Lezers ({org.lezers_gebruikt} in gebruik)</span>
@@ -303,7 +345,11 @@ function OrganisatieDetail({ org, onSluit, onGewijzigd }: { org: Org; onSluit: (
               <label><span className="t-label">Proef tot</span>
                 <input className="t-veld" type="date" value={v.proef_tot} onChange={(e) => setV({ ...v, proef_tot: e.target.value })} /></label>
             </div>
-            <div><span className="t-label">Modules</span><ModuleKeuze waarde={v.modules} onWijzig={(m) => setV({ ...v, modules: m })} /></div>
+            <div><span className="t-label">Modules</span>
+              <Afwijking p={pk.van(v.pakket)} plaatsen={v.plaatsen} lezers={v.lezers_max} modules={v.modules}
+                onHerstel={() => { const p = pk.van(v.pakket); setV({ ...v, plaatsen: Math.max(p.plaatsen, org.plaatsen_gebruikt || 1), lezers_max: p.lezers, modules: metKoppelingen(p, v.modules) }); }} />
+              <ModuleKeuze waarde={v.modules} onWijzig={(m) => setV({ ...v, modules: m })} /></div>
+            <p className="t-stil" style={{ margin: 0, fontSize: 12.5 }}>Een ander pakket kiezen neemt plaatsen, lezers en modules van dat pakket over. Daarna kan je per organisatie afwijken. Koppelingen blijven staan.</p>
             <div className="t-rij" style={{ justifyContent: "flex-end" }}><button className="t-knop hoofd" onClick={bewaar}>Bewaren</button></div>
           </div>
         )}
@@ -360,6 +406,122 @@ function OrganisatieDetail({ org, onSluit, onGewijzigd }: { org: Org; onSluit: (
           </table>
         )}
       </div>
+    </div>
+  );
+}
+
+// Toont waar een organisatie afwijkt van haar pakket.
+function Afwijking({ p, plaatsen, lezers, modules, onHerstel }: { p: Pakket; plaatsen: number; lezers: number; modules: string[]; onHerstel?: () => void }) {
+  const eigen = modules.filter((m) => !KOPPELING_IDS.includes(m));
+  const extra = eigen.filter((m) => !p.modules.includes(m));
+  const min = p.modules.filter((m) => !eigen.includes(m));
+  const verschil = [
+    plaatsen !== p.plaatsen && `${plaatsen} plaatsen (pakket ${p.plaatsen})`,
+    lezers !== p.lezers && `${lezers} lezers (pakket ${p.lezers})`,
+    extra.length > 0 && `extra: ${extra.map(moduleNaam).join(", ")}`,
+    min.length > 0 && `zonder: ${min.map(moduleNaam).join(", ")}`,
+  ].filter(Boolean) as string[];
+  const keuze = p.modules_keuze > 0 ? `${p.modules_keuze} naar keuze, ${extra.length} gekozen` : "";
+  if (!verschil.length && !keuze) return <p className="t-stil" style={{ margin: "0 0 8px", fontSize: 12.5 }}>Zoals het pakket {p.naam}.</p>;
+  return (
+    <p className="t-stil" style={{ margin: "0 0 8px", fontSize: 12.5 }}>
+      {keuze && <span className={`t-pil ${p.modules_keuze && extra.length > p.modules_keuze ? "let-op" : "blauw"}`} style={{ marginRight: 8 }}>{keuze}</span>}
+      {verschil.length > 0 && <>Afwijkend van {p.naam}: {verschil.join(" · ")}</>}
+      {verschil.length > 0 && onHerstel && <> · <button type="button" className="t-knop klein stil" onClick={onHerstel}>Terug naar pakket</button></>}
+    </p>
+  );
+}
+
+function PakkettenBeheer({ pk, orgs }: { pk: ReturnType<typeof usePakketten>; orgs: Org[] }) {
+  const [open, setOpen] = useState<Pakket | "nieuw" | null>(null);
+  const gebruik = (id: string) => orgs.filter((o) => o.pakket === id).length;
+  return (
+    <div className="t-stapel" style={{ marginTop: 8 }}>
+      {!pk.uitDb && <p className="t-melding let-op" style={{ margin: 0 }}>De tabel met pakketten bestaat nog niet. Voer <code>db/0005_pakketten.sql</code> uit in de SQL Editor; tot dan zie je de vaste lijst uit de code.</p>}
+      <div className="t-rij">
+        <p className="t-sub" style={{ flex: 1, margin: 0 }}>Een pakket geeft de standaardwaarden voor een nieuwe organisatie. Per organisatie kan je daarna afwijken.</p>
+        {pk.uitDb && <button className="t-knop hoofd" onClick={() => setOpen("nieuw")}>Nieuw pakket</button>}
+      </div>
+      <div className="t-kaart" style={{ overflowX: "auto" }}>
+        <table className="t-tabel">
+          <thead><tr><th>Pakket</th><th>Plaatsen</th><th>Lezers</th><th>Modules</th><th>Prijs per jaar</th><th>Organisaties</th></tr></thead>
+          <tbody>
+            {pk.lijst.map((p) => (
+              <tr key={p.id} className={pk.uitDb ? "klik" : ""} onClick={() => pk.uitDb && setOpen(p)}>
+                <td>
+                  <div style={{ fontWeight: 500 }}>{p.naam} {!p.actief && <span className="t-pil">niet actief</span>}</div>
+                  {p.omschrijving && <div className="t-stil" style={{ fontSize: 12.5 }}>{p.omschrijving}</div>}
+                </td>
+                <td>{p.plaatsen}</td>
+                <td>{p.lezers}</td>
+                <td style={{ maxWidth: 320 }}>
+                  {p.modules.length === MODULES.length - 1 && !p.modules.includes("integraties") ? "alle behalve Integraties"
+                    : p.modules.length === MODULES.length ? "alle" : p.modules.map(moduleNaam).join(", ") || <span className="t-stil">basis</span>}
+                  {p.modules_keuze > 0 && <span className="t-stil"> + {p.modules_keuze} naar keuze</span>}
+                </td>
+                <td>{euro(p.prijs_jaar)}</td>
+                <td>{gebruik(p.id)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {open && <PakketBewerker p={open === "nieuw" ? null : open} inGebruik={open === "nieuw" ? 0 : gebruik(open.id)} onSluit={() => setOpen(null)} onKlaar={() => { setOpen(null); pk.laad(); }} />}
+    </div>
+  );
+}
+
+function PakketBewerker({ p, inGebruik, onSluit, onKlaar }: { p: Pakket | null; inGebruik: number; onSluit: () => void; onKlaar: () => void }) {
+  const [v, setV] = useState<Pakket>(p || { id: "", naam: "", omschrijving: "", plaatsen: 5, lezers: 25, modules: [], modules_keuze: 0,
+    prijs_jaar: null, prijs_plaats: null, prijs_module: null, proef_dagen: null, sso: false, actief: true, volgorde: 100 });
+  const [fout, setFout] = useState("");
+  const getal = (x: string) => (x === "" ? null : Number(x));
+  async function bewaar(e: React.FormEvent) {
+    e.preventDefault(); setFout("");
+    const rij = { ...v, omschrijving: v.omschrijving || null, modules: v.modules.filter((m) => !KOPPELING_IDS.includes(m)) };
+    const { error } = p ? await sb().from("pakketten").update(rij).eq("id", p.id) : await sb().from("pakketten").insert(rij);
+    if (error) setFout(error.message); else onKlaar();
+  }
+  async function wis() {
+    const { error } = await sb().from("pakketten").delete().eq("id", p!.id);
+    if (error) setFout(error.message); else onKlaar();
+  }
+  return (
+    <div className="t-dialoog-achter" onMouseDown={(e) => e.target === e.currentTarget && onSluit()}>
+      <form className="t-dialoog t-stapel" style={{ maxWidth: 620, maxHeight: "90vh", overflowY: "auto" }} onSubmit={bewaar}>
+        <h2 style={{ margin: 0 }}>{p ? `Pakket ${p.naam}` : "Nieuw pakket"}</h2>
+        {p && inGebruik > 0 && <p className="t-stil" style={{ margin: 0, fontSize: 12.5 }}>{inGebruik} organisatie{inGebruik === 1 ? "" : "s"} met dit pakket. Wijzigingen gelden voor nieuwe organisaties en wanneer je het pakket opnieuw kiest; bestaande organisaties houden hun eigen plaatsen en modules.</p>}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 12 }}>
+          <label><span className="t-label">Code</span>
+            <input className="t-veld" required pattern="[a-z0-9_]{2,30}" value={v.id} onChange={(e) => setV({ ...v, id: e.target.value.toLowerCase() })} placeholder="koers" /></label>
+          <label><span className="t-label">Naam</span><input className="t-veld" required value={v.naam} onChange={(e) => setV({ ...v, naam: e.target.value })} /></label>
+        </div>
+        <label><span className="t-label">Omschrijving</span><input className="t-veld" value={v.omschrijving || ""} onChange={(e) => setV({ ...v, omschrijving: e.target.value })} /></label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
+          <label><span className="t-label">Plaatsen</span><input className="t-veld" type="number" min={1} value={v.plaatsen} onChange={(e) => setV({ ...v, plaatsen: Number(e.target.value) })} /></label>
+          <label><span className="t-label">Lezers</span><input className="t-veld" type="number" min={0} value={v.lezers} onChange={(e) => setV({ ...v, lezers: Number(e.target.value) })} /></label>
+          <label><span className="t-label">Naar keuze</span><input className="t-veld" type="number" min={0} value={v.modules_keuze} onChange={(e) => setV({ ...v, modules_keuze: Number(e.target.value) })} /></label>
+          <label><span className="t-label">Proef (dagen)</span><input className="t-veld" type="number" min={1} value={v.proef_dagen ?? ""} onChange={(e) => setV({ ...v, proef_dagen: getal(e.target.value) })} placeholder="geen" /></label>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <label><span className="t-label">Prijs per jaar (€)</span><input className="t-veld" type="number" min={0} step="0.01" value={v.prijs_jaar ?? ""} onChange={(e) => setV({ ...v, prijs_jaar: getal(e.target.value) })} /></label>
+          <label><span className="t-label">Extra plaats (€/jaar)</span><input className="t-veld" type="number" min={0} step="0.01" value={v.prijs_plaats ?? ""} onChange={(e) => setV({ ...v, prijs_plaats: getal(e.target.value) })} /></label>
+          <label><span className="t-label">Extra module (€/jaar)</span><input className="t-veld" type="number" min={0} step="0.01" value={v.prijs_module ?? ""} onChange={(e) => setV({ ...v, prijs_module: getal(e.target.value) })} /></label>
+        </div>
+        <div><span className="t-label">Vaste modules</span><ModuleKeuze zonderKoppelingen waarde={v.modules} onWijzig={(m) => setV({ ...v, modules: m })} /></div>
+        <div className="t-rij" style={{ gap: 20 }}>
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={v.sso} onChange={(e) => setV({ ...v, sso: e.target.checked })} /> SSO verplichten mogelijk</label>
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={v.actief} onChange={(e) => setV({ ...v, actief: e.target.checked })} /> Te kiezen voor nieuwe organisaties</label>
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}>Volgorde <input className="t-veld" style={{ width: 70 }} type="number" value={v.volgorde} onChange={(e) => setV({ ...v, volgorde: Number(e.target.value) })} /></label>
+        </div>
+        {fout && <p className="t-melding fout" style={{ margin: 0 }}>{fout.includes("foreign key") ? "Dit pakket is nog in gebruik. Zet het op niet actief in plaats van het te verwijderen." : fout}</p>}
+        <div className="t-rij">
+          {p && inGebruik === 0 && <button type="button" className="t-knop gevaar" onClick={wis}>Verwijderen</button>}
+          <span style={{ flex: 1 }} />
+          <button type="button" className="t-knop" onClick={onSluit}>Annuleren</button>
+          <button className="t-knop hoofd">Bewaren</button>
+        </div>
+      </form>
     </div>
   );
 }

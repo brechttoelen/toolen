@@ -1,6 +1,6 @@
 'use client';
 
-import { heeftKoppeling } from './merk';
+import { heeftKoppeling, heeftModule } from './merk';
 import { Beachvlag } from './BrandingPaneel';
 import { voorbeeldVan } from './branding';
 import Info from './info';
@@ -233,7 +233,7 @@ export default function BibliotheekBeheer() {
           <p className="fm-sub" style={{ margin: '4px 0 0', fontSize: 14 }}>Gedeeld over alle plannen. Elk element heeft echte maten.</p>
           <div className="fm-segment" style={{ marginTop: 10, width: 'auto', display: 'inline-flex' }}>
             <button className={weergave === 'elementen' ? 'aan' : ''} onClick={() => setWeergave('elementen')}>Elementen · {lijst.length}</button>
-            <button className={weergave === 'doeken' ? 'aan' : ''} onClick={() => setWeergave('doeken')}>Doeken · {doeken.length}</button>
+            {heeftModule('branding') && <button className={weergave === 'doeken' ? 'aan' : ''} onClick={() => setWeergave('doeken')}>Doeken · {doeken.length}</button>}
           </div>
         </div>
         {schrijven && weergave === 'elementen' && <button className="fm-knop" style={{ height: 40 }} onClick={() => setToonImport((x) => !x)}>Importeren uit Excel of CSV</button>}
@@ -266,8 +266,8 @@ export default function BibliotheekBeheer() {
         </div>
       )}
 
-      {weergave === 'doeken' && <DoekenBeheer doeken={doeken} setDoeken={setDoeken} schrijven={schrijven} />}
-      <div style={{ display: weergave === 'doeken' ? 'none' : 'flex', flexWrap: 'wrap', gap: 24, padding: '16px 32px 32px' }}>
+      {weergave === 'doeken' && heeftModule('branding') && <DoekenBeheer doeken={doeken} setDoeken={setDoeken} schrijven={schrijven} />}
+      <div style={{ display: weergave === 'doeken' && heeftModule('branding') ? 'none' : 'flex', flexWrap: 'wrap', gap: 24, padding: '16px 32px 32px' }}>
         <Overzicht lijst={lijst} setLijst={setLijst} cats={cats} cat={cat} setCat={setCat} gekozen={gekozen} kies={kies} schrijven={schrijven} setMelding={setMelding} setFout={setFout} />
 
         {gekozen && (

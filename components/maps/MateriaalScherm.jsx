@@ -7,6 +7,7 @@
 import { getOrganisatie } from './merk';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { berekenStuklijst, stuklijstRijen, leverlijstRijen } from './Stuklijst';
+import { heeftModule } from './merk';
 import { maakXlsx, maakPdf, bewaarBestand } from './tabelExport';
 import { herkomstVan, maten } from './stijl';
 import { useLeveranciers, juisteNaam, zorgLeverancier, leveranciersVoor } from './leveranciers';
@@ -184,7 +185,7 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
                     <span className="fm-mat-tot">{getal(n)} st.{m ? ` · ${getal(m)} m` : ''}</span>
                     {groep === 'lev' && levInfo.get(g) && (() => { const l = levInfo.get(g); const d = [l.contactpersoon, l.email, l.telefoon].filter(Boolean); return d.length ? <span className="fm-mat-contact">{d.map((x) => <span key={x}>{x}</span>)}</span> : <a className="fm-mat-contact leeg" href="/maps/leveranciers" target="_blank" rel="noreferrer">contact aanvullen</a>; })()}
                     <span style={{ flex: 1 }} />
-                    {groep === 'lev' && g !== ZONDER && <><ExportKnop klein label="Bestellijst" opties={[['Excel (.xlsx)', () => bestelXlsx(g)], ['PDF', () => bestelPdf(g)]]} /><ExportKnop klein label="Leverlijst" opties={[['Excel (.xlsx)', () => leverXlsx(g)], ['PDF', () => leverPdf(g)]]} /></>}
+                    {groep === 'lev' && g !== ZONDER && heeftModule('leveranciers') && <><ExportKnop klein label="Bestellijst" opties={[['Excel (.xlsx)', () => bestelXlsx(g)], ['PDF', () => bestelPdf(g)]]} /><ExportKnop klein label="Leverlijst" opties={[['Excel (.xlsx)', () => leverXlsx(g)], ['PDF', () => leverPdf(g)]]} /></>}
                     <button className="fm-knop klein" onClick={() => onToon(ids, g)}>Toon op kaart</button>
                   </div>
                   <table className="fm-mat-tabel">

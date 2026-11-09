@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 import { metTekening } from './tekeningen';
 import { laadDxf, planTransform } from './onderlegger';
 import BibliotheekPaneel from './BibliotheekPaneel';
+import { magModule } from './modules';
 import { vraagTekst, useSluitBuiten } from './dialoog';
 import { FotoStrook } from './fotos';
 import { PUNT_TYPES, PUNT, PuntSymbool } from './binnenPunten';
@@ -2111,7 +2112,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                     <button className={modus?.startsWith('punt:') && modus !== 'punt:invoer' ? 'aan' : ''} data-menuknop onClick={() => setPuntMenu((x) => !x)}>{modus?.startsWith('punt:') && modus !== 'punt:invoer' ? (PUNT[modus.slice(5)]?.kort || PUNT[modus.slice(5)]?.naam) : 'Punt'} ▾</button>
                   </span>
                 )}
-                {schrijven && (
+                {schrijven && magModule('stroom') && (
                   <span style={{ position: 'relative', display: 'inline-flex' }}>
                     <button className={stroomAan ? 'aan' : ''} data-menuknop title="Stroom in dit gebouw: invoer, kasten, stekkerdozen, verbruikers en kabels" onClick={() => setStroomMenu((x) => (x ? false : true))}>{modus === 'kabel' ? 'Kabel' : modus === 'punt:invoer' ? 'Stroominvoer' : 'Stroom'} ▾</button>
                   </span>

@@ -89,6 +89,8 @@
 .fm-laag .tel { font-size: 11px; color: var(--fm-grijs); }
 .fm-element { display: grid; grid-template-columns: 30px 1fr 24px; gap: 8px; align-items: center; padding: 6px 10px; border-bottom: 1px solid #f0f0ee; cursor: pointer; background: #fff; width: 100%; border-left: 0; border-right: 0; border-top: 0; text-align: left; }
 .fm-element:hover, .fm-element.aan { background: var(--fm-aan-bg); }
+.fm-element.fm-uitpakket { opacity: .5; cursor: not-allowed; }
+.fm-element.fm-uitpakket:hover { background: #fff; }
 .fm-element.fm-map { grid-template-columns: 1fr auto 14px; padding: 10px 12px; }
 .fm-element .ic { width: 30px; height: 30px; background: #FAFAFB; border: 1px solid var(--fm-rand); display: flex; align-items: center; justify-content: center; }
 

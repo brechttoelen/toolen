@@ -5,6 +5,7 @@ import * as turf from '@turf/turf';
 import { berekenStroom } from './stroom';
 import { isSign } from './signalisatie';
 import { controleBrand } from './veiligheid';
+import { heeftModule } from './merk';
 
 const M = { units: 'meters' };
 
@@ -239,6 +240,9 @@ export function controleer({ plan, lagen, items, elementenMap, fasen, opmerkinge
 
   if (opmerkingenOpen) m.push({ id: null, soort: 'waarschuwing', groep: 'Opmerkingen', tekst: `${opmerkingenOpen} opmerkingen staan nog open.` });
   const ok = new Set(plan?.instellingen?.controle?.goedgekeurd || []);
-  for (const x of m) if (ok.has(meldingSleutel(x))) x.goedgekeurd = true;
-  return m;
+  const uit = m.filter((x) => !GROEP_MODULE[x.groep] || heeftModule(GROEP_MODULE[x.groep]));
+  for (const x of uit) if (ok.has(meldingSleutel(x))) x.goedgekeurd = true;
+  return uit;
 }
+// Meldingen die bij een module horen; de rest (overlap, hoogte, afstanden, lagen, fasen …) is basis.
+const GROEP_MODULE = { Hulpdiensten: 'veiligheid', Doorrijhoogte: 'veiligheid', Attesten: 'veiligheid', Brandveiligheid: 'veiligheid', Stroom: 'stroom', Signalisatie: 'signalisatie' };

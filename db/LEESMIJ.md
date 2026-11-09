@@ -67,6 +67,14 @@ Modules uit het pakket afdwingen: items van Signalisatie, Stroom, Stellingbouwer
 
 Na het uitvoeren: in `/beheer` bij elke organisatie de juiste modules aanvinken (een organisatie zonder modules heeft enkel de basis).
 
+## 0005_pakketten.sql
+
+Pakketten als tabel (`maps.pakketten`), te beheren in `/beheer` → Pakketten (plaatsen, lezers, vaste modules, modules naar keuze, prijzen, proefdagen). Een pakket kiezen bij een organisatie neemt plaatsen, lezers en modules over; daarna kan je per organisatie afwijken (het scherm toont waar). Koppelingen (stock, gridlab) blijven staan.
+
+Ook: enkel gekende modules in `organisaties.modules`; een nieuwe organisatie neemt lege waarden uit het pakket; de modulebewaking op items is verfijnd: een bestaand item met stroom of doeken verplaatsen, hernoemen of de modulegegevens eraf halen mag, enkel toevoegen of wijzigen van die gegevens wordt geweigerd. Getest: `test_0005.sql`. Mag opnieuw gedraaid worden.
+
+Uitvoeren: plakken in de SQL Editor van Toolen → Run.
+
 ### Nog open
 
 - Bestanden: lezen is publiek, opladen kan iedereen die in een organisatie mag schrijven, wijzigen en wissen enkel wie het bestand opleverde of een beheerder. Paden per organisatie (`<organisatie_id>/…`) volgen bij de dataverhuis.

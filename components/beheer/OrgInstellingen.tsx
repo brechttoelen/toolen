@@ -38,6 +38,8 @@ export default function OrgInstellingen() {
   const [uitn, setUitn] = useState<Uitn[]>([]);
   const [org, setOrg] = useState<Org | null>(null);
   const [gebruik, setGebruik] = useState<Gebruik | null>(null);
+  const [pakketNaam, setPakketNaam] = useState<string | null>(null);
+  useEffect(() => { if (org?.pakket) db().from("pakketten").select("naam").eq("id", org.pakket).maybeSingle().then(({ data }: { data: unknown }) => setPakketNaam((data as { naam: string } | null)?.naam || null)); }, [org?.pakket]);
   const [melding, setMelding] = useState<{ soort: "ok" | "fout"; tekst: string } | null>(null);
   const [mail, setMail] = useState("");
   const [rol, setRol] = useState("bewerker");
@@ -210,7 +212,7 @@ export default function OrgInstellingen() {
             <div className="t-rij">
               <div style={{ flex: 1 }}>
                 <div className="t-stil" style={{ fontSize: 13 }}>Pakket</div>
-                <div style={{ fontSize: 20, fontWeight: 600 }}>{pakketVan(org.pakket).naam}</div>
+                <div style={{ fontSize: 20, fontWeight: 600 }}>{pakketNaam || pakketVan(org.pakket).naam}</div>
               </div>
               <span className={`t-pil ${st.pil}`}>{st.naam}</span>
             </div>

@@ -96,6 +96,7 @@ select.t-veld { padding-right: 6px; }
 .t-melding { padding: 10px 14px; border-radius: var(--t-r-klein); font-size: 13.5px; background: var(--t-vlak-2); color: var(--t-tekst-2); }
 .t-melding.fout { background: var(--t-fout-zacht); color: var(--t-fout); }
 .t-melding.ok { background: var(--t-ok-zacht); color: #1B7F4F; }
+.t-melding.let-op { background: var(--t-let-op-zacht, #FFF6E5); color: var(--t-let-op, #8A4D00); }
 .t-balk { height: 8px; border-radius: 4px; background: var(--t-vlak-2); overflow: hidden; }
 .t-balk > i { display: block; height: 100%; background: var(--t-blauw); border-radius: 4px; }
 .t-balk.vol > i { background: var(--t-let-op); }

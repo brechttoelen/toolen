@@ -1,6 +1,7 @@
 'use client';
 
 import { heeftModule, nietInPakket } from './merk';
+const GEEN_DOEKEN = [];
 import { zorgVoorVeldpuntLagen, zetVeldpunten } from './veldpunten';
 import { zetCursor } from './cursor';
 import { bevestig, vraagTekst, AppDialogen, useSluitBuiten } from './dialoog';
@@ -165,7 +166,9 @@ export default function Editor({ planId }) {
   const [laden, setLaden] = useState(true);
   const [kaartKlaar, setKaartKlaar] = useState(false);
 
-  const [gereedschap, setGereedschap] = useState('selecteer');
+  const [gereedschap, setGereedschapRuw] = useState('selecteer');
+  // Kabel en vaste aansluiting horen bij de module Stroom.
+  const setGereedschap = useCallback((g) => setGereedschapRuw((oud) => { const n = typeof g === 'function' ? g(oud) : g; if (['kabel', 'vast'].includes(n) && !heeftModule('stroom')) { setTimeout(() => setMelding(nietInPakket('stroom')), 0); return oud; } return n; }), []);
   const [gekozenElement, setGekozenElement] = useState(null);
   const [elementRot, setElementRot] = useState(0);
   const [elementAantal, setElementAantal] = useState(1);
@@ -391,6 +394,7 @@ export default function Editor({ planId }) {
   useEffect(() => {
     if (laden || !urlBinnen.current) return;
     const w = urlBinnen.current; urlBinnen.current = false;
+    if (!heeftModule('binnen')) return;
     const host = items.find((x) => x.id === w.host); if (!host) return;
     const vs = verdiepingenVan(host);
     setBinnenScherm({ host: host.id, verd: vs.some((v) => v.id === w.verd) ? w.verd : vs[0].id });
@@ -1983,6 +1987,7 @@ export default function Editor({ planId }) {
   }, [wijzigItem]);
   // Binnenplan openen in een eigen scherm.
   const openBinnenScherm = useCallback((hostId, verd = null) => {
+    if (!heeftModule('binnen')) { setMelding(nietInPakket('binnen')); return; }
     const host = st.current.items.find((x) => x.id === hostId);
     if (!host?.geometrie) return;
     const vs = verdiepingenVan(host);
@@ -2612,6 +2617,7 @@ export default function Editor({ planId }) {
   // Kabel van de voeding naar dit item, als rechte lijn om daarna bij te werken.
   // alleen: enkel de doelen waarvoor dit waar geeft (het binnenplan tekent zijn eigen kabels binnen).
   const tekenKabel = useCallback((id, { alleen = null } = {}) => {
+    if (!heeftModule('stroom')) { setMelding(nietInPakket('stroom')); return; }
     const it = st.current.items.find((x) => x.id === id);
     if (!it) return;
     const sIt = stroomVan(it, st.current.elementen.find((e) => e.id === it.element_id));
@@ -4310,18 +4316,17 @@ export default function Editor({ planId }) {
     const acties = [
       ['PDF op schaal', () => setDialoog('pdf'), 'exporteren afdrukken'],
       ...(schrijven ? [['Tekenscherm (op maat tekenen met raster)', () => openTekenscherm(selectieRef.current?.length ? selectieRef.current : null), 'raster groep precisie']] : []),
-      ['Signalisatie-PDF', () => maakSignPdf(), 'borden'],
+      ...(heeftModule('signalisatie') ? [['Signalisatie-PDF', () => maakSignPdf(), 'borden']] : []),
       ['Delen met externen', () => setDialoog('delen'), 'link deel-link'],
       ['Importeren of exporteren', () => setDialoog('bestand'), 'kml gpx csv'],
       ['Versie bewaren', () => versieBewaren(), 'opslaan'],
       ['Versies bekijken en terugzetten', () => zetTab('plan'), 'herstellen'],
       ['Lagen', () => zetTab('lagen'), ''],
       ['Materiaal per leverancier', () => setMateriaalOpen(true), 'stuklijst lijsten materiaal leveranciers'],
-      ['Elektriciteit', () => zetTab('stroom'), 'stroom lijsten kabels'],
-      ['Borden (signalisatie)', () => zetTab('sign'), 'lijsten wegwijzers'],
+      ...(heeftModule('stroom') ? [['Elektriciteit', () => zetTab('stroom'), 'stroom lijsten kabels']] : []),
+      ...(heeftModule('signalisatie') ? [['Borden (signalisatie)', () => zetTab('sign'), 'lijsten wegwijzers']] : []),
       ['Draaiboek', () => zetTab('draaiboek'), 'opbouw afbraak'],
-      ['Keuringsattesten', () => { setControleBlok('attesten'); zetTab('controle'); }, 'controle attesten'],
-      ['Brandveiligheid', () => { setControleBlok('brand'); zetTab('controle'); }, 'controle brandweer'],
+      ...(heeftModule('veiligheid') ? [['Keuringsattesten', () => { setControleBlok('attesten'); zetTab('controle'); }, 'controle attesten'], ['Brandveiligheid', () => { setControleBlok('brand'); zetTab('controle'); }, 'controle brandweer']] : []),
       ['Controle', () => zetTab('controle'), 'fouten veiligheid'],
       ['Plan-instellingen', () => zetTab('plan'), 'titelblok'],
       ['Volledig scherm', () => setVolScherm((v) => !v), ''],
@@ -4338,7 +4343,7 @@ export default function Editor({ planId }) {
       if (bouwEl.stelling) r.push({ groep: 'Bouwers', titel: 'Stelling bouwen', doe: () => kiesBouwer({ soort: 'element', el: bouwEl.stelling, naam: 'de stelling' }) });
       r.push({ groep: 'Bouwers', titel: 'Element tekenen (tekenscherm)', doe: () => kiesBouwer({ soort: 'teken' }) });
     }
-    for (const g of GEREEDSCHAP) if (g && (schrijven || ['selecteer', 'hand', 'meten', 'meten-vlak'].includes(g.id))) r.push({ groep: 'Gereedschap', titel: g.naam, extra: g.toets ? `toets ${g.toets}` : '', doe: () => kiesTool(g.id), standaard: ['lijn', 'punt', 'rechthoek'].includes(g.id) });
+    for (const g of GEREEDSCHAP) if (g && (!['kabel', 'vast'].includes(g.id) || heeftModule('stroom')) && (schrijven || ['selecteer', 'hand', 'meten', 'meten-vlak'].includes(g.id))) r.push({ groep: 'Gereedschap', titel: g.naam, extra: g.toets ? `toets ${g.toets}` : '', doe: () => kiesTool(g.id), standaard: ['lijn', 'punt', 'rechthoek'].includes(g.id) });
     if (schrijven) for (const el of elementen) r.push({ groep: 'Elementen', titel: el.naam, extra: el.categorie, doe: () => { setGekozenElement(el); setGereedschap('element'); setTab('bibliotheek'); } });
     for (const l of lagen) r.push({ groep: 'Lagen', titel: `Laag ${l.naam}`, extra: l.zichtbaar ? '' : 'verborgen', doe: () => { setActieveLaag(l.id); zetTab('lagen'); } });
     for (const it of items) {
@@ -4579,10 +4584,10 @@ export default function Editor({ planId }) {
             <div className="fm-menu" style={{ right: 0, top: 34 }} onClick={(e) => e.stopPropagation()}>
               {werkruimte !== 'plan' && (wrExports || []).map((x) => <button key={x.id} onClick={() => { setMenu(null); exporteer(x.id); }}>{x.naam}<small>{wr.naam}</small></button>)}
               <button onClick={() => { setMenu(null); setDialoog('pdf'); }}>PDF op schaal<small>plan, rasterplan, bladen</small></button>
-              <button onClick={() => { setMenu(null); maakSignPdf(); }}>Signalisatie-PDF</button>
+              {heeftModule('signalisatie') && <button onClick={() => { setMenu(null); maakSignPdf(); }}>Signalisatie-PDF</button>}
               {(() => {
                 // Binnenplannen: elk gebouw of elke tent met een inrichting, als pdf (A3).
-                const hosts = [...new Set(items.map((x) => x.velden?.binnen?.host).filter(Boolean))].map((id) => items.find((x) => x.id === id)).filter(Boolean);
+                const hosts = !heeftModule('binnen') ? [] : [...new Set(items.map((x) => x.velden?.binnen?.host).filter(Boolean))].map((id) => items.find((x) => x.id === id)).filter(Boolean);
                 return hosts.map((h) => { const vs = verdiepingenVan(h); return vs.map((v) => (
                   <button key={`bp${h.id}${v.id}`} onClick={() => { setMenu(null); setBinnenScherm({ host: h.id, verd: v.id, pdf: true }); }}>Binnenplan {h.naam || elementenMap.get(h.element_id)?.naam || ''}{vs.length > 1 ? ` · ${v.naam}` : ''}<small>pdf A3</small></button>
                 )); });
@@ -4761,7 +4766,7 @@ export default function Editor({ planId }) {
                 </div>
               )}
               {tab === 'stuklijst' && <Stuklijst items={items} elementen={elementenMap} lagen={lagenMap} actieveFase={actieveFase} fasen={fasen} groepen={plan?.instellingen?.groepen || {}} herkomst={herkomstFilter} onHerkomst={setHerkomstFilter}  std={levStd} onMateriaal={() => setMateriaalOpen(true)} />}
-              {tab === 'stroom' && (
+              {tab === 'stroom' && heeftModule('stroom') && (
                 <StroomPaneel plan={plan} items={items} lagen={lagen} fasen={fasen} elementenMap={elementenMap} schrijven={schrijven} onPlan={wijzigPlan} onKiesItem={kiesItemOpKaart} onKabelgoten={legKabelgoten} vast={vast} inBeeld={vastInBeeld} gekozenVa={vastSel?.id || null} onKiesVa={kiesVa} onNieuweVa={() => { setGereedschap('vast'); setMelding('Klik op de kaart waar de vaste aansluiting staat.'); }} geselecteerd={geselecteerd} />
               )}
               {tab === 'branding' && (
@@ -4774,7 +4779,7 @@ export default function Editor({ planId }) {
                 <VeiligheidPaneel plan={plan} items={items} elementenMap={elementenMap} schrijven={schrijven} onPlan={wijzigPlan} onKiesItem={kiesItemOpKaart} geselecteerd={geselecteerd}
                   onUitgangTekenen={uitgangTekenen} onTool={(id) => { const t = wrTool(id); if (t) kiesWrTool(t, 200); }} />
               )}
-              {tab === 'sign' && (
+              {tab === 'sign' && heeftModule('signalisatie') && (
                 <SignalisatiePaneel plan={plan} items={items} schrijven={schrijven} geselecteerd={geselecteerd} onRouteAanpassen={routeAanpassen} zonderDetail={werkruimte === 'sign'}
                   modus={werkruimte === 'sign' ? signModus : 'wegwijzers'} onModus={werkruimte === 'sign' ? setSignModus : null}
                   zetModus={signZet === true} onZetModus={setSignZet} onPlan={wijzigPlan} onPdf={maakSignPdf}
@@ -5050,7 +5055,7 @@ export default function Editor({ planId }) {
                 stroom={stroomRes} vast={vast} onKabelBuiten={(id, alleen) => tekenKabel(id, { alleen })}
                 fasen={fasen} actieveFase={actieveFase} onFase={setActieveFase}
                 onOngedaan={(opnieuw) => { ongedaan(opnieuw); setTimeout(syncTd, 0); }}
-                doeken={doeken}
+                doeken={heeftModule('branding') ? doeken : GEEN_DOEKEN}
                 onGrondplan={(f) => grondplanToevoegen(f, { host: host.id, verd: ol ? ol.binnen.verd : (verd === vs[0].id ? null : verd) })}
                 onOnderlegger={(patch) => ol && zetOl(patch)}
                 onPassen={() => { if (!ol) return; schermNaPassen.current = binnenScherm; setBinnenScherm(null); openBinnen(host.id, verd); setBinnenFoto(true); setTimeout(() => startKalibratie(ol), 600); }}
@@ -5356,7 +5361,7 @@ export default function Editor({ planId }) {
             <ItemGeschiedenis item={item} />
             {wrDetail}
             <details className="fm-blok fm-wr-alles"><summary><span>Alle eigenschappen</span></summary>
-              <Eigenschappen item={item} binnenplan={item?.geometrie?.type === 'Polygon' ? (binnen ? (item.id !== binnen.host && item.soort !== 'element' ? { ruimte: true } : null) : { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length }) : !binnen && isBinnenPunt(item) ? { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length } : null} groepNaam={item?.groep_id ? groepNaam(item.groep_id) : ''} onGroepNaam={(n) => item?.groep_id && zetGroepNaam(item.groep_id, n)} groepAantal={item?.groep_id ? items.filter((x) => x.groep_id === item.groep_id).length : 0} plan={plan} lagen={lagen} fasen={fasen} elementen={elementen} doeken={doeken} doekPenseel={doekPenseel} onDoekPenseel={setDoekPenseel} elementenMap={elementenMap} lagenMap={lagenMap}
+              <Eigenschappen item={item} binnenplan={item?.geometrie?.type === 'Polygon' ? (binnen ? (item.id !== binnen.host && item.soort !== 'element' ? { ruimte: true } : null) : { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length }) : !binnen && isBinnenPunt(item) ? { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length } : null} groepNaam={item?.groep_id ? groepNaam(item.groep_id) : ''} onGroepNaam={(n) => item?.groep_id && zetGroepNaam(item.groep_id, n)} groepAantal={item?.groep_id ? items.filter((x) => x.groep_id === item.groep_id).length : 0} plan={plan} lagen={lagen} fasen={fasen} elementen={elementen} doeken={heeftModule('branding') ? doeken : GEEN_DOEKEN} doekPenseel={doekPenseel} onDoekPenseel={setDoekPenseel} elementenMap={elementenMap} lagenMap={lagenMap}
                 items={items} schrijven={schrijven && !slotInfo.current.slot} uitgebreid={uitgebreid} vast={vast}
                 onWijzig={(patch) => { if (!item) return; if ('laag_id' in patch && item.groep_id) { for (const x of items.filter((y) => y.groep_id === item.groep_id)) wijzigItem(x.id, { laag_id: patch.laag_id }); const { laag_id, ...rest } = patch; if (Object.keys(rest).length) wijzigItem(item.id, rest); return; } wijzigItem(item.id, patch); if (patch.geometrie) { try { tdRef.current?.updateFeatureGeometry(item.id, geo.rondGeom(patch.geometrie)); } catch { setTimeout(syncTd, 0); } } }} onStijl={(patch) => item && wijzigItem(item.id, { stijl: { ...item.stijl, ...patch } })} onGeometrie={(g, p) => item && zetGeometrie(item.id, g, p)}
                 onDupliceer={() => item && dupliceer(item.id)} onVerwijder={() => item && verwijderItems([item.id])} onRaster={(r, k, x, y) => item && maakRaster(item.id, r, k, x, y)} onLangsLijn={(elId, interval) => item && langsLijn(item.id, elId, interval)}
@@ -5373,7 +5378,7 @@ export default function Editor({ planId }) {
             <Eigenschappen
               binnenplan={item?.geometrie?.type === 'Polygon' ? (binnen ? (item.id !== binnen.host && item.soort !== 'element' ? { ruimte: true } : null) : { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length }) : !binnen && isBinnenPunt(item) ? { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length } : null}
               groepNaam={item?.groep_id ? groepNaam(item.groep_id) : ''} onGroepNaam={(n) => item?.groep_id && zetGroepNaam(item.groep_id, n)} groepAantal={item?.groep_id ? items.filter((x) => x.groep_id === item.groep_id).length : 0}
-              item={item} plan={plan} lagen={lagen} fasen={fasen} elementen={elementen} doeken={doeken} doekPenseel={doekPenseel} onDoekPenseel={setDoekPenseel} elementenMap={elementenMap} lagenMap={lagenMap}
+              item={item} plan={plan} lagen={lagen} fasen={fasen} elementen={elementen} doeken={heeftModule('branding') ? doeken : GEEN_DOEKEN} doekPenseel={doekPenseel} onDoekPenseel={setDoekPenseel} elementenMap={elementenMap} lagenMap={lagenMap}
               items={items} schrijven={schrijven && !slotInfo.current.slot} uitgebreid={uitgebreid}
               onWijzig={(patch) => { if (!item) return; if ('laag_id' in patch && item.groep_id) { for (const x of items.filter((y) => y.groep_id === item.groep_id)) wijzigItem(x.id, { laag_id: patch.laag_id }); const { laag_id, ...rest } = patch; if (Object.keys(rest).length) wijzigItem(item.id, rest); return; } wijzigItem(item.id, patch); if (patch.geometrie) { try { tdRef.current?.updateFeatureGeometry(item.id, geo.rondGeom(patch.geometrie)); } catch { setTimeout(syncTd, 0); } } }}
               onStijl={(patch) => item && wijzigItem(item.id, { stijl: { ...item.stijl, ...patch } })}

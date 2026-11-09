@@ -7,11 +7,14 @@ import { useEffect, useState } from 'react';
 import { maps, sb, BUCKET, foutTekst, wieBenIk } from './db';
 import { dragerOp, voorbeeldVan } from './branding';
 import { GridlabKnop } from './gridlabdoek';
+import { heeftModule } from './merk';
 
 const pad = (map, ext) => `ontwerpen/${map}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
 export const NIEUW_ONTWERP = 'fm-ontwerp-nieuw';
 
-export function DoekUpload({ planId, drager = 'hek', onNieuw, klein = false }) {
+// Ontwerpen opladen hoort bij de module Branding.
+export function DoekUpload(props) { return heeftModule('branding') ? <DoekUploadKnop {...props} /> : null; }
+function DoekUploadKnop({ planId, drager = 'hek', onNieuw, klein = false }) {
   const [nieuw, setNieuw] = useState(null); const [bezig, setBezig] = useState(''); const [fout, setFout] = useState('');
   const [admin, setAdmin] = useState(false);
   useEffect(() => { let weg = false; wieBenIk().then((p) => { if (!weg) setAdmin(p?.role === 'admin'); }).catch(() => {}); return () => { weg = true; }; }, []);

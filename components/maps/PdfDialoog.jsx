@@ -235,7 +235,7 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
     try {
       const { f, revisie, revisies } = await opties();
       const args = { plan, lagen, items, elementenMap, fase: f, inst: { ...inst, schaal: inst.schaal, centrum, revisie, revisies }, voortgang: setBezig };
-      const { doc, meldingen: m } = inst.bladen ? await maakBladen(args) : await maakPdf(args);
+      const { doc, meldingen: m } = inst.bladen && heeftModule('groot') ? await maakBladen(args) : await maakPdf(args);
       setMeldingen(m);
       doc.save(`${bestandsnaam(f, actieveU && !gewijzigdeU ? actieveU.naam : '')}.pdf`);
       bewaarInstellingen();
@@ -389,8 +389,8 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
                 </select>
               </label>
             )}
-            <label className="fm-vink"><input type="checkbox" checked={!!inst.bladen} onChange={(e) => zet({ bladen: e.target.checked })} />Bladindeling: alles op vaste schaal over meerdere bladen</label>
-            {inst.bladen && !inst.schaal && <div className="fm-sub" style={{ color: '#8A4D00' }}>Kies hierboven een vaste schaal.</div>}
+            {heeftModule('groot') && <label className="fm-vink"><input type="checkbox" checked={!!inst.bladen} onChange={(e) => zet({ bladen: e.target.checked })} />Bladindeling: alles op vaste schaal over meerdere bladen</label>}
+            {inst.bladen && heeftModule('groot') && !inst.schaal && <div className="fm-sub" style={{ color: '#8A4D00' }}>Kies hierboven een vaste schaal.</div>}
             {heeftModule('groot') && <label className="fm-vink"><input type="checkbox" checked={inst.raster.aan} onChange={(e) => zet({ raster: { ...inst.raster, aan: e.target.checked } })} />Rasterplan met vakken (A, B, C … en 1, 2, 3 …)</label>}
             {inst.raster.aan && heeftModule('groot') && (
               <div className="fm-raster2">
