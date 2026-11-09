@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Toolen · 0005_pakketten.sql
--- Project: toolen (hlpurcdeouegvphvwygu). Na 0001, 0003 en 0004.
+-- Project: toolen (hlpurcdeouegvphvwygu). Na 0001, 0003 en 0004. Uitgevoerd op 9 nov 2026.
 --
 -- 1. Pakketten als tabel (maps.pakketten), te beheren in /beheer → Pakketten.
 --    Een pakket geeft standaardwaarden: plaatsen, lezers, modules. Per organisatie kan je
@@ -50,7 +50,7 @@ insert into maps.pakketten (id, naam, omschrijving, plaatsen, lezers, modules, m
      array['stroom','signalisatie','stelling','branding','veiligheid','binnen','groot','terrein','leveranciers','integraties'], 0, null, true, 50)
 on conflict (id) do nothing;
 
-create or replace function maps.pakket_bijgewerkt() returns trigger language plpgsql as $$
+create or replace function maps.pakket_bijgewerkt() returns trigger language plpgsql set search_path = '' as $$
 begin new.bijgewerkt := now(); return new; end $$;
 drop trigger if exists pakketten_bijgewerkt on maps.pakketten;
 create trigger pakketten_bijgewerkt before update on maps.pakketten for each row execute function maps.pakket_bijgewerkt();
