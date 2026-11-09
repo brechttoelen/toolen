@@ -79,6 +79,10 @@ Uitvoeren: plakken in de SQL Editor van Toolen → Run.
 
 Opruiming na de beveiligingscontrole van Supabase: `maps.toegang` is geen security definer view meer (nu een functie plus een view met security_invoker, enkel lezen); functies voor ingelogde gebruikers zijn niet meer zonder login aan te roepen (deellinks en `uitnodiging_info` blijven open); vaste search_path voor de laatste hulpfuncties. Uitgevoerd op 9 nov 2026.
 
+## 0007_events.sql
+
+Events (naam, datum, kleur, plaats) en `plannen.event_id`. Het overzicht groepeert plannen per event; zonder deze migratie valt het terug op de editie van de plannen. Bestaande plannen met een editie krijgen automatisch een event zonder datum. Getest: `test_0007.sql`.
+
 ### Nog open
 
 - Bestanden: lezen is publiek, opladen kan iedereen die in een organisatie mag schrijven, wijzigen en wissen enkel wie het bestand opleverde of een beheerder. Paden per organisatie (`<organisatie_id>/…`) volgen bij de dataverhuis.
