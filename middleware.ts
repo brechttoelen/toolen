@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import type { CookieOptions } from "@supabase/ssr";
 import { HOOFDDOMEIN, geldigeSlug, isEigenDomein, subdomein } from "@/lib/org";
 import { cookieOpties } from "@/lib/supabase/cookie";
 import { SUPABASE_URL, SUPABASE_KEY, supabaseIngesteld } from "@/lib/supabase/env";
@@ -58,6 +58,8 @@ async function route(req: NextRequest) {
   const heeftSessie = req.cookies.getAll().some((c) => c.name.startsWith("sb-"));
   if (heeftSessie && supabaseIngesteld()) {
     try {
+      // Dynamisch geladen: een fout in de Supabase-bibliotheek kan de site nooit laten vallen.
+      const { createServerClient } = await import("@supabase/ssr");
       const sb = createServerClient(SUPABASE_URL, SUPABASE_KEY, {
         cookieOptions: cookieOpties(),
         cookies: {
