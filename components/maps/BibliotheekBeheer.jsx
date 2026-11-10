@@ -48,10 +48,11 @@ export function leesTabel(tekst) {
   }).filter((r) => r.naam);
 }
 
-export default function BibliotheekBeheer() {
+export default function BibliotheekBeheer({ soort = 'elementen' }) {
+  // Twee aparte pagina's: Bibliotheek (elementen) en Branding (doeken, panelen, vlaggen).
   const [lijst, setLijst] = useState([]);
   const [doeken, setDoeken] = useState([]);
-  const [weergave, setWeergave] = useState('elementen');
+  const weergave = soort === 'branding' ? 'doeken' : 'elementen';
   const [profiel, setProfiel] = useState(null);
   const [gekozen, setGekozen] = useState(null);
   const [bibTab, setBibTab] = useState('algemeen');
@@ -85,7 +86,7 @@ export default function BibliotheekBeheer() {
   // Waar je was na vernieuwen: overzicht, categorie, gekozen element en tabblad staan in de adresbalk.
   const urlStand = useRef(null);
   if (urlStand.current === null && typeof window !== 'undefined') { const q = new URLSearchParams(window.location.search); urlStand.current = { w: q.get('w'), cat: q.get('cat'), el: q.get('el'), tab: q.get('tab') }; }
-  useEffect(() => { const u = urlStand.current; if (u?.w === 'doeken') setWeergave('doeken'); if (u?.cat) setCat(u.cat); }, []);
+  useEffect(() => { const u = urlStand.current; if (u?.cat) setCat(u.cat); }, []);
   useEffect(() => {
     const u = urlStand.current; if (!u?.el || !lijst.length) return;
     const el = lijst.find((x) => x.id === u.el); urlStand.current = { ...u, el: null };
@@ -94,7 +95,7 @@ export default function BibliotheekBeheer() {
   useEffect(() => {
     try {
       const u = new URL(window.location.href); const zet = (k, v) => (v ? u.searchParams.set(k, v) : u.searchParams.delete(k));
-      zet('w', weergave === 'doeken' ? 'doeken' : null); zet('cat', weergave === 'doeken' ? null : cat || null); zet('el', weergave === 'doeken' ? null : gekozen || null); zet('tab', gekozen && bibTab !== 'algemeen' ? bibTab : null);
+      zet('cat', weergave === 'doeken' ? null : cat || null); zet('el', weergave === 'doeken' ? null : gekozen || null); zet('tab', gekozen && bibTab !== 'algemeen' ? bibTab : null);
       if (u.href !== window.location.href) window.history.replaceState(window.history.state, '', u.href);
     } catch {}
   }, [weergave, cat, gekozen, bibTab]);
@@ -229,12 +230,8 @@ export default function BibliotheekBeheer() {
       <AppDialogen />
       <header style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', padding: '20px 32px', background: '#fff', borderBottom: '1px solid #e8e8e6' }}>
         <div style={{ flex: '1 1 280px' }}>
-          <h1 className="t-titel">Bibliotheek</h1>
-          <p className="fm-sub" style={{ margin: '4px 0 0', fontSize: 14 }}>Gedeeld over alle plannen. Elk element heeft echte maten.</p>
-          <div className="fm-segment" style={{ marginTop: 10, width: 'auto', display: 'inline-flex' }}>
-            <button className={weergave === 'elementen' ? 'aan' : ''} onClick={() => setWeergave('elementen')}>Elementen · {lijst.length}</button>
-            {heeftModule('branding') && <button className={weergave === 'doeken' ? 'aan' : ''} onClick={() => setWeergave('doeken')}>Doeken · {doeken.length}</button>}
-          </div>
+          <h1 className="t-titel">{weergave === 'doeken' ? 'Branding' : 'Bibliotheek'}</h1>
+          <p className="fm-sub" style={{ margin: '4px 0 0', fontSize: 14 }}>{weergave === 'doeken' ? `Doeken, panelen, vlaggen en frames · ${doeken.length} ontwerpen, gedeeld over alle plannen.` : `Elementen met echte maten · ${lijst.length} elementen, gedeeld over alle plannen.`}</p>
         </div>
         {schrijven && weergave === 'elementen' && <button className="fm-knop" style={{ height: 40 }} onClick={() => setToonImport((x) => !x)}>Importeren uit Excel of CSV</button>}
         {schrijven && weergave === 'elementen' && (
@@ -266,8 +263,8 @@ export default function BibliotheekBeheer() {
         </div>
       )}
 
-      {weergave === 'doeken' && heeftModule('branding') && <DoekenBeheer doeken={doeken} setDoeken={setDoeken} schrijven={schrijven} />}
-      <div style={{ display: weergave === 'doeken' && heeftModule('branding') ? 'none' : 'flex', flexWrap: 'wrap', gap: 24, padding: '16px 32px 32px' }}>
+      {weergave === 'doeken' && (heeftModule('branding') ? <DoekenBeheer doeken={doeken} setDoeken={setDoeken} schrijven={schrijven} /> : <div style={{ padding: 32 }} className="fm-sub">De module Branding staat niet aan voor deze organisatie.</div>)}
+      <div style={{ display: weergave === 'doeken' ? 'none' : 'flex', flexWrap: 'wrap', gap: 24, padding: '16px 32px 32px' }}>
         <Overzicht lijst={lijst} setLijst={setLijst} cats={cats} cat={cat} setCat={setCat} gekozen={gekozen} kies={kies} schrijven={schrijven} setMelding={setMelding} setFout={setFout} />
 
         {gekozen && (

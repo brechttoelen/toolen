@@ -1,4 +1,5 @@
 'use client';
+import TerugKnop from './TerugKnop';
 
 // PDF maken op volledig scherm: links de instellingen en de bewaarde uitsneden,
 // rechts een kaart met het afdrukkader. Het kader verschuif je door erin te
@@ -278,10 +279,10 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
   return (
     <div className="fm fm-pdfscherm" role="dialog" aria-label="PDF maken">
       <header className="fm-pdfkop">
+        <TerugKnop onClick={onSluit} />
         <strong>{onderdeel ? `Plan voor ${onderdeel.ontvanger}` : 'PDF van het beeld'}</strong>
         <span className="fm-sub">{plan.naam}</span>
         <span style={{ flex: 1 }} />
-        <button className="fm-knop" onClick={onSluit}>Sluiten <span className="fm-sub" style={{ marginLeft: 6 }}>Esc</span></button>
       </header>
       <div className="fm-pdfromp">
         <aside className="fm-pdfpaneel">

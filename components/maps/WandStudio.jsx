@@ -1,4 +1,5 @@
 'use client';
+import TerugKnop from './TerugKnop';
 
 // B-matrix wandbouwer: losse frames als bouwblokken (zoals de configurator van B-matrix).
 // Kies een frame uit de bibliotheek en zet het in beeld: aan het uiteinde van een frame trek je
@@ -418,13 +419,13 @@ export default function WandStudio({ it, el, elementenMap, doeken = [], schrijve
   return createPortal(
     <div className="fm fm-ws" role="dialog" aria-label="Wandbouwer" {...schildProps} onContextMenu={(e) => { if (plaats) { e.preventDefault(); stopPlaatsen(); } }}>
       <div className="fm-ws-kop">
+        <TerugKnop onClick={onSluit} />
         <strong>Wandbouwer · {el.naam}</strong>
         <span className="fm-sub">{blokken.length} frames · {mm(totH)} mm hoog{isVrij(it) ? '' : ' · gevuld volgens de getekende lijn'}</span>
         <span style={{ flex: 1 }} />
         {schrijven && <button className="fm-knop klein" disabled={!terugL.current.length} title="Terug (Ctrl + Z)" aria-label="Terug" onClick={terug}>↶</button>}
         {schrijven && <button className="fm-knop klein" disabled={!vooruitL.current.length} title="Opnieuw (Ctrl + Shift + Z)" aria-label="Opnieuw" onClick={opnieuw}>↷</button>}
         {schrijven && blokken.length > 0 && <button className="fm-knop klein" onClick={() => { if (window.confirm('Alle frames weghalen?')) { bewaar([]); setSel([]); } }}>Alles leeg</button>}
-        <button className="fm-knop klein zwart" onClick={onSluit}>Klaar</button>
       </div>
       <div className="fm-ws-lijf">
         <aside className="fm-ws-doeken">

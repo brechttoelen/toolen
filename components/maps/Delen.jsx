@@ -1,4 +1,5 @@
 'use client';
+import TerugKnop from './TerugKnop';
 
 // Delen en exporteren op één scherm. Links de ontvangers (tentenbouwer, politie, stad), in het midden wat
 // een ontvanger krijgt (plannen met eigen lagen en kader, 3D, binnenplannen, plannen per werkplek), rechts
@@ -128,9 +129,7 @@ export default function Delen({
   const scherm = (
     <div className="fm fm-dl" role="dialog" aria-label="Delen en exporteren">
       <header className="fm-dl-kop">
-        <button className="fm-dl-terug" aria-label="Terug naar het plan" title="Terug naar het plan (Esc)" onClick={onSluit}>
-          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M11 4L6 9l5 5" stroke="#fff" strokeWidth="2" fill="none" /></svg>
-        </button>
+        <TerugKnop onClick={onSluit} />
         <div className="fm-dl-titel">
           <span className="fm-dl-event"><i style={{ background: eventKleur }} />{[eventNaam, plan.naam, `v${plan.versie}`].filter(Boolean).join(' · ')}</span>
           <h1>Delen en exporteren</h1>

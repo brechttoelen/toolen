@@ -1,4 +1,5 @@
 'use client';
+import TerugKnop from './TerugKnop';
 
 // Trussbouwer (zelfde stijl als de wandbouwer): losse stukken H30V als bouwblokken.
 // Kies een stuk (liggend of staand) of een kant-en-klaar portaal of kubus en zet het in beeld.
@@ -544,13 +545,13 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
   return createPortal(
     <div className="fm fm-ws" role="dialog" aria-label="Trussbouwer" {...schildProps}>
       <div className="fm-ws-kop">
+        <TerugKnop onClick={onSluit} />
         <strong>Trussbouwer · {el.naam}</strong>
         <span className="fm-sub">{stukken.length} stukken · {getal(metr)} m truss · {getal(totH)} m hoog</span>
         <span style={{ flex: 1 }} />
         {schrijven && <button className="fm-knop klein" disabled={!terugL.current.length} title="Terug (Ctrl + Z)" aria-label="Terug" onClick={terug}>↶</button>}
         {schrijven && <button className="fm-knop klein" disabled={!vooruitL.current.length} title="Opnieuw (Ctrl + Shift + Z)" aria-label="Opnieuw" onClick={opnieuw}>↷</button>}
         {schrijven && stukken.length > 0 && <button className="fm-knop klein" onClick={() => { if (window.confirm('Alle stukken weghalen?')) { bewaar([]); setSel([]); } }}>Alles leeg</button>}
-        <button className="fm-knop klein zwart" onClick={onSluit}>Klaar</button>
       </div>
       <div className="fm-ws-lijf">
         <aside className="fm-ws-doeken">

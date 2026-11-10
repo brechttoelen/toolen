@@ -217,6 +217,12 @@ export default function Editor({ planId }) {
   const [palet, setPalet] = useState(false);
   useSluitBuiten(puntKiezerOpen, () => setPuntKiezerOpen(false));
   const [uitklapY, setUitklapY] = useState(0);
+  // Selectie en Meten klappen open bij erover gaan (met een korte vertraging bij het verlaten).
+  const zweefTimer = useRef(null);
+  const zweefOpen = (id, y) => { clearTimeout(zweefTimer.current); zweefTimer.current = setTimeout(() => { setUitklapY(y); setUitklap(id); }, 90); };
+  const zweefDicht = () => { clearTimeout(zweefTimer.current); zweefTimer.current = setTimeout(() => setUitklap(null), 260); };
+  const zweefBlijf = () => clearTimeout(zweefTimer.current);
+  const [bouwType, setBouwType] = useState(null);
   const [laatsteTool, setLaatsteTool] = useState({ selectie: 'selecteer', tekenen: 'lijn', element: 'element', meten: 'meten' });
   const [menu, setMenu] = useState(null);
   useSluitBuiten(!!menu, () => setMenu(null));
@@ -4413,6 +4419,13 @@ export default function Editor({ planId }) {
     truss: elementen.filter((e) => e.actief !== false && isBouwElement(e) && /truss/i.test(e.categorie || '') && !e.eigenschappen?.wand && !e.eigenschappen?.stelling).sort((a, b) => (/f34/i.test(b.naam) ? 1 : 0) - (/f34/i.test(a.naam) ? 1 : 0))[0],
     stelling: elementen.find((e) => e.actief !== false && isBouwElement(e) && e.eigenschappen?.stelling),
   };
+const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
+    <button key={sleutel} type="button" disabled={!schrijven} className={`fm-tekenrij${extra.aan ? ' aan' : ''}`} onClick={doe} aria-expanded={extra.open}>
+      <span className="ic"><Icoon naam={icoon} maat={20} /></span>
+      <span className="tekst"><b>{naam}</b>{uitleg && <small>{uitleg}</small>}</span>
+      {extra.tel != null && <kbd>{extra.tel}</kbd>}
+    </button>
+  );
   const kiesBouwer = (k) => {
     setBouwMenu(null); setUitklap(null); setTab(null);
     if (k.soort === 'element') { bouwerRef.current = null; setGekozenElement(k.el); setGereedschap('element'); setMelding(`Klik waar ${k.naam} moet komen: de bouwer opent meteen.`); return; }
@@ -4645,17 +4658,17 @@ export default function Editor({ planId }) {
             return (
               <button key={gr.id} data-menuknop className={actief || (gr.paneel && tab === gr.id) ? 'aan' : ''} disabled={uit}
                 title={meer ? `${gr.label}: ${gr.tools.map((x) => gTool(x).naam).join(', ')}` : t.naam}
+                onMouseEnter={meer ? (e) => zweefOpen(gr.id, e.currentTarget.getBoundingClientRect().top) : undefined}
+                onMouseLeave={meer ? zweefDicht : undefined}
                 onClick={(e) => {
-                  e.stopPropagation();
-                  const r = e.currentTarget.getBoundingClientRect();
-                  setUitklapY(r.top);
-                  // Overal op klik (zoals Bouwers): niets klapt open door er enkel over te gaan.
+                  e.stopPropagation(); clearTimeout(zweefTimer.current);
                   if (gr.paneel) { setUitklap(null); setVolScherm(false); if (tab === gr.id) { setTab(null); return; } if (!actief) kiesTool(toonId); setTab(gr.id); return; }
-                  if (uitklap === gr.id) { setUitklap(null); return; }
                   // Nogmaals op Element: bibliotheek dicht en terug naar Selectie.
-                  if (actief && gr.id === 'element' && !meer) { setTab(null); kiesTool('selecteer'); return; }
+                  if (actief && gr.id === 'element') { setTab(null); kiesTool('selecteer'); return; }
+                  if (gr.id === 'element') { setVolScherm(false); kiesTool('element'); return; }
+                  // Selectie en Meten: klik kiest het getoonde gereedschap; de keuze zelf klapt open bij erover gaan.
                   if (!actief) kiesTool(toonId);
-                  if (meer) setUitklap(gr.id);
+                  else if (meer) { setUitklapY(e.currentTarget.getBoundingClientRect().top); setUitklap(uitklap === gr.id ? null : gr.id); }
                 }}>
                 <Icoon naam={gr.icoon || t.icoon} maat={22} /><span>{gr.label}</span>
                 {meer && <i className="pijltje" />}
@@ -4663,9 +4676,9 @@ export default function Editor({ planId }) {
             );
           })}
           {schrijven && (
-            <button data-menuknop className={gereedschap === 'bouwer' || bouwMenu ? 'aan' : ''} title="Bouwers: binnenplan, tent, B-matrix wand, truss, stelling of een element op maat tekenen"
-              onClick={(e) => { e.stopPropagation(); const y = e.currentTarget.getBoundingClientRect().top; setUitklap(null); setBouwMenu((b) => (b ? null : { y })); }}>
-              <Icoon naam="bouwers" maat={22} /><span>Bouwers</span><i className="pijltje" />
+            <button data-menuknop className={gereedschap === 'bouwer' || tab === 'bouwers' ? 'aan' : ''} title="Bouwers: binnenplan, tent, B-matrix wand, truss, stelling of een element op maat tekenen"
+              onClick={(e) => { e.stopPropagation(); setUitklap(null); setVolScherm(false); if (gereedschap === 'element') setGereedschap('selecteer'); setTab(tab === 'bouwers' ? null : 'bouwers'); }}>
+              <Icoon naam="bouwers" maat={22} /><span>Bouwers</span>
             </button>
           )}
           {schrijven && (
@@ -4695,27 +4708,8 @@ export default function Editor({ planId }) {
             <Icoon naam="instellingen" maat={22} /><span>Instellingen</span>
           </button>
         </nav>
-        {bouwMenu && (
-          <div className="fm-uitklap fm-bouwmenu" style={{ top: bouwMenu.y }} onClick={(e) => e.stopPropagation()}>
-            <div className="fm-ctxkop">Bouwers · kies en klik op de kaart</div>
-            <button onClick={() => kiesBouwer({ soort: 'binnen' })}><Icoon naam="gebouw" maat={16} />Binnenplan (indoor)</button>
-            <button className={bouwMenu.tent ? 'aan' : ''} onClick={() => setBouwMenu((b) => ({ ...b, tent: !b.tent, type: null }))}><Icoon naam="tent" maat={16} />Tentbouwer<i className="pijltje" /></button>
-            {bouwMenu.tent && TENTTYPES.filter((x) => bouwTenten(x.k).length).map((x) => (
-              <div key={x.k} className="fm-bouwmenu-sub">
-                <button className={bouwMenu.type === x.k ? 'aan' : ''} title={x.uitleg} onClick={() => setBouwMenu((b) => ({ ...b, type: b.type === x.k ? null : x.k }))}>{x.naam}<small>{bouwTenten(x.k).length}</small></button>
-                {bouwMenu.type === x.k && bouwTenten(x.k).map((el) => <button key={el.id} className="maat" onClick={() => kiesBouwer({ soort: 'tent', el })}>{el.naam}</button>)}
-              </div>
-            ))}
-            {bouwEl.wand && <button onClick={() => kiesBouwer({ soort: 'element', el: bouwEl.wand, naam: 'de B-matrix wand' })}><Icoon naam="element" maat={16} />B-matrix-wandbouwer</button>}
-            {bouwEl.truss && <button onClick={() => kiesBouwer({ soort: 'element', el: bouwEl.truss, naam: 'de truss' })}><Icoon naam="element" maat={16} />Trussbouwer</button>}
-            {bouwEl.stelling && <button onClick={() => kiesBouwer({ soort: 'element', el: bouwEl.stelling, naam: 'de stelling' })}><Icoon naam="element" maat={16} />Stellingbouwer</button>}
-            <hr />
-            <button onClick={() => kiesBouwer({ soort: 'teken' })}><Icoon naam="vrijehand" maat={16} />Element tekenen (tekenscherm)</button>
-          </div>
-        )}
         {uitklap && (
-            <div className="fm-uitklap" style={{ top: uitklapY }} onClick={(e) => e.stopPropagation()}
-              >
+            <div className="fm-uitklap" style={{ top: uitklapY }} onClick={(e) => e.stopPropagation()} onMouseEnter={zweefBlijf} onMouseLeave={zweefDicht}>
               {(() => { const gr = GROEPEN.find((g) => g.id === uitklap); return gr.tools.filter((x) => uitgebreid || !UITGEBREID_TOOLS.includes(x)).map((id) => {
                 const t = gTool(id);
                 const uit = !schrijven && !['selecteer', 'hand', 'meten', 'meten-vlak'].includes(id);
@@ -4746,6 +4740,32 @@ export default function Editor({ planId }) {
                       })}
                     </section>
                   ))}
+                </div>
+              )}
+              {tab === 'bouwers' && (
+                <div className="fm-teken">
+                  <section>
+                    <h3>Gebouwen en tenten</h3>
+                    {bouwRij('binnen', 'gebouw', 'Binnenplan', 'Klik op een gebouw: zalen, gangen en inrichting', () => kiesBouwer({ soort: 'binnen' }))}
+                    {TENTTYPES.filter((x) => bouwTenten(x.k).length).map((x) => (
+                      <Fragment key={x.k}>
+                        {bouwRij(`t${x.k}`, 'tent', x.naam, x.uitleg || 'Kies een maat en klik op de kaart', () => setBouwType((b) => (b === x.k ? null : x.k)), { aan: bouwType === x.k, open: bouwType === x.k, tel: bouwTenten(x.k).length })}
+                        {bouwType === x.k && <div className="fm-bouwmaten">{bouwTenten(x.k).map((el) => <button key={el.id} type="button" disabled={!schrijven} onClick={() => kiesBouwer({ soort: 'tent', el })}>{el.naam}</button>)}</div>}
+                      </Fragment>
+                    ))}
+                  </section>
+                  {(bouwEl.wand || bouwEl.truss || bouwEl.stelling) && (
+                    <section>
+                      <h3>Constructies</h3>
+                      {bouwEl.wand && bouwRij('wand', 'element', 'B-matrix wand', 'Teken de lijn, de wandbouwer opent meteen', () => kiesBouwer({ soort: 'element', el: bouwEl.wand, naam: 'de B-matrix wand' }))}
+                      {bouwEl.truss && bouwRij('truss', 'element', 'Truss', 'Teken de lijn, de trussbouwer opent meteen', () => kiesBouwer({ soort: 'element', el: bouwEl.truss, naam: 'de truss' }))}
+                      {bouwEl.stelling && bouwRij('stelling', 'element', 'Stelling', 'Klik op de kaart, de stellingbouwer opent meteen', () => kiesBouwer({ soort: 'element', el: bouwEl.stelling, naam: 'de stelling' }))}
+                    </section>
+                  )}
+                  <section>
+                    <h3>Op maat</h3>
+                    {bouwRij('teken', 'vrijehand', 'Element tekenen', 'Eigen vorm in het tekenscherm, komt als groep op de kaart', () => kiesBouwer({ soort: 'teken' }))}
+                  </section>
                 </div>
               )}
               {tab === 'lagen' && (
@@ -4827,11 +4847,6 @@ export default function Editor({ planId }) {
 
         <div className="fm-kaartvak" style={{ '--fm-l': paneelOpen ? '256px' : '0px', '--fm-r': eigenschappenOpen || vastOpen || planOpen || plaatsOpen ? '320px' : '0px' }}>
           <div ref={kaartRef} className="fm-kaart" />
-          {controleFouten > 0 && tab !== 'controle' && !binnenScherm && (
-            <button type="button" className="fm-controlechip" onClick={() => setTab('controle')} title="Controle openen">
-              <span className="fm-controlechip-getal">{controleFouten}</span>{controleFouten === 1 ? 'Fout in de controle' : 'Fouten in de controle'}
-            </button>
-          )}
           {olBewerk && !binnen && kaartKlaar && (() => {
             const lijst = plan?.instellingen?.onderleggers || []; const o = lijst.find((x) => x.id === olBewerk);
             if (!o || o.binnen) return null;

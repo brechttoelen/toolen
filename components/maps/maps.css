@@ -2250,3 +2250,51 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-plantabs button.aan { color: var(--t-navy, #022056); font-weight: 600; border-bottom-color: var(--t-navy, #022056); }
 .fm-plantabs button:focus-visible { outline: 2px solid var(--t-navy, #022056); outline-offset: -2px; }
 .fm-planzij-inhoud { flex: 1; overflow-y: auto; overflow-x: hidden; }
+
+/* Bibliotheek: zoeken bovenaan (blijft staan bij scrollen), families als tegels, categorieën als chips. */
+.fm-bib-kop { position: sticky; top: 0; z-index: 2; background: #fff; padding: 10px 12px 8px; border-bottom: 1px solid var(--t-rand, #E3E8EF); display: flex; flex-direction: column; gap: 8px; }
+.fm-bib-zoekveld { position: relative; display: flex; align-items: center; color: var(--t-tekst-3, #8492A8); }
+.fm-bib-zoekveld svg { position: absolute; left: 10px; pointer-events: none; }
+.fm-bib-zoekveld input { width: 100%; height: 38px; padding: 0 32px 0 34px; border: 1px solid var(--t-rand, #D5DCE6); border-radius: 8px; font: inherit; font-size: 13.5px; color: var(--t-tekst, #0E1A33); background: var(--t-vlak, #F5F7FA); }
+.fm-bib-zoekveld input:focus { outline: none; background: #fff; border-color: var(--t-blauw, #108AED); box-shadow: 0 0 0 3px var(--t-blauw-zacht, #E8F3FD); }
+.fm-bib-zoekveld input::-webkit-search-cancel-button { display: none; }
+.fm-bib-zoekveld .wis { position: absolute; right: 6px; width: 24px; height: 24px; border: 0; border-radius: 50%; background: transparent; color: var(--t-tekst-2, #4A5A75); font-size: 16px; cursor: pointer; }
+.fm-bib-zoekveld .wis:hover { background: #E7EBF1; }
+.fm-bib-pad { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; min-height: 22px; }
+.fm-bib-pad b { font-size: 14px; }
+.fm-bib-pad .fm-sub:last-child { margin-left: auto; }
+.fm-bib-terug { border: 0; background: none; padding: 0; font: inherit; font-size: 12.5px; color: var(--t-blauw-donker, #0B6FC2); cursor: pointer; }
+.fm-bib-terug:hover { text-decoration: underline; }
+.fm-bib-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.fm-bib-chips button { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border: 1px solid var(--t-rand, #D5DCE6); border-radius: 13px; background: #fff; font: inherit; font-size: 12px; color: var(--t-tekst, #0E1A33); cursor: pointer; white-space: nowrap; }
+.fm-bib-chips button small { color: var(--t-tekst-3, #8492A8); font-size: 10.5px; }
+.fm-bib-chips button:hover { border-color: #9AA7B8; }
+.fm-bib-chips button.aan { background: var(--t-navy, #022056); border-color: var(--t-navy, #022056); color: #fff; }
+.fm-bib-chips button.aan small { color: rgba(255,255,255,.7); }
+.fm-bib-fams { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 12px 4px; }
+.fm-bib-fams button { display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 40px; padding: 0 10px; border: 1px solid var(--t-rand, #E3E8EF); border-radius: 8px; background: #fff; font: inherit; text-align: left; cursor: pointer; }
+.fm-bib-fams button b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-bib-fams button small { color: var(--t-tekst-3, #8492A8); font-size: 11px; }
+.fm-bib-fams button:hover { border-color: var(--t-blauw, #108AED); background: var(--t-blauw-zacht, #E8F3FD); }
+.fm-element { grid-template-columns: 40px 1fr 24px; }
+.fm-element .ic { width: 40px; height: 40px; overflow: hidden; border-radius: 6px; }
+
+/* Bouwers-paneel: maten van een tenttype onder de rij. */
+.fm-bouwmaten { display: flex; flex-direction: column; padding: 2px 12px 8px 58px; }
+.fm-bouwmaten button { text-align: left; border: 0; background: none; font: inherit; font-size: 12.5px; padding: 6px 8px; border-radius: 6px; cursor: pointer; color: var(--t-tekst, #0E1A33); }
+.fm-bouwmaten button:hover:not(:disabled) { background: var(--t-blauw-zacht, #E8F3FD); }
+
+/* Actieve laag: bovenaan links op de kaart, goed zichtbaar. */
+.fm-laagchip { top: 12px; bottom: auto; left: calc(var(--fm-l, 0px) + 12px); }
+.fm-laagchip .knop { height: 40px; padding: 0 12px 0 10px; border-radius: 8px; font-size: 13px; gap: 8px; box-shadow: 0 4px 14px rgba(2,32,86,.16); border-color: var(--t-rand, #D5DCE6); }
+.fm-laagchip .knop .label { display: flex; flex-direction: column; line-height: 1.15; text-align: left; min-width: 0; }
+.fm-laagchip .knop .label small { font-size: 10.5px; color: var(--t-tekst-3, #8492A8); font-weight: 500; }
+.fm-laagchip .knop i { width: 12px; height: 12px; }
+.fm-laagchip-lijst { top: 46px; bottom: auto !important; }
+.fm-metingen-chip { top: 62px; }
+
+/* Volledige schermen: overal dezelfde terugknop links. */
+.fm-terugknop { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px 0 8px; border: 1px solid var(--t-rand, #D5DCE6); border-radius: 8px; background: #fff; color: var(--t-tekst, #0E1A33); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; flex: none; white-space: nowrap; }
+.fm-terugknop:hover { border-color: var(--t-navy, #022056); background: var(--t-vlak, #F5F7FA); }
+.fm-terugknop svg { flex: none; }
+.fm-mat-bar .fm-terugknop { background: #fff; color: var(--fm-zwart); border-color: #fff; height: 30px; }

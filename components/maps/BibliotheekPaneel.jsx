@@ -1,5 +1,5 @@
 'use client';
-import { StellingDrie } from './StellingStudio';
+import { StellingDrie, StellingDuim } from './StellingStudio';
 import { elementMag, elementModule, nietInPakket } from './modules';
 import { publiekeUrl } from './db';
 
@@ -93,6 +93,9 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
   const [cat, setCatS] = useState(onthoud.cat);
   const [lev, setLevS] = useState(onthoud.lev);
   const wortel = useRef(null);
+  const zoekRef = useRef(null);
+  // Meteen kunnen typen als het paneel opent (niet op een aanraakscherm: dan springt het toetsenbord open).
+  useEffect(() => { if (alleen || onthoud.varOpen) return; try { if (window.matchMedia('(pointer: fine)').matches) zoekRef.current?.focus({ preventScroll: true }); } catch {} }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Even stilstaan op een element: een kaartje met grote foto, tekening en uitleg.
   const [info, setInfo] = useState(null);
   const infoTimer = useRef(null);
@@ -175,7 +178,7 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
     <button className={`fm-ster${fav.includes(el.id) ? ' aan' : ''}`} title={fav.includes(el.id) ? 'Uit favorieten' : 'Bij favorieten'} aria-label="Favoriet"
       onClick={(e) => { e.stopPropagation(); wisselFav(el.id); }}>{fav.includes(el.id) ? '★' : '☆'}</button>
   );
-  const icoon = (el) => <span className="ic">{el.eigenschappen?.fotos?.[0] ? <img src={publiekeUrl(el.eigenschappen.fotos[0])} alt="" style={{ width: 34, height: 34, objectFit: 'cover' }} /> : <ElementIcoon el={el} />}</span>;
+  const icoon = (el) => <span className="ic">{el.eigenschappen?.fotos?.[0] ? <img src={publiekeUrl(el.eigenschappen.fotos[0])} alt="" loading="lazy" style={{ width: 40, height: 40, objectFit: 'cover' }} /> : el.eigenschappen?.stelling3d ? <StellingDuim st={el.eigenschappen.stelling3d} /> : <ElementIcoon el={el} maat={30} />}</span>;
   const rij = (el, key, extra = null, titel = null) => { const mag = elementMag(el); const kan = schrijven && mag; return (
     <div key={key} className={`fm-element${gekozen?.id === el.id ? ' aan' : ''}${mag ? '' : ' fm-uitpakket'}`} role="button" tabIndex={0} aria-disabled={!kan}
       title={mag ? undefined : nietInPakket(elementModule(el))}
@@ -271,10 +274,10 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
   };
 
   // Wat er getoond wordt.
-  let inhoud = null; let leeg = false;
+  let inhoud = null; let leeg = false; let hits = [];
   if (z) {
     // Zoeken gaat over alles: resultaten per familie, opstellingen van één partner onderaan.
-    const hits = elementen.filter(metLev).map((e) => [e, zoekScore(e, z)]).filter(([, sc]) => sc > 0).sort((a, b) => b[1] - a[1] || opNaam(a[0], b[0])).map(([e]) => e);
+    hits = elementen.filter(metLev).map((e) => [e, zoekScore(e, z)]).filter(([, sc]) => sc > 0).sort((a, b) => b[1] - a[1] || opNaam(a[0], b[0])).map(([e]) => e);
     leeg = !hits.length;
     const gewoon = hits.filter((e) => !isSet(e)); const sets = hits.filter(isSet);
     const perF = FAMILIES.map((f) => [f, gewoon.filter((e) => famVan.get(e.id) === f.k)]).filter(([, l]) => l.length);
@@ -356,29 +359,31 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
       </div>
     );
   }
+  const opToets = (e) => {
+    if (e.key === 'Escape' && zoek) { e.preventDefault(); e.stopPropagation(); setZoek(''); return; }
+    if (e.key === 'Enter' && z) { const eerste = hits.find((x) => elementMag(x)); if (eerste && schrijven) { e.preventDefault(); kies(eerste); } }
+  };
+  const catKeuze = [['', `Alles`, inFam.filter((e) => !e.plan_id && metLev(e)).length], ...cats.map(([c, n]) => [c, c, n]), ...(nEvent ? [[DIT_EVENT, 'Dit event', nEvent]] : [])];
   return (
-    <div ref={wortel}>
-      <div className="fm-sectie">
-        <label className="fm-veld"><span style={{ position: 'absolute', left: -9999 }}>Zoek element</span>
-          <input type="search" placeholder="Zoek in alles: heras, nadar, generator, wc…" value={zoek} onChange={(e) => setZoek(e.target.value)} />
-        </label>
-        {!z && (
-          <div className="fm-famtabs" role="tablist" aria-label="Familie">
-            <button type="button" role="tab" aria-selected={!fam} className={!fam ? 'aan' : ''} onClick={() => setFam('')} title="In dit plan, favorieten en recent">★ Start</button>
-            {FAMILIES.filter((f) => perFam.get(f.k)).map((f) => (
-              <button key={f.k} type="button" role="tab" aria-selected={fam === f.k} className={fam === f.k ? 'aan' : ''} onClick={() => setFam(f.k)} title={`${f.uitleg} · ${perFam.get(f.k)} elementen`}>{f.naam}</button>
-            ))}
+    <div ref={wortel} className="fm-bib">
+      <div className="fm-bib-kop">
+        <div className="fm-bib-zoekveld">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.8" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M10.6 10.6L14 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+          <input ref={zoekRef} type="search" aria-label="Zoek in de bibliotheek" placeholder="Zoek: heras, nadar, generator, wc…" value={zoek} onChange={(e) => setZoek(e.target.value)} onKeyDown={opToets} />
+          {zoek && <button type="button" className="wis" aria-label="Zoekterm wissen" onClick={() => { setZoek(''); zoekRef.current?.focus(); }}>×</button>}
+        </div>
+        {z ? (
+          <div className="fm-bib-pad"><span>{hits.length === 1 ? '1 resultaat' : `${hits.length} resultaten`}{lev ? ` van ${lev}` : ''}</span>{hits.length > 0 && schrijven && <span className="fm-sub">Enter plaatst het eerste</span>}</div>
+        ) : fam ? (
+          <div className="fm-bib-pad">
+            <button type="button" className="fm-bib-terug" onClick={() => setFam('')}>‹ Alle families</button>
+            <b>{FAMILIE_NAAM[fam]}</b><span className="fm-sub">{perFam.get(fam) || 0}</span>
           </div>
-        )}
-        {/* De categorieën staan als koppen in de lijst (in te klappen). Bij veel categorieën ook een keuzelijst om te filteren. */}
-        {!z && fam && cats.length + (nEvent ? 1 : 0) > 6 && (
-          <label className="fm-veld"><span style={{ position: 'absolute', left: -9999 }}>Categorie</span>
-            <select value={cat} onChange={(e) => setCat(e.target.value)}>
-              <option value="">Alle categorieën</option>
-              {cats.map(([c, n]) => <option key={c} value={c}>{c} ({n})</option>)}
-              {nEvent > 0 && <option value={DIT_EVENT}>Dit event ({nEvent})</option>}
-            </select>
-          </label>
+        ) : null}
+        {!z && fam && catKeuze.length > 2 && (
+          <div className="fm-bib-chips" role="tablist" aria-label="Categorie">
+            {catKeuze.map(([k, n, t]) => <button key={k || '_'} type="button" role="tab" aria-selected={cat === k} className={cat === k ? 'aan' : ''} onClick={() => setCat(k)}>{n}<small>{t}</small></button>)}
+          </div>
         )}
         {/* Leverancier: enkel als er binnen deze keuze echt iets te kiezen valt. */}
         {(fam || z) && (levs.length > 1 || lev) && (
@@ -390,8 +395,17 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
           </label>
         )}
       </div>
+      {!z && !fam && (
+        <div className="fm-bib-fams" role="list" aria-label="Families">
+          {FAMILIES.filter((f) => perFam.get(f.k)).map((f) => (
+            <button key={f.k} type="button" role="listitem" onClick={() => setFam(f.k)} title={f.uitleg}>
+              <b>{f.naam}</b><small>{perFam.get(f.k)}</small>
+            </button>
+          ))}
+        </div>
+      )}
       {inhoud}
-      {leeg && <div className="fm-sub" style={{ padding: 12 }}>{z ? 'Geen elementen gevonden.' : fam ? `Geen elementen in ${FAMILIE_NAAM[fam]}${lev ? ` van ${lev}` : ''}.` : 'Kies een familie hierboven, of zoek in de hele bibliotheek.'}</div>}
+      {leeg && <div className="fm-sub" style={{ padding: 12 }}>{z ? 'Geen elementen gevonden.' : fam ? `Geen elementen in ${FAMILIE_NAAM[fam]}${lev ? ` van ${lev}` : ''}.` : 'Nog niets gebruikt in dit plan. Kies een familie hierboven of zoek.'}</div>}
       <div style={{ padding: 12 }}><a className="fm-knop vol" href="/maps/bibliotheek">Bibliotheek beheren</a></div>
       {info && <ElementInfo el={info.el} x={info.x} y={info.y} />}
     </div>

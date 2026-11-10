@@ -22,6 +22,7 @@ type Props = {
   extra?: React.ReactNode;
   huisstijl?: Huisstijl;
   feedback?: boolean;
+  branding?: boolean;
   children: React.ReactNode;
 };
 
@@ -37,7 +38,7 @@ function initialen(naam?: string | null, email?: string | null) {
 }
 
 // Schil van Toolen Maps binnen een organisatie: navy kolom links, licht werkvlak rechts.
-export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, platform, plaatsen, melding, extra, huisstijl = null, feedback = false, children }: Props) {
+export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, platform, plaatsen, melding, extra, huisstijl = null, feedback = false, branding = false, children }: Props) {
   const pad = usePathname() || "";
   const [orgOpen, setOrgOpen] = useState(false);
   const [ikOpen, setIkOpen] = useState(false);
@@ -61,6 +62,7 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
     { href: "/maps", tekst: "Overzicht" },
     { href: "/maps/plannen", tekst: "Plannen" },
     { href: "/maps/bibliotheek", tekst: "Bibliotheek" },
+    ...(branding ? [{ href: "/maps/branding", tekst: "Branding" }] : []),
     { href: "/maps/leveranciers", tekst: "Leveranciers" },
   ];
 

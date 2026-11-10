@@ -1,4 +1,5 @@
 'use client';
+import TerugKnop from './TerugKnop';
 
 // Materiaal per leverancier: een volledig scherm met de stuklijst per leverancier, per categorie of per laag.
 // Elke regel klapt open tot de items waaruit ze bestaat (bv. de Heras-lijnen die samen 1.442 m maken); per regel of
@@ -145,12 +146,12 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
     <div className={`fm-mat${verborgen ? ' verborgen' : ''}`} role="dialog" aria-label="Materiaal per leverancier" aria-hidden={verborgen || undefined}>
       <datalist id="fm-mat-levs">{alleNamen.map((n) => <option key={n} value={n} />)}</datalist>
       <div className="fm-mat-bar">
+        <TerugKnop onClick={onSluit} />
         <strong>Materiaal</strong><span className="fm-mat-sub">{plan?.naam}{fase ? ` · ${fase.naam}` : ' · alle fasen'}</span>
         <span style={{ flex: 1 }} />
         <button className={`fm-knop${stdOpen ? ' zwart' : ''}`} onClick={() => setStdOpen((x) => !x)}>Standaardleveranciers</button>
         <a className="fm-knop" href="/maps/leveranciers" target="_blank" rel="noreferrer">Leverancierslijst</a>
         <ExportKnop label="Alles exporteren" opties={[['Excel (.xlsx), blad per leverancier', allesXlsx], ['PDF', allesPdf]]} />
-        <button className="fm-knop zwart" onClick={onSluit}>Terug naar de kaart</button>
       </div>
       <div className="fm-mat-body">
         <aside className="fm-mat-links">

@@ -52,9 +52,9 @@ export default function LaagChip({ lagen, actieveLaag, items, schrijven, onKies,
       <button data-menuknop className={`knop${waarschuwing ? ' let' : ''}`} onClick={() => setOpen((o) => !o)} title="Actieve laag: hier komen nieuwe items. Klik om te wisselen.">
         <Icoon naam="lagen" maat={14} />
         <i style={{ background: actief?.kleur || '#686D76' }} />
-        <span className="naam">{actief?.map ? <small>{actief.map} › </small> : null}{actief?.naam || 'Geen laag'}</span>
+        <span className="label"><small>Nieuwe items in</small><span className="naam">{actief?.map ? <small>{actief.map} › </small> : null}{actief?.naam || 'Geen laag'}</span></span>
         {waarschuwing && <em>{waarschuwing}</em>}
-        <span aria-hidden="true" className="pijl">▴</span>
+        <span aria-hidden="true" className="pijl">▾</span>
       </button>
     </div>
   );

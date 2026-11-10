@@ -66,11 +66,12 @@ export const LIJST_IDS = LIJST_TABS.map(([k]) => k);
 export const TD_MODUS = { punt: 'point', tekst: 'point', lijn: 'linestring', meten: 'linestring', 'meten-vlak': 'polygon', notitie: 'linestring', maatlijn: 'linestring', vlak: 'polygon', rechthoek: 'rectangle', cirkel: 'circle', vrijehand: 'freehand', selecteer: 'select', kader: 'select', hand: 'select' }; // kader en hand: selectie blijft staan
 
 export const GROEPEN = [
+  // Volgorde: Selectie, Meten, Tekenen, Element (daarna Bouwers). Selectie en Meten klappen open bij erover gaan;
+  // Tekenen, Element en Bouwers openen een paneel.
   { id: 'selectie', label: 'Selectie', tools: ['selecteer', 'kader', 'hand'] },
-  { id: 'element', label: 'Element', tools: ['element'] },
-  // Lijnen, vormen en punten samen: één knop Tekenen die een paneel opent, zoals Element.
-  { id: 'tekenen', label: 'Tekenen', icoon: 'tekenen', paneel: true, tools: ['lijn', 'route', 'vrijehand', 'knip', 'rechthoek', 'cirkel', 'vlak', 'veelhoek', 'ellips', 'sector', 'punt', 'tekst', 'notitie', 'binnenlocatie'] },
   { id: 'meten', label: 'Meten', tools: ['meten', 'meten-vlak', 'maatlijn'] },
+  { id: 'tekenen', label: 'Tekenen', icoon: 'tekenen', paneel: true, tools: ['lijn', 'route', 'vrijehand', 'knip', 'rechthoek', 'cirkel', 'vlak', 'veelhoek', 'ellips', 'sector', 'punt', 'tekst', 'notitie', 'binnenlocatie'] },
+  { id: 'element', label: 'Element', tools: ['element'] },
 ];
 export const PANELEN = [
   // Stroom en Borden enkel in hun eigen werkplek (generatoren en borden plaats je in Plan gewoon als element).
@@ -85,7 +86,7 @@ export const TEKEN_DELEN = [
   { naam: 'Punten en tekst', tools: ['punt', 'tekst', 'notitie', 'binnenlocatie'] },
 ];
 
-export const PANEELNAAM = { tekenen: 'Tekenen', lagen: 'Lagen', bibliotheek: 'Bibliotheek', lijsten: 'Lijsten', materiaal: 'Materiaal', stuklijst: 'Materiaal', stroom: 'Elektriciteit', sign: 'Signalisatie', draaiboek: 'Draaiboek', controle: 'Controle', plan: 'Plan', veiligheid: 'Veiligheid', branding: 'Branding' };
+export const PANEELNAAM = { tekenen: 'Tekenen', bouwers: 'Bouwers', lagen: 'Lagen', bibliotheek: 'Bibliotheek', lijsten: 'Lijsten', materiaal: 'Materiaal', stuklijst: 'Materiaal', stroom: 'Elektriciteit', sign: 'Signalisatie', draaiboek: 'Draaiboek', controle: 'Controle', plan: 'Plan', veiligheid: 'Veiligheid', branding: 'Branding' };
 
 export const PANEELTIP = {
   bibliotheek: 'Tenten, hekken, podia… kies een element en zet het op de kaart',

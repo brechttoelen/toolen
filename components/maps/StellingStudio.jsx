@@ -1,4 +1,5 @@
 'use client';
+import TerugKnop from './TerugKnop';
 
 // Stellingbouwer: een stellingconstructie (brug, podium, camerastelling, tribune) uit vakken van 2,07 m.
 // Twee standen: Kiezen (klik een vak, rand of hoek in het boven-, zij- of 3D-aanzicht; rechts de inspector met
@@ -48,6 +49,24 @@ function StellingFoto(props) {
     return () => { weg = true; };
   }, [props.st, props.doekMap]);
   return url ? <div className="fm-wz mini fm-wz-foto"><img src={url} alt="3D-voorbeeld van de stelling" /></div> : <StellingDrieSvg {...props} />;
+}
+// Duimnagel voor lijsten (bibliotheek): een kleine foto van de 3D, met een eenvoudige tekening tot die klaar is.
+export function StellingDuim({ st, maat = 40 }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    let weg = false;
+    if (!st || !webglKan()) return undefined;
+    import('./StellingDrieGL').then((m) => m.fotoVan(st, new Map(), { b: 120, h: 120 })).then((u) => { if (!weg) setUrl(u || null); }).catch(() => {});
+    return () => { weg = true; };
+  }, [st]);
+  // eslint-disable-next-line @next/next/no-img-element
+  if (url) return <img src={url} alt="" width={maat} height={maat} style={{ width: maat, height: maat, objectFit: 'cover', display: 'block' }} />;
+  return (
+    <svg width={maat} height={maat} viewBox="0 0 40 40" aria-hidden="true">
+      <path d="M8 30 L8 16 L22 11 L32 15 L32 28 M18 34 L18 20 L32 15 M8 16 L18 20 M8 30 L18 34 L32 28" fill="none" stroke="#8592A3" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M8 16 L22 11 L32 15 L18 20 Z" fill="#C8A26B" stroke="#8A6A45" strokeWidth="1.2" />
+    </svg>
+  );
 }
 export const StellingDrie = memo(function StellingDrie(props) {
   const [gl, setGl] = useState(false);
@@ -920,6 +939,7 @@ export default function StellingStudio({ it, el, schrijven, onZet, onSluit, doek
   return createPortal(
     <div className="fm fm-ws fm-sb" role="dialog" aria-label="Stellingbouwer" {...schildProps}>
       <div className="fm-ws-kop">
+        <TerugKnop onClick={onSluit} />
         <strong>Stellingbouwer · {el?.naam}</strong>
         <span className="fm-sub">{af.lijst.length} vakken · {getal(af.lijst.reduce((a, v) => a + Mst.bx(v.i) * Mst.by(v.j), 0), 1)} m² · tot {getal(Math.max(0, ...af.lijst.map((v) => v.h)))} m hoog</span>
         <div className="fm-segment fm-sb-stappen" role="tablist" aria-label="Stap">
@@ -933,7 +953,6 @@ export default function StellingStudio({ it, el, schrijven, onZet, onSluit, doek
         <span style={{ flex: 1 }} />
         {schrijven && <button className="fm-knop klein" disabled={!terugL.current.length} title="Ongedaan (Ctrl + Z)" onClick={terug}>↶ Ongedaan</button>}
         {schrijven && <button className="fm-knop klein" disabled={!vooruitL.current.length} title="Opnieuw (Ctrl + Shift + Z)" onClick={opnieuw}>↷ Opnieuw</button>}
-        <button className="fm-knop klein zwart" onClick={onSluit}>Klaar</button>
       </div>
       <div className="fm-ws-lijf">
         {/* ---------- Links: starten en tekenen ---------- */}

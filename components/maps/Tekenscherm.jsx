@@ -1,4 +1,5 @@
 'use client';
+import TerugKnop from './TerugKnop';
 
 // Tekenscherm: een groep items precies op een raster in meter tekenen (zoals de
 // elementeditor), met lijnen, vormen, tekst en bestaande elementen uit de bibliotheek.
@@ -303,13 +304,13 @@ export default function Tekenscherm({ start, elementen, elementenMap, onKlaar, o
   return (
     <div className="fm fm-tekenscherm" role="dialog" aria-label="Tekenscherm">
       <div className="fm-ts-kop">
+        <TerugKnop onClick={onSluit} tekst="Annuleren" titel="Terug naar de kaart zonder te bewaren (Esc)" />
         <strong>Tekenscherm</strong>
         <span className="fm-sub">{delen.length} {delen.length === 1 ? 'onderdeel' : 'onderdelen'} · komt als groep op de kaart</span>
         <span style={{ flex: 1 }} />
         <label className="fm-sub">Raster <select value={String(raster)} onChange={(e) => setRaster(Number(e.target.value))}>{[0, 0.05, 0.1, 0.25, 0.5, 1].map((v) => <option key={v} value={String(v)}>{v ? `${String(v).replace('.', ',')} m` : 'uit'}</option>)}</select></label>
         <button className="fm-knop klein" onClick={passend}>Passend</button>
         <button className="fm-knop klein" onClick={terug} disabled={!geschiedenis.current.length}>Ongedaan</button>
-        <button className="fm-knop" onClick={onSluit}>Annuleren</button>
         <button className="fm-knop rood" disabled={!delen.length} onClick={() => onKlaar(delen.map(({ _id, ...o }) => o))}>Klaar</button>
       </div>
       <div className="fm-ts-lijf">

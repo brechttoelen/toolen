@@ -1,4 +1,5 @@
 'use client';
+import TerugKnop from './TerugKnop';
 
 // Tentbouwer: de vorm van een tent in 3D. Sleep een wand op een zijde (of klik), kies het dak per travee.
 // Kadertent en booghal per travee, pagodes gekoppeld in een rij, vouwtent als losse module.
@@ -565,6 +566,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
   return createPortal(
     <div className="fm fm-ws" role="dialog" aria-label="Tentbouwer" {...schildProps}>
       <div className="fm-ws-kop">
+        <TerugKnop onClick={onSluit} />
         <strong>Tentbouwer · {el?.naam}</strong>
         <span className="fm-sub">{getal(m.B)} × {getal(m.L)} m · {getal(m.L * m.B, 1)} m² · zijwand {getal(m.zijH)} m · nok {getal(m.nok)} m</span>
         <span style={{ flex: 1 }} />
@@ -572,7 +574,6 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
         <div className="fm-segment">{[['3d', '3D'], ['vloer', 'Grondplan']].map(([k, n]) => <button key={k} type="button" className={zicht === k ? 'aan' : ''} title={k === 'vloer' ? 'Terras, podium of rijplaten met losse elementen leggen: slepen en plaatsen' : undefined} onClick={() => setZicht(k)}>{n}</button>)}</div>
         {schrijven && <button className="fm-knop klein" disabled={!terugL.current.length} title="Terug (Ctrl + Z)" onClick={terug}>↶</button>}
         {schrijven && <button className="fm-knop klein" disabled={!vooruitL.current.length} title="Opnieuw (Ctrl + Shift + Z)" onClick={opnieuw}>↷</button>}
-        <button className="fm-knop klein zwart" onClick={onSluit}>Klaar</button>
       </div>
       <div className="fm-ws-lijf">
         <aside className="fm-ws-doeken fm-sb-palet">

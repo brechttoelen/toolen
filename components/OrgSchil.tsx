@@ -60,6 +60,7 @@ export default async function OrgSchil({ org, verder, children, extra }: { org: 
       extra={extra}
       huisstijl={huisstijl}
       feedback={!!ik.organisatie.modules?.includes("feedback")}
+      branding={!!ik.organisatie.modules?.includes("branding")}
     >
       {children}
     </Zijbalk>

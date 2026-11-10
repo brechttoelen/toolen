@@ -1,4 +1,5 @@
 'use client';
+import TerugKnop from './TerugKnop';
 
 // Snel exporteren en importeren, zonder ontvanger: plannen per werkplek, lijsten en kaartbestanden.
 // Wat een vaste ontvanger krijgt (deellink en PDF), staat in Delen en exporteren (Delen.jsx).
@@ -81,12 +82,12 @@ export default function Uitvoer({
     <div className="fm fm-uitvoer-achter" onMouseDown={(e) => { if (e.target === e.currentTarget) onSluit(); }}>
       <section className="fm-uitvoer" role="dialog" aria-label={tab === 'exporteren' ? 'Exporteren' : 'Importeren'}>
         <header className="fm-uitvoer-kop">
+          <TerugKnop onClick={onSluit} />
           <div role="tablist" aria-label="Exporteren of importeren" className="fm-uitvoer-tabs">
             <button role="tab" aria-selected={tab === 'exporteren'} className={tab === 'exporteren' ? 'aan' : ''} onClick={() => setTab('exporteren')}>Exporteren</button>
             {schrijven && <button role="tab" aria-selected={tab === 'importeren'} className={tab === 'importeren' ? 'aan' : ''} onClick={() => setTab('importeren')}>Importeren</button>}
           </div>
           <span className="fm-uitvoer-plan">{plan.naam}</span>
-          <button className="t-knop stil" onClick={onSluit}>Sluiten</button>
         </header>
 
         {tab === 'exporteren' && (

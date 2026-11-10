@@ -1,4 +1,5 @@
 'use client';
+import TerugKnop from './TerugKnop';
 
 // Binnenplan als eigen scherm: het grondplan en de zalen liggen vast als achtergrond (in de
 // eigen maten van het plan), je richt enkel in met elementen uit de bibliotheek.
@@ -1872,7 +1873,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
         );
       })()}
       <div className="fm-bs-kop">
-        {onSluit && <button className="fm-knop" onClick={onSluit}>‹ Terug naar de kaart</button>}
+        {onSluit && <TerugKnop onClick={onSluit} />}
         {merk}
         <button className={`fm-bs-titel${gebouwKaart ? ' aan' : ''}`} title="Gebouw: foto's en info" onClick={() => { setGebouwKaart((x) => !x); setSel([]); setActieveRuimte(null); setLijstOpen(false); }}>{naamHost}<span className="fm-sub"> ▾</span></button>
         <div className="fm-segment fm-bs-verd">
