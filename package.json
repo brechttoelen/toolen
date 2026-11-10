@@ -9,11 +9,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/ssr": "0.5.2",
-    "@supabase/supabase-js": "2.112.3",
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.119.0",
     "@turf/turf": "7.4.0",
     "jspdf": "2.5.2",
-    "jszip": "3.10.1",
+    "jszip": "3.10.2",
     "maplibre-gl": "5.24.0",
     "next": "15.5.23",
     "pdfjs-dist": "4.10.38",
@@ -22,7 +22,7 @@
     "react-dom": "18.3.1",
     "terra-draw": "1.39.0",
     "terra-draw-maplibre-gl-adapter": "1.5.0",
-    "three": "0.169.0"
+    "three": "0.187.0"
   },
   "devDependencies": {
     "@types/node": "22.20.1",
