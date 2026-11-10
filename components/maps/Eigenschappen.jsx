@@ -35,7 +35,7 @@ import { Knop3D, Groot3D } from './drie3d';
 import { isWand, zijLengtes } from './framewand';
 import { isPubliekeStructuur, capaciteit, instBrand } from './veiligheid';
 import { sorteerCategorieen } from './categorieen';
-import { familieVan } from './familie';
+import { familieVan, BOUWFAMILIES } from './familie';
 import { magModule } from './modules';
 import { PaneelKop, Kern, PaneelTabs } from './Paneel';
 
@@ -1277,11 +1277,11 @@ export default function Eigenschappen(props) {
   function assembleer() {
     // Stijl (kleur, lijn, vulling) is een tab bij vrije vormen en elementen zonder tekening; een element met tekening
     // volgt zijn element en laag, en heeft enkel "Label op de kaart" onder Instellen.
-    const isBouwer0 = familie === 'bouwers' && !!el;
+    const isBouwer0 = BOUWFAMILIES.includes(familie) && !!el;
     const metStijl = !tekening && !isBouwer0;
-    const isBouwer = familie === 'bouwers' && !!el && (isTentBouw(el) || !!el.eigenschappen?.stelling || !!el.eigenschappen?.stelling3d || isWand(el) || (el.tekenwijze === 'lijn' && /truss/i.test(el.categorie || '')) || isTentCategorie(el.categorie));
+    const isBouwer = BOUWFAMILIES.includes(familie) && !!el && (isTentBouw(el) || !!el.eigenschappen?.stelling || !!el.eigenschappen?.stelling3d || isWand(el) || (el.tekenwijze === 'lijn' && /truss/i.test(el.categorie || '')) || isTentCategorie(el.categorie));
     // Binnen: tenten, units en vrije vlakken; geen stellingen, truss of wanden.
-    const metBinnen = magModule('binnen') && !!binnenplan && !!(binnenplan.ruimte || (binnenplan.open && (['units', 'vormen'].includes(familie) || (familie === 'bouwers' && isTentBouw(el)))));
+    const metBinnen = magModule('binnen') && !!binnenplan && !!(binnenplan.ruimte || (binnenplan.open && (['units', 'vormen'].includes(familie) || (familie === 'tenten' && isTentBouw(el)))));
     const stroomTab = familie === 'stroom' && magModule('stroom');
     const standaard = isBouwer ? 'bouwer' : brandingJsx && (familie === 'branding' || panelenJsx) ? 'branding' : stroomTab ? 'stroom' : familie === 'vormen' && item.soort !== 'notitie' ? 'stijl' : 'in';
     const tab = tabKeuze || standaard;

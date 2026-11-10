@@ -4749,7 +4749,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                     {bouwRij('binnen', 'gebouw', 'Binnenplan', 'Klik op een gebouw: zalen, gangen en inrichting', () => kiesBouwer({ soort: 'binnen' }))}
                     {TENTTYPES.filter((x) => bouwTenten(x.k).length).map((x) => (
                       <Fragment key={x.k}>
-                        {bouwRij(`t${x.k}`, 'tent', x.naam, x.uitleg || 'Kies een maat en klik op de kaart', () => setBouwType((b) => (b === x.k ? null : x.k)), { aan: bouwType === x.k, open: bouwType === x.k, tel: bouwTenten(x.k).length })}
+                        {bouwRij(`t${x.k}`, `tent-${x.k}`, x.naam, x.uitleg || 'Kies een maat en klik op de kaart', () => setBouwType((b) => (b === x.k ? null : x.k)), { aan: bouwType === x.k, open: bouwType === x.k, tel: bouwTenten(x.k).length })}
                         {bouwType === x.k && <div className="fm-bouwmaten">{bouwTenten(x.k).map((el) => <button key={el.id} type="button" disabled={!schrijven} onClick={() => kiesBouwer({ soort: 'tent', el })}>{el.naam}</button>)}</div>}
                       </Fragment>
                     ))}
