@@ -13,7 +13,7 @@ import { getal, middelpunt, rond, lengte } from './geo';
 import { vergelijkCategorie } from './categorieen';
 import { PUNT } from './binnenPunten';
 import { isWand, wandTelling, wandFrames, frameNaam, lengtesVanItem, naarMeterLijn } from './framewand';
-import { isTrussBouw, trussStukken, trussTelling } from './trussbouw';
+import { isTrussBouw, trussStukken, trussTelling, trussTypeVoor } from './trussbouw';
 import { isStellingBouw, stellingOmschrijving } from './stellingbouw';
 import { zitMeubel, naamMeubel } from './meubel';
 
@@ -149,11 +149,11 @@ export function berekenStuklijst(items, elementen, lagen, actieveFase = null, st
       }
       if (el.tekenwijze === 'lijn' && isTrussBouw(it) && it.geometrie?.type === 'LineString') {
         // Vrij gebouwde truss: stukken per lengte, hoekstukken en baseplates.
-        const st = trussStukken(naarMeterLijn(it.geometrie.coordinates).pts, it); const t = trussTelling(st);
+        const st = trussStukken(naarMeterLijn(it.geometrie.coordinates).pts, it); const TY = trussTypeVoor(el, it.velden?.truss); const t = trussTelling(st, TY);
         r.kabels = r.kabels || {};
         for (const [l, k] of Object.entries(t.stukken)) { r.kabels[l] = (r.kabels[l] || 0) + k; r.aantal += k; }
         r.meter += st.reduce((a, x) => a + x.L, 0); perElement.set(sleutel, r);
-        for (const [naam, k] of [[el.eigenschappen?.hoek_naam || 'Hoekstuk H30V', t.hoek], ['Baseplate H30V', t.voet]]) {
+        for (const [naam, k] of [...Object.entries(t.hoeken).map(([n, k2]) => [`${n} ${TY.kort}`, k2]), [`Baseplate ${TY.kort}`, t.voet]]) {
           if (!k) continue; const s4 = `${el.id}|x|${naam}`;
           const r4 = perElement.get(s4) || { naam, categorie: el.categorie, leverancier: el.leverancier || '', artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
           r4.aantal += k; perElement.set(s4, r4);

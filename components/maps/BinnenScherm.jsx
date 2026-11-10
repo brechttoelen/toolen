@@ -24,7 +24,7 @@ import { WandZicht } from './WandStudio';
 import { TrussZicht } from './TrussStudio';
 import { CameraVenster, bouwScene, isCamera, cameraVan, brandpunt, kijkhoek } from './camerabeeld';
 import { isWand, wandFrames, wandStukken, isVrij } from './framewand';
-import { isTrussBouw, trussStukken, trussKnopen, knoopRichting } from './trussbouw';
+import { isTrussBouw, trussStukken, trussKnopen, knoopRichting, trussTypeVoor } from './trussbouw';
 import { binnenVorm } from './binnenvorm';
 import { isTentBouw, tentOpeningen } from './tentbouw';
 import { TrussBlok } from './TrussBlok';

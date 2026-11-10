@@ -11,7 +11,7 @@ import { DoekBeeld, PLAATSINGEN, STARTEN } from './doekbeeld';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { wandPunten } from './WandStudio';
-import { trussStukken, naarTrussOpslag, trussKnopen, trussTelling, portaal, kubus, opdelen, TRUSS_B, TRUSS_LENGTES, trussKader, kaderMaat, schaalTruss } from './trussbouw';
+import { trussStukken, naarTrussOpslag, trussKnopen, trussTelling, portaal, kubus, toren, opdelen, TRUSS_B, TRUSS_LENGTES, trussKader, kaderMaat, schaalTruss, TRUSS_TYPES, trussTypeVoor, trussAnalyse, belastingBij, maxOverspanning } from './trussbouw';
 import { publiekeUrl } from './db';
 import dynamic from 'next/dynamic';
 import { webglKan } from './StellingStudio';
@@ -22,7 +22,10 @@ const DrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () =
 const rad = (g) => (g * Math.PI) / 180;
 const nieuwId = () => Math.random().toString(36).slice(2, 9);
 const getal = (v) => Number(v).toLocaleString('nl-BE', { maximumFractionDigits: 2 });
-const B2 = TRUSS_B / 2;
+// Breedte en koorden van de gekozen soort truss (vierkant, driehoek, ladder): gezet bij het tekenen.
+let B2 = TRUSS_B / 2; let HK = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+export function zetTrussType(T) { B2 = (T?.B || TRUSS_B) / 2; HK = T?.koorden === 3 ? [[-1, -1], [1, -1], [0, 0.732]] : T?.koorden === 2 ? [[0, -1], [0, 1]] : [[-1, -1], [1, -1], [1, 1], [-1, 1]]; }
+const zijden = () => (HK.length === 2 ? 1 : HK.length);
 const kleuren = (zwart) => (zwart ? { buis: '#2B2F35', fijn: '#4B5058', blok: '#1F2328', blokZij: '#373C43' } : { buis: '#9AA1A9', fijn: '#B7BDC4', blok: '#C5CAD0', blokZij: '#A9AFB6' });
 const eindVan = (s) => (s.op ? [s.a[0], s.a[1], s.a[2] + s.L] : [s.a[0] + Math.cos(s.r) * s.L, s.a[1] + Math.sin(s.r) * s.L, s.a[2]]);
 const middenVan = (s) => { const e = eindVan(s); return [(s.a[0] + e[0]) / 2, (s.a[1] + e[1]) / 2, (s.a[2] + e[2]) / 2]; };
@@ -80,17 +83,17 @@ export function doekVlak(dk, stukken) {
 // baseplates en de doeken (voor- en achterkant met hun eigen ontwerp).
 export function trussPrims(stukken, doeken = [], doekMap = new Map(), zwart = false) {
   const K = kleuren(zwart); const uit = [];
-  const hk = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+  const hk = HK;
   for (const st0 of stukken) {
-    const st = st0.op && st0.a[2] < 0.01 ? { ...st0, a: [st0.a[0], st0.a[1], -B2 + 0.012], L: st0.L + B2 - 0.012 } : st0;
+    const st = st0.op && Math.abs(st0.a[2]) < 0.01 ? { ...st0, a: [st0.a[0], st0.a[1], -B2 + 0.012], L: st0.L + B2 - 0.012 } : st0; // oud: staand op z = 0 = tot op de vloer
     const e = eindVan(st); const d = st.op ? [0, 0, 1] : [Math.cos(st.r), Math.sin(st.r), 0];
     const n1 = st.op ? [Math.cos(st.r), Math.sin(st.r), 0] : [-Math.sin(st.r), Math.cos(st.r), 0]; const n2 = st.op ? [-Math.sin(st.r), Math.cos(st.r), 0] : [0, 0, 1];
     // Hoogtes in de bouwer zijn hartlijnen: in 3D ligt de vloer op z = -B2, dus alles B2 hoger.
     const hoekP = (p, i, j) => [p[0] + n1[0] * i * B2 + n2[0] * j * B2, p[1] + n1[1] * i * B2 + n2[1] * j * B2, p[2] + n1[2] * i * B2 + n2[2] * j * B2 + B2];
     for (const [i, j] of hk) uit.push({ k: 'lijn', a: hoekP(st.a, i, j), b: hoekP(e, i, j), kl: K.buis, r: 0.024 });
     const zones = Math.max(1, Math.round(st.L / 0.5));
-    for (let z = 0; z < 4; z++) {
-      const [i1, j1] = hk[z]; const [i2, j2] = hk[(z + 1) % 4];
+    for (let z = 0; z < zijden(); z++) {
+      const [i1, j1] = hk[z]; const [i2, j2] = hk[(z + 1) % hk.length];
       for (let k = 0; k < zones; k++) {
         const t0 = (k / zones) * st.L; const t1 = ((k + 1) / zones) * st.L;
         const p0 = [st.a[0] + d[0] * t0, st.a[1] + d[1] * t0, st.a[2] + d[2] * t0]; const p1 = [st.a[0] + d[0] * t1, st.a[1] + d[1] * t1, st.a[2] + d[2] * t1];
@@ -99,8 +102,8 @@ export function trussPrims(stukken, doeken = [], doekMap = new Map(), zwart = fa
       }
     }
   }
-  for (const kn of trussKnopen(stukken.map((x, i) => ({ ...x, i, e: eindVan(x) })))) {
-    if (kn.hoek) uit.push({ k: 'doos', p: [kn.p[0], kn.p[1], kn.p[2] + B2], s: [TRUSS_B + 0.02, TRUSS_B + 0.02, TRUSS_B + 0.02], kl: K.blok });
+  for (const kn of trussKnopen(stukken.map((x, i) => ({ ...x, i, e: eindVan(x) })), B2 * 2)) {
+    if (kn.hoek) uit.push({ k: 'doos', p: [kn.p[0], kn.p[1], kn.p[2] + B2], s: [B2 * 2 + 0.01, B2 * 2 + 0.01, B2 * 2 + 0.01], kl: K.blok });
     if (kn.voet) uit.push({ k: 'doos', p: [kn.p[0], kn.p[1], 0.006], s: [0.6, 0.6, 0.012], kl: '#6B7280' });
   }
   for (const dk of doeken) {
@@ -128,7 +131,7 @@ function omhul(pts) {
 }
 function verplaats(groep, p) {
   const A = groep[0]; const dr = p.r - A.r; const c = Math.cos(dr); const s = Math.sin(dr); const dz = p.z - A.a[2];
-  return groep.map((m) => { const d = [m.a[0] - A.a[0], m.a[1] - A.a[1]]; return { ...m, a: [p.a[0] + d[0] * c - d[1] * s, p.a[1] + d[0] * s + d[1] * c, Math.max(0, Math.round((m.a[2] + dz) * 1000) / 1000)], r: m.r + dr }; });
+  return groep.map((m) => { const d = [m.a[0] - A.a[0], m.a[1] - A.a[1]]; return { ...m, a: [p.a[0] + d[0] * c - d[1] * s, p.a[1] + d[0] * s + d[1] * c, Math.max(m.op ? -B2 : 0, Math.round((m.a[2] + dz) * 1000) / 1000)], r: m.r + dr }; });
 }
 function draaiGroep(groep, graden) {
   const ms = groep.map(middenVan); const c = [ms.reduce((a, p) => a + p[0], 0) / ms.length, ms.reduce((a, p) => a + p[1], 0) / ms.length];
@@ -184,7 +187,7 @@ function Zicht({ stukken, doeken = [], doekMap = new Map(), selDoek = null, zwar
   const K = kleuren(zwart);
   const spookIds = new Set((spook || []).map((x) => x.id));
   const alle = [...stukken.filter((x) => !spookIds.has(x.id)), ...(spook || []).map((x) => ({ ...x, spook: true }))];
-  const knopen = trussKnopen(alle.map((x, i) => ({ ...x, i, e: eindVan(x) })));
+  const knopen = trussKnopen(alle.map((x, i) => ({ ...x, i, e: eindVan(x) })), B2 * 2);
   const selSet = new Set(sel);
   const P2 = (q) => q.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
   const lw = (f) => Math.max(0.7, s * f);
@@ -192,16 +195,16 @@ function Zicht({ stukken, doeken = [], doekMap = new Map(), selDoek = null, zwar
   // Eén stuk: vier buizen op de hoeken van het vierkant (29 cm) en diagonalen op elke zijde.
   const tekenStuk = (st0) => {
     // Staand stuk op de vloer: tot op de baseplate tekenen.
-    const st = st0.op && st0.a[2] < 0.01 ? { ...st0, a: [st0.a[0], st0.a[1], -B2], L: st0.L + B2 } : st0;
+    const st = st0.op && Math.abs(st0.a[2]) < 0.01 ? { ...st0, a: [st0.a[0], st0.a[1], -B2], L: st0.L + B2 } : st0; // oud: staand op z = 0
     const e = eindVan(st); const d = st.op ? [0, 0, 1] : [Math.cos(st.r), Math.sin(st.r), 0];
     const n1 = st.op ? [Math.cos(st.r), Math.sin(st.r), 0] : [-Math.sin(st.r), Math.cos(st.r), 0]; const n2 = st.op ? [-Math.sin(st.r), Math.cos(st.r), 0] : [0, 0, 1];
     const hoekP = (p, i, j) => [p[0] + n1[0] * i * B2 + n2[0] * j * B2, p[1] + n1[1] * i * B2 + n2[1] * j * B2, p[2] + n1[2] * i * B2 + n2[2] * j * B2];
-    const hk = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    const hk = HK;
     const zones = Math.max(1, Math.round(st.L / 0.5));
     const kl = st.spook ? '#2563EB' : K.buis; const fijn = st.spook ? '#60A5FA' : K.fijn;
     const lijnen = [];
-    for (let z = 0; z < 4; z++) {
-      const [i1, j1] = hk[z]; const [i2, j2] = hk[(z + 1) % 4];
+    for (let z = 0; z < zijden(); z++) {
+      const [i1, j1] = hk[z]; const [i2, j2] = hk[(z + 1) % hk.length];
       for (let k = 0; k < zones; k++) {
         const t0 = (k / zones) * st.L; const t1 = ((k + 1) / zones) * st.L;
         const p0 = [st.a[0] + d[0] * t0, st.a[1] + d[1] * t0, st.a[2] + d[2] * t0]; const p1 = [st.a[0] + d[0] * t1, st.a[1] + d[1] * t1, st.a[2] + d[2] * t1];
@@ -362,6 +365,7 @@ function Zicht({ stukken, doeken = [], doekMap = new Map(), selDoek = null, zwar
 }
 
 export function TrussZicht({ it, el, doeken = [], groot = false }) {
+  zetTrussType(trussTypeVoor(el, it.velden?.truss));
   const pts = wandPunten(it); const st = trussStukken(pts, it);
   // Groot (bekijken over het hele scherm): slepen = draaien, rechts slepen = verschuiven, scrollen = zoomen.
   const [stand, setStand] = useState(null); const [zoom, setZoom] = useState(1);
@@ -389,6 +393,8 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
   const zwart = /zwart/i.test(el?.naam || '');
   const lengtes = el?.eigenschappen?.kabel_lengtes?.length ? el.eigenschappen.kabel_lengtes.map(Number).sort((a, b) => b - a) : TRUSS_LENGTES;
   const t0 = it.velden?.truss || {};
+  // Soort truss (vierkant, driehoek, ladder, 40 cm): bepaalt breedte, hoekblokken, gewicht en belasting.
+  const TY = trussTypeVoor(el, t0); zetTrussType(TY);
   const pts0 = wandPunten(it); const pts = pts0.length >= 2 ? pts0 : [[0, 0], [1, 0]];
   const stukken = trussStukken(pts, it);
   const basisR = pts.length >= 2 ? Math.atan2(pts[1][1] - pts[0][1], pts[1][0] - pts[0][0]) : 0;
@@ -405,11 +411,11 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
     if (pdfBezig) return; setPdfBezig(true);
     try {
       const [{ bouwerPdf }, { tentGroep }] = await Promise.all([import('./bouwerPdf'), import('./TentDrieGL')]);
-      const prims = trussPrims(stukken, doekLijst, doekMapT, zwart); const tel = trussTelling(stukken);
+      const prims = trussPrims(stukken, doekLijst, doekMapT, zwart); const tel = trussTelling(stukken.map((x) => ({ ...x, e: eindVan(x) })), TY);
       const hoog = Math.max(0, ...stukken.map((x) => (x.op ? x.a[2] + x.L : x.a[2]) + B2)); const lig = stukken.filter((x) => !x.op).map((x) => x.a[2] + TRUSS_B);
       await bouwerPdf({ soort: 'truss', titel: String(it.velden?.naam || it.naam || el?.naam || 'Truss'), sub: [el?.naam, el?.leverancier].filter(Boolean).join(' · '), maakGroep: (T) => tentGroep(T, prims),
         hoogtes: [...new Set(lig.map((z) => Math.round(z * 100) / 100))],
-        kenmerken: [['Stukken', stukken.length], ['Truss', `${getal(stukken.reduce((a, x) => a + x.L, 0))} m`], ['Hoogte', `${getal(hoog)} m`], ['Hoekstukken', tel.hoek], ['Baseplates', tel.voet], ['Doeken', doekLijst.length], ...(el?.leverancier ? [['Leverancier', el.leverancier]] : [])] });
+        kenmerken: [['Soort', TY.naam], ['Gewicht', `± ${tel.kg} kg`], ['Stukken', stukken.length], ['Truss', `${getal(stukken.reduce((a, x) => a + x.L, 0))} m`], ['Hoogte', `${getal(hoog)} m`], ['Hoekstukken', tel.hoek], ['Baseplates', tel.voet], ['Doeken', doekLijst.length], ...(el?.leverancier ? [['Leverancier', el.leverancier]] : [])] });
     } catch (e) { window.alert(`De PDF lukte niet: ${e?.message || e}`); } finally { setPdfBezig(false); }
   };
   const ankerVoor = (lijst) => {
@@ -424,11 +430,24 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
   };
   // erbij: { oudId: [nieuwe ids] } — een opgedeeld stuk: doeken erop blijven over alle delen hangen.
   const bewaar = (lijst, erbij = {}, dl = doekLijst) => { const ids = new Set(lijst.map((x) => x.id)); const np = ankerVoor(lijst); zetT({ ...t0, stukken: naarTrussOpslag(np, lijst), doeken: dl.map((d) => { const l0 = d.stukken || [d.stuk]; const l1 = [...new Set(l0.flatMap((x) => [x, ...(erbij[x] || [])]))]; return { ...d, stukken: l1.filter((x) => ids.has(x)) }; }).filter((d) => d.stukken.length) }, np); };
-  // Een stuk opdelen op afstand t van het begin (bv. 3 m → 1 m + 2 m) in te huren lengtes, zodat er daar iets op kan aansluiten.
+  // Een stuk opdelen op afstand t van het begin (bv. 3 m → 1 m + 2 m) met een T-blok ertussen: het tweede deel en alles
+  // wat er verderop aan vast zit, schuift een blokbreedte op (de constructie wordt zoveel langer, zoals in het echt).
   const deelOp = (lijst, F, t) => {
-    const delen = [...opdelen(t), ...opdelen(F.L - t)]; const d = F.op ? [0, 0, 1] : [Math.cos(F.r), Math.sin(F.r), 0];
-    let o = 0; const nieuw = delen.map((L, k) => { const a = [F.a[0] + d[0] * o, F.a[1] + d[1] * o, F.a[2] + d[2] * o]; o += L; return { ...F, id: k ? nieuwId() : F.id, L, a }; });
-    return { lijst: lijst.flatMap((x) => (x.id === F.id ? nieuw : [x])), erbij: { [F.id]: nieuw.slice(1).map((x) => x.id) } };
+    const d = F.op ? [0, 0, 1] : [Math.cos(F.r), Math.sin(F.r), 0]; const B = B2 * 2;
+    let o = 0; const deel1 = opdelen(t).map((L, k) => { const a = [F.a[0] + d[0] * o, F.a[1] + d[1] * o, F.a[2] + d[2] * o]; o += L; return { ...F, id: k ? nieuwId() : F.id, L, a }; });
+    o = t + B; const deel2 = opdelen(F.L - t).map((L) => { const a = [F.a[0] + d[0] * o, F.a[1] + d[1] * o, F.a[2] + d[2] * o]; o += L; return { ...F, id: nieuwId(), L, a }; });
+    // Wat hangt er aan het einde van F (niet via F zelf)? Dat schuift mee, tenzij het rondloopt naar het begin.
+    const eF = eindVan(F); const rond = (x) => x.map((v) => Math.round(v * 100) / 100).join(',');
+    const punten = (x) => { const dx = x.op ? [0, 0, 1] : [Math.cos(x.r), Math.sin(x.r), 0]; const e = eindVan(x); return [x.a, e, x.a.map((v, k) => v - dx[k] * B2), e.map((v, k) => v + dx[k] * B2)].map(rond); };
+    const ander = lijst.filter((x) => x.id !== F.id); const naar = new Set(); const rij = [];
+    const startP = new Set([eF, eF.map((v, k) => v + d[k] * B2)].map(rond)); const beginP = new Set([F.a, F.a.map((v, k) => v - d[k] * B2)].map(rond));
+    for (const x of ander) if (punten(x).some((q) => startP.has(q))) { naar.add(x.id); rij.push(x); }
+    let lus = false;
+    while (rij.length) { const x = rij.shift(); const px = punten(x); if (px.some((q) => beginP.has(q))) lus = true; for (const y of ander) if (!naar.has(y.id) && punten(y).some((q) => px.includes(q))) { naar.add(y.id); rij.push(y); } }
+    const schuif = !lus; const nieuw = [...deel1, ...deel2];
+    const rest = lijst.flatMap((x) => (x.id === F.id ? nieuw : schuif && naar.has(x.id) ? [{ ...x, a: [x.a[0] + d[0] * B, x.a[1] + d[1] * B, x.a[2] + d[2] * B] }] : [x]));
+    if (lus) setTip('Let op: het frame is gesloten; door het T-blok klopt de lus niet meer. Pas de lengte aan.');
+    return { lijst: rest, erbij: { [F.id]: nieuw.slice(1).map((x) => x.id) } };
   };
   const metOpdeling = (lijst, p) => (p?.deel ? deelOp(lijst, lijst.find((x) => x.id === p.deel.id) || p.deel, p.deel.t) : { lijst, erbij: {} });
   const zetDoeken = (l) => zetT({ ...t0, doeken: l });
@@ -437,7 +456,7 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
   const maatKader = stukken.length ? trussKader(gekozen.length ? gekozen : stukken, hoofdU) : null;
   const [maatVb, setMaatVb] = useState(null);
   const pasMaat = (as, nieuw) => {
-    const res = schaalTruss(stukken, gekozen.length ? gekozen.map((x) => x.id) : null, hoofdU, as, nieuw, lengtes); if (!res) return;
+    const res = schaalTruss(stukken, gekozen.length ? gekozen.map((x) => x.id) : null, hoofdU, as, nieuw, lengtes); if (!res) return; if (res.fout) { setTip(res.fout); return; }
     const nieuwOp = new Map(res.stukken.map((x) => [x.id, x]));
     // Getekende doeken schalen mee met hun vlak.
     const dl = doekLijst.map((d) => {
@@ -498,69 +517,59 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
     return true;
   };
   const voorlopigDoek = trek ? { id: '__trek', stuk: trek.F.id, s0: Math.min(trek.a[0], trek.b[0]), s1: Math.max(trek.a[0], trek.b[0]), z0: Math.min(trek.a[1], trek.b[1]), z1: Math.max(trek.a[1], trek.b[1]), wijze: 'in' } : null;
-  const telling = trussTelling(stukken.map((x) => ({ ...x, e: eindVan(x) })));
+  const telling = trussTelling(stukken.map((x) => ({ ...x, e: eindVan(x) })), TY);
+  const analyse = useMemo(() => trussAnalyse(stukken.map((x) => ({ ...x, e: eindVan(x) })), TY), [it, TY]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Plek voor het anker (lengte L, staand of liggend) onder de muis.
+  // Plek voor het anker (lengte L, staand of liggend) onder de muis. Verder in dezelfde richting = gewone koppeling;
+  // in een hoek, omhoog of omlaag komt er een hoekblok tussen (het nieuwe stuk begint aan de overkant van het blok).
+  // Bij een uiteinde krijgen de uiteinden voorrang; halverwege een stuk (T-blok) enkel als je er niet vlakbij bent.
   const zoekPlek = (L, op, rVrij, muis, hulp, zonder) => {
     const ander = stukken.filter((x) => !zonder.has(x.id));
-    const bezet = (c) => ander.some((x) => Math.hypot(x.a[0] - c.a[0], x.a[1] - c.a[1], x.a[2] - c.z) < 0.03 && x.op === c.op && (c.op || Math.cos(x.r - c.r) > 0.99));
-    let beste = null;
-    for (const F of ander) {
-      for (const [E, isEind] of [[eindVan(F), true], [F.a, false]]) {
-        const opties = [];
-        // Richtingen vanuit dit knooppunt: liggend in vier richtingen, omhoog en omlaag.
-        for (let k = 0; k < 4; k++) { const r = F.r + (k * Math.PI) / 2; opties.push({ a: [E[0], E[1], E[2]], z: E[2], r, op: false, soort: 'liggend' }); }
-        opties.push({ a: [E[0], E[1], E[2]], z: E[2], r: F.r, op: true, soort: 'omhoog' });
-        if (E[2] - L > -0.001) opties.push({ a: [E[0], E[1], E[2] - L], z: E[2] - L, r: F.r, op: true, soort: 'omlaag' });
-        for (const c of opties) {
-          if (bezet(c)) continue;
-          c.knoop = E;
-          // niet terug in het stuk zelf
-          const dir = c.op ? [0, 0, c.soort === 'omlaag' ? -1 : 1] : [Math.cos(c.r), Math.sin(c.r), 0];
-          const Fd = F.op ? [0, 0, 1] : [Math.cos(F.r), Math.sin(F.r), 0]; const terugIn = isEind ? -1 : 1;
-          if (Math.abs(dir[0] * Fd[0] + dir[1] * Fd[1] + dir[2] * Fd[2] - terugIn) < 0.01) continue;
-          if (!c.op && !isEind && Math.abs(Math.cos(c.r - F.r) + 1) < 0.01) { /* verlengen naar achter: begin vóór het stuk */ }
-          const e = c.op ? [c.a[0], c.a[1], c.a[2] + L] : [c.a[0] + Math.cos(c.r) * L, c.a[1] + Math.sin(c.r) * L, c.a[2]];
-          const m = [(c.a[0] + e[0]) / 2, (c.a[1] + e[1]) / 2, (c.a[2] + e[2]) / 2];
-          const p = hulp.S(m); const dd = Math.hypot(p[0] - muis[0], p[1] - muis[1]);
-          const lp = Math.hypot(hulp.S(c.a)[0] - hulp.S(e)[0], hulp.S(c.a)[1] - hulp.S(e)[1]);
-          if (dd < Math.max(60, lp * 0.6) && (!beste || dd < beste.dd)) beste = { ...c, dd };
-        }
+    const bezet = (c) => ander.some((x) => Math.hypot(x.a[0] - c.a[0], x.a[1] - c.a[1], x.a[2] - c.a[2]) < 0.03 && x.op === c.op && (c.op || Math.cos(x.r - c.r) > 0.99));
+    let beste = null; let bijEind = false;
+    const kandidaat = (c, extra = 0) => {
+      if (bezet(c)) return; if (c.op && c.a[2] < -B2 - 0.001) return;
+      const e = c.op ? [c.a[0], c.a[1], c.a[2] + L] : [c.a[0] + Math.cos(c.r) * L, c.a[1] + Math.sin(c.r) * L, c.a[2]];
+      const m = [(c.a[0] + e[0]) / 2, (c.a[1] + e[1]) / 2, (c.a[2] + e[2]) / 2];
+      const p = hulp.S(m); const dd = Math.hypot(p[0] - muis[0], p[1] - muis[1]);
+      const lp = Math.hypot(hulp.S(c.a)[0] - hulp.S(e)[0], hulp.S(c.a)[1] - hulp.S(e)[1]);
+      if (dd < Math.max(60, lp * 0.6) && (!beste || dd + extra < beste.dd)) beste = { ...c, z: c.a[2], dd: dd + extra };
+    };
+    for (const F of ander) for (const [E, isEind] of [[eindVan(F), true], [F.a, false]]) {
+      const dF = F.op ? [0, 0, 1] : [Math.cos(F.r), Math.sin(F.r), 0]; const uit = isEind ? dF : dF.map((v) => -v);
+      const K = E.map((v, k) => v + uit[k] * B2); const pe = hulp.S(E); if (Math.hypot(pe[0] - muis[0], pe[1] - muis[1]) < 50) bijEind = true;
+      if (F.op) { if (isEind) kandidaat({ a: E, r: F.r, op: true, soort: 'omhoog' }); else kandidaat({ a: [E[0], E[1], E[2] - L], r: F.r, op: true, soort: 'omlaag' }); }
+      else kandidaat({ a: E, r: isEind ? F.r : F.r + Math.PI, op: false, soort: 'liggend' }, isEind ? 0 : 4);
+      for (let k = 0; k < 4; k++) {
+        const r = F.r + (k * Math.PI) / 2; const d = [Math.cos(r), Math.sin(r)];
+        if (!F.op && Math.abs(d[0] * uit[0] + d[1] * uit[1]) > 0.99) continue;
+        kandidaat({ a: [K[0] + d[0] * B2, K[1] + d[1] * B2, K[2]], r, op: false, soort: 'hoek', knoop: K });
       }
+      if (!(F.op && isEind)) kandidaat({ a: [K[0], K[1], K[2] + B2], r: F.r, op: true, soort: 'omhoog', knoop: K });
+      if (!(F.op && !isEind)) kandidaat({ a: [K[0], K[1], K[2] - B2 - L], r: F.r, op: true, soort: 'omlaag', knoop: K });
     }
-    // Halverwege een stuk (per 0,5 m): een dwarsstuk, omhoog of omlaag; het stuk wordt daar opgedeeld.
-    for (const F of ander) {
+    // Halverwege een stuk (per 0,5 m): een T-blok; het stuk wordt daar opgedeeld.
+    if (!bijEind) for (const F of ander) {
       const d = F.op ? [0, 0, 1] : [Math.cos(F.r), Math.sin(F.r), 0];
       for (let t = 0.5; t < F.L - 0.25; t += 0.5) {
-        const E = [F.a[0] + d[0] * t, F.a[1] + d[1] * t, F.a[2] + d[2] * t];
+        const K = [F.a[0] + d[0] * (t + B2), F.a[1] + d[1] * (t + B2), F.a[2] + d[2] * (t + B2)];
         const opties = [];
-        if (F.op) { for (let k = 0; k < 4; k++) opties.push({ a: E, z: E[2], r: F.r + (k * Math.PI) / 2, op: false }); }
+        if (F.op) { for (let k = 0; k < 4; k++) { const r = F.r + (k * Math.PI) / 2; opties.push({ a: [K[0] + Math.cos(r) * B2, K[1] + Math.sin(r) * B2, K[2]], r, op: false }); } }
         else {
-          for (const k of [1, 3]) opties.push({ a: E, z: E[2], r: F.r + (k * Math.PI) / 2, op: false });
-          opties.push({ a: E, z: E[2], r: F.r, op: true, soort: 'omhoog' });
-          if (E[2] - L > -0.001) opties.push({ a: [E[0], E[1], E[2] - L], z: E[2] - L, r: F.r, op: true, soort: 'omlaag' });
+          for (const k of [1, 3]) { const r = F.r + (k * Math.PI) / 2; opties.push({ a: [K[0] + Math.cos(r) * B2, K[1] + Math.sin(r) * B2, K[2]], r, op: false }); }
+          opties.push({ a: [K[0], K[1], K[2] + B2], r: F.r, op: true, soort: 'omhoog' });
+          opties.push({ a: [K[0], K[1], K[2] - B2 - L], r: F.r, op: true, soort: 'omlaag' });
         }
-        for (const c of opties) {
-          if (bezet(c)) continue;
-          const e = c.op ? [c.a[0], c.a[1], c.a[2] + L] : [c.a[0] + Math.cos(c.r) * L, c.a[1] + Math.sin(c.r) * L, c.a[2]];
-          const m = [(c.a[0] + e[0]) / 2, (c.a[1] + e[1]) / 2, (c.a[2] + e[2]) / 2];
-          const p = hulp.S(m); const dd = Math.hypot(p[0] - muis[0], p[1] - muis[1]);
-          const lp = Math.hypot(hulp.S(c.a)[0] - hulp.S(e)[0], hulp.S(c.a)[1] - hulp.S(e)[1]);
-          // Iets minder voorrang dan een uiteinde, zodat gewoon verder bouwen gewoon blijft werken.
-          const dd2 = dd + 6;
-          if (dd < Math.max(60, lp * 0.6) && (!beste || dd2 < beste.dd)) {
-            const delen = [...opdelen(t), ...opdelen(F.L - t)];
-            beste = { ...c, soort: c.soort || 'dwars', dd: dd2, deel: { id: F.id, t, ...F }, tip: `Op ${getal(t)} m van het ${F.op ? 'onderste' : 'begin'} van het stuk van ${getal(F.L)} m: dat wordt ${delen.map(getal).join(' m + ')} m` };
-          }
-        }
+        const delen = [...opdelen(t), ...opdelen(F.L - t)];
+        for (const c of opties) { const vb = beste; kandidaat({ ...c, soort: c.soort || 'dwars', knoop: K }, 18); if (beste !== vb) beste = { ...beste, deel: { id: F.id, t, ...F }, tip: `T-blok op ${getal(t)} m van het ${F.op ? 'onderste' : 'begin'} van het stuk van ${getal(F.L)} m: ${delen.map(getal).join(' m + ')} m, de rest schuift ${Math.round(B2 * 200)} cm op` }; }
       }
     }
     if (beste) return beste;
     const v = hulp.opVlak(muis[0], muis[1], 0); const sn = (x) => Math.round(x * 10) / 10;
-    if (op) return { a: [sn(v[0]), sn(v[1]), 0], z: 0, r: rVrij, op: true, soort: 'vrij' };
+    if (op) return { a: [sn(v[0]), sn(v[1]), -B2], z: -B2, r: rVrij, op: true, soort: 'vrij' };
     return { a: [sn(v[0] - (Math.cos(rVrij) * L) / 2), sn(v[1] - (Math.sin(rVrij) * L) / 2), 0], z: 0, r: rVrij, op: false, soort: 'vrij' };
   };
-  const TIP = { liggend: 'Verder liggend', omhoog: 'Omhoog', omlaag: 'Omlaag naar de vloer', vrij: 'Los op de vloer', dwars: 'Dwars' };
+  const TIP = { liggend: 'Verder in dezelfde richting (koppeling)', hoek: 'In een hoek, met een hoekblok', omhoog: 'Omhoog', omlaag: 'Omlaag naar de vloer', vrij: 'Los op de vloer', dwars: 'Dwars, met een T-blok' };
   const stop = () => { setPlaats(null); setSpook(null); setTip(''); };
   const begin = (groep) => { setPlaats({ groep, rVrij: groep[0].r }); setSpook(null); setSel([]); };
   const nieuwStuk = (L) => begin([{ id: '__n0', L, a: [0, 0, 0], r: basisR, op: staand }]);
@@ -649,10 +658,11 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
             <label>Breedte <input type="number" min="1" step="0.5" value={maatP.W} onChange={(e) => setMaatP((m) => ({ ...m, W: Math.max(0.5, Number(e.target.value) || 1) }))} /> m</label>
             <label>Hoogte <input type="number" min="1" step="0.5" value={maatP.H} onChange={(e) => setMaatP((m) => ({ ...m, H: Math.max(0.5, Number(e.target.value) || 1) }))} /> m</label>
           </div>
+          <div className="fm-sub">Breedte en hoogte = lengte truss; de hoekblokken komen erbij (buitenmaat {getal(maatP.W + TY.B * 2)} × {getal(maatP.H + TY.B)} m).</div>
           <div className="fm-ws-acties">
-            <button className="fm-knop klein" disabled={!schrijven} title="Twee torens met een ligger erover" onClick={() => nieuweVorm(portaal(maatP.W, maatP.H, basisR, lengtes))}>Portaal (boog)</button>
-            <button className="fm-knop klein" disabled={!schrijven} title="Vier poten, liggers boven en onder" onClick={() => nieuweVorm(kubus(maatP.W, maatP.H, basisR, lengtes))}>Kubus</button>
-            <button className="fm-knop klein" disabled={!schrijven} title="Een toren" onClick={() => nieuweVorm(portaal(0, maatP.H, basisR, lengtes).filter((x) => x.op).slice(0, Math.max(1, Math.ceil(maatP.H / 4) + 2)).filter((x, k, l) => l.findIndex((y) => y.a[0] === x.a[0] && y.a[1] === x.a[1] && y.a[2] === x.a[2]) === k))}>Toren</button>
+            <button className="fm-knop klein" disabled={!schrijven} title="Twee torens met een ligger erover" onClick={() => nieuweVorm(portaal(maatP.W, maatP.H, basisR, lengtes, TY.B))}>Portaal (boog)</button>
+            <button className="fm-knop klein" disabled={!schrijven} title="Vier poten, liggers boven en onder" onClick={() => nieuweVorm(kubus(maatP.W, maatP.H, basisR, lengtes, TY.B))}>Kubus</button>
+            <button className="fm-knop klein" disabled={!schrijven} title="Een toren" onClick={() => nieuweVorm(toren(maatP.H, basisR, lengtes, TY.B))}>Toren</button>
           </div>
           <div className="fm-sub">{plaats ? 'Klik om te plaatsen · R = draaien · Enter of Esc = stoppen' : 'Bij het uiteinde van een stuk bepaalt de muis de richting: verder, een hoek, omhoog of omlaag. Hoekstukken en baseplates komen er vanzelf bij.'}</div>
         </aside>
@@ -670,6 +680,21 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
           <div className="fm-ws-tip fm-sub">{tip || 'Slepen = draaien · rechts slepen of twee vingers = verschuiven · scrollen = zoomen · Shift + klik = meer stukken · Ctrl + A = alles'}</div>
         </div>
         <aside className="fm-ws-rechts">
+          <div className="fm-tr-tech">
+            <label className="fm-veld">Soort truss
+              <select disabled={!schrijven} value={TY.k} onChange={(e) => zetT({ ...t0, type: e.target.value })}>{TRUSS_TYPES.map((x) => <option key={x.k} value={x.k}>{x.naam}</option>)}</select>
+            </label>
+            <div className="fm-tr-feit"><span>Breedte</span><b>{Math.round(TY.B * 100)} cm · {TY.koorden === 4 ? 'vierkant' : TY.koorden === 3 ? 'driehoek' : 'ladder'}</b></div>
+            <div className="fm-tr-feit"><span>Buizen</span><b>{TY.buis}</b></div>
+            <div className="fm-tr-feit"><span>Gewicht</span><b>{getal(TY.kgm)} kg/m</b></div>
+            <div className="fm-tr-feit"><span>Max. overspanning</span><b>± {maxOverspanning(TY)} m</b></div>
+            {analyse.overspanningen.length > 0 && <>
+              <div className="fm-kop" style={{ marginTop: 8 }}>Overspanningen</div>
+              {analyse.overspanningen.map((o, k) => <div key={k} className={`fm-tr-span${o.L > analyse.max ? ' fout' : ''}`}><b>{getal(o.L)} m</b><span>{o.bel ? `max ${o.bel.udl} kg/m verdeeld of ${o.bel.cpl} kg in het midden` : 'buiten de tabel'}</span></div>)}
+            </>}
+            {analyse.meldingen.map((m, k) => <button key={k} type="button" className={`fm-melding ${m.soort === 'fout' ? 'fout' : ''}`} style={{ textAlign: 'left', border: 0, cursor: 'pointer', width: '100%', marginTop: 6 }} onClick={() => setSel(stukken.filter((x) => m.ids.includes(x.id)).map((x) => x.i))}>{m.tekst}</button>)}
+            <div className="fm-sub" style={{ marginTop: 6 }}>Belasting volgens {TY.bron}: enkelvoudige overspanning, statisch, eigen gewicht inbegrepen. Indicatief: de leverancier of een rigger rekent na.</div>
+          </div>
           {maatKader && schrijven && (
             <div className="fm-tr-maat">
               <div className="fm-kop">Maat {gekozen.length ? 'van de selectie' : 'van de constructie'}</div>
@@ -788,10 +813,11 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
           <div className="fm-kop">Stuklijst</div>
           <div className="fm-ws-lijst">
             {Object.entries(telling.stukken).sort((a, b) => Number(b[0]) - Number(a[0])).map(([L, n]) => <div key={L}><span>Truss {getal(L)} m</span><b>{n}</b></div>)}
-            {telling.hoek > 0 && <div><span>{el.eigenschappen?.hoek_naam || 'Hoekstuk'}</span><b>{telling.hoek}</b></div>}
+            {Object.entries(telling.hoeken).sort().map(([n, k]) => <div key={n}><span>{n} ({Math.round(TY.B * 100)} cm)</span><b>{k}</b></div>)}
             {telling.voet > 0 && <div><span>Baseplate</span><b>{telling.voet}</b></div>}
             {doekLijst.length > 0 && <div><span>Doeken</span><b>{doekLijst.length}</b></div>}
             {!stukken.length && <span className="fm-sub">Nog niets gebouwd.</span>}
+            {stukken.length > 0 && <div><span>Gewicht (± incl. blokken en baseplates)</span><b>{telling.kg} kg</b></div>}
           </div>
         </aside>
       </div>

@@ -87,7 +87,7 @@ export const STANDAARD_FASEN = ['Opbouw D-1', 'Wedstrijddag', 'Afbraak'];
 
 import { PALET_HEX } from './kleuren';
 import { isWand, wandFrames, zijLengtes, wandStukken, naarMeterLijn, isVrij } from './framewand';
-import { isTrussBouw, trussStukken, trussKnopen, knoopRichting } from './trussbouw';
+import { isTrussBouw, trussStukken, trussKnopen, knoopRichting, trussTypeVoor } from './trussbouw';
 import { isStellingBouw, stellingAfgeleid, stellingAnker, stellingMaten, delenVan as stellingDelen, soortVan as stellingSoort, VAK as STELLING_VAK, RICHTING as STELLING_RICHTING, RAND as STELLING_RAND, AANLOOP as STELLING_AANLOOP, OPSTAP as STELLING_OPSTAP, cameraPlek, CAMERA_SECTOR } from './stellingbouw';
 import { isCameraStelling, camStipTekst, CAMERA_ZOOM, CAMERA_MIN } from './tvcamera';
 // Losse TV-camera (tekening met een kijkvlak, zie camerabeeld.jsx).
@@ -1032,14 +1032,15 @@ function trussFeatures(it, el, basis) {
   // Recht op de truss gedraaid (r in rad), niet op noord.
   const vierkant = (p, h, r = 0) => { const c = Math.cos(r); const s = Math.sin(r); return [[-h, -h], [h, -h], [h, h], [-h, h]].map(([x, y]) => [p[0] + x * c - y * s, p[1] + x * s + y * c]); };
   const uit = [];
-  for (const k of trussKnopen(st)) if (k.voet) uit.push(vlak(vierkant(k.p, 0.3, knoopRichting(k, st)), '#9CA3AF', 0.5));
+  const TB = trussTypeVoor(el, it.velden?.truss).B;
+  for (const k of trussKnopen(st, TB)) if (k.voet) uit.push(vlak(vierkant(k.p, 0.3, knoopRichting(k, st)), '#9CA3AF', 0.5));
   for (const s2 of [...st].sort((a, b) => a.a[2] - b.a[2])) {
     if (uit.length > 3000) break;
     if (s2.op) { uit.push(vlak(vierkant(s2.a, 0.145, s2.r), zwart ? '#374151' : '#D1D5DB', 0.9)); continue; }
     const u = [Math.cos(s2.r), Math.sin(s2.r)]; const n = [-u[1] * 0.145, u[0] * 0.145];
     uit.push(vlak([[s2.a[0] + n[0], s2.a[1] + n[1]], [s2.e[0] + n[0], s2.e[1] + n[1]], [s2.e[0] - n[0], s2.e[1] - n[1]], [s2.a[0] - n[0], s2.a[1] - n[1]]], zwart ? '#374151' : '#E5E7EB', 0.75));
   }
-  for (const k of trussKnopen(st)) if (k.hoek) uit.push(vlak(vierkant(k.p, 0.16, knoopRichting(k, st)), zwart ? '#1F2937' : '#9CA3AF', 1));
+  for (const k of trussKnopen(st, TB)) if (k.hoek) uit.push(vlak(vierkant(k.p, TB / 2 + 0.01, knoopRichting(k, st)), zwart ? '#1F2937' : '#9CA3AF', 1));
   return uit;
 }
 

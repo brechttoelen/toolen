@@ -2317,3 +2317,12 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-ws-kop { flex-wrap: wrap; row-gap: 6px; }
 .fm-ws-kop > .fm-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
 .fm-tb-leden button { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Trussbouwer: technische gegevens */
+.fm-tr-tech { display: flex; flex-direction: column; gap: 4px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #E5E7EB; }
+.fm-tr-feit { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; } .fm-tr-feit span { color: var(--t-tekst-2, #4A5A75); } .fm-tr-feit b { font-weight: 600; text-align: right; }
+.fm-tr-span { display: flex; flex-direction: column; font-size: 12px; padding: 4px 6px; background: #F5F7FA; border-radius: 4px; } .fm-tr-span span { color: var(--t-tekst-2, #4A5A75); }
+.fm-tr-span.fout { background: #FDECEC; color: #9F1239; }
+
+/* Lagen: knoppen bovenaan, blijven staan bij scrollen */
+.fm-lagen-top { position: sticky; top: 0; z-index: 3; background: #fff; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--t-rand, #E3E8EF); }

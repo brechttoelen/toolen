@@ -91,6 +91,8 @@ export default function Lagenpaneel({ lagen, items, actieveLaag, schrijven, onKi
   // Lege mappen (net aangemaakt) staan bovenaan, tot er een laag in komt.
   const mappen = [...new Set([...lagen.map((l) => l.map).filter(Boolean), ...legeMappen])];
   const leeg = legeMappen.filter((m) => !lagen.some((l) => l.map === m));
+  // Nieuwe laag komt in de groep van de actieve laag.
+  const actiefMap = lagen.find((l) => l.id === actieveLaag)?.map || null;
   const blokken = leeg.map((m) => ({ map: m, lagen: [] }));
   { const gezien = new Set(); for (const l of lagen) { if (!l.map) blokken.push({ laag: l }); else if (!gezien.has(l.map)) { gezien.add(l.map); blokken.push({ map: l.map, lagen: lagen.filter((x) => x.map === l.map) }); } } }
   const stopSlepen = () => { setSleepLaag(null); setDropLaag(null); setDropMap(null); setDropEind(false); };
@@ -165,8 +167,8 @@ export default function Lagenpaneel({ lagen, items, actieveLaag, schrijven, onKi
                       <button onClick={() => solo(l.id)}>{lagen.every((x) => (x.id === l.id ? x.zichtbaar : !x.zichtbaar)) ? 'Alle lagen weer tonen' : 'Enkel deze laag tonen'}</button>
                       <button onClick={() => { onKies(l.id); setInstellen(l.id); }}>Stijl van de laag</button>
                       <button onClick={async () => { const n = await vraagTekst('Nieuwe naam', l.naam); if (n) onWijzig(l.id, { naam: n }); }}>Hernoemen</button>
-                      <button onClick={async () => { const n = await vraagTekst(`In welke map?${mappen.length ? ` (bestaand: ${mappen.join(', ')})` : ''}`, l.map || ''); if (n != null) onWijzig(l.id, { map: n.trim() || null }); }}>{l.map ? 'Andere map…' : 'In een map steken…'}</button>
-                      {l.map && <button onClick={() => onWijzig(l.id, { map: null })}>Uit de map halen</button>}
+                      <button onClick={async () => { const n = await vraagTekst(`In welke groep?${mappen.length ? ` (bestaand: ${mappen.join(', ')})` : ''}`, l.map || ''); if (n != null) onWijzig(l.id, { map: n.trim() || null }); }}>{l.map ? 'Andere map…' : 'In een map steken…'}</button>
+                      {l.map && <button onClick={() => onWijzig(l.id, { map: null })}>Uit de groep halen</button>}
                       <button onClick={() => onWijzig(l.id, { printbaar: !l.printbaar })}>{l.printbaar ? 'Niet op de PDF' : 'Wel op de PDF'}</button>
                       <button style={{ color: '#B4123A' }} onClick={() => onVerwijder(l.id)}>Laag verwijderen</button>
                     </div>
@@ -249,14 +251,14 @@ export default function Lagenpaneel({ lagen, items, actieveLaag, schrijven, onKi
     const slot = ml.every((x) => x.vergrendeld);
     const n = ml.reduce((a, x) => a + (tel.get(x.id) || 0), 0);
     const hernoem = async () => {
-      const nm = (await vraagTekst('Naam van de map', m))?.trim();
+      const nm = (await vraagTekst('Naam van de groep', m))?.trim();
       if (!nm || nm === m) return;
       for (const x of ml) onWijzig(x.id, { map: nm });
       if (legeMappen.includes(m)) onLegeMappen?.(legeMappen.map((x) => (x === m ? nm : x)));
     };
     return (
       <div key={`map:${m}`}>
-        <div className={`fm-laag fm-map${dropMap === m ? ' drop' : ''}`} onClick={() => wisselDicht(m)} title={schrijven ? 'Sleep een laag hierop om ze in deze map te steken' : undefined}
+        <div className={`fm-laag fm-map${dropMap === m ? ' drop' : ''}`} onClick={() => wisselDicht(m)} title={schrijven ? 'Sleep een laag hierop om ze in deze groep te steken' : undefined}
           onDragOver={(e) => { if (schrijven && e.dataTransfer.types.includes('text/fm-laag')) { e.preventDefault(); if (dropMap !== m) setDropMap(m); } }}
           onDragLeave={() => setDropMap((d) => (d === m ? null : d))}
           onDrop={(e) => {
@@ -270,30 +272,30 @@ export default function Lagenpaneel({ lagen, items, actieveLaag, schrijven, onKi
             const na = lagen.findIndex((x) => x.id === ml[ml.length - 1].id);
             zetLaag(laagId, lagen.slice(na + 1).find((x) => x.id !== laagId)?.id || null, m);
           }}>
-          <button aria-label={`${zicht ? 'Verberg' : 'Toon'} map ${m}`} aria-pressed={zicht} onClick={(e) => { e.stopPropagation(); for (const x of ml) if (x.zichtbaar === zicht) onWijzig(x.id, { zichtbaar: !zicht }); }} style={{ color: zicht ? '#1d1d1b' : '#c4c4c0' }}>
+          <button aria-label={`${zicht ? 'Verberg' : 'Toon'} groep ${m}`} aria-pressed={zicht} onClick={(e) => { e.stopPropagation(); for (const x of ml) if (x.zichtbaar === zicht) onWijzig(x.id, { zichtbaar: !zicht }); }} style={{ color: zicht ? '#1d1d1b' : '#c4c4c0' }}>
             <Icoon naam={zicht ? 'oog' : 'oogdicht'} maat={16} />
           </button>
           <span className="pijl" aria-hidden="true">{open ? '▾' : '▸'}</span>
           <span className="naam" onDoubleClick={(e) => { e.stopPropagation(); if (schrijven) hernoem(); }}>{m}</span>
           <span className="tel" title={`${ml.length} ${ml.length === 1 ? 'laag' : 'lagen'}, ${n} items`}>{n}</span>
-          <button aria-label={`${slot ? 'Ontgrendel' : 'Vergrendel'} map ${m}`} aria-pressed={slot} disabled={!schrijven} onClick={(e) => { e.stopPropagation(); for (const x of ml) if (x.vergrendeld === slot) onWijzig(x.id, { vergrendeld: !slot }); }} style={{ color: slot ? '#1d1d1b' : '#c4c4c0' }}>
+          <button aria-label={`${slot ? 'Ontgrendel' : 'Vergrendel'} groep ${m}`} aria-pressed={slot} disabled={!schrijven} onClick={(e) => { e.stopPropagation(); for (const x of ml) if (x.vergrendeld === slot) onWijzig(x.id, { vergrendeld: !slot }); }} style={{ color: slot ? '#1d1d1b' : '#c4c4c0' }}>
             <Icoon naam={slot ? 'slot' : 'slotopen'} maat={14} />
           </button>
           {schrijven ? (
             <span style={{ position: 'relative' }}>
-              <button data-menuknop aria-label={`Meer voor map ${m}`} title="Meer" onClick={(e) => { e.stopPropagation(); setMenuMap(menuMap === m ? null : m); }} style={{ color: '#686D76', fontWeight: 700, letterSpacing: 1 }}>⋯</button>
+              <button data-menuknop aria-label={`Meer voor groep ${m}`} title="Meer" onClick={(e) => { e.stopPropagation(); setMenuMap(menuMap === m ? null : m); }} style={{ color: '#686D76', fontWeight: 700, letterSpacing: 1 }}>⋯</button>
               {menuMap === m && (
                 <div className="fm-menu" style={{ right: 0, top: 26, minWidth: 180 }} onClick={(e) => { e.stopPropagation(); setMenuMap(null); }}>
-                  <button onClick={() => onNieuw?.(m)}>Nieuwe laag in deze map</button>
-                  <button onClick={hernoem}>Map hernoemen</button>
-                  <button onClick={() => { for (const x of ml) onWijzig(x.id, { map: null }); if (legeMappen.includes(m)) onLegeMappen?.(legeMappen.filter((x) => x !== m)); }}>{ml.length ? 'Map opheffen (lagen blijven)' : 'Map verwijderen'}</button>
+                  <button onClick={() => onNieuw?.(m)}>Nieuwe laag in deze groep</button>
+                  <button onClick={hernoem}>Groep hernoemen</button>
+                  <button onClick={() => { for (const x of ml) onWijzig(x.id, { map: null }); if (legeMappen.includes(m)) onLegeMappen?.(legeMappen.filter((x) => x !== m)); }}>{ml.length ? 'Groep opheffen (lagen blijven)' : 'Groep verwijderen'}</button>
                 </div>
               )}
             </span>
           ) : <span />}
         </div>
         {open && ml.map((x) => laagRij(x, true))}
-        {open && !ml.length && <div className="fm-sub fm-mapleeg">{sleepLaag ? 'Loslaten op de map' : 'Leeg · sleep een laag op de map'}</div>}
+        {open && !ml.length && <div className="fm-sub fm-mapleeg">{sleepLaag ? 'Loslaten op de groep' : 'Leeg · sleep een laag op de groep'}</div>}
       </div>
     );
   };
@@ -315,25 +317,25 @@ export default function Lagenpaneel({ lagen, items, actieveLaag, schrijven, onKi
           ); })()}
         </div>
       )}
+      {schrijven && (
+        <div className="fm-lagen-top">
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="fm-knop vol" style={{ flex: 1 }} title={actiefMap ? `Nieuwe laag in de groep ${actiefMap}` : 'Nieuwe laag'} onClick={() => onNieuw(actiefMap || undefined)}><span>Nieuwe laag{actiefMap ? ` in ${actiefMap}` : ''}</span></button>
+            <button className="fm-knop vol" style={{ flex: 1 }} title="Een groep om lagen samen te zetten, bv. Evenementieel" onClick={async () => { const m = (await vraagTekst('Naam van de groep (bv. Evenementieel)'))?.trim(); if (!m) return; if (mappen.includes(m)) return; if (onLegeMappen) { onLegeMappen([...legeMappen, m]); setDicht((d) => { const n = new Set(d); n.delete(m); return n; }); } else onNieuw(m); }}><span>Nieuwe groep</span></button>
+          </div>
+          {onRuimOp && (() => { const n = lagen.filter((l) => !items.some((i) => i.laag_id === l.id)).length; return n > 0 && lagen.length > 1 ? <button className="fm-knop klein vol" onClick={onRuimOp}>Lege lagen opruimen ({n})</button> : null; })()}
+        </div>
+      )}
       {blokken.map((b) => (b.map ? mapRij(b) : laagRij(b.laag)))}
       {schrijven && sleepLaag && (
         <div className={`fm-laag-eind${dropEind ? ' drop' : ''}`}
           onDragOver={(e) => { if (e.dataTransfer.types.includes('text/fm-laag')) { e.preventDefault(); if (!dropEind) setDropEind(true); } }}
           onDragLeave={() => setDropEind(false)}
           onDrop={(e) => { const id = e.dataTransfer.getData('text/fm-laag'); stopSlepen(); if (id) { e.preventDefault(); zetLaag(id, null, null); } }}>
-          Onderaan, buiten een map
+          Onderaan, buiten een groep
         </div>
       )}
       {zonderLaag.length > 0 && <div className="fm-sub" style={{ padding: '8px 12px' }}>{zonderLaag.length} items zonder laag</div>}
-      {schrijven && (
-        <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button className="fm-knop vol" style={{ flex: 1 }} onClick={() => onNieuw()}><span>Nieuwe laag</span></button>
-            <button className="fm-knop vol" style={{ flex: 1 }} title="Een map om lagen te groeperen, bv. Evenementieel" onClick={async () => { const m = (await vraagTekst('Naam van de map (bv. Evenementieel)'))?.trim(); if (!m) return; if (mappen.includes(m)) return; if (onLegeMappen) { onLegeMappen([...legeMappen, m]); setDicht((d) => { const n = new Set(d); n.delete(m); return n; }); } else onNieuw(m); }}><span>Nieuwe map</span></button>
-          </div>
-          {onRuimOp && (() => { const n = lagen.filter((l) => !items.some((i) => i.laag_id === l.id)).length; return n > 0 && lagen.length > 1 ? <button className="fm-knop klein vol" onClick={onRuimOp}>Lege lagen opruimen ({n})</button> : null; })()}
-        </div>
-      )}
       {typesInPlan.length > 0 && (
         <details className="fm-meer" style={{ margin: '0 12px 12px' }} open={verbergEl.size > 0}>
           <summary>Tonen per soort element{verbergEl.size ? ` · ${verbergEl.size} verborgen` : ''}<Info>Bv. alle heras even weg om de tenten te zien. Geldt ook voor de PDF, deel-links en de opbouwmodus.</Info></summary>
