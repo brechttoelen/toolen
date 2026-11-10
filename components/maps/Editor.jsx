@@ -212,10 +212,6 @@ export default function Editor({ planId }) {
   const [palet, setPalet] = useState(false);
   useSluitBuiten(puntKiezerOpen, () => setPuntKiezerOpen(false));
   const [uitklapY, setUitklapY] = useState(0);
-  const uitklapTimer = useRef(0);
-  const kanZweven = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
-  const uitklapOpen = (id, y) => { clearTimeout(uitklapTimer.current); setUitklapY(y); setUitklap(id); };
-  const uitklapDicht = () => { clearTimeout(uitklapTimer.current); uitklapTimer.current = setTimeout(() => setUitklap(null), 220); };
   const [laatsteTool, setLaatsteTool] = useState({ selectie: 'selecteer', punt: 'punt', lijn: 'lijn', vorm: 'rechthoek', element: 'element', meten: 'meten' });
   const [menu, setMenu] = useState(null);
   useSluitBuiten(!!menu, () => setMenu(null));
@@ -4607,13 +4603,13 @@ export default function Editor({ planId }) {
                 return (
                   <button key={t.id} data-menuknop className={aan ? 'aan' : ''} disabled={uit} title={t.uitleg || t.naam} 
                     onClick={(e) => { e.stopPropagation(); kiesWrTool(t, e.currentTarget.getBoundingClientRect().top); }}>
-                    <Icoon naam={t.icoon || 'punt'} maat={18} /><span>{t.naam}</span>
+                    <Icoon naam={t.icoon || 'punt'} maat={22} /><span>{t.naam}</span>
                     {t.element && elementen.filter(t.element).length > 1 && <i className="pijltje" />}
                   </button>
                 );
               })}
               <hr />
-              <button className="paneelknop" title="Alle gereedschap en panelen tonen" onClick={() => setAlleTools(true)}><Icoon naam="element" maat={18} /><span>Alle tools</span></button>
+              <button className="paneelknop" title="Alle gereedschap en panelen tonen" onClick={() => setAlleTools(true)}><Icoon naam="element" maat={22} /><span>Alle tools</span></button>
             </>
           )}
           {(werkruimte === 'plan' || alleTools) && <>
@@ -4627,20 +4623,18 @@ export default function Editor({ planId }) {
             return (
               <button key={gr.id} data-menuknop className={actief ? 'aan' : ''} disabled={uit}
                 title={meer ? `${gr.label}: ${gr.tools.map((x) => gTool(x).naam).join(', ')}` : t.naam}
-                onMouseEnter={(e) => { if (kanZweven && meer && !uit) uitklapOpen(gr.id, e.currentTarget.getBoundingClientRect().top); else if (kanZweven) uitklapDicht(); }}
-                onMouseLeave={() => { if (kanZweven && meer) uitklapDicht(); }}
                 onClick={(e) => {
                   e.stopPropagation();
                   const r = e.currentTarget.getBoundingClientRect();
                   setUitklapY(r.top);
-                  if (kanZweven && meer) { if (!actief) kiesTool(toonId); setUitklap(gr.id); return; }
+                  // Overal op klik (zoals Bouwers): niets klapt open door er enkel over te gaan.
                   if (uitklap === gr.id) { setUitklap(null); return; }
                   // Nogmaals op Element: bibliotheek dicht en terug naar Selectie.
                   if (actief && gr.id === 'element' && !meer) { setTab(null); kiesTool('selecteer'); return; }
                   if (!actief) kiesTool(toonId);
                   if (meer) setUitklap(gr.id);
                 }}>
-                <Icoon naam={t.icoon} maat={18} /><span>{gr.label}</span>
+                <Icoon naam={t.icoon} maat={22} /><span>{gr.label}</span>
                 {meer && <i className="pijltje" />}
               </button>
             );
@@ -4648,13 +4642,13 @@ export default function Editor({ planId }) {
           {schrijven && (
             <button data-menuknop className={gereedschap === 'bouwer' || bouwMenu ? 'aan' : ''} title="Bouwers: binnenplan, tent, B-matrix wand, truss, stelling of een element op maat tekenen"
               onClick={(e) => { e.stopPropagation(); const y = e.currentTarget.getBoundingClientRect().top; setUitklap(null); setBouwMenu((b) => (b ? null : { y })); }}>
-              <Icoon naam="bouwers" maat={18} /><span>Bouwers</span><i className="pijltje" />
+              <Icoon naam="bouwers" maat={22} /><span>Bouwers</span><i className="pijltje" />
             </button>
           )}
           {schrijven && (
             <button className={vasthouden ? 'paneelknop aan' : 'paneelknop'} aria-pressed={vasthouden} title={vasthouden ? 'Herhalen staat aan: je kunt meerdere items na elkaar tekenen of plaatsen. Klik om na elk item terug te gaan naar Selectie.' : 'Wil je meerdere items na elkaar tekenen of plaatsen (bv. 10 tenten)? Zet Herhalen aan.'}
               onClick={() => setVasthouden((v) => !v)}>
-              <Icoon naam={vasthouden ? 'slot' : 'slotopen'} maat={16} /><span>{vasthouden ? 'Herhaal aan' : 'Herhaal'}</span>
+              <Icoon naam={vasthouden ? 'slot' : 'slotopen'} maat={20} /><span>{vasthouden ? 'Herhaal aan' : 'Herhaal'}</span>
             </button>
           )}
           <hr />
@@ -4666,12 +4660,12 @@ export default function Editor({ planId }) {
             return (
               <button key={id} className={`paneelknop${aan && !volScherm ? ' aan' : ''}`} title={PANEELTIP[id]} aria-label={label} aria-pressed={aan}
                 onClick={() => { if (id === 'materiaal') { setMateriaalOpen(true); return; } setVolScherm(false); if (aan) setTab(null); else setTab(id); }}>
-                <Icoon naam={ic} maat={18} /><span>{label}</span>
+                <Icoon naam={ic} maat={22} /><span>{label}</span>
                 {id === 'controle' && controleFouten > 0 && <i className="fm-badge">{controleFouten}</i>}
               </button>
             );
           })}
-          {werkruimte !== 'plan' && <button className="paneelknop" title={`Terug naar het gereedschap van ${wr.naam}`} onClick={() => setAlleTools(false)}><Icoon naam="terug" maat={18} /><span>{wr.naam}</span></button>}
+          {werkruimte !== 'plan' && <button className="paneelknop" title={`Terug naar het gereedschap van ${wr.naam}`} onClick={() => setAlleTools(false)}><Icoon naam="terug" maat={22} /><span>{wr.naam}</span></button>}
           </>}
         </nav>
         {bouwMenu && (
@@ -4694,7 +4688,7 @@ export default function Editor({ planId }) {
         )}
         {uitklap && (
             <div className="fm-uitklap" style={{ top: uitklapY }} onClick={(e) => e.stopPropagation()}
-              onMouseEnter={() => clearTimeout(uitklapTimer.current)} onMouseLeave={() => { if (kanZweven) uitklapDicht(); }}>
+              >
               {GROEPEN.find((g) => g.id === uitklap).tools.filter((x) => uitgebreid || !UITGEBREID_TOOLS.includes(x)).map((id) => {
                 const t = gTool(id);
                 const uit = !schrijven && !['selecteer', 'hand', 'meten', 'meten-vlak'].includes(id);

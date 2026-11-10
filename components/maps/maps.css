@@ -67,7 +67,7 @@
 .fm-gereedschap button .pijltje { position: absolute; right: 3px; bottom: 3px; width: 0; height: 0; border-left: 4px solid transparent; border-bottom: 4px solid currentColor; opacity: .7; }
 .fm-gereedschap hr { border: 0; border-top: 1px solid var(--fm-rand); margin: 4px 8px; }
 .fm-paneel { width: 256px; background: #fff; border-right: 1px solid var(--fm-rand); display: flex; flex-direction: column; min-height: 0;
-  position: absolute; left: 60px; top: 0; bottom: 0; z-index: 8; box-shadow: 4px 0 14px rgba(0,0,0,.08); }
+  position: absolute; left: 68px; top: 0; bottom: 0; z-index: 8; box-shadow: 4px 0 14px rgba(0,0,0,.08); }
 .fm-paneel-inhoud { flex: 1; overflow-y: auto; }
 .fm-kaartvak { flex: 1; position: relative; min-width: 0; }
 .fm-kaart, .fm-kaart.maplibregl-map { position: absolute; inset: 0; }
@@ -140,7 +140,7 @@
 
 /* Paneelknoppen in de linkerkolom */
 .fm-gereedschap .paneelknop.aan { background: #E7E9ED; color: var(--fm-zwart); box-shadow: inset 3px 0 0 var(--fm-zwart); }
-.fm-uitklap { position: fixed; left: 60px; z-index: 60; background: #fff; border: 1px solid var(--fm-rand2); box-shadow: 0 6px 18px rgba(0,0,0,.16); display: flex; flex-direction: column; min-width: 190px; }
+.fm-uitklap { position: fixed; left: 68px; z-index: 60; background: #fff; border: 1px solid var(--fm-rand2); box-shadow: 0 6px 18px rgba(0,0,0,.16); display: flex; flex-direction: column; min-width: 190px; }
 .fm-uitklap button { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 0; background: #fff; cursor: pointer; font-size: 12px; text-align: left; }
 .fm-uitklap button:hover { background: var(--fm-aan-bg); }
 .fm-uitklap button.aan { background: var(--fm-zwart); color: #fff; }
@@ -1979,24 +1979,23 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-editor .fm-topbalk > .fm-zoek input, .fm-editor .fm-topbalk > .fm-zoek:focus-within input { height: 36px; border-radius: 8px; background-color: #EEF1F5; }
 .fm-titel small { font-size: 11.5px; color: var(--t-tekst-2, #4A5A75); }
 .fm-titel strong { font-family: var(--font-titel, sans-serif); font-stretch: 112%; font-weight: 700; letter-spacing: -0.01em; color: var(--t-tekst, #0E1A33); }
-.fm-wr-houder { position: relative; height: 40px; flex: none; z-index: 30; }
-.fm-wr-schuif { position: absolute; left: 0; top: 0; display: flex; gap: 2px; padding: 3px; background: #EEF1F5; border-radius: 10px; white-space: nowrap;
+.fm-wr-houder { flex: none; }
+.fm-wr-schuif { display: flex; gap: 2px; padding: 3px; background: #EEF1F5; border-radius: 10px; white-space: nowrap;
   transition: box-shadow .2s ease, background-color .2s ease; }
 .fm-wr-schuif button { height: 34px; padding: 0 9px; border: 0; border-radius: 7px; background: transparent; color: #4A5A75; font: inherit; font-size: 12.5px; font-weight: 500;
   cursor: pointer; display: inline-flex; align-items: center; gap: 0; transition: background-color .15s ease, color .15s ease, padding .25s ease; }
 .fm-wr-schuif button .naam { display: inline-block; max-width: 0; opacity: 0; overflow: hidden; transition: max-width .28s cubic-bezier(.2,.7,.2,1), opacity .2s ease, margin .28s ease; }
 .fm-wr-schuif button.aan .naam, .fm-wr-schuif button:not(:disabled):hover .naam, .fm-wr-schuif button:focus-visible .naam { max-width: 130px; opacity: 1; margin-left: 7px; }
-.fm-wr-schuif:has(button:not(.aan):not(:disabled):hover) { background: #fff; box-shadow: 0 0 0 1px var(--t-rand, #E3E8EF), 0 8px 22px rgba(2,32,86,.14); }
-.fm-wr-schuif button:not(.aan):hover:not(:disabled) { background: #EEF1F5; color: var(--t-navy, #022056); }
+.fm-wr-schuif button:not(.aan):hover:not(:disabled) { background: rgba(255,255,255,.7); color: var(--t-navy, #022056); }
 .fm-wr-schuif button.aan { background: #fff; color: var(--t-navy, #022056); font-weight: 600; box-shadow: 0 1px 2px rgba(2,32,86,.15); }
 .fm-wr-schuif button:disabled { opacity: .4; cursor: not-allowed; }
 .fm-wr-schuif .fm-wr-badge { margin-left: 6px; }
 .fm-wr-schuif button:focus-visible { outline: 2px solid var(--t-blauw, #108AED); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) { .fm-wr-schuif button .naam, .fm-wr-schuif button { transition: none; } }
 /* Gereedschap links in de kleur van de werkplek (Plan: navy). Actief gereedschap wit met het symbool in die kleur. */
-.fm-gereedschap { width: 60px; padding: 8px 0; gap: 2px; align-items: center; background: var(--wr-balk, var(--t-navy, #022056)); border-right: 0; transition: background-color .25s ease; }
-.fm-gereedschap button { width: 48px; height: 46px; border-radius: 8px; background: transparent; color: rgba(255,255,255,.82); }
-.fm-gereedschap button span { opacity: 1; }
+.fm-gereedschap { width: 68px; padding: 8px 0; gap: 3px; align-items: center; background: var(--wr-balk, var(--t-navy, #022056)); border-right: 0; transition: background-color .25s ease; }
+.fm-gereedschap button { width: 60px; height: 54px; gap: 4px; border-radius: 9px; background: transparent; color: rgba(255,255,255,.9); }
+.fm-gereedschap button span { opacity: 1; font-size: 11px; font-weight: 500; letter-spacing: .005em; line-height: 1.1; text-align: center; max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fm-gereedschap button:hover:not(:disabled) { background: rgba(255,255,255,.14); color: #fff; }
 .fm-gereedschap button.aan, .fm-gereedschap button.aan:hover { background: #fff; color: var(--wr-balk, var(--t-navy, #022056)); }
 .fm-gereedschap .paneelknop.aan, .fm-gereedschap .paneelknop.aan:hover { background: rgba(255,255,255,.2); color: #fff; box-shadow: none; }

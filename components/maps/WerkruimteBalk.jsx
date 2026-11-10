@@ -1,20 +1,15 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState } from 'react';
 import { WERKRUIMTES, WR_MODULE } from './werkruimtes';
 import { heeftModule, nietInPakket } from './merk';
 import { Icoon } from './iconen';
 
 // Werkplek kiezen in de topbalk: enkel symbolen, de actieve met naam. Met de muis over een symbool
-// (of met Tab erop) schuift enkel dat symbool open met zijn naam. De balk ligt over de topbalk heen,
-// zodat de rest niet verspringt.
+// (of met Tab erop) schuift enkel dat symbool open met zijn naam; de zoekbalk ernaast wordt even smaller.
 export default function WerkruimteBalk({ actief, onKies, badges = {} }) {
-  const [breedte, setBreedte] = useState(null);
-  const binnen = useRef(null);
-  useLayoutEffect(() => { if (binnen.current) setBreedte(binnen.current.offsetWidth); }, [actief, badges]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div className="fm-wr-houder" style={breedte ? { width: breedte } : undefined}>
-      <div ref={binnen} className="fm-wr-schuif" role="tablist" aria-label="Werkplek">
+    <div className="fm-wr-houder">
+      <div className="fm-wr-schuif" role="tablist" aria-label="Werkplek">
         {WERKRUIMTES.map((x) => {
           const slot = !!WR_MODULE[x.id] && !heeftModule(WR_MODULE[x.id]);
           const aan = x.id === actief;
