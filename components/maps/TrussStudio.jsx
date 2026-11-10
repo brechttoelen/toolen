@@ -13,6 +13,11 @@ import { createPortal } from 'react-dom';
 import { wandPunten } from './WandStudio';
 import { trussStukken, naarTrussOpslag, trussKnopen, trussTelling, portaal, kubus, opdelen, TRUSS_B, TRUSS_LENGTES, trussKader, kaderMaat, schaalTruss } from './trussbouw';
 import { publiekeUrl } from './db';
+import dynamic from 'next/dynamic';
+import { webglKan } from './StellingStudio';
+import { TentFotoBeeld } from './TentDrieGL';
+import { StellingPlannen } from './stellingplannen';
+const DrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () => <div className="fm-wz fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div> });
 
 const rad = (g) => (g * Math.PI) / 180;
 const nieuwId = () => Math.random().toString(36).slice(2, 9);
@@ -69,6 +74,48 @@ export function doekVlak(dk, stukken) {
   const onder = zb != null ? (op ? zb - B2 : zb + B2) : -B2; // geen onderligger: tot de vloer
   const z0 = dk.h === 'auto' || dk.h == null ? Math.max(-B2, onder) : Math.max(-B2, z1 - (Number(dk.h) || 1));
   return { u, n, o, s0, s1, z0, z1, op, off, tmin, tmax, torens, zb, onder, fid: F.id };
+}
+
+// De truss als 3D-stukken (zelfde vorm als TentDrieGL leest): vier buizen per stuk met diagonalen, hoekstukken,
+// baseplates en de doeken (voor- en achterkant met hun eigen ontwerp).
+export function trussPrims(stukken, doeken = [], doekMap = new Map(), zwart = false) {
+  const K = kleuren(zwart); const uit = [];
+  const hk = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+  for (const st0 of stukken) {
+    const st = st0.op && st0.a[2] < 0.01 ? { ...st0, a: [st0.a[0], st0.a[1], -B2 + 0.012], L: st0.L + B2 - 0.012 } : st0;
+    const e = eindVan(st); const d = st.op ? [0, 0, 1] : [Math.cos(st.r), Math.sin(st.r), 0];
+    const n1 = st.op ? [Math.cos(st.r), Math.sin(st.r), 0] : [-Math.sin(st.r), Math.cos(st.r), 0]; const n2 = st.op ? [-Math.sin(st.r), Math.cos(st.r), 0] : [0, 0, 1];
+    // Hoogtes in de bouwer zijn hartlijnen: in 3D ligt de vloer op z = -B2, dus alles B2 hoger.
+    const hoekP = (p, i, j) => [p[0] + n1[0] * i * B2 + n2[0] * j * B2, p[1] + n1[1] * i * B2 + n2[1] * j * B2, p[2] + n1[2] * i * B2 + n2[2] * j * B2 + B2];
+    for (const [i, j] of hk) uit.push({ k: 'lijn', a: hoekP(st.a, i, j), b: hoekP(e, i, j), kl: K.buis, r: 0.024 });
+    const zones = Math.max(1, Math.round(st.L / 0.5));
+    for (let z = 0; z < 4; z++) {
+      const [i1, j1] = hk[z]; const [i2, j2] = hk[(z + 1) % 4];
+      for (let k = 0; k < zones; k++) {
+        const t0 = (k / zones) * st.L; const t1 = ((k + 1) / zones) * st.L;
+        const p0 = [st.a[0] + d[0] * t0, st.a[1] + d[1] * t0, st.a[2] + d[2] * t0]; const p1 = [st.a[0] + d[0] * t1, st.a[1] + d[1] * t1, st.a[2] + d[2] * t1];
+        const [A, Bp] = k % 2 ? [hoekP(p0, i1, j1), hoekP(p1, i2, j2)] : [hoekP(p0, i2, j2), hoekP(p1, i1, j1)];
+        uit.push({ k: 'lijn', a: A, b: Bp, kl: K.fijn, r: 0.009 });
+      }
+    }
+  }
+  for (const kn of trussKnopen(stukken.map((x, i) => ({ ...x, i, e: eindVan(x) })))) {
+    if (kn.hoek) uit.push({ k: 'doos', p: [kn.p[0], kn.p[1], kn.p[2] + B2], s: [TRUSS_B + 0.02, TRUSS_B + 0.02, TRUSS_B + 0.02], kl: K.blok });
+    if (kn.voet) uit.push({ k: 'doos', p: [kn.p[0], kn.p[1], 0.006], s: [0.6, 0.6, 0.012], kl: '#6B7280' });
+  }
+  for (const dk of doeken) {
+    const V = doekVlak(dk, stukken); if (!V) continue;
+    const { u, n, o, s0, s1, z0, z1, off } = V; if (z1 - z0 < 0.05 || s1 - s0 < 0.05) continue;
+    for (const [kant, f] of [['voor', 1], ['achter', -1]]) {
+      const P = (sv, zv) => [o[0] + u[0] * sv + n[0] * (off + f * 0.004), o[1] + u[1] * sv + n[1] * (off + f * 0.004), zv + B2];
+      const ont = dk[kant] ? doekMap.get(dk[kant]) : null; const src = ont?.eigenschappen?.beeld ? publiekeUrl(ont.eigenschappen.beeld) : null;
+      // Gezien van die kant: links boven, rechts boven, links onder.
+      const [l, r] = f > 0 ? [s0, s1] : [s1, s0];
+      uit.push({ k: 'vlak', w: [P(l, z1), P(r, z1), P(r, z0), P(l, z0)], vul: ont ? ont.eigenschappen?.kleur || '#0F766E' : '#F3F4F6', rand: null, op: 1, data: {} });
+      if (src) uit.push({ k: 'beeld', A: P(l, z1), B: P(r, z1), C: P(l, z0), href: src });
+    }
+  }
+  return uit;
 }
 
 // Convexe omhullende (voor het klikvlak van een stuk).
@@ -318,6 +365,14 @@ export function TrussZicht({ it, el, doeken = [], groot = false }) {
   const pts = wandPunten(it); const st = trussStukken(pts, it);
   // Groot (bekijken over het hele scherm): slepen = draaien, rechts slepen = verschuiven, scrollen = zoomen.
   const [stand, setStand] = useState(null); const [zoom, setZoom] = useState(1);
+  // Met WebGL: dezelfde echte 3D als de tent- en stellingbouwer (klein = een foto ervan).
+  const [gl, setGl] = useState(false); useEffect(() => { setGl(webglKan()); }, []);
+  const dm = useMemo(() => new Map(doeken.map((d) => [d.id, d])), [doeken]);
+  const prims = useMemo(() => (gl ? trussPrims(st, it.velden?.truss?.doeken || [], dm, /zwart/i.test(el?.naam || '')) : null), [gl, it, el, dm]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (prims && st.length) {
+    if (groot) return <DrieGL prims={prims} />;
+    return <TentFotoBeeld prims={prims} sleutel={JSON.stringify([it.velden?.truss, el?.id])} terugval={<Zicht stukken={st} doeken={it.velden?.truss?.doeken || []} doekMap={dm} zwart={/zwart/i.test(el?.naam || '')} hoek={35} kantel={22} mini />} />;
+  }
   return <Zicht stukken={st} doeken={it.velden?.truss?.doeken || []} doekMap={new Map(doeken.map((d) => [d.id, d]))} zwart={/zwart/i.test(el?.naam || '')} hoek={stand ? stand[0] : 35} kantel={stand ? stand[1] : 24} mini={!groot} vast={groot && !!stand} zoom={groot ? zoom : 1}
     onDraai={groot ? (a, b) => setStand([a, b]) : undefined} onZoom={groot ? (k) => setZoom((z) => Math.max(0.2, Math.min(8, z * k))) : undefined} />;
 }
@@ -328,6 +383,9 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
   const [hoek, setHoek] = useState(35); const [kantel, setKantel] = useState(22); const [zoom, setZoom] = useState(1); const [passTik, setPassTik] = useState(0);
   const [sel, setSel] = useState([]); const [plaats, setPlaats] = useState(null); const [spook, setSpook] = useState(null); const [tip, setTip] = useState('');
   const [staand, setStaand] = useState(false); const [maatP, setMaatP] = useState({ W: 4, H: 3 });
+  // Bouwen = het tekenvlak; 3D-beeld = dezelfde echte 3D als de andere bouwers (enkel bekijken).
+  const [beeld, setBeeld] = useState(false); const [gl, setGl] = useState(false); useEffect(() => { setGl(webglKan()); }, []);
+  const [pdfBezig, setPdfBezig] = useState(false);
   const zwart = /zwart/i.test(el?.naam || '');
   const lengtes = el?.eigenschappen?.kabel_lengtes?.length ? el.eigenschappen.kabel_lengtes.map(Number).sort((a, b) => b - a) : TRUSS_LENGTES;
   const t0 = it.velden?.truss || {};
@@ -341,6 +399,19 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
   const terug = () => { const v = terugL.current.pop(); if (!v) return; vooruitL.current.push({ t: t0, pts }); setTik((x) => x + 1); setSel([]); onZet(v.t, v.pts); };
   const opnieuw = () => { const v = vooruitL.current.pop(); if (!v) return; terugL.current.push({ t: t0, pts }); setTik((x) => x + 1); setSel([]); onZet(v.t, v.pts); };
   const doekLijst = t0.doeken || [];
+  const doekMapT = useMemo(() => new Map(ontwerpen.map((d) => [d.id, d])), [ontwerpen]);
+  const drieP = useMemo(() => (gl && beeld ? trussPrims(stukken, doekLijst, doekMapT, zwart) : null), [gl, beeld, it, doekMapT, zwart]); // eslint-disable-line react-hooks/exhaustive-deps
+  const maakPdf = async () => {
+    if (pdfBezig) return; setPdfBezig(true);
+    try {
+      const [{ bouwerPdf }, { tentGroep }] = await Promise.all([import('./bouwerPdf'), import('./TentDrieGL')]);
+      const prims = trussPrims(stukken, doekLijst, doekMapT, zwart); const tel = trussTelling(stukken);
+      const hoog = Math.max(0, ...stukken.map((x) => (x.op ? x.a[2] + x.L : x.a[2]) + B2)); const lig = stukken.filter((x) => !x.op).map((x) => x.a[2] + TRUSS_B);
+      await bouwerPdf({ soort: 'truss', titel: String(it.velden?.naam || it.naam || el?.naam || 'Truss'), sub: [el?.naam, el?.leverancier].filter(Boolean).join(' · '), maakGroep: (T) => tentGroep(T, prims),
+        hoogtes: [...new Set(lig.map((z) => Math.round(z * 100) / 100))],
+        kenmerken: [['Stukken', stukken.length], ['Truss', `${getal(stukken.reduce((a, x) => a + x.L, 0))} m`], ['Hoogte', `${getal(hoog)} m`], ['Hoekstukken', tel.hoek], ['Baseplates', tel.voet], ['Doeken', doekLijst.length], ...(el?.leverancier ? [['Leverancier', el.leverancier]] : [])] });
+    } catch (e) { window.alert(`De PDF lukte niet: ${e?.message || e}`); } finally { setPdfBezig(false); }
+  };
   const ankerVoor = (lijst) => {
     if (!lijst.length) return pts;
     const u = [pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]]; const Lu = Math.hypot(u[0], u[1]) || 1; u[0] /= Lu; u[1] /= Lu; const n = [-u[1], u[0]];
@@ -548,7 +619,9 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
         <TerugKnop onClick={onSluit} />
         <strong>Trussbouwer · {el.naam}</strong>
         <span className="fm-sub">{stukken.length} stukken · {getal(metr)} m truss · {getal(totH)} m hoog</span>
+        {gl && <div className="fm-segment" role="group" aria-label="Weergave"><button type="button" className={!beeld ? 'aan' : ''} onClick={() => setBeeld(false)}>Bouwen</button><button type="button" className={beeld ? 'aan' : ''} title="Echte 3D met licht en schaduw (bekijken)" onClick={() => setBeeld(true)}>3D-beeld</button></div>}
         <span style={{ flex: 1 }} />
+        <button className="fm-knop klein" disabled={pdfBezig || !stukken.length} title="Eén PDF met de 3D-weergave, het grondplan en de vier aanzichten met maatlijnen" onClick={maakPdf}>{pdfBezig ? 'PDF maken…' : 'PDF'}</button>
         {schrijven && <button className="fm-knop klein" disabled={!terugL.current.length} title="Terug (Ctrl + Z)" aria-label="Terug" onClick={terug}>↶</button>}
         {schrijven && <button className="fm-knop klein" disabled={!vooruitL.current.length} title="Opnieuw (Ctrl + Shift + Z)" aria-label="Opnieuw" onClick={opnieuw}>↷</button>}
         {schrijven && stukken.length > 0 && <button className="fm-knop klein" onClick={() => { if (window.confirm('Alle stukken weghalen?')) { bewaar([]); setSel([]); } }}>Alles leeg</button>}
@@ -584,6 +657,7 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
           <div className="fm-sub">{plaats ? 'Klik om te plaatsen · R = draaien · Enter of Esc = stoppen' : 'Bij het uiteinde van een stuk bepaalt de muis de richting: verder, een hoek, omhoog of omlaag. Hoekstukken en baseplates komen er vanzelf bij.'}</div>
         </aside>
         <div className="fm-ws-zicht">
+          {beeld && drieP && <div style={{ position: 'absolute', inset: 0, zIndex: 5, background: '#EEF1F4' }}><DrieGL prims={drieP} /></div>}
           <Zicht maatK={schrijven && maatKader && !plaats && !tekenD ? { K: maatKader, vb: maatVb } : null} onKader={(as, w, klaar) => { if (!klaar) { setMaatVb({ as, waarde: w }); return; } setMaatVb(null); if (Math.abs(w - kaderMaat(maatKader, as)) > 0.01) pasMaat(as, w); }} stukken={stukken} doeken={voorlopigDoek ? [...doekLijst, voorlopigDoek] : doekLijst} doekMap={doekMap} onDoekWijzig={schrijven ? (id, r) => { zetDoeken(doekLijst.map((d) => { if (d.id !== id) return d; const { van, tot, h, ...rest } = d; return { ...rest, ...r, wijze: d.wijze === 'op' ? 'op' : 'in' }; })); setSelDoek(id); } : null} selDoek={trek ? '__trek' : selDoek} tekenDoek={tekenD && schrijven} onTeken={onTeken} onDoekKlik={(id, k) => { if (plaats) return; setSel([]); setSelDoek(id); setDoekKant(k || 'voor'); }} zwart={zwart} hoek={hoek} kantel={kantel} sel={sel} spook={spook} zoom={zoom} vast={!!spook}
             onKlik={onKlik} onSleep={onSleep} onDraai={(a, b) => { setHoek(a); setKantel(b); }} onZoom={(k) => setZoom((z) => Math.max(0.2, Math.min(8, z * k)))} passTik={passTik} />
           <div className="fm-ws-hoeken" role="group" aria-label="Kijkhoek">
@@ -709,6 +783,8 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
             );
           })()}
           <span style={{ flex: 1 }} />
+          <div className="fm-kop">Plannen van de leverancier</div>
+          <StellingPlannen planId={it.plan_id} itemId={it.id} schrijven={schrijven} soort="trussplan" wie="trussleverancier" compact />
           <div className="fm-kop">Stuklijst</div>
           <div className="fm-ws-lijst">
             {Object.entries(telling.stukken).sort((a, b) => Number(b[0]) - Number(a[0])).map(([L, n]) => <div key={L}><span>Truss {getal(L)} m</span><b>{n}</b></div>)}

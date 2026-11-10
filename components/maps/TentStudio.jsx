@@ -15,6 +15,7 @@ import { TENTTYPES, WANDEN, wandSoort, DAKEN, dakSoort, ALU, tentMaten, tentSegm
 import { publiekeUrl } from './db';
 import { DoekUpload } from './doekupload';
 import TentVloerPlan, { VloerPalet } from './TentVloerPlan';
+import { StellingPlannen } from './stellingplannen';
 
 const getal = (v, d = 2) => Number(v).toLocaleString('nl-BE', { maximumFractionDigits: d });
 const rad = (g) => (g * Math.PI) / 180;
@@ -31,6 +32,31 @@ function tint(hex, pts, zacht = false) {
   const f = (zacht ? 0.86 : 0.74) + (zacht ? 0.14 : 0.26) * Math.abs((nv[0] * LICHT[0] + nv[1] * LICHT[1] + nv[2] * LICHT[2]) / l);
   const n = parseInt(hex.slice(1), 16); const k = (x) => Math.round(x * f).toString(16).padStart(2, '0');
   return `#${k((n >> 16) & 255)}${k((n >> 8) & 255)}${k(n & 255)}`;
+}
+// Kijkrichtingen in Nakijken (hoek, kantel van de 3D-camera).
+const KIJK_T = { vrij: [32, 24], V: [-90, 6], L: [0, 6], A: [90, 6], R: [180, 6], boven: [0, 85] };
+// Vertrekpunten bij een nieuwe tent: wand per zijde (de voorgevel krijgt de ingang).
+const START_TENT = [
+  { k: 'dicht', naam: 'Gesloten', uitleg: 'PVC wit rondom, dubbele deur in de voorgevel', wand: 'wit', voor: 'deur2' },
+  { k: 'ramen', naam: 'Met ramen', uitleg: 'Vensterstroken in de zijwanden, glazen dubbele deur voor', wand: 'venster', gevel: 'wit', voor: 'glasdeur' },
+  { k: 'hout', naam: 'Hospitality', uitleg: 'Houtlook met ramen rondom, houten dubbele deur voor', wand: 'hotlook', voor: 'houtdeur2' },
+  { k: 'open', naam: 'Open', uitleg: 'Alle zijden open (marktkraam, overkapping)', wand: 'open' },
+];
+// Wat je best nakijkt: geen ingang, geen nooduitgang, bedrukte doeken of frames zonder ontwerp.
+export function tentMeldingen(m, t, segs, standaard) {
+  const uit = []; const soort = (k, zijde) => t.wanden?.[k] || (zijde === 'I' ? 'wit' : standaard);
+  const allePan = (k) => Object.values(t.panelen?.[k] || {});
+  const buiten = segs.filter((sg) => sg.zijde !== 'I');
+  const ingang = buiten.some((sg) => { const w = wandSoort(soort(sg.key, sg.zijde)); if (w.deur || w.rits || w.rol || !w.kleur) return true; return allePan(sg.key).some((x) => { const q = wandSoort(x); return q.deur || q.rits || !q.kleur; }); });
+  if (!ingang) uit.push({ soort: 'fout', tekst: 'Geen deur, ritsdeur of open zijde: er is geen ingang.' });
+  const nood = buiten.some((sg) => soort(sg.key, sg.zijde) === 'nood' || allePan(sg.key).includes('nood'));
+  const opp = m.L * m.B;
+  if (opp >= 100 && !nood && buiten.some((sg) => wandSoort(soort(sg.key, sg.zijde)).kleur)) uit.push({ soort: 'let', tekst: `Tent van ${Math.round(opp)} m² zonder nooduitgang. Vraag na hoeveel er nodig zijn.` });
+  const zonderOntwerp = segs.filter((sg) => soort(sg.key, sg.zijde) === 'doek' && !t.doeken?.[sg.key]).length;
+  if (zonderOntwerp) uit.push({ soort: 'let', tekst: `${zonderOntwerp} ${zonderOntwerp === 1 ? 'wand' : 'wanden'} met bedrukt doek zonder ontwerp.` });
+  const frames = Object.values(t.frames || {}).filter((v) => !v).length;
+  if (frames) uit.push({ soort: 'let', tekst: `${frames} signing ${frames === 1 ? 'frame' : 'frames'} zonder banner.` });
+  return uit;
 }
 export const MELDING_TENT = 'Indicatieve weergave. Enkel de plannen van de tentbouwer zijn bindend.';
 
@@ -528,6 +554,9 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
   const [gekozen, setGekozen0] = useState(null);
   // Gekozen dakvlak (travee); een wand kiezen wist het dak en omgekeerd.
   const [gekozenDak, setGekozenDak] = useState(null);
+  // Stappen zoals de stellingbouwer: Bouwen, Branding, Nakijken.
+  const [scherm, setScherm0] = useState('bouwen'); const [kijk, setKijk] = useState('vrij');
+  const [startWeg, setStartWeg] = useState(() => Object.keys(it.velden?.tent || {}).length > 0);
   const setGekozen = (k) => { setGekozen0(k); if (k != null) setGekozenDak(null); };
   const [kiesStuk, setKiesStuk] = useState(null); const [hNieuw, setHNieuw] = useState(0);
   const [tentKies, setTentKies] = useState(null); const [tentLengte, setTentLengte] = useState(10); const [dwars, setDwars] = useState(false);
@@ -535,6 +564,9 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
   const open = groep?.[0]?.open || new Set();
   const telling = useMemo(() => tentTelling({ ...it, velden: { ...(it.velden || {}), tent: t } }, el, open, groep), [it, el, t, open, groep]);
   const segs = tentSegmenten(m, t);
+  const meldingen = useMemo(() => tentMeldingen(m, t, segs, standaardWand(m)), [t, m.L, m.B, m.n, m.type]); // eslint-disable-line react-hooks/exhaustive-deps
+  const setScherm = (k) => { setScherm0(k); if (k !== 'bouwen') setZicht('3d'); if (k === 'branding') setWand((w) => (w === 'doek' || w === 'frame' ? w : 'doek')); else if (k === 'bouwen') setWand((w) => (w === 'doek' || w === 'frame' ? null : w)); };
+  const startMet = (pr) => { const wanden = {}; for (const sg of segs) if (sg.zijde !== 'I') wanden[sg.key] = (sg.zijde === 'V' || sg.zijde === 'A') && pr.gevel ? pr.gevel : pr.wand; if (pr.voor) { const v = segs.filter((sg) => sg.zijde === 'V'); const mid = v[Math.floor(v.length / 2)] || segs[0]; if (mid) wanden[mid.key] = pr.voor; } zet({ ...t, wanden, panelen: {} }); setStartWeg(true); };
   const modulair = m.type === 'kader' || m.type === 'boog'; const vrij = isVrijeTent(m);
   const zetMastH = (k, v) => { const hs = [...(t.mastHs || [])]; hs[k] = Number(v) > 0 ? Number(v) : undefined; zet({ ...t, mastHs: hs }); };
   // Intergevel naar een ander spant slepen: wand, doek en panelen gaan mee.
@@ -625,8 +657,16 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
   useEffect(() => {
     const kb = (e) => {
       if (e.target?.tagName === 'INPUT' || e.target?.tagName === 'SELECT') return;
-      if (e.key === 'Escape') { e.stopPropagation(); onSluit(); }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) opnieuw(); else terug(); }
+      if (e.key === 'Escape') { e.stopPropagation(); if (gekozen || gekozenDak != null) { setGekozen(null); setGekozenDak(null); } else if (wand) setWand(null); else onSluit(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) opnieuw(); else terug(); return; }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (['1', '2', '3'].includes(e.key)) { setScherm(['bouwen', 'branding', 'nakijken'][Number(e.key) - 1]); return; }
+      if (e.key.toLowerCase() === 'v') { setWand(null); return; }
+      // Delete: de gekozen wand terug naar de standaard, het gekozen dakvlak terug naar het hele dak.
+      if ((e.key === 'Delete' || e.key === 'Backspace') && schrijven) {
+        if (gekozen) { e.preventDefault(); const w = { ...(t.wanden || {}) }; delete w[gekozen]; const pn = { ...(t.panelen || {}) }; delete pn[gekozen]; zet({ ...t, wanden: w, panelen: pn }); }
+        else if (gekozenDak != null) { e.preventDefault(); const d = { ...(t.dakPer || {}) }; delete d[gekozenDak]; zet({ ...t, dakPer: d }); }
+      }
     };
     window.addEventListener('keydown', kb, true); return () => window.removeEventListener('keydown', kb, true);
   });
@@ -640,42 +680,37 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
         <TerugKnop onClick={onSluit} />
         <strong>Tentbouwer · {el?.naam}</strong>
         <span className="fm-sub">{getal(m.B)} × {getal(m.L)} m · {getal(m.L * m.B, 1)} m² · zijwand {getal(m.zijH)} m · nok {getal(m.nok)} m</span>
+        <div className="fm-segment fm-sb-stappen" role="tablist" aria-label="Stap">
+          {[['bouwen', '1 Bouwen'], ['branding', '2 Branding'], ['nakijken', '3 Nakijken']].map(([k, n]) => <button key={k} type="button" role="tab" aria-selected={scherm === k} className={scherm === k ? 'aan' : ''} title={`${n.slice(2)} (toets ${n[0]})`} onClick={() => setScherm(k)}>{n}{k === 'nakijken' && meldingen.length > 0 && <i className="fm-badge">{meldingen.length}</i>}</button>)}
+        </div>
         <span style={{ flex: 1 }} />
         {leden.length > 1 && <div className="fm-segment fm-tb-leden" title="Gekoppelde tenten: kies welke je bewerkt (of klik erop in 3D)">{leden.map((l) => <button key={l.id} type="button" className={actiefLid === l.id ? 'aan' : ''} onClick={() => kiesLid?.(l.id)}>{l.naam}</button>)}</div>}
-        <div className="fm-segment">{[['3d', '3D'], ['vloer', 'Grondplan']].map(([k, n]) => <button key={k} type="button" className={zicht === k ? 'aan' : ''} title={k === 'vloer' ? 'Terras, podium of rijplaten met losse elementen leggen: slepen en plaatsen' : undefined} onClick={() => setZicht(k)}>{n}</button>)}</div>
+        {scherm === 'bouwen' && <div className="fm-segment">{[['3d', '3D'], ['vloer', 'Grondplan']].map(([k, n]) => <button key={k} type="button" className={zicht === k ? 'aan' : ''} title={k === 'vloer' ? 'Terras, podium of rijplaten met losse elementen leggen: slepen en plaatsen' : undefined} onClick={() => setZicht(k)}>{n}</button>)}</div>}
         <button className="fm-knop klein" disabled={pdfBezig} title="Eén PDF met de 3D-weergave, het grondplan en de vier aanzichten met maatlijnen" onClick={maakPdf}>{pdfBezig ? 'PDF maken…' : 'PDF'}</button>
         {schrijven && <button className="fm-knop klein" disabled={!terugL.current.length} title="Terug (Ctrl + Z)" onClick={terug}>↶</button>}
         {schrijven && <button className="fm-knop klein" disabled={!vooruitL.current.length} title="Opnieuw (Ctrl + Shift + Z)" onClick={opnieuw}>↷</button>}
       </div>
       <div className="fm-ws-lijf">
         <aside className="fm-ws-doeken fm-sb-palet">
-          {zicht === 'vloer' && <>
+          {scherm === 'bouwen' && zicht === 'vloer' && <>
             <div className="fm-kop">Vloerelementen</div>
             <VloerPalet elementen={elementen} schrijven={schrijven} kies={kiesStuk} setKies={setKiesStuk} hNieuw={hNieuw} setHNieuw={setHNieuw} metTenten={!!onActie} tentKies={tentKies} setTentKies={setTentKies} tentLengte={tentLengte} setTentLengte={setTentLengte} dwars={dwars} setDwars={setDwars} />
             {!onActie && <div className="fm-sub">De stukken staan enkel in de tentbouwer (niet op het plan).</div>}
             {(t.stukken || []).length > 0 && schrijven && <button type="button" className="fm-knop klein" onClick={() => { if (window.confirm('Alle vloerstukken van deze tent weghalen?')) zet({ ...t, stukken: undefined }); }}>Alle stukken weg</button>}
           </>}
-          {zicht !== 'vloer' && <>
+          {scherm === 'bouwen' && zicht !== 'vloer' && <>
           <div className="fm-kop">Wanden</div>
           <div className="fm-sub" style={{ margin: '0 0 4px' }}>Sleep een wand op een zijde van de tent, of kies er een en klik op de zijden. Draaien = slepen naast de tent.</div>
           {!vrij && <div className="fm-segment fm-tb-bereik">{[['paneel', 'Per paneel (1 m)'], ['wand', 'Hele wand'], ['zijde', 'Hele zijde']].map(([k, n]) => <button key={k} type="button" className={bereik === k ? 'aan' : ''} onClick={() => setBereik(k)}>{n}</button>)}</div>}
           {vrij && <label className="fm-vink"><input type="checkbox" checked={heleZijde} onChange={(e) => setBereik(e.target.checked ? 'zijde' : 'wand')} />Over de hele zijde</label>}
           <div className="fm-tb-wanden">
             <button type="button" className={!wand ? 'aan' : ''} title="Klik op een zijde om ze te kiezen" onClick={() => setWand(null)}><span className="fm-tb-staal kies">⌖</span><span>Kiezen</span></button>
-            {WANDEN.map((w) => (
+            {WANDEN.filter((w) => w.k !== 'doek').map((w) => (
               <button key={w.k} type="button" draggable={schrijven} disabled={!schrijven} className={wand === w.k ? 'aan' : ''} title={w.naam} onDragStart={(e) => { e.dataTransfer.setData('text/fm-tent', `wand:${w.k}`); e.dataTransfer.effectAllowed = 'copy'; }} onClick={() => setWand(w.k)}>
                 <WandStaal w={w} /><span>{w.naam}</span>
               </button>
             ))}
           </div>
-          {!vrij && <button type="button" className={`fm-tb-frame${wand === 'frame' ? ' aan' : ''}`} draggable={schrijven} disabled={!schrijven} title="Buizenkader met banner boven de dakrand (signing frame)" onDragStart={(e) => { e.dataTransfer.setData('text/fm-tent', 'frame'); e.dataTransfer.effectAllowed = 'copy'; }} onClick={() => setWand('frame')}><span className="fm-tb-staal" style={{ background: '#3730A3' }} /><span>Signing frame</span></button>}
-          {(wand === 'doek' || wand === 'frame') && (
-            <div className="fm-sb-inst">
-              <div className="fm-sub">{wand === 'frame' ? 'Klik een zijde = frame plaatsen of weghalen. Sleep een ontwerp op een frame voor de banner. Kies een frame (Kiezen) om het met zijn buur te koppelen: één lange banner.' : 'Sleep een ontwerp op een zijde. Het doek vult de zijwand van dat segment.'}</div>
-              {ontwerpen.length > 0 && <div className="fm-sb-ontwerpen">{ontwerpen.map((o) => <button key={o.id} type="button" draggable title={`${o.naam}: sleep op een zijde`} className={ontwerp === o.id ? 'aan' : ''} onDragStart={(e) => { e.dataTransfer.setData('text/fm-tent', `doek:${o.id}`); e.dataTransfer.effectAllowed = 'copy'; }} onClick={() => setOntwerp(o.id)}>{o.eigenschappen?.beeld ? <img src={publiekeUrl(o.eigenschappen.beeld)} alt="" /> : <span style={{ background: o.eigenschappen?.kleur || '#0F766E' }} />}<em>{o.naam}</em></button>)}</div>}
-              {schrijven && <DoekUpload planId={it.plan_id} drager="hek" klein onNieuw={(d) => setOntwerp(d.id)} />}
-            </div>
-          )}
           <div className="fm-kop" style={{ marginTop: 6 }}>Dak</div>
           <div className="fm-sub" style={{ margin: '0 0 4px' }}>{vrij ? 'Kleur van het doek.' : 'Klik = het hele dak. Sleep op een travee voor enkel die travee.'}</div>
           <div className="fm-tb-daken">
@@ -731,6 +766,35 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
           {onActie && schrijven && <TentErnaast el={el} elementen={elementen} onZet={(zijde, elId) => onActie('tent-ernaast', { zijde, el: elId })} />}
           {modulair && <div className="fm-sb-rij">Luifel voor <input type="number" step="0.5" min="0" max="5" disabled={!schrijven} value={t.luifel?.V ?? 0} onChange={(e) => zet({ ...t, luifel: { ...(t.luifel || {}), V: Math.max(0, Number(e.target.value) || 0) } })} style={{ width: 52 }} /> achter <input type="number" step="0.5" min="0" max="5" disabled={!schrijven} value={t.luifel?.A ?? 0} onChange={(e) => zet({ ...t, luifel: { ...(t.luifel || {}), A: Math.max(0, Number(e.target.value) || 0) } })} style={{ width: 52 }} /> m</div>}
           </>}
+          {scherm === 'branding' && <>
+            <div className="fm-kop">Branding</div>
+            <div className="fm-sub" style={{ margin: '0 0 6px' }}>Kies wat je plaatst en klik op een zijde (in 3D of in het bovenaanzicht), of sleep een ontwerp erop.</div>
+            <div className="fm-tb-wanden">
+              <button type="button" className={wand === 'doek' ? 'aan' : ''} disabled={!schrijven} draggable={schrijven} onDragStart={(e) => { e.dataTransfer.setData('text/fm-tent', 'wand:doek'); e.dataTransfer.effectAllowed = 'copy'; }} onClick={() => setWand('doek')}><WandStaal w={wandSoort('doek')} /><span>Bedrukt doek</span></button>
+              <button type="button" className={!wand ? 'aan' : ''} onClick={() => setWand(null)}><span className="fm-tb-staal kies">⌖</span><span>Kiezen</span></button>
+            </div>
+          {!vrij && <button type="button" className={`fm-tb-frame${wand === 'frame' ? ' aan' : ''}`} draggable={schrijven} disabled={!schrijven} title="Buizenkader met banner boven de dakrand (signing frame)" onDragStart={(e) => { e.dataTransfer.setData('text/fm-tent', 'frame'); e.dataTransfer.effectAllowed = 'copy'; }} onClick={() => setWand('frame')}><span className="fm-tb-staal" style={{ background: '#3730A3' }} /><span>Signing frame</span></button>}
+          {(wand === 'doek' || wand === 'frame') && (
+            <div className="fm-sb-inst">
+              <div className="fm-sub">{wand === 'frame' ? 'Klik een zijde = frame plaatsen of weghalen. Sleep een ontwerp op een frame voor de banner. Kies een frame (Kiezen) om het met zijn buur te koppelen: één lange banner.' : 'Sleep een ontwerp op een zijde. Het doek vult de zijwand van dat segment.'}</div>
+              {ontwerpen.length > 0 && <div className="fm-sb-ontwerpen">{ontwerpen.map((o) => <button key={o.id} type="button" draggable title={`${o.naam}: sleep op een zijde`} className={ontwerp === o.id ? 'aan' : ''} onDragStart={(e) => { e.dataTransfer.setData('text/fm-tent', `doek:${o.id}`); e.dataTransfer.effectAllowed = 'copy'; }} onClick={() => setOntwerp(o.id)}>{o.eigenschappen?.beeld ? <img src={publiekeUrl(o.eigenschappen.beeld)} alt="" /> : <span style={{ background: o.eigenschappen?.kleur || '#0F766E' }} />}<em>{o.naam}</em></button>)}</div>}
+              {schrijven && <DoekUpload planId={it.plan_id} drager="hek" klein onNieuw={(d) => setOntwerp(d.id)} />}
+            </div>
+          )}
+            {modulair && <label className="fm-veld" style={{ marginTop: 8 }}>Doek over de hele gevel
+              {[['V', 'Voorgevel'], ['A', 'Achtergevel']].map(([z, zn]) => <select key={z} aria-label={zn} disabled={!schrijven} value={t.gevelDoek?.[z] || ''} onChange={(e) => zet({ ...t, gevelDoek: { ...(t.gevelDoek || {}), [z]: e.target.value || undefined } })}><option value="">{zn}: geen doek</option>{ontwerpen.map((d) => <option key={d.id} value={d.id}>{zn}: {d.naam}</option>)}</select>)}
+            </label>}
+          </>}
+          {scherm === 'nakijken' && <>
+            <div className="fm-kop">Bekijken vanaf</div>
+            <div className="fm-tb-kijk">{[['vrij', 'Vrij'], ['V', 'Voorgevel'], ['L', 'Linkerzijde'], ['A', 'Achtergevel'], ['R', 'Rechterzijde'], ['boven', 'Boven']].map(([k, n]) => <button key={k} type="button" className={kijk === k ? 'aan' : ''} onClick={() => setKijk(k)}>{n}</button>)}</div>
+            <div className="fm-kop" style={{ marginTop: 12 }}>Nakijken</div>
+            {meldingen.length ? meldingen.map((x, k) => <div key={k} className={`fm-melding ${x.soort === 'fout' ? 'fout' : 'let-op'}`} style={{ marginBottom: 6 }}>{x.tekst}</div>) : <div className="fm-melding ok">Niets op te merken.</div>}
+            <div className="fm-kop" style={{ marginTop: 12 }}>Afdrukken</div>
+            <button type="button" className="fm-knop vol" disabled={pdfBezig} onClick={maakPdf}>{pdfBezig ? 'PDF maken…' : 'PDF met 3D, grondplan en aanzichten'}</button>
+            <div className="fm-kop" style={{ marginTop: 12 }}>Plannen van de tentbouwer</div>
+            <StellingPlannen planId={it.plan_id} itemId={it.id} schrijven={schrijven} soort="tentplan" wie="tentbouwer" compact />
+          </>}
         </aside>
         <div className="fm-sb-midden">
           {zicht === 'vloer' && <TentVloerPlan m={m} stukken={t.stukken || []} elementen={elementen} schrijven={schrijven} kiesEl={kiesStuk} hNieuw={hNieuw} buren={(groep || []).slice(1).map((g) => [[0, 0], [g.m.L, 0], [g.m.L, g.m.B], [0, g.m.B]].map(g.T))} tentEl={tentKies} tentLengte={tentLengte} dwars={dwars} onTent={onActie ? (b) => onActie('tent-plaats', b) : null} onBuur={kiesLid ? (k) => kiesLid(groep?.[k + 1]?.it?.id) : null}
@@ -739,15 +803,27 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
             onZet={(l) => zet({ ...t, stukken: l.length ? l : undefined })} />}
           <div className={`fm-sb-drie fm-tb-drie${zicht === 'vloer' ? ' klein' : ''}`}>
             <span className="fm-sb-drie-melding">{MELDING_TENT}</span>
-            <TentDrie it={it} el={el} tent={t} groep={groep} items={items} doekMap={doekMap} vloer={vloer} gekozen={gekozen} gekozenPan={gekozenPan} kies={klik} dakKies={(i) => { setGekozen(null); setGekozenPan(null); setGekozenDak(i); }} gekozenDak={gekozenDak} sleepInter={schrijven && m.n > 1 && modulair ? verplaatsInter : null} drop={schrijven ? drop : undefined} kiesLid={kiesLid ? (k) => kiesLid(groep?.[k]?.it?.id) : null} />
+            {scherm === 'bouwen' && schrijven && !startWeg && (
+              <div className="fm-sb-startscherm">
+                <h2>Waar begin je mee?</h2>
+                <div className="fm-sub">Kies hoe de tent er rondom uitziet. Daarna pas je per wand of per paneel aan.</div>
+                <div className="fm-sb-startraster">
+                  {START_TENT.map((pr) => <button key={pr.k} type="button" onClick={() => startMet(pr)}><b>{pr.naam}</b><span className="fm-sub">{pr.uitleg}</span></button>)}
+                  <button type="button" onClick={() => setStartWeg(true)}><b>Zelf kiezen</b><span className="fm-sub">Begin met de standaardwanden van dit type.</span></button>
+                </div>
+              </div>
+            )}
+            <TentDrie it={it} el={el} tent={t} groep={groep} items={items} doekMap={doekMap} vloer={vloer} gekozen={gekozen} gekozenPan={gekozenPan} kies={klik} dakKies={scherm === 'bouwen' ? (i) => { setGekozen(null); setGekozenPan(null); setGekozenDak(i); } : () => setGekozen(null)} zicht={scherm === 'nakijken' ? KIJK_T[kijk] : null} gekozenDak={gekozenDak} sleepInter={schrijven && m.n > 1 && modulair ? verplaatsInter : null} drop={schrijven ? drop : undefined} kiesLid={kiesLid ? (k) => kiesLid(groep?.[k]?.it?.id) : null} />
           </div>
         </div>
         <aside className="fm-ws-rechts">
+          {scherm !== 'nakijken' && <>
           <div className="fm-kop">Bovenaanzicht</div>
           <div className="fm-sub">Klik op een zijde (ook de achterkant) om er de gekozen wand op te zetten.</div>
           <TentSchema m={m} t={t} gekozen={gekozen} onKies={klik} onDrop={drop} open={open} onInter={m.n > 1 && m.type !== 'vouw' ? zetInter : null} />
           {buren.length > 0 && <div className="fm-sub fm-tb-koppel">Gekoppeld op het plan aan {buren.map((b) => b.it.naam || b.el?.naam).join(', ')}.{vrij ? ' De doeken sluiten op elkaar aan en worden samen getoond.' : ' De gedeelde zijden zijn open met een regengoot; zet er een wand op voor een tussenwand.'}</div>}
-          {m.n > 1 && m.type !== 'vouw' && !vrij && <>
+          </>}
+          {scherm === 'bouwen' && m.n > 1 && m.type !== 'vouw' && !vrij && <>
             <div className="fm-kop" style={{ marginTop: 6 }}>Intergevels</div>
             <div className="fm-sub">Een binnenwand op een spant deelt de tent op. Kies daarna per deel de wand, net als een buitenwand.</div>
             <div className="fm-tb-inter">{Array.from({ length: m.n - 1 }, (_, k) => <label key={k} className="fm-vink"><input type="checkbox" disabled={!schrijven} checked={!!t.inter?.[k + 1]} onChange={() => zetInter(k + 1)} />Na {m.type === 'pagode' ? 'pagode' : 'travee'} {k + 1}</label>)}</div>
@@ -757,7 +833,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
               </label>
             ))}
           </>}
-          {gekozen && gw && (
+          {scherm !== 'nakijken' && gekozen && gw && (
             <div className="fm-sb-inst">
               <strong style={{ textTransform: 'capitalize' }}>{segNaam(gekozen, m)}</strong>
               <label className="fm-veld">Hele wand<select disabled={!schrijven} value={gw.k} onChange={(e) => zetWand(gekozen, e.target.value, e.target.value === 'doek' ? t.doeken?.[gekozen] || ontwerp || null : null, true)}>{WANDEN.map((w) => <option key={w.k} value={w.k}>{w.naam}</option>)}</select></label>
@@ -787,7 +863,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
               {gw.doek && <label className="fm-veld">Ontwerp<select disabled={!schrijven} value={t.doeken?.[gekozen] || ''} onChange={(e) => zet({ ...t, doeken: { ...(t.doeken || {}), [gekozen]: e.target.value || undefined } })}><option value="">Nog geen ontwerp</option>{ontwerpen.map((d) => <option key={d.id} value={d.id}>{d.naam}</option>)}</select></label>}
             </div>
           )}
-          {gekozenDak != null && (
+          {scherm === 'bouwen' && gekozenDak != null && (
             <div className="fm-sectie fm-tb-dakkaart">
               <div className="fm-kop">Dak{modulair && m.n > 1 ? ` · travee ${gekozenDak + 1}` : ''}<button type="button" className="fm-x" aria-label="Dak loslaten" onClick={() => setGekozenDak(null)}>×</button></div>
               <div className="fm-tb-daken">
@@ -799,15 +875,17 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
               {modulair && m.n > 1 && schrijven && <button type="button" className="fm-knop klein" onClick={() => zet({ ...t, dak: t.dakPer?.[gekozenDak] || t.dak, dakPer: {} })}>Dit dak voor alle traveeën</button>}
             </div>
           )}
-          {modulair && m.n > 1 && <>
+          {scherm === 'bouwen' && modulair && m.n > 1 && <>
             <div className="fm-kop" style={{ marginTop: 12 }}>Dak per travee</div>
             {Array.from({ length: m.n }, (_, i) => (
               <div key={i} className="fm-sb-rij fm-tb-travee"><span>Travee {i + 1}</span><select disabled={!schrijven} value={t.dakPer?.[i] || t.dak || 'wit'} onChange={(e) => zetDak(i, e.target.value)}>{DAKEN.map((d) => <option key={d.k} value={d.k}>{d.naam}</option>)}</select></div>
             ))}
           </>}
-          <div className="fm-kop" style={{ marginTop: 12 }}>Materiaalstaat</div>
+          {scherm === 'nakijken' && <>
+          <div className="fm-kop">Materiaalstaat</div>
           <table className="fm-tabel"><tbody>{[...telling, ...Object.values((t.stukken || []).reduce((acc, x) => { const e = elementen.find((q) => q.id === x.el); const n = e?.naam || 'Vloerstuk'; acc[n] = { naam: n, aantal: (acc[n]?.aantal || 0) + 1 }; return acc; }, {}))].map((x) => <tr key={x.naam}><td>{x.naam}</td><td className="getal">{x.aantal}</td></tr>)}</tbody></table>
           <div className="fm-sub" style={{ marginTop: 8 }}>Een schatting om mee te plannen. De tentbouwer bepaalt de constructie, de verankering en de ballast.</div>
+          </>}
         </aside>
       </div>
     </div>,

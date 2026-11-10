@@ -2303,3 +2303,9 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-tb-daken { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .fm-tb-daken button { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 4px 8px; border: 1px solid var(--fm-rand); background: #fff; border-radius: 6px; font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
 .fm-tb-daken button.aan { border-color: #2563EB; box-shadow: inset 0 0 0 1px #2563EB; }
+.fm-tb-kijk { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.fm-tb-kijk button { height: 32px; border: 1px solid var(--fm-rand); background: #fff; border-radius: 6px; font: inherit; font-size: 12px; cursor: pointer; }
+.fm-tb-kijk button.aan { background: var(--t-navy, #022056); border-color: var(--t-navy, #022056); color: #fff; }
+.fm-sb-stappen button { position: relative; }
+.fm-sb-stappen .fm-badge { position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; border-radius: 8px; background: #DC2626; color: #fff; font-size: 10px; font-style: normal; display: grid; place-items: center; padding: 0 4px; }
+.fm-melding.ok { background: #E3F5EC; color: #0E6B48; }

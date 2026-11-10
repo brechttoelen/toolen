@@ -40,13 +40,15 @@ function bouw(T, prims, laad) {
       }
     } else if (p.k === 'lijn') {
       const a = V(T, p.a); const b = V(T, p.b); const d = b.clone().sub(a); const L = d.length(); if (L < 0.005) continue;
-      if ((p.w || 1) >= 1.2) {
-        const r = Math.max(0.012, Math.min(0.07, (p.w || 1) * PX));
+      if (p.r || (p.w || 1) >= 1.2) {
+        const r = p.r || Math.max(0.012, Math.min(0.07, (p.w || 1) * PX));
         const m = new T.Mesh(buis, mat(p.kl, 1, { metaal: true }));
         m.position.copy(a).add(b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(Y, d.normalize()); m.scale.set(r, L, r);
         m.castShadow = true; m.receiveShadow = true; groep.add(m);
         if (!leeg(p.data)) { m.userData.data = p.data; doelen.push(m); }
       } else groep.add(new T.Line(new T.BufferGeometry().setFromPoints([a, b]), lijnMat(p.kl)));
+    } else if (p.k === 'doos') {
+      const m = new T.Mesh(new T.BoxGeometry(p.s[0], p.s[2], p.s[1]), mat(p.kl || '#6B7280', 1, { metaal: true })); m.position.copy(V(T, p.p)); m.castShadow = true; m.receiveShadow = true; groep.add(m);
     } else if (p.k === 'voet') {
       const m = new T.Mesh(new T.BoxGeometry(0.3, 0.02, 0.3), mat('#6B7280', 1, { metaal: true })); m.position.copy(V(T, p.p)).add(new T.Vector3(0, 0.01, 0)); m.receiveShadow = true; groep.add(m);
     } else if (p.k === 'beeld' && p.href) {

@@ -149,7 +149,7 @@ export async function bouwerPdf({ titel, sub = '', soort = 'tent', maakGroep, ho
       doc.text(`Blad ${blad}/2`, W - M, M + 6, { align: 'right' });
       doc.setDrawColor(227, 232, 239); doc.setLineWidth(0.3); doc.line(M, M + 16, W - M, M + 16);
       doc.setFontSize(7.5); doc.setTextColor(132, 146, 168);
-      doc.text(`Indicatieve maattekening · maten in ${eenheid === 'mm' ? 'mm' : 'm'} · de plannen van de ${soort === 'stelling' ? 'stellingbouwer' : 'tentbouwer'} zijn bindend · ${new Date().toLocaleDateString('nl-BE')}`, M, H - 7);
+      doc.text(`Indicatieve maattekening · maten in ${eenheid === 'mm' ? 'mm' : 'm'} · de plannen van de ${soort === 'stelling' ? 'stellingbouwer' : soort === 'truss' ? 'trussleverancier' : 'tentbouwer'} zijn bindend · ${new Date().toLocaleDateString('nl-BE')}`, M, H - 7);
       doc.text('Toolen Maps', W - M, H - 7, { align: 'right' });
     };
     // Blad 1: 3D links, grondplan rechts, kenmerken onder de 3D.
