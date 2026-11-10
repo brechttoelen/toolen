@@ -71,7 +71,7 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
       <SessieWacht />
       <nav className="t-zij" aria-label="Hoofdmenu">
         <Link href="/maps" className="t-zij-merk">
-          <ToolenTeken grootte={24} />
+          <ToolenTeken grootte={30} />
           <span>toolen<small>maps</small></span>
         </Link>
 

@@ -4,7 +4,7 @@ import { ToolenTeken } from "../ToolenLogo";
 export default function PlatformZij({ blad, gebruiker }: { blad: "organisaties" | "pakketten" | "systeem"; gebruiker: string }) {
   return (
     <nav className="t-zij" aria-label="Platform" style={{ background: "#0B1B33" }}>
-      <a href="/beheer" className="t-zij-merk"><ToolenTeken grootte={24} /><span>toolen<small>platform</small></span></a>
+      <a href="/beheer" className="t-zij-merk"><ToolenTeken grootte={30} /><span>toolen<small>platform</small></span></a>
       <div className="t-zij-links">
         <a href="/beheer" className={blad === "organisaties" ? "aan" : ""} aria-current={blad === "organisaties" ? "page" : undefined}>Organisaties</a>
         <a href="/beheer?blad=pakketten" className={blad === "pakketten" ? "aan" : ""} aria-current={blad === "pakketten" ? "page" : undefined}>Pakketten</a>

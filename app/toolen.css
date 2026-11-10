@@ -42,7 +42,7 @@
 
   /* letter */
   --font-sans: "IBM Plex Sans";
-  --font-titel: "IBM Plex Sans", sans-serif;
+  --font-titel: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
   --t-gewicht-titel: 600;
 
   /* hoogtes */
@@ -54,7 +54,7 @@
 /* ----- Basisonderdelen buiten de editor ----- */
 .t-pagina { min-height: 100vh; background: var(--t-vlak); color: var(--t-tekst); }
 .t-inhoud { max-width: 1120px; margin: 0 auto; padding: 32px 24px 64px; }
-.t-titel { font-family: var(--font-titel); font-size: 30px; font-weight: 600; line-height: 1.15; margin: 0; letter-spacing: -0.015em; color: var(--t-tekst); }
+.t-titel { font-family: var(--font-titel); font-size: 32px; font-weight: 700; line-height: 1.1; margin: 0; letter-spacing: -0.01em; color: var(--t-tekst); }
 .t-kopje { font-family: var(--font-titel); font-stretch: 112%; font-size: 19px; font-weight: 700; margin: 0; letter-spacing: -0.01em; color: var(--t-tekst); }
 .t-merknaam { font-family: var(--font-titel); font-stretch: 125%; font-weight: 800; letter-spacing: -0.01em; }
 .t-sub { font-size: 14px; color: var(--t-tekst-2); margin: 4px 0 0; }
@@ -136,9 +136,9 @@ select.t-veld { padding-right: 6px; }
   display: flex; flex-direction: column; gap: 20px; }
 .t-werk { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; }
 .t-zij a { text-decoration: none; }
-.t-zij-merk { display: flex; align-items: center; gap: 10px; padding: 0 8px; color: var(--t-wit); font-family: var(--font-sans);
-  font-weight: 600; font-size: 17px; letter-spacing: -0.01em; }
-.t-zij-merk small { font-size: 17px; font-weight: 400; opacity: .75; margin-left: 5px; }
+.t-zij-merk { display: flex; align-items: center; gap: 12px; padding: 0 8px; color: var(--t-wit); font-family: var(--font-sans);
+  font-weight: 600; font-size: 21px; letter-spacing: -0.015em; }
+.t-zij-merk small { font-size: 21px; font-weight: 400; opacity: .75; margin-left: 6px; }
 .t-zij-org, .t-zij-ik { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px;
   border-radius: 8px; min-height: 44px; color: var(--t-wit); }
 .t-zij-org { background: rgba(255,255,255,.08); }
@@ -216,3 +216,24 @@ section.t-kaart:has(> .t-sys-kop), section.t-kaart:has(> .t-rij .t-sys-kop) { pa
 .t-sys-cijfers span { font-size: 12.5px; color: var(--t-tekst-2); }
 .t-sys-lijst { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; line-height: 1.45; }
 .t-sys-vol { color: var(--t-let-op); font-weight: 600; }
+
+/* Eventkaart op het overzicht: kleurstreep, naam en aftelling bovenaan, plan als rustig voorbeeld. */
+.tm-ev { background: #fff; border: 1px solid var(--t-rand); border-top: 3px solid var(--ev); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.tm-ev-kop { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px 12px; }
+.tm-ev-naam { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.tm-ev-naam b { display: flex; align-items: center; gap: 8px; font-family: var(--font-titel); font-weight: 700; font-size: 19px; line-height: 1.15; color: var(--t-tekst); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-ev-naam i { width: 9px; height: 9px; border-radius: 3px; background: var(--ev); flex: none; }
+.tm-ev-naam small { font-size: 13px; color: var(--t-tekst-2); padding-left: 17px; }
+.tm-ev-teller { display: flex; flex-direction: column; align-items: flex-end; line-height: 1; }
+.tm-ev-teller b { font-family: var(--font-titel); font-weight: 700; font-size: 28px; color: var(--t-tekst); }
+.tm-ev-teller small { font-size: 11.5px; color: var(--t-tekst-2); margin-top: 3px; }
+.tm-ev-plan { position: relative; display: block; margin: 0 16px; border-radius: 8px; overflow: hidden; border: 1px solid var(--t-rand); }
+.tm-ev-plan svg { display: block; width: 100%; }
+.tm-ev-plan:hover { border-color: var(--t-rand-2); }
+.tm-ev-plan:focus-visible { outline: 2px solid var(--t-blauw); outline-offset: 2px; }
+.tm-ev-planNaam { position: absolute; left: 8px; bottom: 8px; font-size: 12px; font-weight: 500; color: var(--t-tekst); background: rgba(255,255,255,.92); padding: 3px 7px; border-radius: 5px; }
+.tm-ev-voet { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+.tm-ev-balk { display: flex; gap: 3px; }
+.tm-ev-balk span { flex: 1; height: 4px; border-radius: 2px; background: var(--t-rand); }
+.tm-ev-balk span.aan { background: var(--ev); }
+.tm-ev-rij { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--t-tekst-2); }

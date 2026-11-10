@@ -49,8 +49,8 @@ export default function Kop({ product = "maps", organisatie, links = [], gebruik
   return (
     <header className="t-kop">
       <Link href={organisatie ? "/maps" : "/kies"} className="merk" style={{ color: "#fff" }}>
-        <ToolenTeken grootte={24} />
-        <span className="t-merknaam">Toolen <span style={{ fontWeight: 500, opacity: 0.75 }}>{product.charAt(0).toUpperCase() + product.slice(1)}</span></span>
+        <ToolenTeken grootte={28} />
+        <span style={{ fontWeight: 600, fontSize: 19, letterSpacing: "-0.015em" }}>toolen <span style={{ fontWeight: 400, opacity: 0.75 }}>{product}</span></span>
       </Link>
       {organisatie && <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 14 }}>{organisatie.naam}</span>}
       <nav style={{ display: "flex", gap: 18, marginLeft: 12 }}>

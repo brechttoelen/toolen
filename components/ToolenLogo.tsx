@@ -16,12 +16,12 @@ export function ToolenTeken({ grootte = 22, op = "navy" }: { grootte?: number; o
   );
 }
 
-export function ToolenWoordmerk({ op = "navy", product }: { op?: "navy" | "licht"; product?: string }) {
+export function ToolenWoordmerk({ op = "navy", product, grootte = 22 }: { op?: "navy" | "licht"; product?: string; grootte?: number }) {
   const kleur = op === "navy" ? "#FFFFFF" : "#022056";
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 10, color: kleur }}>
-      <ToolenTeken op={op} />
-      <span style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em" }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: Math.round(grootte * 0.5), color: kleur }}>
+      <ToolenTeken op={op} grootte={Math.round(grootte * 1.4)} />
+      <span style={{ fontWeight: 600, fontSize: grootte, letterSpacing: "-0.015em" }}>
         toolen{product && <span style={{ fontWeight: 400, opacity: 0.75 }}> {product}</span>}
       </span>
     </span>

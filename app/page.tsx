@@ -5,7 +5,7 @@ export default function Home() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--t-navy)", color: "#fff" }}>
       <header style={{ maxWidth: 1120, margin: "0 auto", padding: "24px", display: "flex", alignItems: "center" }}>
-        <ToolenWoordmerk op="navy" />
+        <ToolenWoordmerk op="navy" grootte={28} />
         <a href="/login" className="t-knop" style={{ marginLeft: "auto", background: "transparent", color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}>Inloggen</a>
       </header>
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "96px 24px" }}>

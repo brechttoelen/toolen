@@ -41,7 +41,7 @@ export default function Inlogkader({ titel, children }: { titel?: string; childr
   return (
     <div className="t-inlog">
       <section className="t-inlog-merk" aria-label="Toolen Maps">
-        <ToolenWoordmerk op="navy" product="maps" />
+        <ToolenWoordmerk op="navy" product="maps" grootte={26} />
         <PlanScene />
         <h1 className="t-titel t-inlog-titel">{titel || "Uitgetekend."}</h1>
         {!titel && <p className="t-inlog-onder">Van eerste lijn tot laatste stroomkabel.</p>}

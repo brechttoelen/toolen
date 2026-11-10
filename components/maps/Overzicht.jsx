@@ -217,22 +217,22 @@ export default function Overzicht() {
                 const def = g.plannen.filter((p) => p.status === 'definitief').length;
                 const eerste = g.plannen[0];
                 return (
-                  <article key={g.id} style={{ ...kaart, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    <a href={eerste ? `/maps/${eerste.id}` : '/maps/plannen'} style={{ position: 'relative', display: 'block' }} aria-label={eerste ? `${g.naam}: ${eerste.naam} openen` : g.naam}>
-                      <PlanVoorbeeld items={(eerste && voorbeelden[eerste.id]) || []} kleur={g.kleur} label={eerste ? `Voorbeeld van ${eerste.naam}` : 'Nog geen plan'} />
-                      <span style={{ position: 'absolute', left: 12, top: 12, background: g.kleur, color: '#fff', fontFamily: 'var(--font-titel)', fontStretch: '112%', fontWeight: 700, fontSize: 14, padding: '5px 10px', borderRadius: 6 }}>{g.naam}</span>
+                  <article key={g.id} className="tm-ev" style={{ '--ev': g.kleur }}>
+                    <div className="tm-ev-kop">
+                      <span className="tm-ev-naam">
+                        <b><i aria-hidden="true" />{g.naam}</b>
+                        <small>{[eventDatum(g.datum), g.plek || eerste?.locatie].filter(Boolean).join(' · ')}</small>
+                      </span>
+                      {d != null && <span className="tm-ev-teller" aria-label={`Nog ${d} ${d === 1 ? 'dag' : 'dagen'}`}><b>{d}</b><small>{d === 1 ? 'Dag' : 'Dagen'}</small></span>}
+                    </div>
+                    <a className="tm-ev-plan" href={eerste ? `/maps/${eerste.id}` : '/maps/plannen'} aria-label={eerste ? `${g.naam}: ${eerste.naam} openen` : g.naam}>
+                      <PlanVoorbeeld items={(eerste && voorbeelden[eerste.id]) || []} kleur={g.kleur} hoogte={150} label={eerste ? `Voorbeeld van ${eerste.naam}` : 'Nog geen plan'} />
+                      {eerste && <span className="tm-ev-planNaam">{eerste.naam}{g.plannen.length > 1 ? ` + ${g.plannen.length - 1}` : ''}</span>}
                     </a>
-                    <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
-                        <span style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                          <span style={sub}>{eventDatum(g.datum)}</span>
-                          <span style={{ fontSize: 14, fontWeight: 500 }}>{g.plek || eerste?.locatie || `${g.plannen.length} ${g.plannen.length === 1 ? 'plan' : 'plannen'}`}</span>
-                        </span>
-                        {d != null && <span style={{ textAlign: 'right' }}><span style={{ fontFamily: 'var(--font-titel)', fontStretch: '125%', fontWeight: 800, fontSize: 30, lineHeight: 1, letterSpacing: '-0.02em' }}>{d}</span><span style={{ ...sub, display: 'block', fontSize: 12 }}>{d === 1 ? 'Dag' : 'Dagen'}</span></span>}
-                      </div>
-                      {g.plannen.length > 0 && <div style={{ display: 'flex', gap: 3 }} aria-label={`${def} van ${g.plannen.length} plannen definitief`}>{g.plannen.map((p, i) => <span key={p.id} style={{ flex: 1, height: 8, borderRadius: 2, background: i < def ? g.kleur : '#E3E8EF' }} />)}</div>}
-                      <div className="t-rij" style={{ justifyContent: 'space-between', fontSize: 12.5, color: 'var(--t-tekst-2)' }}>
-                        <span>{g.plannen.length ? `${def} van ${g.plannen.length} plannen definitief` : 'Nog geen plannen'}</span>
+                    <div className="tm-ev-voet">
+                      {g.plannen.length > 0 && <div className="tm-ev-balk" aria-label={`${def} van ${g.plannen.length} plannen definitief`}>{g.plannen.map((p, i) => <span key={p.id} className={i < def ? 'aan' : ''} />)}</div>}
+                      <div className="tm-ev-rij">
+                        <span>{g.plannen.length ? `${def} van ${g.plannen.length} ${g.plannen.length === 1 ? 'plan' : 'plannen'} definitief` : 'Nog geen plannen'}</span>
                         {schrijven && <span className="t-rij" style={{ gap: 6 }}>
                           {ev.ok && <button className="t-knop klein stil" onClick={() => setEvDialoog(g)}>Wijzigen</button>}
                           <button className="t-knop klein" onClick={() => setNieuwPlan(ev.ok ? g.id : '')}>Plan toevoegen</button>
