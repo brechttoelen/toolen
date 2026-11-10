@@ -3084,6 +3084,7 @@ export default function Editor({ planId }) {
         break;
       }
       case 'tent-maat': {
+        try { if (arg?.el) localStorage.setItem('fm-tent-laatst', arg.el); } catch {}
         // Grondplan van de tentbouwer: tent langer/korter (per travee) of in een andere bestaande breedte; de overkant blijft staan.
         const elOp = (id) => st.current.elementen.find((x) => x.id === id);
         const el = elOp(it.element_id); const A = el && tentAssen(it, el); if (!A || !(arg?.L > 0) || !(arg?.B > 0)) break;
@@ -4418,6 +4419,12 @@ export default function Editor({ planId }) {
   };
   // Bouwers: de elementen die met een bouwer opgebouwd worden.
   const TENT_VOORKEUR = { kader: /10 m breed \(per travee 5/, boog: /15 m/, pagode: /5 × 5/, vouw: /3×3|3 × 3/, stretch: /10 × 15/, sail: /12 × 18/ };
+  // Laatst gebruikte tent (anders een kadertent van 10 m): daarmee start een nieuwe tent, de rest kies je in de bouwer.
+  const standaardTent = (() => {
+    let id = null; try { id = localStorage.getItem('fm-tent-laatst'); } catch {}
+    const l = elementen.filter((e) => e.actief !== false && !e.plan_id && isTentBouw(e));
+    return l.find((e) => e.id === id) || l.find((e) => tentTypeVan(e) === 'kader' && Number(e.diepte_m) === 10 && !e.leverancier) || l.find((e) => tentTypeVan(e) === 'kader') || l[0] || null;
+  })();
   const bouwTenten = (type) => elementen.filter((e) => e.actief !== false && isTentBouw(e) && tentTypeVan(e) === type).sort((a, b) => (TENT_VOORKEUR[type]?.test(b.naam) ? 1 : 0) - (TENT_VOORKEUR[type]?.test(a.naam) ? 1 : 0) || (Number(a.diepte_m) || 0) - (Number(b.diepte_m) || 0) || a.naam.localeCompare(b.naam, 'nl'));
   const bouwEl = {
     wand: elementen.find((e) => e.actief !== false && isBouwElement(e) && e.eigenschappen?.wand),
@@ -4752,12 +4759,8 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                   <section>
                     <h3>Gebouwen en tenten</h3>
                     {bouwRij('binnen', 'gebouw', 'Binnenplan', 'Klik op een gebouw: zalen, gangen en inrichting', () => kiesBouwer({ soort: 'binnen' }))}
-                    {TENTTYPES.filter((x) => bouwTenten(x.k).length).map((x) => (
-                      <Fragment key={x.k}>
-                        {bouwRij(`t${x.k}`, `tent-${x.k}`, x.naam, x.uitleg || 'Kies een maat en klik op de kaart', () => setBouwType((b) => (b === x.k ? null : x.k)), { aan: bouwType === x.k, open: bouwType === x.k, tel: bouwTenten(x.k).length })}
-                        {bouwType === x.k && <div className="fm-bouwmaten">{bouwTenten(x.k).map((el) => <button key={el.id} type="button" disabled={!schrijven} onClick={() => kiesBouwer({ soort: 'tent', el })}>{el.naam}</button>)}</div>}
-                      </Fragment>
-                    ))}
+                    {/* Eén ingang voor alle tenten: soort, breedte en gekoppelde tenten kies je in de tentbouwer. */}
+                    {standaardTent && bouwRij('tent', `tent-${tentTypeVan(standaardTent) || 'kader'}`, 'Tent', 'Klik op de kaart; soort, breedte en tenten ertegen kies je in de bouwer', () => kiesBouwer({ soort: 'tent', el: standaardTent }))}
                   </section>
                   {(bouwEl.wand || bouwEl.truss || bouwEl.stelling) && (
                     <section>

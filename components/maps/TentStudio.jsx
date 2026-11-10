@@ -6,6 +6,7 @@ import TerugKnop from './TerugKnop';
 // Indicatieve weergave: de tentbouwer bepaalt de constructie, verankering en ballast.
 import { useBouwerSchild, schildProps } from './bouwerschild';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { Icoon } from './iconen';
 import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import { webglKan } from './StellingStudio';
@@ -609,7 +610,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
   const open = groep?.[0]?.open || new Set();
   const telling = useMemo(() => tentTelling({ ...it, velden: { ...(it.velden || {}), tent: t } }, el, open, groep), [it, el, t, open, groep]);
   const segs = tentSegmenten(m, t);
-  const meldingen = useMemo(() => tentMeldingen(m, t, segs, standaardWand(m)), [t, m.L, m.B, m.n, m.type]); // eslint-disable-line react-hooks/exhaustive-deps
+  const meldingen = useMemo(() => [...tentMeldingen(m, t, segs, standaardWand(m)), ...groepMeldingen(m, groep)], [t, m.L, m.B, m.n, m.type, groep]); // eslint-disable-line react-hooks/exhaustive-deps
   const setScherm = (k) => { setScherm0(k); if (k !== 'bouwen') setZicht('3d'); if (k === 'branding') setWand((w) => (w === 'doek' || w === 'frame' ? w : 'doek')); else if (k === 'bouwen') setWand((w) => (w === 'doek' || w === 'frame' ? null : w)); };
   const startMet = (pr) => { const wanden = {}; for (const sg of segs) if (sg.zijde !== 'I') wanden[sg.key] = (sg.zijde === 'V' || sg.zijde === 'A') && pr.gevel ? pr.gevel : pr.wand; if (pr.voor) { const v = segs.filter((sg) => sg.zijde === 'V'); const mid = v[Math.floor(v.length / 2)] || segs[0]; if (mid) wanden[mid.key] = pr.voor; } zet({ ...t, wanden, panelen: {} }); setStartWeg(true); };
   const modulair = m.type === 'kader' || m.type === 'boog'; const vrij = isVrijeTent(m);
@@ -744,6 +745,8 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
             {(t.stukken || []).length > 0 && schrijven && <button type="button" className="fm-knop klein" onClick={() => { if (window.confirm('Alle vloerstukken van deze tent weghalen?')) zet({ ...t, stukken: undefined }); }}>Alle stukken weg</button>}
           </>}
           {scherm === 'bouwen' && zicht !== 'vloer' && <>
+          {onActie && <TentKeuze el={el} m={m} elementen={elementen} schrijven={schrijven} onWissel={(el2, L2, B2) => { const n = { ...t }; delete n.type; terugL.current.push(t); setT(n); onActie('tent-maat', { x0: 0, y0: 0, L: L2, B: B2, el: el2.id, tent: n }); }}
+            onErnaast={(zijde, elId) => onActie('tent-ernaast', { zijde, el: elId })} />}
           <div className="fm-kop">Wanden</div>
           <div className="fm-sub" style={{ margin: '0 0 4px' }}>Sleep een wand op een zijde van de tent, of kies er een en klik op de zijden. Draaien = slepen naast de tent.</div>
           {!vrij && <div className="fm-segment fm-tb-bereik">{[['paneel', 'Per paneel (1 m)'], ['wand', 'Hele wand'], ['zijde', 'Hele zijde']].map(([k, n]) => <button key={k} type="button" className={bereik === k ? 'aan' : ''} onClick={() => setBereik(k)}>{n}</button>)}</div>}
@@ -809,7 +812,6 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
           <div className="fm-tb-terras">{[['V', 'Voor'], ['A', 'Achter'], ['L', 'Links'], ['R', 'Rechts']].map(([z, n]) => <label key={z}>{n}<input type="number" step="0.5" min="0" max="10" disabled={!schrijven} value={t.terras?.[z] ?? 0} onChange={(e) => zetTerras(z, e.target.value)} /></label>)}</div>
           <label className="fm-veld">Hoogte terras (m)<input type="number" step="0.05" min="0" max="2" disabled={!schrijven} value={t.terrasH ?? (Number(t.vloerH) > 0 ? t.vloerH : TERRAS_H)} onChange={(e) => zet({ ...t, terrasH: Number(e.target.value) >= 0 ? Number(e.target.value) : undefined })} /></label>
           {onActie && schrijven && <button type="button" className="fm-knop klein" disabled={!t.terrasVloer || !Object.values(t.terras || {}).some((d) => Number(d) > 0)} title={t.terrasVloer ? 'Het terras als echte vloer (vlonders …) op het plan: telt mee in de stuklijst' : 'Kies eerst de vloer van het terras'} onClick={() => { for (const [z, d] of Object.entries(t.terras || {})) if (Number(d) > 0) onActie('tent-terras', { zijde: z, diepte: Number(d), el: t.terrasVloer }); }}>Terras op het plan zetten</button>}
-          {onActie && schrijven && <TentErnaast el={el} elementen={elementen} onZet={(zijde, elId) => onActie('tent-ernaast', { zijde, el: elId })} />}
           {modulair && <div className="fm-sb-rij">Luifel voor <input type="number" step="0.5" min="0" max="5" disabled={!schrijven} value={t.luifel?.V ?? 0} onChange={(e) => zet({ ...t, luifel: { ...(t.luifel || {}), V: Math.max(0, Number(e.target.value) || 0) } })} style={{ width: 52 }} /> achter <input type="number" step="0.5" min="0" max="5" disabled={!schrijven} value={t.luifel?.A ?? 0} onChange={(e) => zet({ ...t, luifel: { ...(t.luifel || {}), A: Math.max(0, Number(e.target.value) || 0) } })} style={{ width: 52 }} /> m</div>}
           </>}
           {scherm === 'branding' && <>
@@ -852,7 +854,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
             {scherm === 'bouwen' && schrijven && !startWeg && (
               <div className="fm-sb-startscherm">
                 <h2>Waar begin je mee?</h2>
-                <div className="fm-sub">Kies hoe de tent er rondom uitziet. Daarna pas je per wand of per paneel aan.</div>
+                <div className="fm-sub">Kies hoe de tent er rondom uitziet. Soort, breedte en lengte kies je links bij Tent; daarna pas je per wand of per paneel aan.</div>
                 <div className="fm-sb-startraster">
                   {START_TENT.map((pr) => <button key={pr.k} type="button" onClick={() => startMet(pr)}><b>{pr.naam}</b><span className="fm-sub">{pr.uitleg}</span></button>)}
                   <button type="button" onClick={() => setStartWeg(true)}><b>Zelf kiezen</b><span className="fm-sub">Begin met de standaardwanden van dit type.</span></button>
@@ -949,6 +951,79 @@ function WandStaal({ w }) {
 }
 
 // Een tweede tent tegen een zijde: kies de zijde en de tent; op het plan koppelen ze vanzelf (en dus ook hier in 3D).
+// Gekoppelde tenten: wat je best nakijkt aan de gedeelde zijde (zijhoogte, dakvorm).
+function groepMeldingen(m, groep) {
+  const uit = [];
+  for (const g of (groep || []).slice(1)) {
+    const n = g.it?.naam || g.el?.naam || 'de gekoppelde tent'; const m2 = g.m || tentMaten(g.it, g.el);
+    if (!m2) continue;
+    if (Math.abs((m2.zijH || 0) - m.zijH) > 0.05) uit.push({ soort: 'let-op', tekst: `Zijhoogte ${String(m.zijH).replace('.', ',')} m tegen ${String(m2.zijH).replace('.', ',')} m bij ${n}: de goot sluit niet recht aan. Vraag de leverancier naar een overgangsstuk.` });
+    if (m2.type !== m.type && ['boog', 'kader', 'pagode'].includes(m2.type) && ['boog', 'kader', 'pagode'].includes(m.type)) uit.push({ soort: 'let-op', tekst: `${TENTTYPES.find((x) => x.k === m.type)?.naam} tegen ${TENTTYPES.find((x) => x.k === m2.type)?.naam.toLowerCase()} (${n}): andere dakvorm. Koppelen met een goot kan, maar vraag de leverancier hoe het aansluit.` });
+  }
+  return uit;
+}
+
+// Soort, breedte en lengte van de tent, en een tent ertegen: allemaal in de bouwer.
+const tentLabel = (e) => { const ty = tentTypeVan(e); const mod = ty === 'kader' || ty === 'boog'; const tr = Number(e.breedte_m); return `${mod ? `${String(Number(e.diepte_m)).replace('.', ',')} m breed · travee ${String(tr).replace('.', ',')} m` : e.naam}${e.leverancier ? ` · ${e.leverancier}` : ''}`; };
+function tentLijst(elementen) { return elementen.filter((e) => e.actief !== false && !e.plan_id && isTentBouw(e)).sort((a, b) => (Number(a.diepte_m) || 0) - (Number(b.diepte_m) || 0) || (Number(a.breedte_m) || 0) - (Number(b.breedte_m) || 0) || String(a.leverancier || '').localeCompare(String(b.leverancier || ''), 'nl')); }
+// Nieuwe maat bij een andere tent: kader, booghal en een rij pagodes houden ongeveer hun lengte (per travee of module).
+export function maatVoorTent(el2, m) {
+  const ty = tentTypeVan(el2); const tr = Number(el2.breedte_m) || 5; const B2 = Number(el2.diepte_m) || tr;
+  if (ty === 'kader' || ty === 'boog') return [Math.max(1, Math.round(m.L / tr)) * tr, B2];
+  if (ty === 'pagode') return [Math.max(1, Math.min(8, Math.round(m.L / tr))) * tr, B2];
+  return [tr, B2];
+}
+function TentKeuze({ el, m, elementen, schrijven, onWissel, onErnaast }) {
+  const lijst = useMemo(() => tentLijst(elementen), [elementen]);
+  const types = TENTTYPES.filter((x) => lijst.some((e) => tentTypeVan(e) === x.k));
+  const ty = tentTypeVan(el);
+  const vanType = (k) => lijst.filter((e) => tentTypeVan(e) === k);
+  const kiesType = (k) => {
+    if (k === ty) return; const l = vanType(k); if (!l.length) return;
+    // Zo dicht mogelijk bij de huidige breedte, liefst van dezelfde leverancier.
+    const best = [...l].sort((a, b) => Math.abs((Number(a.diepte_m) || 0) - m.B) - Math.abs((Number(b.diepte_m) || 0) - m.B) || ((a.leverancier || '') === (el.leverancier || '') ? -1 : 1))[0];
+    onWissel(best, ...maatVoorTent(best, m));
+  };
+  const modul = ty === 'kader' || ty === 'boog' || ty === 'pagode';
+  const [zijde, setZijde] = useState('R'); const [erTy, setErTy] = useState(ty); const erLijst = vanType(erTy); const [erId, setErId] = useState(el.id);
+  const erEl = erLijst.find((e) => e.id === erId) || erLijst.find((e) => Number(e.diepte_m) === m.B) || erLijst[0];
+  const getal2 = (v) => String(Math.round(v * 100) / 100).replace('.', ',');
+  return (
+    <div className="fm-tb-keuze">
+      <div className="fm-kop">Tent</div>
+      <div className="fm-tb-soorten" role="group" aria-label="Soort tent">
+        {types.map((x) => <button key={x.k} type="button" disabled={!schrijven} className={ty === x.k ? 'aan' : ''} title={x.uitleg} onClick={() => kiesType(x.k)}><Icoon naam={`tent-${x.k}`} maat={22} /><span>{x.naam}</span></button>)}
+      </div>
+      <label className="fm-veld">{modul && ty !== 'pagode' ? 'Breedte' : 'Maat'}
+        <select disabled={!schrijven} value={el.id} onChange={(e) => { const e2 = lijst.find((x) => x.id === e.target.value); if (e2) onWissel(e2, ...maatVoorTent(e2, m)); }}>
+          {vanType(ty).map((e) => <option key={e.id} value={e.id}>{tentLabel(e)}</option>)}
+        </select>
+      </label>
+      {modul && (
+        <div className="fm-tb-lengte">
+          <span>{ty === 'pagode' ? 'Aantal' : 'Lengte'}</span>
+          <button type="button" className="fm-knop klein" disabled={!schrijven || m.n <= 1} aria-label="Korter" onClick={() => onWissel(el, (m.n - 1) * m.travee, m.B)}>−</button>
+          <b>{ty === 'pagode' ? `${m.n} × ${getal2(m.travee)} m` : `${m.n} × ${getal2(m.travee)} m = ${getal2(m.L)} m`}</b>
+          <button type="button" className="fm-knop klein" disabled={!schrijven || m.n >= 40} aria-label="Langer" onClick={() => onWissel(el, (m.n + 1) * m.travee, m.B)}>+</button>
+        </div>
+      )}
+      <div className="fm-sub">{String(m.L).replace('.', ',')} × {String(m.B).replace('.', ',')} m · zijwand {getal2(m.zijH)} m · nok {getal2(m.nok)} m</div>
+      {schrijven && (
+        <details className="fm-tb-ertegen">
+          <summary>Tent ertegen</summary>
+          <div className="fm-segment">{[['L', 'Links'], ['R', 'Rechts'], ['V', 'Voor'], ['A', 'Achter']].map(([z, n]) => <button key={z} type="button" className={zijde === z ? 'aan' : ''} onClick={() => setZijde(z)}>{n}</button>)}</div>
+          <div className="fm-tb-soorten klein" role="group" aria-label="Soort tent ertegen">
+            {types.map((x) => <button key={x.k} type="button" className={erTy === x.k ? 'aan' : ''} title={x.naam} onClick={() => { setErTy(x.k); setErId(''); }}><Icoon naam={`tent-${x.k}`} maat={18} /><span>{x.naam}</span></button>)}
+          </div>
+          <select value={erEl?.id || ''} onChange={(e) => setErId(e.target.value)} aria-label="Maat van de tent ertegen">{erLijst.map((e) => <option key={e.id} value={e.id}>{tentLabel(e)}</option>)}</select>
+          <button type="button" className="fm-knop klein zwart" disabled={!erEl} onClick={() => onErnaast(zijde, erEl.id)}>Tent ertegen zetten</button>
+          <div className="fm-sub">Komt op het plan tegen deze zijde en wordt gekoppeld: de gedeelde zijde is open, met een goot. Bovenaan wissel je tussen de tenten.</div>
+        </details>
+      )}
+    </div>
+  );
+}
+
 function TentErnaast({ el, elementen, onZet }) {
   const lijst = elementen.filter((e) => e.actief !== false && (e.categorie === 'Tenten en vloeren' || e.categorie === 'Tenten')).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
   const [zijde, setZijde] = useState('R'); const [elId, setElId] = useState(el?.id || '');
