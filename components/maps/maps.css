@@ -2331,10 +2331,15 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 
 /* Tentbouwer: soort, maat en lengte in de bouwer. */
 .fm-tb-keuze { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; margin-bottom: 8px; border-bottom: 1px solid var(--t-rand, #E3E8EF); }
-.fm-tb-soorten { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.fm-tb-soorten { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 4px; }
 .fm-tb-soorten button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border: 1px solid var(--t-rand, #E3E8EF); border-radius: 8px; background: #fff; font: inherit; font-size: 11.5px; cursor: pointer; color: var(--t-tekst, #0E1A33); }
 .fm-tb-soorten button.aan { border-color: var(--t-blauw, #108AED); background: var(--t-blauw-zacht, #E8F3FD); font-weight: 600; }
-.fm-tb-soorten.klein button { flex-direction: row; justify-content: center; font-size: 11px; padding: 4px 2px; }
+.fm-tb-soorten.klein button { font-size: 11px; padding: 4px 2px; }
+.fm-tb-soorten button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-tb-vol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; }
+.fm-tb-vol button { min-width: 0; }
+.fm-tb-ertegen select, .fm-tb-ertegen .fm-knop, .fm-tb-keuze select { width: 100%; }
+.fm-tb-lengte b { min-width: 92px; text-align: center; }
 .fm-tb-lengte { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .fm-tb-lengte > span { flex: 1; color: var(--t-tekst-2, #4A5A75); }
 .fm-tb-ertegen { border: 1px solid var(--t-rand, #E3E8EF); border-radius: 8px; padding: 6px 8px; }
