@@ -93,7 +93,7 @@ De laatste stand uit FLCS Maps ophalen, zo vaak als nodig, zonder te wissen wat 
 
 Uitvoeren: `flcs_bijwerken.sql` plakken in de SQL Editor van Toolen, HOST en WACHTWOORD van het Publitool-project invullen → Run. Het wachtwoord staat enkel tijdens de run in de databank, ook bij een fout wordt de verbinding weer verwijderd. Daarna de bestanden kopiëren via `/maps/beheer/import`.
 
-Per plan (vingerafdruk van plan, lagen, fasen en items): `nieuw`, `bijgewerkt` (gewijzigd in FLCS, FLCS wint), `ongewijzigd` (wat je in Toolen aanpaste blijft), `conflict` (gewijzigd in FLCS én Toolen: overgeslagen, met `flcs_bijwerken(true)` wint FLCS) of `weg in FLCS` (blijft in Toolen). Ontvangers, events, eigen versies en opmerkingen in Toolen blijven staan; items houden hun id. Bibliotheek, leveranciers en vaste aansluitingen: de recentst gewijzigde versie wint. Lokaal getest met een nagebootste FLCS-databank. Functie uitgevoerd op Toolen op 10 nov 2026.
+Per plan (vingerafdruk van plan, lagen, fasen en items): `nieuw`, `bijgewerkt` (gewijzigd in FLCS, FLCS wint), `ongewijzigd` (wat je in Toolen aanpaste blijft), `conflict` (gewijzigd in FLCS én Toolen: overgeslagen, met `flcs_bijwerken(true)` wint FLCS) of `weg in FLCS` (blijft in Toolen). Ontvangers, events, eigen versies en opmerkingen in Toolen blijven staan; items houden hun id. Bibliotheek, leveranciers en vaste aansluitingen: de recentst gewijzigde versie wint. Lokaal getest met een nagebootste FLCS-databank. Functie uitgevoerd op Toolen op 10 nov 2026. Eerste import op 10 nov 2026 via Claude (tijdelijke leesgebruiker `toolen_lezer` in FLCS, daarna verwijderd): 6 plannen, 1.223 items, 1.061 bibliotheekelementen, 92 bestanden nog te kopiëren.
 
 ### Nog open
 
