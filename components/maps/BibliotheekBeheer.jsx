@@ -15,7 +15,7 @@ import { leesDxf } from './dxf';
 import { AANSLUITINGEN, FASEN_EL } from './stroom';
 import { AppDialogen, bevestig, vraagTekst } from './dialoog';
 import { Icoon } from './iconen';
-import { sorteerCategorieen, vergelijkCategorie, CATEGORIEEN } from './categorieen';
+import { sorteerCategorieen, vergelijkCategorie, CATEGORIEEN, rubriekVan, rubriekSecties, rubriekNaam } from './categorieen';
 import { useLeveranciers, juisteNaam, zorgLeverancier } from './leveranciers';
 import { zoekScore } from './zoeken';
 import { FAMILIES, FAMILIE_NAAM, familieVanElement, familieUitCategorie } from './familie';
@@ -275,7 +275,7 @@ export default function BibliotheekBeheer({ soort = 'elementen' }) {
             {bibTab === 'algemeen' && (<>
             <div className="fm-sectie">
               <div className="fm-kop" style={{ fontSize: 16 }}>{gekozen === 'nieuw' ? 'Nieuw element' : vorm.naam}</div>
-              <label className={`fm-veld${gekozen === 'nieuw' && !vorm.familie ? ' fm-eerst' : ''}`}><span>Familie<Info>Bepaalt waar het element in de bibliotheek van het plan staat en welk detailscherm het krijgt (een hek krijgt toebehoren en doek, een generator stroom). Leeg = afgeleid uit de categorie.</Info></span>
+              <label className={`fm-veld${gekozen === 'nieuw' && !vorm.familie ? ' fm-eerst' : ''}`}><span>Soort<Info>Bepaalt welk detailscherm het element krijgt (een hek krijgt toebehoren en doek, een generator stroom). Waar het in de bibliotheek staat, volgt uit de categorie: dezelfde indeling als bij de leveranciers. Leeg = afgeleid uit de categorie.</Info></span>
                 <select value={vorm.familie || ''} disabled={!schrijven} onChange={(e) => { const f = e.target.value || null; setVorm({ ...vorm, familie: f, ...(gekozen === 'nieuw' && f === 'hekken' && vorm.tekenwijze === 'schaal' ? { tekenwijze: 'lijn', eenheid_m: vorm.eenheid_m || 2.5 } : {}) }); }}>
                   <option value="">Automatisch: {FAMILIE_NAAM[familieUitCategorie(vorm.categorie, vorm)]}</option>
                   {FAMILIES.filter((f) => f.k !== 'vormen').map((f) => <option key={f.k} value={f.k}>{f.naam}</option>)}
@@ -756,18 +756,20 @@ function Overzicht({ lijst, setLijst, cats, cat, setCat, gekozen, kies, schrijve
   const [weergave, setWeergave] = useState(() => { try { return localStorage.getItem('fm-bib-weergave2') || 'tabel'; } catch { return 'tabel'; } });
   // Familie als eerste filter; de categorieën eronder horen bij die familie.
   const famVan = useMemo(() => new Map(lijst.map((e) => [e.id, familieVanElement(e)])), [lijst]);
-  const [fam, setFamS] = useState(() => { const e = cat && lijst.find((x) => x.categorie === cat); return e ? familieVanElement(e) : ''; });
+  // Filter op rubriek (= categorie, zoals bij de leveranciers); de soort bepaalt enkel het detailscherm.
+  const rubVan = useMemo(() => new Map(lijst.map((e) => [e.id, rubriekVan(e.categorie)])), [lijst]);
+  const [fam, setFamS] = useState(() => (cat ? rubriekVan(cat) : ''));
   const setFam = (f) => { setFamS(f); setCat(''); };
-  const perFam = useMemo(() => { const m = new Map(); for (const e of lijst) { const f = famVan.get(e.id); m.set(f, (m.get(f) || 0) + 1); } return m; }, [lijst, famVan]);
-  const famCats = cats.filter((c) => lijst.some((e) => e.categorie === c && (!fam || famVan.get(e.id) === fam)));
+  const perFam = useMemo(() => { const m = new Map(); for (const e of lijst) { const f = rubVan.get(e.id); m.set(f, (m.get(f) || 0) + 1); } return m; }, [lijst, rubVan]);
+  const famCats = cats.filter((c) => lijst.some((e) => e.categorie === c && (!fam || rubVan.get(e.id) === fam)));
   const [sorteer, setSorteer] = useState(['naam', 1]);
   const [sel, setSel] = useState(new Set());
   const [bulk, setBulk] = useState({ familie: '', categorie: '', subgroep: '', leverancier: '', tags: '', actief: '' });
   const [bezig, setBezig] = useState(false);
   const zetWeergave = (w) => { setWeergave(w); try { localStorage.setItem('fm-bib-weergave2', w); } catch {} };
   const ctl = CONTROLES.find((c) => c[0] === controle);
-  const telControle = (k) => { const f = CONTROLES.find((c) => c[0] === k)?.[2]; return f ? lijst.filter((e) => (!fam || famVan.get(e.id) === fam) && (!cat || e.categorie === cat) && f(e)).length : null; };
-  let rijen = lijst.filter((e) => (!fam || famVan.get(e.id) === fam) && (!cat || e.categorie === cat) && (!ctl?.[2] || ctl[2](e)));
+  const telControle = (k) => { const f = CONTROLES.find((c) => c[0] === k)?.[2]; return f ? lijst.filter((e) => (!fam || rubVan.get(e.id) === fam) && (!cat || e.categorie === cat) && f(e)).length : null; };
+  let rijen = lijst.filter((e) => (!fam || rubVan.get(e.id) === fam) && (!cat || e.categorie === cat) && (!ctl?.[2] || ctl[2](e)));
   if (zoek.trim()) rijen = rijen.map((e) => [e, zoekScore(e, zoek)]).filter(([, sc]) => sc > 0).sort((a, b) => b[1] - a[1]).map(([e]) => e);
   else {
     const [k, r] = sorteer;
@@ -821,9 +823,9 @@ function Overzicht({ lijst, setLijst, cats, cat, setCat, gekozen, kies, schrijve
           <button className={weergave === 'tabel' ? 'aan' : ''} onClick={() => zetWeergave('tabel')}>Tabel</button>
         </div>
       </div>
-      <div className="fm-famtabs fm-famtabs-breed" role="tablist" aria-label="Familie" style={{ marginBottom: 8 }}>
+      <div className="fm-famtabs fm-famtabs-breed" role="tablist" aria-label="Rubriek" style={{ marginBottom: 8 }}>
         <button type="button" role="tab" aria-selected={!fam} className={!fam ? 'aan' : ''} onClick={() => setFam('')}>Alles <span className="n">{lijst.length}</span></button>
-        {FAMILIES.filter((f) => perFam.get(f.k)).map((f) => <button key={f.k} type="button" role="tab" aria-selected={fam === f.k} className={fam === f.k ? 'aan' : ''} onClick={() => setFam(f.k)} title={f.uitleg}>{f.naam} <span className="n">{perFam.get(f.k)}</span></button>)}
+        {rubriekSecties([...perFam.keys()]).flatMap(([, rs]) => rs).map((r) => <button key={r} type="button" role="tab" aria-selected={fam === r} className={fam === r ? 'aan' : ''} onClick={() => setFam(r)}>{rubriekNaam(r)} <span className="n">{perFam.get(r)}</span></button>)}
       </div>
       {fam && famCats.length > 1 && (
         <div className="fm-catchips" style={{ marginBottom: 12 }}>
@@ -834,7 +836,7 @@ function Overzicht({ lijst, setLijst, cats, cat, setCat, gekozen, kies, schrijve
       {schrijven && sel.size > 0 && (
         <div className="fm-bulk">
           <strong>{sel.size} gekozen</strong>
-          <select value={bulk.familie} onChange={(e) => setBulk({ ...bulk, familie: e.target.value })} aria-label="Familie"><option value="">Familie: ongewijzigd</option>{FAMILIES.filter((f) => f.k !== 'vormen').map((f) => <option key={f.k} value={f.k}>{f.naam}</option>)}<option value="-">Automatisch (uit categorie)</option></select>
+          <select value={bulk.familie} onChange={(e) => setBulk({ ...bulk, familie: e.target.value })} aria-label="Soort"><option value="">Soort: ongewijzigd</option>{FAMILIES.filter((f) => f.k !== 'vormen').map((f) => <option key={f.k} value={f.k}>{f.naam}</option>)}<option value="-">Automatisch (uit categorie)</option></select>
           <input placeholder="Categorie" list="fm-cats" value={bulk.categorie} onChange={(e) => setBulk({ ...bulk, categorie: e.target.value })} />
           <input placeholder="Subgroep (- = weg)" value={bulk.subgroep} onChange={(e) => setBulk({ ...bulk, subgroep: e.target.value })} />
           <input placeholder="Leverancier (- = weg)" value={bulk.leverancier} onChange={(e) => setBulk({ ...bulk, leverancier: e.target.value })} />
@@ -850,7 +852,7 @@ function Overzicht({ lijst, setLijst, cats, cat, setCat, gekozen, kies, schrijve
           <table className="fm-tabel fm-bibtabel">
             <thead><tr>
               {schrijven && <th><input type="checkbox" aria-label="Alles kiezen" checked={allesGekozen} onChange={() => setSel(allesGekozen ? new Set() : new Set(rijen.map((e) => e.id)))} /></th>}
-              <th aria-label="Voorbeeld" />{kop('naam', 'Naam')}{kop('familie', 'Familie')}{kop('categorie', 'Categorie · subgroep')}{kop('leverancier', 'Leverancier')}{kop('maat', 'Maat')}{kop('tags', 'Zoekwoorden')}{kop('foto', "Foto's")}{kop('voorraad', 'Ter plaatse')}
+              <th aria-label="Voorbeeld" />{kop('naam', 'Naam')}{kop('familie', 'Soort')}{kop('categorie', 'Categorie · subgroep')}{kop('leverancier', 'Leverancier')}{kop('maat', 'Maat')}{kop('tags', 'Zoekwoorden')}{kop('foto', "Foto's")}{kop('voorraad', 'Ter plaatse')}
             </tr></thead>
             <tbody>
               {rijen.map((e) => (

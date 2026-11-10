@@ -2274,6 +2274,8 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-bib-fams { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 12px 4px; }
 .fm-bib-fams button { display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 40px; padding: 0 10px; border: 1px solid var(--t-rand, #E3E8EF); border-radius: 8px; background: #fff; font: inherit; text-align: left; cursor: pointer; }
 .fm-bib-fams button b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-bib-sectie { grid-column: 1 / -1; font-size: 11.5px; font-weight: 600; color: var(--t-tekst-2, #4A5A75); padding: 8px 2px 0; }
+.fm-bib-sectie:first-child { padding-top: 0; }
 .fm-bib-fams button small { color: var(--t-tekst-3, #8492A8); font-size: 11px; }
 .fm-bib-fams button:hover { border-color: var(--t-blauw, #108AED); background: var(--t-blauw-zacht, #E8F3FD); }
 .fm-element { grid-template-columns: 40px 1fr 24px; }

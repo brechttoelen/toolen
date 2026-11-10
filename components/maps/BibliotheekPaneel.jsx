@@ -7,9 +7,8 @@ import { publiekeUrl } from './db';
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { getal } from './geo';
-import { vergelijkCategorie } from './categorieen';
+import { vergelijkCategorie, rubriekVan, rubriekSecties, rubriekNaam } from './categorieen';
 import { zoekScore, vergelijkVariant } from './zoeken';
-import { FAMILIES, FAMILIE_NAAM, familieVanElement } from './familie';
 
 // Kleine voorvertoning van een gedetailleerde tekening of een sjabloon.
 function Voorvertoning({ el, maat }) {
@@ -127,7 +126,8 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
     const doel = onthoud.terugScroll || 0;
     requestAnimationFrame(() => { const s2 = scrollerVan(wortel.current); if (s2) s2.scrollTop = doel; onthoud.scroll = doel; });
   };
-  const famVan = useMemo(() => { const m = new Map(); for (const e of elementen) m.set(e.id, familieVanElement(e)); return m; }, [elementen]);
+  // Rubriek = categorie (zoals bij de leveranciers), zodat één rubriek ook één soort leverancier is.
+  const famVan = useMemo(() => { const m = new Map(); for (const e of elementen) m.set(e.id, rubriekVan(e.categorie)); return m; }, [elementen]);
   // In een binnenplan of een werkruimte: meteen de juiste familie en categorie.
   useEffect(() => {
     const e = startCat && elementen.find((x) => x.categorie === startCat);
@@ -155,7 +155,7 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
   const perFam = useMemo(() => { const m = new Map(); for (const e of elementen) if (metLev(e)) { const f = famVan.get(e.id); m.set(f, (m.get(f) || 0) + 1); } return m; }, [elementen, famVan, lev]); // eslint-disable-line react-hooks/exhaustive-deps
   const inFam = useMemo(() => elementen.filter((e) => famVan.get(e.id) === fam), [elementen, famVan, fam]);
   const levs = useMemo(() => telling('leverancier', fam ? inFam : elementen).filter(([k]) => k), [elementen, inFam, fam]); // eslint-disable-line react-hooks/exhaustive-deps
-  const DIT_EVENT = '__event';
+  const DIT_EVENT = '__event'; const SUB = '__sub:';
   const cats = useMemo(() => telling('categorie', inFam.filter((e) => !e.plan_id && metLev(e))).filter(([k]) => k), [inFam, lev]); // eslint-disable-line react-hooks/exhaustive-deps
   const nEvent = inFam.filter((e) => e.plan_id && metLev(e)).length;
   const z = zoek.trim();
@@ -282,7 +282,7 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
     hits = elementen.filter(metLev).map((e) => [e, zoekScore(e, z)]).filter(([, sc]) => sc > 0).sort((a, b) => b[1] - a[1] || opNaam(a[0], b[0])).map(([e]) => e);
     leeg = !hits.length;
     const gewoon = hits.filter((e) => !isSet(e)); const sets = hits.filter(isSet);
-    const perF = FAMILIES.map((f) => [f, gewoon.filter((e) => famVan.get(e.id) === f.k)]).filter(([, l]) => l.length);
+    const perF = rubriekSecties([...new Set(gewoon.map((e) => famVan.get(e.id)))]).flatMap(([, rs]) => rs).map((r) => [{ k: r, naam: rubriekNaam(r) }, gewoon.filter((e) => famVan.get(e.id) === r)]);
     inhoud = (
       <>
         {perF.map(([f, l]) => <div key={f.k}><div className="fm-lijstkop">{f.naam} · {l.length}</div>{rijenVan(l, `z${f.k}`)}</div>)}
@@ -303,6 +303,7 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
     const vast = lijst.filter((e) => !e.plan_id);
     const event = lijst.filter((e) => e.plan_id);
     if (cat === DIT_EVENT) { leeg = !event.length; inhoud = rijenVan(event, 'e'); }
+    else if (String(cat || '').startsWith(SUB)) { const g = cat.slice(SUB.length); const l = vast.filter((e) => (e.eigenschappen?.subgroep || '') === g); leeg = !l.length; inhoud = rijenVan(l, `g${g}`); }
     else if (cat) { const l = vast.filter((e) => e.categorie === cat); leeg = !l.length; inhoud = metStd(l.filter((e) => !isSet(e)), cat).concat(l.some(isSet) ? [<div key="sk" className="fm-lijstkop">Opstellingen</div>, ...rijenVan(l.filter(isSet), 's')] : []); }
     else {
       leeg = !lijst.length;
@@ -365,7 +366,8 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
     if (e.key === 'Escape' && zoek) { e.preventDefault(); e.stopPropagation(); setZoek(''); return; }
     if (e.key === 'Enter' && z) { const eerste = hits.find((x) => elementMag(x)); if (eerste && schrijven) { e.preventDefault(); kies(eerste); } }
   };
-  const catKeuze = [['', `Alles`, inFam.filter((e) => !e.plan_id && metLev(e)).length], ...cats.map(([c, n]) => [c, c, n]), ...(nEvent ? [[DIT_EVENT, 'Dit event', nEvent]] : [])];
+  const subs = cats.length === 1 ? (() => { const m = new Map(); for (const e of inFam) if (!e.plan_id && metLev(e)) { const g = e.eigenschappen?.subgroep; if (g) m.set(g, (m.get(g) || 0) + 1); } return [...m].sort((a, b) => a[0].localeCompare(b[0], 'nl')); })() : [];
+  const catKeuze = [['', `Alles`, inFam.filter((e) => !e.plan_id && metLev(e)).length], ...(cats.length === 1 ? (subs.length > 1 ? subs.map(([g, n]) => [`${SUB}${g}`, g, n]) : []) : cats.map(([c, n]) => [c, c, n])), ...(nEvent ? [[DIT_EVENT, 'Dit event', nEvent]] : [])];
   return (
     <div ref={wortel} className="fm-bib">
       <div className="fm-bib-kop">
@@ -378,8 +380,8 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
           <div className="fm-bib-pad"><span>{hits.length === 1 ? '1 resultaat' : `${hits.length} resultaten`}{lev ? ` van ${lev}` : ''}</span>{hits.length > 0 && schrijven && <span className="fm-sub">Enter plaatst het eerste</span>}</div>
         ) : fam ? (
           <div className="fm-bib-pad">
-            <button type="button" className="fm-bib-terug" onClick={() => setFam('')}>‹ Alle families</button>
-            <b>{FAMILIE_NAAM[fam]}</b><span className="fm-sub">{perFam.get(fam) || 0}</span>
+            <button type="button" className="fm-bib-terug" onClick={() => setFam('')}>‹ Alles</button>
+            <b>{rubriekNaam(fam)}</b><span className="fm-sub">{perFam.get(fam) || 0}</span>
           </div>
         ) : null}
         {!z && fam && catKeuze.length > 2 && (
@@ -398,16 +400,19 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
         )}
       </div>
       {!z && !fam && (
-        <div className="fm-bib-fams" role="list" aria-label="Families">
-          {FAMILIES.filter((f) => perFam.get(f.k)).map((f) => (
-            <button key={f.k} type="button" role="listitem" onClick={() => setFam(f.k)} title={f.uitleg}>
-              <b>{f.naam}</b><small>{perFam.get(f.k)}</small>
-            </button>
-          ))}
+        <div className="fm-bib-fams" role="list" aria-label="Rubrieken">
+          {rubriekSecties([...perFam.keys()].filter((r) => perFam.get(r))).map(([sec, rs]) => [
+            <div key={`s${sec}`} className="fm-bib-sectie" role="presentation">{sec}</div>,
+            ...rs.map((r) => (
+              <button key={r} type="button" role="listitem" onClick={() => setFam(r)}>
+                <b>{rubriekNaam(r)}</b><small>{perFam.get(r)}</small>
+              </button>
+            )),
+          ])}
         </div>
       )}
       {inhoud}
-      {leeg && <div className="fm-sub" style={{ padding: 12 }}>{z ? 'Geen elementen gevonden.' : fam ? `Geen elementen in ${FAMILIE_NAAM[fam]}${lev ? ` van ${lev}` : ''}.` : 'Nog niets gebruikt in dit plan. Kies een familie hierboven of zoek.'}</div>}
+      {leeg && <div className="fm-sub" style={{ padding: 12 }}>{z ? 'Geen elementen gevonden.' : fam ? `Geen elementen in ${rubriekNaam(fam)}${lev ? ` van ${lev}` : ''}.` : 'Nog niets gebruikt in dit plan. Kies een rubriek hierboven of zoek.'}</div>}
       <div style={{ padding: 12 }}><a className="fm-knop vol" href="/maps/bibliotheek">Bibliotheek beheren</a></div>
       {info && <ElementInfo el={info.el} x={info.x} y={info.y} />}
     </div>
