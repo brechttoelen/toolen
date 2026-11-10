@@ -4538,7 +4538,7 @@ export default function Editor({ planId }) {
               {menu === 'weergave' && (
                 <div className="fm-menu fm-weergavemenu" style={{ right: 0, top: 34 }} onClick={(e) => e.stopPropagation()}>
                   <div className="fm-ctxkop">Ondergrond</div>
-                  {Object.entries(ONDERGRONDEN).map(([k, v]) => <button key={k} className={plan.basiskaart === k ? 'aan' : ''} onClick={() => wijzigPlan({ basiskaart: k })}>{plan.basiskaart === k ? '✓ ' : ''}{v.naam}</button>)}
+                  {Object.entries(ONDERGRONDEN).map(([k, v]) => <button key={k} role="menuitemradio" aria-checked={plan.basiskaart === k} className={plan.basiskaart === k ? 'aan' : ''} onClick={() => wijzigPlan({ basiskaart: k })}><span style={{ flex: 1 }}>{v.naam}</span>{plan.basiskaart === k && <Icoon naam="vink" maat={14} />}</button>)}
                   {fasen.length > 0 && (
                     <label className="fm-veld">Fase
                       <select aria-label="Fase" value={actieveFase || ''} onChange={(e) => setActieveFase(e.target.value || null)}>
@@ -4582,7 +4582,7 @@ export default function Editor({ planId }) {
           {menu === 'versie' && (
             <div className="fm-menu" style={{ right: 0, top: 34, minWidth: 230 }} onClick={(e) => e.stopPropagation()}>
               <div className="fm-ctxkop">{bewaarStatus === 'Niet bewaard' ? 'Een wijziging is niet bewaard. Controleer je verbinding.' : bewaarStatus === 'Wacht op verbinding' ? 'Je bent offline. Je wijzigingen staan klaar en worden bewaard zodra je weer verbinding hebt.' : verbinding === 'live' ? 'Elke wijziging wordt meteen bewaard. Live: je ziet wat collega\'s doen.' : 'Elke wijziging wordt meteen bewaard. De live verbinding is weg; wijzigingen van collega\'s verschijnen zodra ze terug is.'}</div>
-              {schrijven && <button onClick={() => { setMenu(null); versieBewaren(); }}>Versie bewaren<small>een vast moment om naar terug te keren</small></button>}
+              {schrijven && <button onClick={() => { setMenu(null); versieBewaren(); }}>Versie bewaren<small>Een vast moment om naar terug te keren</small></button>}
               <button onClick={() => { setMenu(null); setVolScherm(false); setTab('plan'); }}>Versies bekijken en terugzetten</button>
               {schrijven && <button onClick={() => { setMenu(null); setUitvoer({ tab: 'importeren' }); }}>Importeren<small>KML, GPX, CSV of een CAD-plan</small></button>}
             </div>

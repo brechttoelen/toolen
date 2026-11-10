@@ -2205,3 +2205,15 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
   .fm-topbalk .fm-kort { display: inline; }
 }
 @media (max-width: 760px) { .fm-editor .fm-topbalk .fm-feedbackknop { display: none; } }
+
+/* Uitklapmenu's in de topbalk (Weergave, Versie): kop, keuzes en velden op één lijn. */
+.fm-menu { border-radius: 10px; border-color: var(--t-rand, #E3E8EF); box-shadow: 0 10px 28px rgba(2,32,86,.16); padding: 6px; }
+.fm-menu > button, .fm-menu > a { min-height: 34px; padding: 0 10px; border-radius: 6px; font-size: 13px; }
+.fm-menu > .fm-ctxkop { padding: 8px 10px 4px; font-size: 11.5px; font-weight: 600; color: var(--t-tekst-2, #4A5A75); line-height: 1.4; }
+.fm-menu > .fm-ctxkop:not(:first-child) { margin-top: 6px; border-top: 1px solid var(--t-rand, #E3E8EF); padding-top: 10px; }
+.fm-weergavemenu { min-width: 240px; }
+.fm-weergavemenu button.aan { font-weight: 600; color: var(--t-navy, #022056); background: var(--t-blauw-zacht, #E8F3FD); }
+.fm-weergavemenu button svg { color: var(--t-blauw-donker, #0B6FC2); }
+.fm-weergavemenu .fm-veld { padding: 8px 10px 2px; margin-top: 6px; border-top: 1px solid var(--t-rand, #E3E8EF); font-size: 11.5px; font-weight: 600; color: var(--t-tekst-2, #4A5A75); gap: 6px; }
+.fm-weergavemenu .fm-veld:hover { background: none; }
+.fm-weergavemenu .fm-veld select { height: 34px; border-radius: 6px; border: 1px solid var(--t-rand-2, #CFD7E3); padding: 0 8px; font-size: 13px; font-weight: 400; }
