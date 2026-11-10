@@ -4595,7 +4595,7 @@ export default function Editor({ planId }) {
       </header>
 
       <div className="fm-romp">
-        <nav className="fm-gereedschap" aria-label="Gereedschap" style={{ position: 'relative', '--wr-accent': wr.accent || '#108AED' }}>
+        <nav className="fm-gereedschap" aria-label="Gereedschap" style={{ position: 'relative', '--wr-balk': wr.id === 'plan' ? '#022056' : (wr.accent || '#022056') }}>
           {werkruimte !== 'plan' && !alleTools && wrTools && (
             <>
               {wrTools.map((t0) => {

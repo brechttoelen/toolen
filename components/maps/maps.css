@@ -1993,17 +1993,17 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-wr-schuif .fm-wr-badge { margin-left: 6px; }
 .fm-wr-schuif button:focus-visible { outline: 2px solid var(--t-blauw, #108AED); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) { .fm-wr-schuif button .naam, .fm-wr-schuif button { transition: none; } }
-/* Gereedschap links in navy, zoals de zijbalk van de app. Paneel en uitklap sluiten er naadloos op aan. */
-.fm-gereedschap { width: 60px; padding: 8px 0; gap: 2px; align-items: center; background: var(--t-navy, #022056); border-right: 0; }
-.fm-gereedschap button { width: 48px; height: 46px; border-radius: 8px; background: transparent; color: #C9D6EA; }
+/* Gereedschap links in de kleur van de werkplek (Plan: navy). Actief gereedschap wit met het symbool in die kleur. */
+.fm-gereedschap { width: 60px; padding: 8px 0; gap: 2px; align-items: center; background: var(--wr-balk, var(--t-navy, #022056)); border-right: 0; transition: background-color .25s ease; }
+.fm-gereedschap button { width: 48px; height: 46px; border-radius: 8px; background: transparent; color: rgba(255,255,255,.82); }
 .fm-gereedschap button span { opacity: 1; }
-.fm-gereedschap button:hover:not(:disabled) { background: rgba(255,255,255,.08); color: #fff; }
-.fm-gereedschap button.aan, .fm-gereedschap button.aan:hover { background: var(--wr-accent, var(--t-blauw, #108AED)); color: #fff; }
-.fm-gereedschap .paneelknop.aan, .fm-gereedschap .paneelknop.aan:hover { background: rgba(255,255,255,.14); color: #fff; box-shadow: none; }
+.fm-gereedschap button:hover:not(:disabled) { background: rgba(255,255,255,.14); color: #fff; }
+.fm-gereedschap button.aan, .fm-gereedschap button.aan:hover { background: #fff; color: var(--wr-balk, var(--t-navy, #022056)); }
+.fm-gereedschap .paneelknop.aan, .fm-gereedschap .paneelknop.aan:hover { background: rgba(255,255,255,.2); color: #fff; box-shadow: none; }
 .fm-gereedschap button:disabled { opacity: .35; }
-.fm-gereedschap button:focus-visible { outline: 2px solid #9CCBF5; outline-offset: -2px; }
-.fm-gereedschap hr { width: 28px; margin: 6px auto; border-top-color: rgba(255,255,255,.16); }
-.fm-gereedschap .fm-badge { box-shadow: 0 0 0 2px var(--t-navy, #022056); }
+.fm-gereedschap button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.fm-gereedschap hr { width: 28px; margin: 6px auto; border-top-color: rgba(255,255,255,.22); }
+.fm-gereedschap .fm-badge { box-shadow: 0 0 0 2px var(--wr-balk, var(--t-navy, #022056)); }
 .fm-statusbalk { height: 30px; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--t-tekst-2, #4A5A75); }
 .fm-statusbalk button { font-size: 12px; }
 .fm-statusbalk button.aan { background: var(--t-navy, #022056); }
