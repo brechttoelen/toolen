@@ -255,3 +255,11 @@ section.t-kaart:has(> .t-sys-kop), section.t-kaart:has(> .t-rij .t-sys-kop) { pa
 .t-inlog-eigen .t-sc-tent { fill: rgba(255, 255, 255, .1); }
 .t-inlog-eigen .t-sc-parcours { stroke: rgba(255, 255, 255, .85); }
 .t-inlog-eigen .t-moment b { color: rgba(255, 255, 255, .78); }
+
+/* Platform: scherm van een organisatie */
+.t-orgscherm { display: flex; flex-direction: column; gap: 16px; }
+.t-kaart.t-orgscherm { padding: 24px; }
+.t-orgcijfers { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 18px; }
+.t-orgcijfers div { background: var(--t-kaart); border: 1px solid var(--t-rand); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.t-orgcijfers b { font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-orgcijfers span { font-size: 12.5px; color: var(--t-tekst-2); }

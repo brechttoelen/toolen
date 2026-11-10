@@ -115,9 +115,6 @@ export function PlanAlgemeen({ plan, items, schrijven, onPlan, elementenMap }) {
         <Veld label="Tekenaar" waarde={tb.tekenaar} onBewaar={(v) => zetTb('tekenaar', v)} uitgeschakeld={!schrijven} />
         <Veld label="Datum van het event" waarde={tb.datum} onBewaar={(v) => zetTb('datum', v)} uitgeschakeld={!schrijven} placeholder="bv. 4 april 2027" />
       </Blok>
-      <Blok titel="Koppeling met Entry" open={!!plan.edition_id} info="Editie-ID van het event. Zones en parkings met een Entry-instelling (bij Planning en notitie van een item) horen dan bij die editie.">
-        <Veld label="Editie-ID" waarde={plan.edition_id} onBewaar={(v) => onPlan({ edition_id: v || null })} uitgeschakeld={!schrijven} placeholder="optioneel" />
-      </Blok>
     </div>
   );
 }

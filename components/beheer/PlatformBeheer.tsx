@@ -77,9 +77,28 @@ export default function PlatformBeheer({ blad = "organisaties" }: { blad?: "orga
     if (error) setFout(error.message); else setOrgs((data || []) as Org[]);
   }
   useEffect(() => { laad(); }, []);
+  // Adres bijhouden, zodat terug, vernieuwen en een link naar een organisatie werken.
+  const zetAdres = (w: string | null) => { try { const u = new URL(window.location.href); u.searchParams.delete("org"); u.searchParams.delete("nieuw"); if (w === "nieuw") u.searchParams.set("nieuw", "1"); else if (w) u.searchParams.set("org", w); window.history.pushState({}, "", u); } catch {} };
+  const kies = (o: Org | null) => { setOpen(o); setNieuw(false); zetAdres(o ? o.slug : null); };
+  useEffect(() => {
+    const lees = () => { const q = new URLSearchParams(window.location.search); setNieuw(q.has("nieuw")); const slug = q.get("org"); setOpen(slug ? (orgs || []).find((o) => o.slug === slug) || null : null); };
+    lees(); window.addEventListener("popstate", lees); return () => window.removeEventListener("popstate", lees);
+  }, [orgs]);
 
   const lijst = useMemo(() => (orgs || []).filter((o) => !zoek || `${o.naam} ${o.slug} ${o.eigenaars || ""}`.toLowerCase().includes(zoek.toLowerCase())), [orgs, zoek]);
   const tel = (s: string) => (orgs || []).filter((o) => o.status === s).length;
+
+  // Een organisatie of een nieuwe organisatie: een eigen scherm (met ?org= of ?nieuw in het adres).
+  if (blad === "organisaties" && (nieuw || open)) {
+    const terug = () => { kies(null); setNieuw(false); };
+    return (
+      <main className="t-inhoud" style={{ maxWidth: 1240, margin: 0, padding: "20px 32px 64px" }}>
+        <button className="t-knop klein stil" style={{ marginBottom: 14 }} onClick={terug}>← Alle organisaties</button>
+        {nieuw ? <NieuweOrganisatie pk={pk} onSluit={terug} onKlaar={() => laad()} />
+          : open && <OrganisatieDetail key={open.id} pk={pk} org={orgs?.find((o) => o.id === open.id) || open} onSluit={terug} onGewijzigd={() => laad()} />}
+      </main>
+    );
+  }
 
   return (
     <main className="t-inhoud" style={{ maxWidth: 1240, margin: 0, padding: "28px 32px 64px" }}>
@@ -88,7 +107,7 @@ export default function PlatformBeheer({ blad = "organisaties" }: { blad?: "orga
           <h1 className="t-titel">{blad === "pakketten" ? "Pakketten" : "Organisaties"}</h1>
           <p className="t-sub">{blad === "pakketten" ? "Standaardwaarden voor nieuwe organisaties: plaatsen, lezers, modules en prijzen." : "Abonnementen en gebruik. Je ziet hier nooit de plannen van klanten."}</p>
         </div>
-        {blad === "organisaties" && <button className="t-knop hoofd" onClick={() => setNieuw(true)}>Nieuwe organisatie</button>}
+        {blad === "organisaties" && <button className="t-knop hoofd" onClick={() => { setNieuw(true); zetAdres("nieuw"); }}>Nieuwe organisatie</button>}
       </div>
 
 <div style={{ height: 16 }} />
@@ -128,7 +147,7 @@ export default function PlatformBeheer({ blad = "organisaties" }: { blad?: "orga
             {lijst.map((o) => {
               const st = statusVan(o.status);
               return (
-                <tr key={o.id} className="klik" onClick={() => setOpen(o)}>
+                <tr key={o.id} className="klik" onClick={() => kies(o)}>
                   <td>
                     <div style={{ fontWeight: 500 }}>{o.naam}</div>
                     <div className="t-stil" style={{ fontSize: 12.5 }}>{o.slug}.{HOOFDDOMEIN}</div>
@@ -152,8 +171,6 @@ export default function PlatformBeheer({ blad = "organisaties" }: { blad?: "orga
 
       </>}
 
-      {nieuw && <NieuweOrganisatie pk={pk} onSluit={() => setNieuw(false)} onKlaar={() => laad()} />}
-      {open && <OrganisatieDetail pk={pk} org={open} onSluit={() => setOpen(null)} onGewijzigd={() => laad()} />}
     </main>
   );
 }
@@ -212,8 +229,8 @@ function NieuweOrganisatie({ pk, onSluit, onKlaar }: { pk: ReturnType<typeof use
   }
 
   return (
-    <div className="t-dialoog-achter" onMouseDown={(e) => e.target === e.currentTarget && onSluit()}>
-      <div className="t-dialoog" style={{ maxWidth: 620, maxHeight: "90vh", overflowY: "auto" }}>
+    <section className="t-kaart t-orgscherm" style={{ maxWidth: 760 }}>
+      <div>
         {klaar ? (
           <>
             <h2>{naam} is aangemaakt</h2>
@@ -273,7 +290,7 @@ function NieuweOrganisatie({ pk, onSluit, onKlaar }: { pk: ReturnType<typeof use
           </form>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -335,15 +352,24 @@ function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<t
   }
 
   return (
-    <div className="t-dialoog-achter" onMouseDown={(e) => e.target === e.currentTarget && onSluit()}>
-      <div className="t-dialoog" style={{ maxWidth: 760, maxHeight: "90vh", overflowY: "auto" }}>
-        <div className="t-rij">
-          <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0 }}>{org.naam}</h2>
-            <p className="t-sub">{org.slug}.{HOOFDDOMEIN} · sinds {datum(org.created_at)}</p>
+    <section className="t-orgscherm">
+      <div>
+        <div className="t-rij" style={{ alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+          <div style={{ flex: "1 1 320px", minWidth: 0 }}>
+            <h1 className="t-titel" style={{ margin: 0 }}>{org.naam}</h1>
+            <p className="t-sub" style={{ margin: "4px 0 0" }}>
+              <span className={`t-pil ${statusVan(org.status).pil}`} style={{ marginRight: 8 }}>{statusVan(org.status).naam}</span>
+              {org.slug}.{HOOFDDOMEIN} · bedrijfscode {org.slug.toUpperCase()} · sinds {datum(org.created_at)}
+            </p>
           </div>
-          <a className="t-knop klein" href={orgAdres(org.slug)}>Openen</a>
-          <button className="t-knop klein stil" onClick={onSluit}>Sluiten</button>
+          <a className="t-knop" href={orgAdres(org.slug)}>Omgeving openen</a>
+        </div>
+        <div className="t-orgcijfers">
+          <div><b>{org.plaatsen_gebruikt} / {org.plaatsen}</b><span>Plaatsen</span></div>
+          <div><b>{org.lezers_gebruikt} / {org.lezers_max}</b><span>Lezers</span></div>
+          <div><b>{org.plannen}</b><span>Plannen</span></div>
+          <div><b>{pk.van(org.pakket).naam}</b><span>Pakket</span></div>
+          <div><b>{org.laatste_wijziging ? tijdstip(org.laatste_wijziging) : "–"}</b><span>Laatst actief</span></div>
         </div>
         <div className="t-tabs" style={{ marginTop: 16 }}>
           {(["abonnement", "leden", "huisstijl", "logboek"] as const).map((t) => (
@@ -380,7 +406,7 @@ function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<t
                 onHerstel={() => { const p = pk.van(v.pakket); setV({ ...v, plaatsen: Math.max(p.plaatsen, org.plaatsen_gebruikt || 1), lezers_max: p.lezers, modules: metKoppelingen(p, v.modules) }); }} />
               <ModuleKeuze waarde={v.modules} onWijzig={(m) => setV({ ...v, modules: m })} /></div>
             <p className="t-stil" style={{ margin: 0, fontSize: 12.5 }}>Een ander pakket kiezen neemt plaatsen, lezers en modules van dat pakket over. Daarna kan je per organisatie afwijken. Koppelingen blijven staan.</p>
-            <div className="t-rij" style={{ justifyContent: "flex-end" }}><button className="t-knop hoofd" onClick={bewaar}>Bewaren</button></div>
+            <div className="t-rij" style={{ justifyContent: "flex-end" }}><button className="t-knop hoofd" style={{ flex: "none" }} onClick={bewaar}>Bewaren</button></div>
           </div>
         )}
 
@@ -446,7 +472,7 @@ function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<t
           </table>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
