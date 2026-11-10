@@ -1982,25 +1982,28 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-wr-houder { position: relative; height: 40px; flex: none; z-index: 30; }
 .fm-wr-schuif { position: absolute; left: 0; top: 0; display: flex; gap: 2px; padding: 3px; background: #EEF1F5; border-radius: 10px; white-space: nowrap;
   transition: box-shadow .2s ease, background-color .2s ease; }
-.fm-wr-schuif.open { background: #fff; box-shadow: 0 0 0 1px var(--t-rand, #E3E8EF), 0 10px 28px rgba(2,32,86,.16); }
 .fm-wr-schuif button { height: 34px; padding: 0 9px; border: 0; border-radius: 7px; background: transparent; color: #4A5A75; font: inherit; font-size: 12.5px; font-weight: 500;
   cursor: pointer; display: inline-flex; align-items: center; gap: 0; transition: background-color .15s ease, color .15s ease, padding .25s ease; }
 .fm-wr-schuif button .naam { display: inline-block; max-width: 0; opacity: 0; overflow: hidden; transition: max-width .28s cubic-bezier(.2,.7,.2,1), opacity .2s ease, margin .28s ease; }
-.fm-wr-schuif button.aan .naam, .fm-wr-schuif.open button .naam { max-width: 130px; opacity: 1; margin-left: 7px; }
-.fm-wr-schuif button:hover:not(:disabled) { background: rgba(255,255,255,.7); color: var(--t-navy, #022056); }
-.fm-wr-schuif.open button:hover:not(:disabled) { background: #EEF1F5; }
+.fm-wr-schuif button.aan .naam, .fm-wr-schuif button:not(:disabled):hover .naam, .fm-wr-schuif button:focus-visible .naam { max-width: 130px; opacity: 1; margin-left: 7px; }
+.fm-wr-schuif:has(button:not(.aan):not(:disabled):hover) { background: #fff; box-shadow: 0 0 0 1px var(--t-rand, #E3E8EF), 0 8px 22px rgba(2,32,86,.14); }
+.fm-wr-schuif button:not(.aan):hover:not(:disabled) { background: #EEF1F5; color: var(--t-navy, #022056); }
 .fm-wr-schuif button.aan { background: #fff; color: var(--t-navy, #022056); font-weight: 600; box-shadow: 0 1px 2px rgba(2,32,86,.15); }
-.fm-wr-schuif.open button.aan { background: var(--t-blauw-zacht, #E8F3FD); box-shadow: none; }
 .fm-wr-schuif button:disabled { opacity: .4; cursor: not-allowed; }
 .fm-wr-schuif .fm-wr-badge { margin-left: 6px; }
 .fm-wr-schuif button:focus-visible { outline: 2px solid var(--t-blauw, #108AED); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) { .fm-wr-schuif button .naam, .fm-wr-schuif button { transition: none; } }
-.fm-gereedschap { width: 56px; padding: 8px 0; gap: 2px; align-items: center; }
-.fm-gereedschap button { width: 44px; height: 44px; border-radius: 8px; }
-.fm-gereedschap button:hover { background: #EEF1F5; }
-.fm-gereedschap button.aan { background: var(--t-blauw-zacht, #E8F3FD); color: var(--t-blauw-donker, #0B6FC2); }
-.fm-gereedschap .paneelknop.aan { background: #E7E9ED; box-shadow: none; }
-.fm-gereedschap hr { width: 28px; margin: 6px auto; }
+/* Gereedschap links in navy, zoals de zijbalk van de app. Paneel en uitklap sluiten er naadloos op aan. */
+.fm-gereedschap { width: 60px; padding: 8px 0; gap: 2px; align-items: center; background: var(--t-navy, #022056); border-right: 0; }
+.fm-gereedschap button { width: 48px; height: 46px; border-radius: 8px; background: transparent; color: #C9D6EA; }
+.fm-gereedschap button span { opacity: 1; }
+.fm-gereedschap button:hover:not(:disabled) { background: rgba(255,255,255,.08); color: #fff; }
+.fm-gereedschap button.aan, .fm-gereedschap button.aan:hover { background: var(--t-blauw, #108AED); color: #fff; }
+.fm-gereedschap .paneelknop.aan, .fm-gereedschap .paneelknop.aan:hover { background: rgba(255,255,255,.14); color: #fff; box-shadow: none; }
+.fm-gereedschap button:disabled { opacity: .35; }
+.fm-gereedschap button:focus-visible { outline: 2px solid #9CCBF5; outline-offset: -2px; }
+.fm-gereedschap hr { width: 28px; margin: 6px auto; border-top-color: rgba(255,255,255,.16); }
+.fm-gereedschap .fm-badge { box-shadow: 0 0 0 2px var(--t-navy, #022056); }
 .fm-statusbalk { height: 30px; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--t-tekst-2, #4A5A75); }
 .fm-statusbalk button { font-size: 12px; }
 .fm-statusbalk button.aan { background: var(--t-navy, #022056); }
@@ -2200,7 +2203,7 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 @media (max-width: 900px) {
   .fm-editor .fm-topbalk { gap: 6px; padding-right: 8px; }
   .fm-editor .fm-topbalk > .fm-titel { flex-basis: 120px; min-width: 80px; }
-  .fm-wr-schuif:not(.open) button.aan .naam { max-width: 0; opacity: 0; margin-left: 0; }
+  .fm-wr-schuif button.aan:not(:hover):not(:focus-visible) .naam { max-width: 0; opacity: 0; margin-left: 0; }
   .fm-topbalk .fm-lang { display: none; }
   .fm-topbalk .fm-kort { display: inline; }
 }
@@ -2217,3 +2220,5 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-weergavemenu .fm-veld { padding: 8px 10px 2px; margin-top: 6px; border-top: 1px solid var(--t-rand, #E3E8EF); font-size: 11.5px; font-weight: 600; color: var(--t-tekst-2, #4A5A75); gap: 6px; }
 .fm-weergavemenu .fm-veld:hover { background: none; }
 .fm-weergavemenu .fm-veld select { height: 34px; border-radius: 6px; border: 1px solid var(--t-rand-2, #CFD7E3); padding: 0 8px; font-size: 13px; font-weight: 400; }
+/* Geen gekleurde lijn onder de topbalk per werkplek: het symbool in de werkplekkiezer zegt al waar je zit. */
+.fm-editor .fm-topbalk, .fm-editor .fm-topbalk.fm-wr-plan { border-bottom: 1px solid var(--t-rand, #E3E8EF); }

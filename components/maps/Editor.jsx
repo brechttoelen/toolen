@@ -4604,7 +4604,7 @@ export default function Editor({ planId }) {
                 const aan = wrToolActief(t);
                 const uit = !schrijven && !['selecteer', 'meten'].includes(t.id);
                 return (
-                  <button key={t.id} data-menuknop className={aan ? 'aan' : ''} disabled={uit} title={t.uitleg || t.naam} style={aan ? { background: wr.kleur } : undefined}
+                  <button key={t.id} data-menuknop className={aan ? 'aan' : ''} disabled={uit} title={t.uitleg || t.naam} 
                     onClick={(e) => { e.stopPropagation(); kiesWrTool(t, e.currentTarget.getBoundingClientRect().top); }}>
                     <Icoon naam={t.icoon || 'punt'} maat={18} /><span>{t.naam}</span>
                     {t.element && elementen.filter(t.element).length > 1 && <i className="pijltje" />}
