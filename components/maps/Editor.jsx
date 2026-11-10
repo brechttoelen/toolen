@@ -3073,6 +3073,11 @@ export default function Editor({ planId }) {
         setMelding(`${el2.naam} tegen de ${{ L: 'linkerzijde', R: 'rechterzijde', V: 'voorgevel', A: 'achtergevel' }[arg.zijde]} gezet en gekoppeld.`);
         break;
       }
+      case 'tent-vloer': {
+        // Vloer in een (gekoppelde) tent: elk lid van een groep heeft zijn eigen vloer.
+        wijzigItem(it.id, { velden: { ...(it.velden || {}), vloer: arg?.vloer || null } });
+        break;
+      }
       case 'tent-lid': {
         // Tentbouwer: een gekoppelde tent aangepast in dezelfde bouwer.
         if (arg?.tent) wijzigItem(it.id, { velden: { ...(it.velden || {}), tent: arg.tent } });

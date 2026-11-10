@@ -581,7 +581,7 @@ export default function TentStudio(props) {
   const ledenLijst = (groep || []).map((g) => ({ id: g.it.id, naam: g.it.naam || g.el?.naam || 'Tent' }));
   const kiesLid = (id) => setLid(!id || id === it.id ? null : id);
   if (lid && it2 && el2) {
-    return <TentStudioLid key={lid} {...props} it={it2} el={el2} groep={groep2} vloer={it2.velden?.vloer ? elMap.get(it2.velden.vloer) || true : false} onVloer={null}
+    return <TentStudioLid key={lid} {...props} it={it2} el={el2} groep={groep2} vloer={it2.velden?.vloer ? elMap.get(it2.velden.vloer) || true : false} onVloer={onActie ? (id) => onActie('tent-vloer', { _it: lid, vloer: id }) : null}
       onZet={(tent) => onActie?.('tent-lid', { _it: lid, tent })} onActie={onActie ? (s, a) => onActie(s, { _it: lid, ...(a || {}) }) : null}
       leden={ledenLijst} actiefLid={lid} kiesLid={kiesLid} zicht={zicht} setZicht={setZicht} />;
   }
@@ -800,6 +800,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
             const vId = typeof vloer === 'object' ? vloer?.id : null;
             return <>
               {onVloer && <label className="fm-veld">Vloer in de tent<select disabled={!schrijven} value={vId || ''} onChange={(e) => onVloer(e.target.value || null)}><option value="">Geen vloer</option>{vloeren.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</select></label>}
+              {onVloer && onActie && schrijven && leden.length > 1 && <button type="button" className="fm-knop klein" title="Dezelfde vloer (of geen) in alle tenten die aan deze tent gekoppeld zijn" onClick={() => { for (const l of leden) if (l.id !== it.id) onActie('tent-vloer', { _it: l.id, vloer: vId }); }}>{vId ? 'Zelfde vloer in de gekoppelde tenten' : 'Ook geen vloer in de gekoppelde tenten'}</button>}
               {onActie && <label className="fm-veld">Vloer van het terras<select disabled={!schrijven} value={t.terrasVloer || ''} onChange={(e) => zet({ ...t, terrasVloer: e.target.value || undefined })}><option value="">Enkel in 3D</option>{vloeren.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</select></label>}
             </>;
           })()}
