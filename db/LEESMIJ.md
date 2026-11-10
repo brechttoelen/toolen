@@ -83,6 +83,10 @@ Opruiming na de beveiligingscontrole van Supabase: `maps.toegang` is geen securi
 
 Events (naam, datum, kleur, plaats) en `plannen.event_id`. Het overzicht groepeert plannen per event; zonder deze migratie valt het terug op de editie van de plannen. Bestaande plannen met een editie krijgen automatisch een event zonder datum. Getest: `test_0007.sql`.
 
+## 0008_ontvangers.sql
+
+Delen en exporteren samen: een ontvanger (tentenbouwer, politie, stad) is een deellink met onderdelen (`opties.onderdelen`): plannen met eigen lagen, mappen, fase, kader en verborgen items, 3D van een element, binnenplannen en plannen per werkplek (die laatste enkel in de PDF). `deel_link_lezen` krijgt een tweede parameter `p_deel` (welk onderdeel); oude links zonder onderdelen werken zoals voorheen. Een hele map kiezen neemt ook lagen mee die er later bijkomen. Bestaande PDF-profielen worden ontvangers met de link uit. De laatste PDF van een ontvanger staat in `opties.laatste_pdf` (bestand in de bucket onder `<organisatie_id>/ontvangers/<id>/`). Getest: `test_0008.sql`. Mag opnieuw gedraaid worden. Uitgevoerd op 10 nov 2026.
+
 ### Nog open
 
 - Bestanden: lezen is publiek, opladen kan iedereen die in een organisatie mag schrijven, wijzigen en wissen enkel wie het bestand opleverde of een beheerder. Paden per organisatie (`<organisatie_id>/…`) volgen bij de dataverhuis.
