@@ -128,3 +128,10 @@ In Supabase (Authentication):
 - Sign up uitzetten ("Allow new users to sign up" uit): accounts komen enkel nog via een uitnodiging.
 - Minimum wachtwoordlengte op 12.
 - Email-provider: magic links en e-mailcodes niet meer gebruikt door de app.
+
+## 0012_werkplekken (bewerker beperken tot werkplekken)
+
+- `leden.werkplekken` (null = het hele plan): bv. `{stroom}` voor de elektricien. Enkel voor bewerkers.
+- `items.werkplekken` berekent de database bij elke wijziging (`maps.werkplekken_van`), met dezelfde regels als de lens van de werkplekken in de editor.
+- Beperkt: items enkel van die werkplekken maken, wijzigen, wissen; van het plan enkel de instellingen van die werkplekken; geen lagen, fasen, versies, deellinks, plannen of events.
+- Test: `test_0012.sql`.

@@ -3,11 +3,11 @@
 import { Fragment, useEffect, useState } from "react";
 import { sb } from "@/components/maps/db";
 import { MODULES, ROLLEN, statusVan, pakketVan, rolNaam, datum } from "@/lib/pakketten";
-import { Toegang, ToegangBewerken, ToegangKiezer } from "./Toegang";
+import { Toegang, ToegangBewerken, ToegangKiezer, WerkplekKiezer, werkplekNamen } from "./Toegang";
 
 type Ik = { id: string; rol: string; organisatie: { id: string; slug: string; naam: string } };
-type Lid = { user_id: string; email: string; naam: string | null; rol: string; actief: boolean; sinds: string; ik: boolean; event_ids: string[] | null; mfa: boolean };
-type Uitn = { id: string; email: string; naam: string | null; rol: string; event_ids: string[] | null; geldig_tot: string; verstuurd_op: string | null };
+type Lid = { user_id: string; email: string; naam: string | null; rol: string; actief: boolean; sinds: string; ik: boolean; event_ids: string[] | null; mfa: boolean; werkplekken: string[] | null };
+type Uitn = { id: string; email: string; naam: string | null; rol: string; event_ids: string[] | null; werkplekken: string[] | null; geldig_tot: string; verstuurd_op: string | null };
 type Ev = { id: string; naam: string; datum: string | null };
 type Org = { id: string; naam: string; kort: string | null; adres: string | null; ondernemingsnummer: string | null; land: string;
   status: string; pakket: string; plaatsen: number; lezers_max: number; modules: string[]; proef_tot: string | null };
@@ -50,6 +50,7 @@ export default function OrgInstellingen() {
   const [naam, setNaam] = useState("");
   const [rol, setRol] = useState("bewerker");
   const [evIds, setEvIds] = useState<string[] | null>(null);
+  const [wpl, setWpl] = useState<string[] | null>(null);
   const [events, setEvents] = useState<Ev[]>([]);
   const [nieuweLink, setNieuweLink] = useState<{ email: string; link: string } | null>(null);
   const [bezig, setBezig] = useState("");
@@ -67,7 +68,7 @@ export default function OrgInstellingen() {
     db().rpc("gebruik", { p_org: id }).then((r: { data: unknown }) => setLimieten(r.data as Limieten | null));
     const [l, u, o, g] = await Promise.all([
       db().rpc("leden_van", { p_org: id }),
-      db().from("uitnodigingen").select("id, email, naam, rol, event_ids, geldig_tot, verstuurd_op").eq("organisatie_id", id).is("aanvaard_op", null).order("created_at"),
+      db().from("uitnodigingen").select("id, email, naam, rol, event_ids, werkplekken, geldig_tot, verstuurd_op").eq("organisatie_id", id).is("aanvaard_op", null).order("created_at"),
       db().from("organisaties").select("*").eq("id", id).single(),
       db().rpc("plaatsen_in_gebruik", { p_org: id }),
     ]);
@@ -87,10 +88,10 @@ export default function OrgInstellingen() {
   async function nodigUit(e: React.FormEvent) {
     e.preventDefault(); setMelding(null); setNieuweLink(null); setBezig("uitnodigen");
     try {
-      const j = await post("/api/uitnodigen", { organisatie_id: ik!.organisatie.id, email: mail, naam, rol, event_ids: ["bewerker", "lezer"].includes(rol) ? evIds : null });
+      const j = await post("/api/uitnodigen", { organisatie_id: ik!.organisatie.id, email: mail, naam, rol, event_ids: ["bewerker", "lezer"].includes(rol) ? evIds : null, werkplekken: rol === "bewerker" && wpl?.length ? wpl : null });
       if (j.verstuurd) toon("ok", `Uitnodiging verstuurd naar ${mail}.`);
       else { toon("fout", j.melding || "De mail kon niet verstuurd worden. Stuur de link zelf door."); if (j.link) setNieuweLink({ email: mail, link: j.link }); }
-      setMail(""); setNaam(""); setEvIds(null); laad();
+      setMail(""); setNaam(""); setEvIds(null); setWpl(null); laad();
     } catch (x) { toon("fout", (x as Error).message); }
     setBezig("");
   }
@@ -111,7 +112,7 @@ export default function OrgInstellingen() {
     catch (x) { toon("fout", (x as Error).message); }
     setBezig("");
   }
-  async function wijzigLid(l: Lid, velden: Partial<Pick<Lid, "rol" | "actief" | "event_ids">>) {
+  async function wijzigLid(l: Lid, velden: Partial<Pick<Lid, "rol" | "actief" | "event_ids" | "werkplekken">>) {
     setMelding(null);
     const { error } = await db().from("leden").update(velden).eq("organisatie_id", ik!.organisatie.id).eq("user_id", l.user_id);
     if (error) toon("fout", error.message); else laad();
@@ -170,6 +171,7 @@ export default function OrgInstellingen() {
                 </div>
                 <p className="t-stil" style={{ fontSize: 12.5, margin: 0 }}>{ROLLEN.find((r) => r.id === rol)?.naam}: {ROLLEN.find((r) => r.id === rol)?.uitleg}.</p>
                 {["bewerker", "lezer"].includes(rol) && events.length > 0 && <ToegangKiezer events={events} ids={evIds} onIds={setEvIds} />}
+                {rol === "bewerker" && <WerkplekKiezer ids={wpl} onIds={setWpl} modules={org?.modules || []} />}
                 <div className="t-rij" style={{ gap: 10, flexWrap: "wrap" }}>
                   <button className="t-knop hoofd" style={{ flex: "none" }} disabled={bezig === "uitnodigen"}>{bezig === "uitnodigen" ? "Bezig…" : "Uitnodiging versturen"}</button>
                   <span className="t-stil" style={{ fontSize: 12.5 }}>Een mail met een link om een wachtwoord te kiezen, 7 dagen geldig.</span>
@@ -207,7 +209,8 @@ export default function OrgInstellingen() {
                       </td>
                       <td>
                         <Toegang ids={l.event_ids} events={events} />
-                        {magRol && beperkbaar && events.length > 0 && <button className="t-knop klein" style={{ marginLeft: 8 }} onClick={() => setToegangVan(toegangVan === l.user_id ? null : l.user_id)}>{toegangVan === l.user_id ? "Sluiten" : "Wijzigen"}</button>}
+                        {werkplekNamen(l.werkplekken) && <div className="t-stil" style={{ fontSize: 12.5 }}>Wijzigt enkel: {werkplekNamen(l.werkplekken)}</div>}
+                        {magRol && beperkbaar && (events.length > 0 || l.rol === "bewerker") && <button className="t-knop klein" style={{ marginLeft: 8 }} onClick={() => setToegangVan(toegangVan === l.user_id ? null : l.user_id)}>{toegangVan === l.user_id ? "Sluiten" : "Wijzigen"}</button>}
                       </td>
                       <td>{l.mfa ? <span className="t-pil ok">Aan</span> : <span className="t-pil">Nog niet</span>}</td>
                       <td className="t-stil" style={{ whiteSpace: "nowrap" }}>{datum(l.sinds)}</td>
@@ -225,7 +228,7 @@ export default function OrgInstellingen() {
                     </tr>
                     {toegangVan === l.user_id && (
                       <tr><td colSpan={beheer ? 6 : 5} style={{ background: "var(--t-vlak, #F7F8FA)" }}>
-                        <ToegangBewerken events={events} ids={l.event_ids} onBewaar={(ids) => { wijzigLid(l, { event_ids: ids }); setToegangVan(null); }} />
+                        <ToegangBewerken events={events} ids={l.event_ids} wpl={l.werkplekken} metWpl={l.rol === "bewerker"} modules={org?.modules || []} onBewaar={(ids, wp) => { wijzigLid(l, { event_ids: ids, werkplekken: l.rol === "bewerker" ? wp : null }); setToegangVan(null); }} />
                       </td></tr>
                     )}
                   </Fragment>);
@@ -244,7 +247,7 @@ export default function OrgInstellingen() {
                     <div key={u.id} className="t-rij" style={{ padding: "10px 14px", borderTop: i ? "1px solid var(--t-rand)" : 0, fontSize: 13.5, flexWrap: "wrap" }}>
                       <span style={{ flex: 1, minWidth: 220 }}>
                         <span style={{ fontWeight: 500 }}>{u.naam || u.email}</span>{u.naam && <span className="t-stil"> · {u.email}</span>}
-                        <span className="t-stil" style={{ display: "block", fontSize: 12.5 }}>{rolNaam(u.rol)} · <Toegang ids={u.event_ids} events={events} kaal /> · {verlopen ? "verlopen" : `geldig tot ${datum(u.geldig_tot)}`}{u.verstuurd_op ? "" : " · nog niet verstuurd"}</span>
+                        <span className="t-stil" style={{ display: "block", fontSize: 12.5 }}>{rolNaam(u.rol)} · <Toegang ids={u.event_ids} events={events} kaal />{werkplekNamen(u.werkplekken) ? ` · enkel ${werkplekNamen(u.werkplekken)}` : ""} · {verlopen ? "verlopen" : `geldig tot ${datum(u.geldig_tot)}`}{u.verstuurd_op ? "" : " · nog niet verstuurd"}</span>
                       </span>
                       {beheer && <><button className="t-knop klein" disabled={bezig === u.id} onClick={() => opnieuw(u)}>{bezig === u.id ? "Bezig…" : "Opnieuw versturen"}</button><button className="t-knop klein gevaar" onClick={() => trekIn(u.id)}>Intrekken</button></>}
                     </div>

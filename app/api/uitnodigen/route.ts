@@ -5,7 +5,7 @@ import { basisAdres, fout, foutTekst, json, ok } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
-type Vraag = { organisatie_id: string; email: string; naam: string; rol: string; event_ids: string[] | null; opnieuw: string };
+type Vraag = { organisatie_id: string; email: string; naam: string; rol: string; event_ids: string[] | null; werkplekken: string[] | null; opnieuw: string };
 type Gegevens = { email: string; naam: string | null; rol: string; organisatie: string; code: string; geldig_tot: string; door: string | null; door_email: string | null; evenementen: string[] };
 
 // Uitnodigen (of opnieuw versturen) en de mail sturen. De rechten controleert de database
@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await sb.rpc("uitnodiging_maken", {
       p_org: b.organisatie_id, p_email: email, p_naam: String(b.naam || "").trim() || null, p_rol: b.rol,
       p_event_ids: Array.isArray(b.event_ids) && b.event_ids.length ? b.event_ids : null,
+      p_werkplekken: b.rol === "bewerker" && Array.isArray(b.werkplekken) && b.werkplekken.length ? b.werkplekken : null,
     });
     if (error) return fout(foutTekst(error));
     ({ id, token } = data as { id: string; token: string });

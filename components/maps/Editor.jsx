@@ -307,11 +307,13 @@ export default function Editor({ planId }) {
   const bouwerRef = useRef(null); // { soort: 'tent' | 'binnen' | 'teken', el }
   useEffect(() => { const w = laatsteWerkruimte(); setWerkruimte(WR_MODULE[w] && !heeftModule(WR_MODULE[w]) ? 'plan' : w); }, []);
 
-  const schrijven = kanSchrijven(profiel);
+  const [mijnWp, setMijnWp] = useState(null); // null = het hele plan; anders enkel deze werkplekken
+  const magWp = (it) => !mijnWp || !Array.isArray(it?.werkplekken) || it.werkplekken.some((w) => mijnWp.includes(w)); // nieuw item: de database beslist
+  const schrijven = kanSchrijven(profiel) && (!mijnWp || mijnWp.includes(werkruimte));
 
   // Altijd verse waarden in kaart- en Terra Draw-handlers.
   const st = useRef({});
-  st.current = { binnen, doekPenseel, brandPenseel, vasthouden, items, lagen, elementen, gereedschap, gekozenElement, elementRot, elementAantal, lijnStuks, plaatLeg, plaatsFractie, actieveLaag, actieveFase, geselecteerd, schrijven, plan, fasen, snap, kalibratie, signZet, extra, plekItems, iso, vast, vastSel, werkruimte };
+  st.current = { mijnWp, binnen, doekPenseel, brandPenseel, vasthouden, items, lagen, elementen, gereedschap, gekozenElement, elementRot, elementAantal, lijnStuks, plaatLeg, plaatsFractie, actieveLaag, actieveFase, geselecteerd, schrijven, plan, fasen, snap, kalibratie, signZet, extra, plekItems, iso, vast, vastSel, werkruimte };
 
   const lagenMap = useMemo(() => new Map(lagen.map((l) => [l.id, l])), [lagen]);
   const [doeken, setDoeken] = useState([]);
@@ -361,6 +363,14 @@ export default function Editor({ planId }) {
         if (weg) return;
         setProfiel(wie);
         setPlan(p.data);
+        // Beperkt tot werkplekken (bv. enkel Stroom)? Dan meteen in die werkplek openen.
+        maps().rpc('mijn_werkplekken', { p_org: p.data.organisatie_id }).then(({ data }) => {
+          if (weg || !Array.isArray(data) || !data.length) return;
+          setMijnWp(data);
+          const eerste = WERKRUIMTES.find((w) => data.includes(w.id) && (!WR_MODULE[w.id] || heeftModule(WR_MODULE[w.id])));
+          if (eerste) { setWerkruimte(eerste.id); setTab(eerste.tab); }
+          setMelding(`Je wijzigt enkel ${data.map((x) => WERKRUIMTES.find((w) => w.id === x)?.naam || x).join(', ')}. De rest van het plan zie je wel.`);
+        });
         setLagen(l.data || []);
         setFasen(f.data || []);
         bewaarder.current?.zetBasis(i.data || []);
@@ -539,6 +549,7 @@ export default function Editor({ planId }) {
     const { actieveFase: fase } = st.current;
     if (!it || it.verborgen || it.vergrendeld) return false;
     if (slotVan(it.id)) return false;
+    if (st.current.mijnWp && Array.isArray(it.werkplekken) && !it.werkplekken.some((w) => st.current.mijnWp.includes(w))) return false;
     if (st.current.iso && it.groep_id !== st.current.iso) return false;
     // Binnenplan: enkel wat erin staat; buiten het binnenplan blijft de inrichting onaanraakbaar.
     if (st.current.binnen ? !inBinnen(it, st.current.binnen) : !!it.velden?.binnen) return false;
@@ -5407,7 +5418,7 @@ export default function Editor({ planId }) {
             {wrDetail}
             <details className="fm-blok fm-wr-alles"><summary><span>Alle eigenschappen</span></summary>
               <Eigenschappen item={item} binnenplan={item?.geometrie?.type === 'Polygon' ? (binnen ? (item.id !== binnen.host && item.soort !== 'element' ? { ruimte: true } : null) : { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length }) : !binnen && isBinnenPunt(item) ? { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length } : null} groepNaam={item?.groep_id ? groepNaam(item.groep_id) : ''} onGroepNaam={(n) => item?.groep_id && zetGroepNaam(item.groep_id, n)} groepAantal={item?.groep_id ? items.filter((x) => x.groep_id === item.groep_id).length : 0} plan={plan} lagen={lagen} fasen={fasen} elementen={elementen} doeken={heeftModule('branding') ? doeken : GEEN_DOEKEN} doekPenseel={doekPenseel} onDoekPenseel={setDoekPenseel} elementenMap={elementenMap} lagenMap={lagenMap}
-                items={items} schrijven={schrijven && !slotInfo.current.slot} uitgebreid={uitgebreid} vast={vast}
+                items={items} schrijven={schrijven && !slotInfo.current.slot && magWp(item)} uitgebreid={uitgebreid} vast={vast}
                 onWijzig={(patch) => { if (!item) return; if ('laag_id' in patch && item.groep_id) { for (const x of items.filter((y) => y.groep_id === item.groep_id)) wijzigItem(x.id, { laag_id: patch.laag_id }); const { laag_id, ...rest } = patch; if (Object.keys(rest).length) wijzigItem(item.id, rest); return; } wijzigItem(item.id, patch); if (patch.geometrie) { try { tdRef.current?.updateFeatureGeometry(item.id, geo.rondGeom(patch.geometrie)); } catch { setTimeout(syncTd, 0); } } }} onStijl={(patch) => item && wijzigItem(item.id, { stijl: { ...item.stijl, ...patch } })} onGeometrie={(g, p) => item && zetGeometrie(item.id, g, p)}
                 onDupliceer={() => item && dupliceer(item.id)} onVerwijder={() => item && verwijderItems([item.id])} onRaster={(r, k, x, y) => item && maakRaster(item.id, r, k, x, y)} onLangsLijn={(elId, interval) => item && langsLijn(item.id, elId, interval)}
                 onAlsElement={() => item && bewaarAlsElement(item.id)} onActie={(soort, arg) => (soort === 'plaatsfiche' ? item && naarPlaatsfiche(item.id) : actie(soort, arg))}
@@ -5424,7 +5435,7 @@ export default function Editor({ planId }) {
               binnenplan={item?.geometrie?.type === 'Polygon' ? (binnen ? (item.id !== binnen.host && item.soort !== 'element' ? { ruimte: true } : null) : { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length }) : !binnen && isBinnenPunt(item) ? { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length } : null}
               groepNaam={item?.groep_id ? groepNaam(item.groep_id) : ''} onGroepNaam={(n) => item?.groep_id && zetGroepNaam(item.groep_id, n)} groepAantal={item?.groep_id ? items.filter((x) => x.groep_id === item.groep_id).length : 0}
               item={item} plan={plan} lagen={lagen} fasen={fasen} elementen={elementen} doeken={heeftModule('branding') ? doeken : GEEN_DOEKEN} doekPenseel={doekPenseel} onDoekPenseel={setDoekPenseel} elementenMap={elementenMap} lagenMap={lagenMap}
-              items={items} schrijven={schrijven && !slotInfo.current.slot} uitgebreid={uitgebreid}
+              items={items} schrijven={schrijven && !slotInfo.current.slot && magWp(item)} uitgebreid={uitgebreid}
               onWijzig={(patch) => { if (!item) return; if ('laag_id' in patch && item.groep_id) { for (const x of items.filter((y) => y.groep_id === item.groep_id)) wijzigItem(x.id, { laag_id: patch.laag_id }); const { laag_id, ...rest } = patch; if (Object.keys(rest).length) wijzigItem(item.id, rest); return; } wijzigItem(item.id, patch); if (patch.geometrie) { try { tdRef.current?.updateFeatureGeometry(item.id, geo.rondGeom(patch.geometrie)); } catch { setTimeout(syncTd, 0); } } }}
               onStijl={(patch) => item && wijzigItem(item.id, { stijl: { ...item.stijl, ...patch } })}
               onGeometrie={(g, p) => item && zetGeometrie(item.id, g, p)}
