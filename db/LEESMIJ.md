@@ -87,6 +87,14 @@ Events (naam, datum, kleur, plaats) en `plannen.event_id`. Het overzicht groepee
 
 Delen en exporteren samen: een ontvanger (tentenbouwer, politie, stad) is een deellink met onderdelen (`opties.onderdelen`): plannen met eigen lagen, mappen, fase, kader en verborgen items, 3D van een element, binnenplannen en plannen per werkplek (die laatste enkel in de PDF). `deel_link_lezen` krijgt een tweede parameter `p_deel` (welk onderdeel); oude links zonder onderdelen werken zoals voorheen. Een hele map kiezen neemt ook lagen mee die er later bijkomen. Bestaande PDF-profielen worden ontvangers met de link uit. De laatste PDF van een ontvanger staat in `opties.laatste_pdf` (bestand in de bucket onder `<organisatie_id>/ontvangers/<id>/`). Getest: `test_0008.sql`. Mag opnieuw gedraaid worden. Uitgevoerd op 10 nov 2026.
 
+## 0009_flcs_bijwerken.sql + flcs_bijwerken.sql
+
+De laatste stand uit FLCS Maps ophalen, zo vaak als nodig, zonder te wissen wat in Toolen gemaakt werd. Vervangt `0002_import_flcs.sql` (die wist alles van flcs en kopieerde opnieuw). De eerste keer is het de volledige import.
+
+Uitvoeren: `flcs_bijwerken.sql` plakken in de SQL Editor van Toolen, HOST en WACHTWOORD van het Publitool-project invullen → Run. Het wachtwoord staat enkel tijdens de run in de databank, ook bij een fout wordt de verbinding weer verwijderd. Daarna de bestanden kopiëren via `/maps/beheer/import`.
+
+Per plan (vingerafdruk van plan, lagen, fasen en items): `nieuw`, `bijgewerkt` (gewijzigd in FLCS, FLCS wint), `ongewijzigd` (wat je in Toolen aanpaste blijft), `conflict` (gewijzigd in FLCS én Toolen: overgeslagen, met `flcs_bijwerken(true)` wint FLCS) of `weg in FLCS` (blijft in Toolen). Ontvangers, events, eigen versies en opmerkingen in Toolen blijven staan; items houden hun id. Bibliotheek, leveranciers en vaste aansluitingen: de recentst gewijzigde versie wint. Lokaal getest met een nagebootste FLCS-databank. Functie uitgevoerd op Toolen op 10 nov 2026.
+
 ### Nog open
 
 - Bestanden: lezen is publiek, opladen kan iedereen die in een organisatie mag schrijven, wijzigen en wissen enkel wie het bestand opleverde of een beheerder. Paden per organisatie (`<organisatie_id>/…`) volgen bij de dataverhuis.
