@@ -46,7 +46,7 @@ import Eigenschappen, { PlanAlgemeen } from './Eigenschappen';
 import PopupInhoud, { NavKnoppen } from './PopupInhoud';
 import DraaiboekPaneel from './DraaiboekPaneel';
 import { controleer } from './controle';
-import DeelDialoog from './DeelDialoog';
+import Delen from './Delen';
 import PdfDialoog from './PdfDialoog';
 import PlanPaneel, { verschil } from './PlanPaneel';
 import OnderleggerGrepen from './OnderleggerGrepen';
@@ -242,7 +242,7 @@ export default function Editor({ planId }) {
   const [plekItems, setPlekItems] = useState([]);
   const [dialoog, setDialoog] = useState(null);
   const [uitvoer, setUitvoer] = useState(null); // { tab, id } van het scherm Exporteren
-  const [pdfProfiel, setPdfProfiel] = useState(null);
+  const [pdfNaDelen, setPdfNaDelen] = useState(false); // PDF van het beeld vanuit Delen: daarna terug naar Delen
   const [bewaarStatus, setBewaarStatus] = useState('');
   const [verbinding, setVerbinding] = useState('verbinden'); // live | verbinden | offline
   const verbindingRef = useRef('verbinden');
@@ -4325,8 +4325,9 @@ export default function Editor({ planId }) {
       ['PDF op schaal', () => setDialoog('pdf'), 'exporteren afdrukken'],
       ...(schrijven ? [['Tekenscherm (op maat tekenen met raster)', () => openTekenscherm(selectieRef.current?.length ? selectieRef.current : null), 'raster groep precisie']] : []),
       ...(heeftModule('signalisatie') ? [['Signalisatie-PDF', () => maakSignPdf(), 'borden']] : []),
-      ['Delen met externen', () => setDialoog('delen'), 'link deel-link'],
-      ['Exporteren', () => setUitvoer({ tab: 'exporteren' }), 'pdf lijsten kml'],
+      ['Delen en exporteren', () => setDialoog('delen'), 'link deel-link ontvanger pdf'],
+      ['Snel exporteren', () => setUitvoer({ tab: 'exporteren', id: { stroom: 'stroomplan', veiligheid: 'veiligheidsplan', branding: 'brandingplan', sign: verkeerModus ? 'verkeersplan' : 'drukbestand' }[werkruimte] || 'materiaal' }), 'lijsten kml werkplek'],
+      ['PDF van het beeld', () => setDialoog('pdf'), 'pdf afdrukken kader schaal'],
       ...(schrijven ? [['Importeren', () => setUitvoer({ tab: 'importeren' }), 'kml gpx csv cad']] : []),
       ['Versie bewaren', () => versieBewaren(), 'opslaan'],
       ['Versies bekijken en terugzetten', () => zetTab('plan'), 'herstellen'],
@@ -4587,11 +4588,10 @@ export default function Editor({ planId }) {
             </div>
           )}
         </div>
-        <button className="fm-knop" title="PDF, lijsten en kaartbestanden" onClick={() => setUitvoer({ tab: 'exporteren', id: { plan: 'schaal', stroom: 'stroomplan', veiligheid: 'veiligheidsplan', branding: 'brandingplan', sign: verkeerModus ? 'verkeersplan' : 'drukbestand' }[werkruimte] || 'schaal' })}>{exportBezig || 'Exporteren'}</button>
         <FeedbackKnop />
         <button className="fm-knop fm-ikoon" title="Volledig scherm: panelen verbergen" aria-label="Volledig scherm" aria-pressed={volScherm} onClick={() => setVolScherm((v) => !v)}><Icoon naam="scherm" maat={16} /></button>
-        {schrijven && <span className="fm-scheiding" aria-hidden />}
-        {schrijven && <button className="fm-knop rood" onClick={() => setDialoog('delen')}>Delen</button>}
+        <span className="fm-scheiding" aria-hidden />
+        <button className="fm-knop rood" title="Deellinks en PDF's per ontvanger, en snel exporteren" onClick={() => setDialoog('delen')}>{exportBezig || 'Delen en exporteren'}</button>
       </header>
 
       <div className="fm-romp">
@@ -5424,7 +5424,6 @@ export default function Editor({ planId }) {
         return (
           <Uitvoer plan={plan} lagen={lagen} fasen={fasen} items={items} elementenMap={elementenMap} actieveFase={actieveFase} schrijven={schrijven} binnenHosts={hosts} kaart={mapRef.current} binnen={binnen}
             startTab={uitvoer.tab} startId={uitvoer.id} onSluit={() => setUitvoer(null)} onPlan={wijzigPlan}
-            onPdf={(profiel) => { setUitvoer(null); setPdfProfiel(profiel); setDialoog('pdf'); }}
             onExport={exporteer}
             onSignPdf={async () => { const { signalisatiePdf } = await import('./signPdf'); const { doc, meldingen } = await signalisatiePdf({ plan, items, voortgang: () => {} }); doc.save(`Signalisatie - ${plan.naam} v${plan.versie}.pdf`.replace(/[\\/:*?"<>|]/g, '')); return meldingen.join(' ') || undefined; }}
             onBinnenPdf={(host, verd) => { setUitvoer(null); setBinnenScherm({ host, verd, pdf: true }); }}
@@ -5452,9 +5451,9 @@ export default function Editor({ planId }) {
           }}
           onSluit={() => { setMateriaalOpen(false); setFocusLijst(null); }} />
       )}
-      {dialoog === 'delen' && <DeelDialoog kaartBeeld={() => { const m = mapRef.current; if (!m) return null; const c = m.getCenter(); return { c: [Math.round(c.lng * 1e6) / 1e6, Math.round(c.lat * 1e6) / 1e6], z: Math.round(m.getZoom() * 100) / 100, b: Math.round(m.getBearing()) || 0 }; }} plan={plan} lagen={lagen} fasen={fasen} items={items} elementenMap={elementenMap} leveranciers={[...new Set(items.filter((i) => i.element_id).map((i) => herkomstVan(i, elementenMap.get(i.element_id), levStd)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'nl'))} onSluit={() => setDialoog(null)} />}
+      {dialoog === 'delen' && <Delen plan={plan} lagen={lagen} fasen={fasen} items={items} elementenMap={elementenMap} schrijven={schrijven} eventNaam={planEvent?.naam || plan.editie_naam || ''} eventKleur={planEvent?.kleur || '#108AED'} leveranciers={[...new Set(items.filter((i) => i.element_id).map((i) => herkomstVan(i, elementenMap.get(i.element_id), levStd)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'nl'))} onSluit={() => setDialoog(null)} onSnel={(x) => setUitvoer(x)} onPdfBeeld={() => { setPdfNaDelen(true); setDialoog('pdf'); }} />}
       {tekenscherm && <Tekenscherm start={tekenscherm} elementen={elementen} elementenMap={elementenMap} onKlaar={tekenschermKlaar} onSluit={() => setTekenscherm(null)} />}
-      {dialoog === 'pdf' && <PdfDialoog nieuwTab={!binnen} plan={plan} lagen={lagen} fasen={fasen} items={binnen ? items.filter((x) => x.id === binnen.host || inBinnen(x, binnen)) : items.filter((x) => !x.velden?.binnen)} elementenMap={elementenMap} actieveFase={actieveFase} kaart={mapRef.current} onPlan={wijzigPlan} startProfiel={pdfProfiel} onSluit={() => { setDialoog(null); setPdfProfiel(null); }} />}
+      {dialoog === 'pdf' && <PdfDialoog nieuwTab={!binnen} plan={plan} lagen={lagen} fasen={fasen} items={binnen ? items.filter((x) => x.id === binnen.host || inBinnen(x, binnen)) : items.filter((x) => !x.velden?.binnen)} elementenMap={elementenMap} actieveFase={actieveFase} kaart={mapRef.current} onPlan={wijzigPlan} onSluit={() => { setDialoog(pdfNaDelen ? 'delen' : null); setPdfNaDelen(false); }} />}
     </div>
   );
 }

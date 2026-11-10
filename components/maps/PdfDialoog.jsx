@@ -12,11 +12,13 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { maakPdf, maakBladen, indeling, passendeSchaal, PAPIER } from './pdf';
 import { maps } from './db';
 import { startExport } from './planLaden';
-import { profielenVan, PROFIEL_VELDEN } from './uitvoer';
+import { PROFIEL_VELDEN } from './uitvoer';
+import { laagIdsVan } from './ontvangers';
+import LagenKiezer from './LagenKiezer';
+import FijnKiezen from './FijnKiezen';
 import { elementVeelhoek, kader as bbox, getal } from './geo';
 import { basisStijl, registreerProtocollen, zetOndergrond, klapBronvermeldingIn } from './ondergronden';
 import { kaartLagen, naarGeojson, zorgVoorPatronen } from './stijl';
-import { vraagTekst, bevestig } from './dialoog';
 import * as turf from '@turf/turf';
 
 const SCHALEN = [200, 250, 500, 750, 1000, 1250, 1500, 2000, 2500, 5000, 10000];
@@ -28,20 +30,24 @@ const rondSchaal = (s) => {
 };
 const schaalTekst = (s) => `1:${Number(s).toLocaleString('nl-BE')}`;
 
-export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items, elementenMap, actieveFase, kaart, onSluit, onPlan, startProfiel = null }) {
-  const opgeslagen = plan.instellingen?.pdf || {};
+export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items, elementenMap, actieveFase, kaart, onSluit, onPlan, onderdeel = null }) {
+  // onderdeel: { ontvanger, waarde, onBewaar } = het plan van een ontvanger kiezen (lagen, fase, kader) in plaats van een PDF te maken.
+  const opgeslagen = onderdeel ? { ...(plan.instellingen?.pdf || {}), centrum: undefined, ...(onderdeel.waarde.inst || {}) } : (plan.instellingen?.pdf || {});
+  const [sel, setSel] = useState(() => (onderdeel ? { laag_ids: onderdeel.waarde.laag_ids, mappen: onderdeel.waarde.mappen } : null));
+  const [verberg, setVerberg] = useState(() => (onderdeel ? { verberg_elementen: onderdeel.waarde.verberg_elementen, verberg_soorten: onderdeel.waarde.verberg_soorten, verberg_items: onderdeel.waarde.verberg_items } : {}));
+  const [naam, setNaam] = useState(onderdeel?.waarde.naam || '');
   const [inst, setInst] = useState({
     papier: 'A3', orientatie: 'liggend', vrijB: 2100, vrijH: 1500, schaal: null, ondergrond: plan.basiskaart === 'stratenkaart' ? 'lijntekening' : plan.basiskaart,
     dimmen: 0, legende: true, stuklijst: true, maten: false, dpi: 200, raster: { aan: false, kolommen: 12, index: true },
     lagen: lagen.filter((l) => l.printbaar && l.zichtbaar).map((l) => l.id), ...opgeslagen,
+    ...(onderdeel ? { lagen: laagIdsVan(onderdeel.waarde, lagen) } : {}),
   });
-  const [fase, setFase] = useState(actieveFase || '');
+  const [fase, setFase] = useState(onderdeel ? onderdeel.waarde.fase || '' : actieveFase || '');
   const [bezig, setBezig] = useState('');
   const [meldingen, setMeldingen] = useState([]);
   const [fout, setFout] = useState('');
-  const [uitsneden, setUitsneden] = useState(() => profielenVan(plan));
+  const [uitsneden] = useState([]); // profielen zijn ontvangers geworden (Delen en exporteren)
   const [actief, setActief] = useState(null); // id van de geladen uitsnede
-  const [aangevinkt, setAangevinkt] = useState([]);
 
   const zet = (p) => setInst((i) => ({ ...i, ...p }));
   const [versies, setVersies] = useState([]);
@@ -50,8 +56,14 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
     maps().from('versies').select('id, versie, opmerking, created_at').eq('plan_id', plan.id).order('versie', { ascending: false })
       .then(({ data }) => setVersies(data || []));
   }, [plan.id]);
+  useEffect(() => { if (sel) setInst((i) => ({ ...i, lagen: laagIdsVan(sel, lagen) })); }, [sel, lagen]);
+  const bronItems = useMemo(() => {
+    if (!onderdeel) return items;
+    const vEl = new Set(verberg.verberg_elementen || []); const vSo = new Set(verberg.verberg_soorten || []); const vIt = new Set(verberg.verberg_items || []);
+    return items.filter((i) => !vIt.has(i.id) && (i.element_id ? !vEl.has(i.element_id) : !vSo.has(i.soort)));
+  }, [items, verberg, onderdeel]);
   const L = indeling(inst);
-  const zichtbareItems = useMemo(() => items.filter((i) => !i.verborgen && (!i.laag_id || inst.lagen.includes(i.laag_id)) && (!fase || !i.fase_ids?.length || i.fase_ids.includes(fase))), [items, inst.lagen, fase]);
+  const zichtbareItems = useMemo(() => bronItems.filter((i) => !i.verborgen && (!i.laag_id || inst.lagen.includes(i.laag_id)) && (!fase || !i.fase_ids?.length || i.fase_ids.includes(fase))), [bronItems, inst.lagen, fase]);
   const itemKader = useMemo(() => bbox(zichtbareItems.map((i) => i.geometrie)), [zichtbareItems]);
   const schaal = inst.schaal || passendeSchaal(L.kader.b, L.kader.h, itemKader);
   const grondB = (L.kader.b / 1000) * schaal;
@@ -151,11 +163,11 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
     const lagenMap = new Map(lagen.map((l) => [l.id, l]));
     const verborgen = new Set(lagen.filter((l) => !inst.lagen.includes(l.id)).map((l) => l.id));
     const tb = inst.toebehoren === 'altijd' || (inst.toebehoren !== 'nooit' && schaal <= 500);
-    const { vormen, labels } = naarGeojson(items.filter((i) => !i.velden?.binnen), lagenMap, elementenMap, { verborgenLagen: verborgen, actieveFase: fase || null, verbergElementen: plan.instellingen?.verborgen_elementen, doek: inst.doek !== false, toebehoren: tb, doeknaam: inst.doeknaam === true });
+    const { vormen, labels } = naarGeojson(bronItems.filter((i) => !i.velden?.binnen), lagenMap, elementenMap, { verborgenLagen: verborgen, actieveFase: fase || null, verbergElementen: plan.instellingen?.verborgen_elementen, doek: inst.doek !== false, toebehoren: tb, doeknaam: inst.doeknaam === true });
     zorgVoorPatronen(map, vormen.features, labels.features);
     map.getSource('fm-vormen')?.setData(vormen);
     map.getSource('fm-labels')?.setData(labels);
-  }, [items, lagen, elementenMap, inst.lagen, fase, klaar, inst.doek, inst.doeknaam, inst.toebehoren, schaal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [bronItems, lagen, elementenMap, inst.lagen, fase, klaar, inst.doek, inst.doeknaam, inst.toebehoren, schaal]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (mapRef.current && klaar) zetOndergrond(mapRef.current, inst.ondergrond); }, [inst.ondergrond, klaar]);
 
   // Kader, verduistering erbuiten en de andere bewaarde uitsneden.
@@ -187,19 +199,20 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
   };
 
   // ---------- Uitsneden ----------
-  const bewaarUitsneden = (lijst) => {
-    setUitsneden(lijst);
-    onPlan?.({ instellingen: { ...(plan.instellingen || {}), pdf_profielen: lijst } });
+  const bewaarOnderdeel = () => {
+    const keuze = Object.fromEntries(PROFIEL_VELDEN.filter((k) => k !== 'lagen').map((k) => [k, inst[k]]));
+    onderdeel.onBewaar({
+      ...onderdeel.waarde, naam: naam.trim() || onderdeel.waarde.naam || 'Plan', laag_ids: sel.laag_ids, mappen: sel.mappen, fase: fase || null,
+      verberg_elementen: verberg.verberg_elementen?.length ? verberg.verberg_elementen : undefined,
+      verberg_soorten: verberg.verberg_soorten?.length ? verberg.verberg_soorten : undefined,
+      verberg_items: verberg.verberg_items?.length ? verberg.verberg_items : undefined,
+      inst: { ...keuze, papier: inst.papier, orientatie: inst.orientatie, vrijB: inst.vrijB, vrijH: inst.vrijH, schaal: inst.schaal || null, centrum: inst.schaal ? centrum : undefined },
+    });
+    onSluit();
   };
   // Een profiel bewaart alles: kader, papier, schaal, fase, lagen en wat op het blad komt.
   const huidigeUitsnede = () => ({ centrum, schaal, papier: inst.papier, orientatie: inst.orientatie, vrijB: inst.vrijB, vrijH: inst.vrijH, fase: fase || null,
     inst: Object.fromEntries(PROFIEL_VELDEN.map((k) => [k, inst[k]])) });
-  const nieuweUitsnede = async () => {
-    const naam = await vraagTekst('Naam van dit profiel (bv. "Politie A3 afsluitingen")', `Profiel ${uitsneden.length + 1}`, { titel: 'Profiel bewaren', ok: 'Bewaren' });
-    if (!naam?.trim()) return;
-    const u = { id: nieuwId(), naam: naam.trim(), ...huidigeUitsnede() };
-    bewaarUitsneden([...uitsneden, u]); setActief(u.id);
-  };
   const laad = (u) => {
     setInst((i) => ({ ...i, ...(u.inst || {}), papier: u.papier || i.papier, orientatie: u.orientatie || i.orientatie, vrijB: u.vrijB ?? i.vrijB, vrijH: u.vrijH ?? i.vrijH, schaal: u.schaal }));
     if (u.fase !== undefined) setFase(u.fase || '');
@@ -212,7 +225,6 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
       map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: 80, maxZoom: 21 });
     }, 0);
   };
-  useEffect(() => { if (!startProfiel) return; const u = uitsneden.find((x) => x.id === startProfiel); if (u) setTimeout(() => laad(u), 300); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const actieveU = uitsneden.find((u) => u.id === actief);
   const gewijzigdeU = actieveU && (Math.abs(actieveU.schaal - schaal) > 0.1 || actieveU.papier !== inst.papier || actieveU.orientatie !== inst.orientatie || turf.distance(actieveU.centrum, centrum, { units: 'meters' }) > 0.5);
 
@@ -228,7 +240,7 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
     return { f, revisie, revisies };
   };
   const bestandsnaam = (f, extra = '') => [plan.editie_naam, plan.naam, extra, f?.naam, `v${plan.versie}`].filter(Boolean).join(' - ').replace(/[\\/:*?"<>|]/g, '');
-  const bewaarInstellingen = () => onPlan?.({ instellingen: { ...(plan.instellingen || {}), pdf_profielen: uitsneden, pdf: { ...inst, lagen: undefined, centrum: inst.schaal ? centrum : undefined } } });
+  const bewaarInstellingen = () => !onderdeel && onPlan?.({ instellingen: { ...(plan.instellingen || {}), pdf: { ...inst, lagen: undefined, centrum: inst.schaal ? centrum : undefined } } });
   // In een eigen tabblad (met voortgang), zodat je hier verder kan werken.
   const inTab = async (opdracht) => {
     const { lagen: _l, revisie: _r, revisies: _rs, onTegels: _o, ...rest } = inst;
@@ -252,30 +264,6 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
       setBezig('');
     }
   };
-  const maakMeerdere = async () => {
-    setFout(''); setMeldingen([]);
-    const lijst = uitsneden.filter((u) => aangevinkt.includes(u.id));
-    if (nieuwTab && await inTab({ soort: 'uitsneden', lijst, bestandsnaam: bestandsnaam(fasen.find((x) => x.id === fase) || null, `${lijst.length} uitsneden`) }).catch(() => false)) return;
-    try {
-      const { f, revisie, revisies } = await opties();
-      let doc = null; const alle = [];
-      for (let i = 0; i < lijst.length; i++) {
-        const u = lijst[i];
-        setBezig(`Uitsnede ${i + 1} van ${lijst.length}: ${u.naam}…`);
-        const r = await maakPdf({ plan, lagen, items, elementenMap, fase: f, inst: { ...inst, ...(u.inst || {}), papier: u.papier || inst.papier, orientatie: u.orientatie || inst.orientatie, vrijB: u.vrijB ?? inst.vrijB, vrijH: u.vrijH ?? inst.vrijH, schaal: u.schaal, centrum: u.centrum, revisie, revisies }, voortgang: () => {}, doc, blad: { label: u.naam, laatste: i === lijst.length - 1 } });
-        doc = r.doc;
-        for (const m of r.meldingen) if (!alle.includes(m)) alle.push(m);
-      }
-      setMeldingen(alle);
-      doc.save(`${bestandsnaam(f, `${lijst.length} uitsneden`)}.pdf`);
-      bewaarInstellingen();
-    } catch (e) {
-      setFout(e?.message || String(e));
-    } finally {
-      setBezig('');
-    }
-  };
-
   // Vaste luisteraar (via een ref): anders wordt hij tijdens dezelfde toetsaanslag
   // vervangen door een herteken van de editor en komt Escape nooit aan.
   const sluitRef = useRef(onSluit); sluitRef.current = onSluit;
@@ -285,43 +273,23 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
     return () => window.removeEventListener('keydown', toets);
   }, []);
 
-  const wissel = (id) => zet({ lagen: inst.lagen.includes(id) ? inst.lagen.filter((x) => x !== id) : [...inst.lagen, id] });
   const schaalOpties = SCHALEN.includes(inst.schaal) || !inst.schaal ? SCHALEN : [...SCHALEN, inst.schaal].sort((a, b) => a - b);
 
   return (
     <div className="fm fm-pdfscherm" role="dialog" aria-label="PDF maken">
       <header className="fm-pdfkop">
-        <strong>PDF maken</strong>
+        <strong>{onderdeel ? `Plan voor ${onderdeel.ontvanger}` : 'PDF van het beeld'}</strong>
         <span className="fm-sub">{plan.naam}</span>
         <span style={{ flex: 1 }} />
         <button className="fm-knop" onClick={onSluit}>Sluiten <span className="fm-sub" style={{ marginLeft: 6 }}>Esc</span></button>
       </header>
       <div className="fm-pdfromp">
         <aside className="fm-pdfpaneel">
-          <div className="fm-sectie">
-            <div className="fm-kop">Profielen<Info>Een profiel bewaart het kader, het papier, de schaal, de fase, de lagen en wat op het blad komt. Zo maak je dezelfde PDF later met één klik opnieuw, ook vanuit Exporteren. Vink er meerdere aan voor één PDF.</Info></div>
-            <div className="fm-uitsneden">
-              <button className={`fm-uitsnede ${!actief && !inst.schaal ? 'aan' : ''}`} onClick={() => { zet({ schaal: null }); setActief(null); setTimeout(naarKader, 0); }}>
-                <span className="naam">Alles passend</span><small>Alle items op één blad</small>
-              </button>
-              {uitsneden.map((u) => (
-                <div key={u.id} className={`fm-uitsnede ${actief === u.id ? 'aan' : ''}`}>
-                  <input type="checkbox" aria-label={`${u.naam} meenemen in één PDF`} checked={aangevinkt.includes(u.id)} onChange={(e) => setAangevinkt((a) => (e.target.checked ? [...a, u.id] : a.filter((x) => x !== u.id)))} />
-                  <button className="tekst" onClick={() => laad(u)}>
-                    <span className="naam">{u.naam}</span><small>{u.papier === 'vrij' ? 'Vrij formaat' : u.papier} {u.orientatie} · {schaalTekst(u.schaal)}</small>
-                  </button>
-                  <button className="ic" title="Hernoemen" onClick={async () => { const n = await vraagTekst('Nieuwe naam', u.naam, { ok: 'Hernoemen' }); if (n?.trim()) bewaarUitsneden(uitsneden.map((x) => (x.id === u.id ? { ...x, naam: n.trim() } : x))); }}>✎</button>
-                  <button className="ic gevaar" title="Verwijderen" onClick={async () => { if (await bevestig(`Profiel "${u.naam}" verwijderen?`, { ok: 'Verwijderen', gevaar: true })) { bewaarUitsneden(uitsneden.filter((x) => x.id !== u.id)); setAangevinkt((a) => a.filter((x) => x !== u.id)); if (actief === u.id) setActief(null); } }}>×</button>
-                </div>
-              ))}
+          {onderdeel && (
+            <div className="fm-sectie">
+              <label className="fm-veld">Naam van dit plan<input value={naam} onChange={(e) => setNaam(e.target.value)} placeholder="bv. Tenten en hekken" /></label>
             </div>
-            <div className="fm-vinkrij" style={{ gap: 6 }}>
-              {gewijzigdeU
-                ? <button className="fm-knop klein zwart" onClick={() => bewaarUitsneden(uitsneden.map((x) => (x.id === actief ? { ...x, ...huidigeUitsnede() } : x)))}>Wijziging bewaren in "{actieveU.naam}"</button>
-                : null}
-              <button className="fm-knop klein" onClick={nieuweUitsnede}>Bewaren als profiel</button>
-            </div>
-          </div>
+          )}
           <div className="fm-sectie">
             <div className="fm-kop">Blad</div>
             <div className="fm-raster2">
@@ -370,7 +338,14 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
           </div>
           <div className="fm-sectie">
             <div className="fm-kop">Lagen</div>
-            {lagen.map((l) => <label key={l.id} className="fm-vink"><input type="checkbox" checked={inst.lagen.includes(l.id)} onChange={() => wissel(l.id)} /><span style={{ width: 10, height: 10, background: l.kleur }} />{l.naam}</label>)}
+            {onderdeel
+              ? <LagenKiezer lagen={lagen} waarde={sel} onChange={setSel} />
+              : <LagenKiezer lagen={lagen} ids={inst.lagen} onIds={(ids) => zet({ lagen: ids })} />}
+            {onderdeel && (
+              <FijnKiezen plan={plan} items={items} elementenMap={elementenMap} lagen={lagen}
+                vorm={{ laag_ids: inst.lagen, fase_ids: fase ? [fase] : [], opties: { ...verberg, leverancier: onderdeel.leverancier || null } }}
+                setVorm={(v) => setVerberg({ verberg_elementen: v.opties.verberg_elementen, verberg_soorten: v.opties.verberg_soorten, verberg_items: v.opties.verberg_items })} />
+            )}
           </div>
           <div className="fm-sectie">
             <div className="fm-kop">Op het blad</div>
@@ -410,8 +385,9 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
           <div className="fm-pdfvoet">
             {fout && <div className="fm-melding fout">{fout}</div>}
             {meldingen.map((m) => <div key={m} className="fm-melding">{m}</div>)}
-            <button className="fm-knop rood vol" disabled={!!bezig} onClick={maak}>{bezig || `PDF maken${actieveU && !gewijzigdeU ? ` · ${actieveU.naam}` : ''}`}</button>
-            {aangevinkt.length > 1 && <button className="fm-knop vol" disabled={!!bezig} onClick={maakMeerdere}>{aangevinkt.length} profielen samen in één PDF</button>}
+            {onderdeel
+              ? <div style={{ display: 'flex', gap: 8 }}><button className="fm-knop" onClick={onSluit}>Annuleren</button><button className="fm-knop rood vol" onClick={bewaarOnderdeel}>Bewaren</button></div>
+              : <button className="fm-knop rood vol" disabled={!!bezig} onClick={maak}>{bezig || 'PDF maken'}</button>}
           </div>
         </aside>
         <div className="fm-pdfkaart">

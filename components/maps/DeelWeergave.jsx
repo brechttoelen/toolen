@@ -36,11 +36,11 @@ const T = {
   en: { laden: 'Loading plan…', weg: 'This link is not (or no longer) valid. Ask the organiser for a new link.', lagen: 'Layers', pdf: 'Print PDF', bezig: 'Creating PDF…', navigeer: 'Navigate', opm: 'Comments', naam: 'Your name', tekst: 'Your comment', plaats: 'Post', dank: 'Thank you, your comment has been sent.', kaart: 'Aerial photo', lijn: 'Line drawing', straat: 'Street map', versie: 'version', geen: 'No comments yet.', attesten: 'Inspection certificates', herkomst: 'Supplied by', alleLev: 'All suppliers', materialen: 'Materials', zonderLeg: 'Map without legend', metLeg: 'Map with legend', binnen: 'Look inside', drie: 'View in 3D', },
 };
 
-export default function DeelWeergave({ token }) {
+export default function DeelWeergave({ token, deel = null, onData = null }) {
   const [data, setData] = useState(undefined); // undefined = laden, null = ongeldig
   // Na vernieuwen terug waar je was: kaartbeeld, ondergrond, verborgen lagen en het gebouw waar je binnenkeek
   // (per link, in dit tabblad). Lukt het bewaren niet (privévenster), dan gewoon het startbeeld.
-  const opslag = `fm-deel:${token}`;
+  const opslag = `fm-deel:${token}${deel ? `:${deel}` : ''}`;
   const bewaard = useRef(undefined);
   if (bewaard.current === undefined) { try { bewaard.current = JSON.parse(sessionStorage.getItem(opslag) || 'null'); } catch { bewaard.current = null; } }
   const bewaar = (patch) => { try { const v = { ...(JSON.parse(sessionStorage.getItem(opslag) || 'null') || {}), ...patch }; sessionStorage.setItem(opslag, JSON.stringify(v)); } catch {} };
@@ -78,22 +78,22 @@ export default function DeelWeergave({ token }) {
 
   useEffect(() => {
     // Offline in het veld: de laatst geladen stand bewaren en tonen als het netwerk wegvalt.
-    const sleutel = `fm-deel-${token}`;
+    const sleutel = `fm-deel-${token}${deel ? `:${deel}` : ''}`;
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/maps-sw.js', { scope: '/maps/' }).catch(() => {});
-    sb().schema('maps').rpc('deel_link_lezen', { p_token: token }).then(({ data: d0, error }) => {
+    sb().schema('maps').rpc('deel_link_lezen', deel ? { p_token: token, p_deel: deel } : { p_token: token }).then(({ data: d0, error }) => {
       let d = d0;
       if (error) {
         let c = null; try { c = JSON.parse(localStorage.getItem(sleutel) || 'null'); } catch {}
         if (c?.d) { d = c.d; setOffline(c.op); } else { setData(null); console.warn('deel_link_lezen', error); return; }
       } else if (d) { try { localStorage.setItem(sleutel, JSON.stringify({ op: Date.now(), d })); } catch {} }
-      if (!d) { setData(null); return; }
-      setData(d);
+      if (!d) { setData(null); onData?.(null); return; }
+      setData(d); onData?.(d);
       setOndergrond(bewaard.current?.o || d.plan.basiskaart || 'luchtfoto');
       if (Array.isArray(bewaard.current?.v)) setVerborgen(new Set(bewaard.current.v));
       if (bewaard.current?.binnen) setBinnenOpen(bewaard.current.binnen);
       if (typeof document !== 'undefined') document.title = `${d.plan.naam} · Toolen Maps`;
     });
-  }, [token]);
+  }, [token, deel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lagenMap = useMemo(() => new Map((data?.lagen || []).map((l) => [l.id, l])), [data]);
   // Materiaallijst: zoals de stuklijst in de editor, per leverancier ("geleverd door").

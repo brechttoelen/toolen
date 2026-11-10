@@ -6,11 +6,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { heeftModule } from './merk';
 import { laadPlanData, EXPORT_KANAAL } from './planLaden';
-import { maps } from './db';
+import { maps, sb, BUCKET } from './db';
 import { berekenStroom } from './stroom';
 import './maps.css';
 
-const NAMEN = { stroomplan: 'Stroomdossier', veiligheidsplan: 'Veiligheidsplan', brandingplan: 'Brandingplan', pdf: 'PDF op schaal', uitsneden: 'PDF met profielen' };
+const NAMEN = { stroomplan: 'Stroomdossier', veiligheidsplan: 'Veiligheidsplan', brandingplan: 'Brandingplan', pdf: 'PDF op schaal', uitsneden: 'PDF met profielen', ontvanger: 'PDF voor een ontvanger' };
 
 export default function ExportScherm({ planId }) {
   const [opdracht, setOpdracht] = useState(null);
@@ -42,7 +42,60 @@ export default function ExportScherm({ planId }) {
         const opTegels = (x) => setTegels({ ...x });
         const zetStap = (i, n, t) => { setStap({ nu: i, totaal: n, tekst: t }); setTegels(null); };
         let m = [];
-        if (o.soort === 'werkruimte') {
+        // Eén werkplek-PDF (stroomdossier, veiligheidsplan, brandingplan). Die bewaren zichzelf in de downloads.
+        const werkplekPdf = async (id, f, i, n) => {
+          const w = await import('./werkruimtePdf');
+          const a = { plan: d.plan, lagen: d.lagen, items: d.items, elementenMap: d.elementenMap, lagenMap, fase: f, voortgang: setTekst, onTegels: opTegels };
+          if (id === 'stroomplan') {
+            const stroom = berekenStroom(d.items, d.elementenMap, { gelijktijdigheid: d.plan.instellingen?.stroom?.gelijktijdigheid ?? 0.8, fasen: d.fasen, vast: d.vast });
+            return w.stroomplanPdf({ ...a, fasen: d.fasen, stroom, stap: n > 1 ? (j, t, x) => zetStap(i, n, x) : zetStap });
+          }
+          if (n === 1) zetStap(0, 1, 'Kaart');
+          if (id === 'veiligheidsplan') return w.veiligheidsplanPdf(a);
+          if (id === 'brandingplan') return w.brandingplanPdf(a);
+          return [];
+        };
+        if (o.soort === 'ontvanger') {
+          // Alles wat een ontvanger krijgt: zijn plannen samen in één PDF (ook bewaard bij de ontvanger), daarna de werkplekken.
+          const { onderdelenVan, laagIdsVan, itemsVanOnderdeel, WERKPLEKKEN } = await import('./ontvangers');
+          const { data: link, error } = await maps().from('deel_links').select('id, naam, opties, organisatie_id').eq('id', o.linkId).single();
+          if (error || !link) throw new Error('Deze ontvanger bestaat niet meer.');
+          const lijst = onderdelenVan(link);
+          const plannen = lijst.filter((x) => x.soort === 'plan');
+          const wp = lijst.filter((x) => x.soort === 'werkplek' && WERKPLEKKEN.some((w) => w.id === x.werkplek && heeftModule(w.module)));
+          const n = plannen.length + wp.length;
+          if (!n) throw new Error('Deze ontvanger krijgt nog geen plan of werkplek die in een PDF kan. 3D en binnenplannen staan enkel in de deellink.');
+          const { maakPdf } = await import('./pdf');
+          const basis = { papier: 'A3', orientatie: 'liggend', ondergrond: d.plan.basiskaart === 'stratenkaart' ? 'lijntekening' : (d.plan.basiskaart || 'luchtfoto'), dimmen: 0, dpi: 200, legende: true, stuklijst: true, titelblok: true, raster: { aan: false, kolommen: 12, index: true }, ...(d.plan.instellingen?.pdf || {}), centrum: undefined, schaal: null };
+          const zonderBinnen = d.items.filter((x) => !x.velden?.binnen);
+          let doc = null;
+          for (let i = 0; i < plannen.length; i++) {
+            const pd = plannen[i]; zetStap(i, n, pd.naam || 'Plan');
+            const f = d.fasen.find((x) => x.id === pd.fase) || null;
+            const inst = { ...basis, ...(pd.inst || {}), lagen: laagIdsVan(pd, d.lagen), revisie: null, revisies: [], onTegels: opTegels };
+            if (!Array.isArray(inst.centrum)) inst.centrum = d.plan.centrum || [4.4, 50.9];
+            const r = await maakPdf({ plan: d.plan, lagen: d.lagen, items: itemsVanOnderdeel(pd, zonderBinnen, d.lagen), elementenMap: d.elementenMap, fase: f, inst, voortgang: setTekst, doc, blad: plannen.length > 1 ? { label: pd.naam, laatste: i === plannen.length - 1 } : null });
+            doc = r.doc; for (const x of r.meldingen) if (!m.includes(x)) m.push(x);
+          }
+          let pad = null;
+          if (doc) {
+            const blob = doc.output('blob');
+            doc.save(`${o.bestandsnaam || d.plan.naam}.pdf`);
+            // Bewaren bij de ontvanger: hij kan ze downloaden vanuit zijn link, jij ziet of ze nog klopt.
+            const p = `${link.organisatie_id}/ontvangers/${link.id}/${Date.now()}.pdf`;
+            const up = await sb().storage.from(BUCKET).upload(p, blob, { contentType: 'application/pdf', cacheControl: '31536000' });
+            if (up.error) m.push('De PDF staat in je downloads, maar kon niet bij de ontvanger bewaard worden.'); else pad = p;
+          }
+          const opties = { ...(link.opties || {}), laatste_pdf: { pad, versie: d.plan.versie, op: new Date().toISOString(), bladen: plannen.length, werkplekken: wp.length } };
+          if (link.opties?.laatste_pdf?.pad) opties.vorige_pdf = link.opties.laatste_pdf;
+          const upd = await maps().from('deel_links').update({ opties }).eq('id', link.id);
+          if (upd.error) m.push('De stand van de PDF kon niet bij de ontvanger bewaard worden.');
+          for (let j = 0; j < wp.length; j++) {
+            const x = wp[j]; const i = plannen.length + j; zetStap(i, n, x.naam || WERKPLEKKEN.find((w) => w.id === x.werkplek)?.naam);
+            const r = await werkplekPdf(x.werkplek, d.fasen.find((y) => y.id === x.fase) || null, i, n);
+            for (const y of r || []) if (!m.includes(y)) m.push(y);
+          }
+        } else if (o.soort === 'werkruimte') {
           const w = await import('./werkruimtePdf');
           if (o.id === 'stroomplan') {
             const stroom = berekenStroom(d.items, d.elementenMap, { gelijktijdigheid: d.plan.instellingen?.stroom?.gelijktijdigheid ?? 0.8, fasen: d.fasen, vast: d.vast });

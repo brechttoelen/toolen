@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import DeelWeergave from "@/components/maps/DeelWeergave";
+import DeelPagina from "@/components/maps/DeelPagina";
 import { SUPABASE_URL, SUPABASE_KEY } from "@/lib/supabase/env";
 
 type Kop = { naam?: string | null; plan?: string | null; editie?: string | null; locatie?: string | null; taal?: string | null; binnen?: string | null };
@@ -46,5 +46,5 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
 
 export default async function Page({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  return <DeelWeergave token={token} />;
+  return <DeelPagina token={token} />;
 }

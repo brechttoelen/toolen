@@ -3,6 +3,7 @@
 // Voortgang van PDF's die in een eigen tabblad gemaakt worden, rechtsonder in de editor.
 // Zo werk je verder in het plan en zie je toch hoe ver de export staat.
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { EXPORT_KANAAL, exportVensters } from './planLaden';
 
 export default function ExportVoortgang() {
@@ -23,7 +24,8 @@ export default function ExportVoortgang() {
   }, [lijst]);
   if (!lijst.length) return null;
   const weg = (k) => setLijst((l) => l.filter((x) => x.k !== k));
-  return (
+  // Via een portaal: ook zichtbaar boven Delen en exporteren.
+  return createPortal((
     <div className="fm-exportlade" role="status" aria-live="polite">
       {lijst.map((x) => (
         <div key={x.k} className={`fm-exportlade-rij${x.fout ? ' fout' : x.klaar ? ' klaar' : ''}`}>
@@ -40,5 +42,5 @@ export default function ExportVoortgang() {
         </div>
       ))}
     </div>
-  );
+  ), document.body);
 }
