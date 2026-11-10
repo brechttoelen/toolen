@@ -11,7 +11,7 @@
 //   lijnen:  [{ c: [[x,y],…], k, d }],
 //   teksten: [{ p: [x,y], t, h, rot, k }],       h = teksthoogte in m
 // }
-import svgpath from 'svgpath';
+import { padSegmenten } from './svgpad';
 
 const MAX_PUNTEN = 40000;
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -44,7 +44,7 @@ function padNaarSubpaden(d) {
     }
   };
   let pos = [0, 0];
-  svgpath(d).abs().unshort().unarc().iterate((seg) => {
+  padSegmenten(d).forEach((seg) => {
     const [cmd, ...a] = seg;
     if (cmd === 'M') { huidig = { c: [[a[0], a[1]]], dicht: false }; uit.push(huidig); pos = [a[0], a[1]]; start = pos; return; }
     if (!huidig) { huidig = { c: [pos], dicht: false }; uit.push(huidig); }

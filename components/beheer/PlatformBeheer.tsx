@@ -20,6 +20,7 @@ type Log = { id: number; actie: string; details: Record<string, unknown>; op: st
 export type Pakket = {
   id: string; naam: string; omschrijving: string | null; plaatsen: number; lezers: number; modules: string[]; modules_keuze: number;
   prijs_jaar: number | null; prijs_plaats: number | null; prijs_module: number | null; proef_dagen: number | null; sso: boolean; actief: boolean; volgorde: number;
+  max_events_jaar?: number | null; max_deellinks?: number | null; max_opslag_mb?: number | null;
 };
 
 const sb = () => supabaseBrowser();
@@ -41,6 +42,7 @@ function usePakketten() {
   const van = (id: string) => lijst.find((p) => p.id === id) || { ...pakketVan(id), omschrijving: null, modules_keuze: 0, prijs_jaar: null, prijs_plaats: null, prijs_module: null, proef_dagen: null, sso: false, actief: true, volgorde: 0 };
   return { lijst, uitDb, laad, van };
 }
+const limietTekst = (p: Pakket) => [p.max_events_jaar != null ? `${p.max_events_jaar} events/jaar` : null, p.max_deellinks != null ? `${p.max_deellinks} links` : null, p.max_opslag_mb != null ? `${p.max_opslag_mb >= 1000 ? `${p.max_opslag_mb / 1000} GB` : `${p.max_opslag_mb} MB`}` : null].filter(Boolean).join(" · ") || "Onbeperkt";
 // Modules van een pakket, met de koppelingen die de organisatie al had.
 const metKoppelingen = (p: Pakket, huidig: string[]) => [...new Set([...p.modules, ...huidig.filter((m) => KOPPELING_IDS.includes(m))])];
 const moduleNaam = (id: string) => [...MODULES, ...KOPPELINGEN].find((m) => m.id === id)?.naam || id;
@@ -445,7 +447,7 @@ function PakkettenBeheer({ pk, orgs }: { pk: ReturnType<typeof usePakketten>; or
       </div>
       <div className="t-kaart" style={{ overflowX: "auto" }}>
         <table className="t-tabel">
-          <thead><tr><th>Pakket</th><th>Plaatsen</th><th>Lezers</th><th>Modules</th><th>Prijs per jaar</th><th>Organisaties</th></tr></thead>
+          <thead><tr><th>Pakket</th><th>Plaatsen</th><th>Lezers</th><th>Modules</th><th>Limieten</th><th>Prijs per jaar</th><th>Organisaties</th></tr></thead>
           <tbody>
             {pk.lijst.map((p) => (
               <tr key={p.id} className={pk.uitDb ? "klik" : ""} onClick={() => pk.uitDb && setOpen(p)}>
@@ -460,6 +462,7 @@ function PakkettenBeheer({ pk, orgs }: { pk: ReturnType<typeof usePakketten>; or
                     : p.modules.length === MODULES.length ? "Alle" : p.modules.map(moduleNaam).join(", ") || <span className="t-stil">Basis</span>}
                   {p.modules_keuze > 0 && <span className="t-stil"> + {p.modules_keuze} naar keuze</span>}
                 </td>
+                <td className="t-stil" style={{ fontSize: 12.5 }}>{limietTekst(p)}</td>
                 <td>{euro(p.prijs_jaar)}</td>
                 <td>{gebruik(p.id)}</td>
               </tr>
@@ -509,6 +512,12 @@ function PakketBewerker({ p, inGebruik, onSluit, onKlaar }: { p: Pakket | null; 
           <label><span className="t-label">Extra plaats (€/jaar)</span><input className="t-veld" type="number" min={0} step="0.01" value={v.prijs_plaats ?? ""} onChange={(e) => setV({ ...v, prijs_plaats: getal(e.target.value) })} /></label>
           <label><span className="t-label">Extra module (€/jaar)</span><input className="t-veld" type="number" min={0} step="0.01" value={v.prijs_module ?? ""} onChange={(e) => setV({ ...v, prijs_module: getal(e.target.value) })} /></label>
         </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <label><span className="t-label">Events per jaar</span><input className="t-veld" type="number" min={0} value={v.max_events_jaar ?? ""} onChange={(e) => setV({ ...v, max_events_jaar: getal(e.target.value) })} placeholder="Onbeperkt" /></label>
+          <label><span className="t-label">Actieve deellinks</span><input className="t-veld" type="number" min={0} value={v.max_deellinks ?? ""} onChange={(e) => setV({ ...v, max_deellinks: getal(e.target.value) })} placeholder="Onbeperkt" /></label>
+          <label><span className="t-label">Opslag (MB)</span><input className="t-veld" type="number" min={0} value={v.max_opslag_mb ?? ""} onChange={(e) => setV({ ...v, max_opslag_mb: getal(e.target.value) })} placeholder="Onbeperkt" /></label>
+        </div>
+        <p className="t-stil" style={{ margin: 0, fontSize: 12.5 }}>Leeg = onbeperkt. Een plan zonder event telt als één event. Opslag wordt enkel getoond, niet geblokkeerd.</p>
         <div><span className="t-label">Vaste modules</span><ModuleKeuze zonderKoppelingen waarde={v.modules} onWijzig={(m) => setV({ ...v, modules: m })} /></div>
         <div className="t-rij" style={{ gap: 20 }}>
           <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={v.sso} onChange={(e) => setV({ ...v, sso: e.target.checked })} /> SSO verplichten mogelijk</label>

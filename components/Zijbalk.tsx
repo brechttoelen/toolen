@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ToolenTeken } from "./ToolenLogo";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { orgAdres, centraalAdres } from "@/lib/adres";
+import SessieWacht from "./SessieWacht";
 
 type Org = { slug: string; naam: string; kort?: string; pakket?: string };
 type Props = {
@@ -47,7 +48,7 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
     return () => document.removeEventListener("mousedown", dicht);
   }, []);
 
-  if (VOL_SCHERM.test(pad)) return <>{children}</>;
+  if (VOL_SCHERM.test(pad)) return <><SessieWacht />{children}</>;
 
   const beheerder = rol === "eigenaar" || rol === "beheerder";
   const p = pad.replace(/^\/[^/]+(?=\/maps|\/instellingen)/, ""); // /flcs/maps/x → /maps/x (preview zonder subdomein)
@@ -67,6 +68,7 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
 
   return (
     <div className="t-schil">
+      <SessieWacht />
       <nav className="t-zij" aria-label="Hoofdmenu">
         <Link href="/maps" className="t-zij-merk">
           <ToolenTeken grootte={24} />
@@ -118,6 +120,7 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
           {ikOpen && (
             <div className="t-menu" style={{ left: 0, right: "auto", top: "auto", bottom: "calc(100% + 6px)" }}>
               <div className="kop">{gebruiker.email}</div>
+              <a href={centraalAdres("/mfa")}>Tweestapsverificatie</a>
               <hr />
               <button onClick={uitloggen}>Uitloggen</button>
             </div>

@@ -1,10 +1,6 @@
 import type { Metadata, Viewport } from "next";
-// Lettertype in de app zelf (geen Google Fonts tijdens de build).
-import "@fontsource/ibm-plex-sans/400.css";
-import "@fontsource/ibm-plex-sans/500.css";
-import "@fontsource/ibm-plex-sans/600.css";
-import "@fontsource/ibm-plex-sans/700.css";
-import "@fontsource-variable/archivo/wdth.css";
+// Lettertypes in de repo zelf (app/lettertypes): geen plug-in en geen Google Fonts tijdens de build.
+import "./lettertypes.css";
 import "./toolen.css";
 import "./globals.css";
 

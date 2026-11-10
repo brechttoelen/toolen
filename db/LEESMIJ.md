@@ -95,6 +95,17 @@ Uitvoeren: `flcs_bijwerken.sql` plakken in de SQL Editor van Toolen, HOST en WAC
 
 Per plan (vingerafdruk van plan, lagen, fasen en items): `nieuw`, `bijgewerkt` (gewijzigd in FLCS, FLCS wint), `ongewijzigd` (wat je in Toolen aanpaste blijft), `conflict` (gewijzigd in FLCS én Toolen: overgeslagen, met `flcs_bijwerken(true)` wint FLCS) of `weg in FLCS` (blijft in Toolen). Ontvangers, events, eigen versies en opmerkingen in Toolen blijven staan; items houden hun id. Bibliotheek, leveranciers en vaste aansluitingen: de recentst gewijzigde versie wint. Lokaal getest met een nagebootste FLCS-databank. Functie uitgevoerd op Toolen op 10 nov 2026. Eerste import op 10 nov 2026 via Claude (tijdelijke leesgebruiker `toolen_lezer` in FLCS, daarna verwijderd): 6 plannen, 1.223 items, 1.061 bibliotheekelementen, 92 bestanden nog te kopiëren.
 
+## 0010_inloggen_limieten_systeem.sql
+
+- **MFA:** wie met een wachtwoord inlogt, moet ook een code uit een app geven (aal2), anders geeft de databank niets terug (`mijn_organisaties`, `lid_van`). Platformbeheer vraagt altijd aal2. Inloggen met Microsoft, Google of een e-mailcode zonder MFA blijft werken voor gewone leden.
+- **Twee apparaten:** trigger op `auth.sessions`: een derde aanmelding verwijdert de oudste; gelogd in `maps.sessie_log`. Het oude apparaat merkt dat binnen een minuut (`sessie_geldig`) en meldt zich af.
+- **Limieten:** `pakketten.max_events_jaar`, `max_deellinks`, `max_opslag_mb` (leeg = onbeperkt), afwijken per organisatie in `organisaties.limieten`. Events en deellinks worden bewaakt (plan zonder event telt als event); opslag enkel getoond.
+- **Systeem:** `platform_systeem()` voor `/beheer?blad=systeem`.
+
+Getest: `test_0010.sql`. Uitgevoerd op Toolen op 10 nov 2026.
+
+Gsm kwijt (MFA herstellen voor iemand): in de SQL Editor `delete from auth.mfa_factors where user_id = (select id from auth.users where email = '…');`
+
 ### Nog open
 
 - Bestanden: lezen is publiek, opladen kan iedereen die in een organisatie mag schrijven, wijzigen en wissen enkel wie het bestand opleverde of een beheerder. Paden per organisatie (`<organisatie_id>/…`) volgen bij de dataverhuis.

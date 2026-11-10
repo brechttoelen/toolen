@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import Kop from "./Kop";
 import Zijbalk from "./Zijbalk";
+import Inlogkader from "./Inlogkader";
+import MfaScherm from "./MfaScherm";
+import { mfaStap } from "@/lib/mfa";
 
 export type Ik = {
   id?: string; role?: string; rol?: string; email?: string; display_name?: string;
@@ -20,6 +23,8 @@ export default async function OrgSchil({ org, verder, children, extra }: { org: 
   const supabase = await supabaseServer(org);
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect(`/login?verder=${encodeURIComponent(verder)}`);
+  const stap = await mfaStap(supabase);
+  if (stap) return <Inlogkader><MfaScherm stap={stap} /></Inlogkader>;
   const [{ data: ikData }, { data: pb }] = await Promise.all([
     supabase.rpc("ik"),
     supabase.from("platform_beheerders").select("user_id").eq("user_id", auth.user.id).maybeSingle(),

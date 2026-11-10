@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { supabaseServer } from "@/lib/supabase/server";
 import { HOOFDDOMEIN } from "@/lib/org";
 import Inlogkader from "@/components/Inlogkader";
+import MfaScherm from "@/components/MfaScherm";
+import { mfaStap } from "@/lib/mfa";
 
 export const metadata = { title: "Je organisaties" };
 
@@ -14,6 +16,8 @@ export default async function Kies() {
   const supabase = await supabaseServer();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login?verder=/kies");
+  const stap = await mfaStap(supabase);
+  if (stap) return <Inlogkader><MfaScherm stap={stap} /></Inlogkader>;
 
   const host = (await headers()).get("host") || "";
   const opDomein = host.split(":")[0].endsWith(HOOFDDOMEIN);

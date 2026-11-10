@@ -18,15 +18,17 @@ function Kopieer({ tekst }: { tekst: string }) {
   return <button className="t-knop klein" onClick={async () => { await navigator.clipboard.writeText(tekst); setOk(true); setTimeout(() => setOk(false), 1500); }}>{ok ? "Gekopieerd" : "Kopieer link"}</button>;
 }
 
-function Teller({ label, n, max }: { label: string; n: number; max: number }) {
-  const pct = max ? Math.min(100, (n / max) * 100) : 100;
+type Limieten = { events_jaar: number; max_events_jaar: number | null; deellinks: number; max_deellinks: number | null; opslag_mb: number; max_opslag_mb: number | null };
+
+function Teller({ label, n, max, eenheid = "" }: { label: string; n: number; max: number | null; eenheid?: string }) {
+  const pct = max == null ? 0 : max ? Math.min(100, (n / max) * 100) : 100;
   return (
     <div className="t-kaart" style={{ padding: "14px 16px", flex: 1 }}>
       <div className="t-rij" style={{ justifyContent: "space-between" }}>
         <span className="t-stil" style={{ fontSize: 13 }}>{label}</span>
       </div>
-      <div style={{ fontFamily: "var(--font-titel)", fontStretch: "125%", fontWeight: 800, fontSize: 28, marginTop: 4 }}>{n} <span style={{ fontSize: 18, color: "var(--t-tekst-3)" }}>/ {max}</span></div>
-      <div className={`t-balk${n >= max ? " vol" : ""}`} style={{ marginTop: 10 }}><i style={{ width: `${pct}%` }} /></div>
+      <div style={{ fontFamily: "var(--font-titel)", fontStretch: "125%", fontWeight: 800, fontSize: 28, marginTop: 4 }}>{n}{eenheid} <span style={{ fontSize: 18, color: "var(--t-tekst-3)" }}>/ {max == null ? "Onbeperkt" : `${max}${eenheid}`}</span></div>
+      <div className={`t-balk${max != null && n >= max ? " vol" : ""}`} style={{ marginTop: 10 }}><i style={{ width: `${pct}%` }} /></div>
     </div>
   );
 }
@@ -38,6 +40,7 @@ export default function OrgInstellingen() {
   const [uitn, setUitn] = useState<Uitn[]>([]);
   const [org, setOrg] = useState<Org | null>(null);
   const [gebruik, setGebruik] = useState<Gebruik | null>(null);
+  const [limieten, setLimieten] = useState<Limieten | null>(null);
   const [pakketNaam, setPakketNaam] = useState<string | null>(null);
   useEffect(() => { if (org?.pakket) db().from("pakketten").select("naam").eq("id", org.pakket).maybeSingle().then(({ data }: { data: unknown }) => setPakketNaam((data as { naam: string } | null)?.naam || null)); }, [org?.pakket]);
   const [melding, setMelding] = useState<{ soort: "ok" | "fout"; tekst: string } | null>(null);
@@ -54,6 +57,7 @@ export default function OrgInstellingen() {
     setIk(me);
     if (!me?.organisatie) return;
     const id = me.organisatie.id;
+    db().rpc("gebruik", { p_org: id }).then((r: { data: unknown }) => setLimieten(r.data as Limieten | null));
     const [l, u, o, g] = await Promise.all([
       db().rpc("leden_van", { p_org: id }),
       db().from("uitnodigingen").select("id, email, rol, token, geldig_tot").eq("organisatie_id", id).is("aanvaard_op", null).gt("geldig_tot", new Date().toISOString()).order("created_at"),
@@ -219,6 +223,13 @@ export default function OrgInstellingen() {
             {org.status === "proef" && org.proef_tot && <p className="t-sub" style={{ marginTop: 12 }}>Proefperiode tot {datum(org.proef_tot)}.</p>}
             <p className="t-sub" style={{ marginTop: 8 }}>{org.plaatsen} plaatsen · {org.lezers_max} lezers</p>
           </div>
+          {limieten && (
+            <div className="t-rij" style={{ alignItems: "stretch", flexWrap: "wrap" }}>
+              <Teller label={`Events in ${new Date().getFullYear()}`} n={limieten.events_jaar} max={limieten.max_events_jaar} />
+              <Teller label="Actieve deellinks" n={limieten.deellinks} max={limieten.max_deellinks} />
+              <Teller label="Opslag" n={Math.round(limieten.opslag_mb)} max={limieten.max_opslag_mb} eenheid=" MB" />
+            </div>
+          )}
           <div className="t-kaart" style={{ padding: 20 }}>
             <span className="t-label">Modules</span>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 24px", marginTop: 8 }}>
@@ -226,7 +237,7 @@ export default function OrgInstellingen() {
                 const aan = (org.modules || []).includes(m.id);
                 return (
                   <div key={m.id} className="t-rij" style={{ alignItems: "flex-start", gap: 10, opacity: aan ? 1 : 0.55 }}>
-                    <span className={`t-pil ${aan ? "ok" : ""}`} style={{ minWidth: 42, justifyContent: "center" }}>{aan ? "aan" : "uit"}</span>
+                    <span className={`t-pil ${aan ? "ok" : ""}`} style={{ minWidth: 42, justifyContent: "center" }}>{aan ? "Aan" : "Uit"}</span>
                     <span style={{ fontSize: 13.5 }}>{m.naam}<span className="t-stil" style={{ display: "block", fontSize: 12 }}>{m.uitleg}</span></span>
                   </div>
                 );

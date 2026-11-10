@@ -4,11 +4,8 @@
 // Coördinaten in Lambert 72, Lambert 2008 of RD New worden meteen omgezet naar
 // WGS84 (vaste ligging). Anders blijft de tekening lokaal (in meter) en leg je ze
 // zelf op de kaart, net als een PDF.
-import proj4 from 'proj4';
+import { naarLengteBreedte } from './projectie';
 
-proj4.defs('EPSG:31370', '+proj=lcc +lat_0=90 +lon_0=4.36748666666667 +lat_1=51.1666672333333 +lat_2=49.8333339 +x_0=150000.013 +y_0=5400088.438 +ellps=intl +towgs84=-106.8686,52.2978,-103.7239,0.3366,-0.457,1.8422,-1.2747 +units=m +no_defs');
-proj4.defs('EPSG:3812', '+proj=lcc +lat_0=50.797815 +lon_0=4.35921583333333 +lat_1=49.8333333333333 +lat_2=51.1666666666667 +x_0=649328 +y_0=665262 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
-proj4.defs('EPSG:28992', '+proj=sterea +lat_0=52.1561605555556 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.4171,50.3319,465.5524,1.9342,-1.6677,9.1019,4.0725 +units=m +no_defs');
 
 export const STELSELS = [
   ['lokaal', 'Lokaal (zelf op de kaart leggen)'],
@@ -145,7 +142,7 @@ export function raadStelsel(d) {
 export function naarOnderlegger(d, stelsel) {
   const [x0, y0, x1, y1] = d.kader;
   if (stelsel !== 'lokaal') {
-    const f = (c) => proj4(stelsel, 'EPSG:4326', c);
+    const f = (c) => naarLengteBreedte(stelsel, c);
     return {
       vast: true,
       lijnen: d.lijnen.map((l) => ({ laag: l.laag, c: l.c.map(f).map(([a, b]) => [Math.round(a * 1e7) / 1e7, Math.round(b * 1e7) / 1e7]) })),
