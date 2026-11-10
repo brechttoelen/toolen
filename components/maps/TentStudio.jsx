@@ -256,30 +256,59 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
         const ontwerp = pw.doek ? doekMap.get(gDoek || t.doeken?.[sg.key]) : null;
         const kl = pw.doek ? ontwerp?.eigenschappen?.kleur || pw.kleur : pw.kleur;
         const boven = vrij && panelen.length === 1 ? [...tops].reverse() : [Q(1, zh), Q(0, zh)];
-        vast = null; vlak([Q(0, 0), Q(1, 0), ...boven], kl, paan ? '#2563EB' : '#B6BCC4', { fillOpacity: pw.dekking, strokeWidth: paan ? 2.5 : 0.7, ...pd });
+        // PVC hangt als één doek per travee: geen naden per meter. Modules (glas, ABS, hout) wel met hun rand.
+        const module = pw.glas || pw.paneel || pw.hout || pw.raster || pw.vakken || pw.deur;
+        vast = null; vlak([Q(0, 0), Q(1, 0), ...boven], kl, paan ? '#2563EB' : module ? '#B6BCC4' : 'vul', { fillOpacity: pw.dekking, strokeWidth: paan ? 2.5 : 0.7, ...pd });
         vast = lagen[lagen.length - 1].d;
         if (mini && !pw.deur && !pw.raster) continue;
-        if (pw.strook) vlak([Q(0.05, 1.0), Q(0.95, 1.0), Q(0.95, 1.7), Q(0.05, 1.7)], '#BFDBFE', '#93C5FD', { fillOpacity: 0.6, ...geen }, 0.005);
-        // Hotlook: ramen in een wit kader (onderaan en bovenaan dicht).
-        if (pw.raster) {
-          const kol = Math.max(1, Math.round(pl / 1.1)); const rij = 3; const z0 = Math.min(0.6, zh * 0.2); const z1 = zh - Math.min(0.45, zh * 0.14); const rv = 0.08; const rh = (z1 - z0) / rij;
-          for (let c = 0; c < kol; c++) for (let r = 0; r < rij; r++) { const f0 = (c + rv) / kol; const f1 = (c + 1 - rv) / kol; vlak([Q(f0, z0 + r * rh + 0.05), Q(f1, z0 + r * rh + 0.05), Q(f1, z0 + (r + 1) * rh - 0.05), Q(f0, z0 + (r + 1) * rh - 0.05)], '#1F2937', mini ? 'none' : '#CBD5E1', { fillOpacity: 0.55, ...geen }, 0.005); }
+        // Details net buiten het wandvlak (in 3D zichtbaar, geen z-gevecht): latten, kaders, stijlen en panelen.
+        const nx = (by - ay) / (len || 1); const ny = -(bx - ax) / (len || 1);
+        const D = (u, z, e = 0.012) => { const q = Q(u, z); return [q[0] + nx * e, q[1] + ny * e, z]; };
+        const strip = (u0, z0, u1, z1, kleur, op = 1, e = 0.012) => vlak([D(u0, z0, e), D(u1, z0, e), D(u1, z1, e), D(u0, z1, e)], kleur, 'vul', { fillOpacity: op, ...geen }, 0.005);
+        const bu = (m0) => m0 / Math.max(0.05, pl); // meter → fractie van het paneel
+        const HOUTK = ['#8A7F72', '#7E7366', '#958A7C', '#766B5F'];
+        // Georgische ramen (PVC met vensterstrook): helder raam met witte roeden in elk vak van 1 m.
+        if (pw.strook) { const z0 = 1.0; const z1 = Math.min(2.0, zh - 0.3); strip(0.08, z0, 0.92, z1, '#C9DCEB', 0.55, 0.008); for (const u of [0.08, 0.5 - bu(0.012), 0.92 - bu(0.025)]) strip(u, z0, u + bu(0.025), z1, '#F8FAFC'); for (const z of [z0, (z0 + z1) / 2, z1 - 0.025]) strip(0.08, z, 0.92, z + 0.025, '#F8FAFC'); }
+        // Glaswand: aluminium kader met een onderregel en een tussenregel.
+        if (pw.glas && !pw.deur && !mini) { for (const u of [0, 1 - bu(0.05)]) strip(u, 0, u + bu(0.05), zh, alu); for (const z of [0, 0.25, zh - 0.06]) strip(0, z, 1, z + 0.06, alu); strip(0, 0.06, 1, 0.25, '#D1D5DB', 0.95, 0.006); }
+        // ABS-wand: harde panelen met een groef om de 50 cm en een aluminium stijl.
+        if (pw.paneel && !mini) { for (let z = 0.5; z < zh - 0.1; z += 0.5) strip(0, z - 0.012, 1, z + 0.012, '#C7CCD2'); strip(1 - bu(0.04), 0, 1, zh, alu); }
+        // Steigerhout dicht: staande planken van ± 20 cm, in licht verschillende tinten.
+        if (pw.hout && !pw.raster && !pw.deur && !mini) { const nb = Math.max(2, Math.round(pl / 0.2)); for (let k2 = 0; k2 < nb; k2++) strip(k2 / nb + bu(0.006), 0.02, (k2 + 1) / nb - bu(0.006), zh - 0.02, HOUTK[(k2 * 7 + sg.i * 3) % 4]); strip(0, zh - 0.12, 1, zh - 0.02, '#5E554B'); }
+        // Steigerhout met glas: houten onderpaneel, glas in een houten kader met een tussenregel.
+        if (pw.raster && !mini) {
+          const zo = 0.55; const zt = zh - 0.22; const r = bu(0.07);
+          const nb = Math.max(2, Math.round(pl / 0.2)); for (let k2 = 0; k2 < nb; k2++) strip(k2 / nb + bu(0.006), 0.02, (k2 + 1) / nb - bu(0.006), zo, HOUTK[(k2 * 5 + sg.i) % 4]);
+          strip(r, zo + 0.07, 1 - r, zt - 0.07, '#24313D', 0.5, 0.008);
+          for (const [z0, z1] of [[zo, zo + 0.07], [zt - 0.07, zt], [(zo + zt) * 0.62, (zo + zt) * 0.62 + 0.06]]) strip(0, z0, 1, z1, '#5E554B');
+          for (const u of [0, 1 - r]) strip(u, zo, u + r, zh, '#5E554B'); strip(0, zt, 1, zh - 0.02, '#7E7366');
         }
-        // Houtlook: liggende planken van ± 15 cm.
-        if (pw.hout && !mini) for (let z = 0.15; z < zh - 0.05; z += 0.15) lijn(Q(0, z), Q(1, z), '#7A4E2D', 0.45 * lw, 0.005);
-        if (pw.vakken) for (const z of [0.6, zh - 0.45]) lijn(Q(0, z), Q(1, z), pw.hout ? '#5C3A21' : '#CBD5E1', 0.8 * lw, 0.006);
-        if (pw.glas && !pw.deur) lijn(Q(0, 1.0), Q(1, 1.0), alu, 0.8 * lw, 0.006);
-        if (pw.paneel) for (let z = 0.5; z < zh; z += 0.5) lijn(Q(0, z), Q(1, z), '#9CA3AF', 0.6 * lw, 0.006);
-        if (pw.rits) lijn(Q(0.5, 0), Q(0.5, zh - 0.05), '#374151', 1.2 * lw, 0.006, { strokeDasharray: '3 2' });
+        if (pw.vakken && !pw.hout) for (const z of [0.6, zh - 0.45]) strip(0, z, 1, z + 0.02, '#CBD5E1');
+        if (pw.rits) { strip(0.5 - bu(0.012), 0, 0.5 + bu(0.012), zh - 0.05, '#4B5563'); strip(0.5 - bu(0.04), zh - 0.25, 0.5 + bu(0.04), zh - 0.2, '#374151'); }
         if (pw.deur) {
           // Deur: 0,9 m (enkel) of 1,8 m (dubbel) in zijn paneel(en), duidelijk getekend met kader en klinken.
           const db = Math.min(pl - 0.08, pn.n === 2 ? 1.8 : 0.9); const f0 = 0.5 - db / pl / 2; const f1 = 0.5 + db / pl / 2; const dh = Math.min(vh + 2.1, zh - 0.1);
-          vlak([Q(f0, vh), Q(f1, vh), Q(f1, dh), Q(f0, dh)], pw.glas ? '#93C5FD' : pw.hout ? '#7A4E2D' : '#9CA3AF', pw.hout ? '#3F2615' : '#111827', { fillOpacity: pw.glas ? 0.75 : 0.95, strokeWidth: 1.8 * lw, ...pd }, 0.006);
-          // Houtlook-deur: staande planken.
-          if (pw.hout && !mini) { const nb = Math.max(3, Math.round(db / 0.15)); for (let k2 = 1; k2 < nb; k2++) { const u = f0 + ((f1 - f0) * k2) / nb; lijn(Q(u, vh + 0.03), Q(u, dh - 0.03), '#5C3A21', 0.5 * lw, 0.0065); } }
-          const zk = vh + 1.05;
-          if (pn.n === 2) { lijn(Q(0.5, vh), Q(0.5, dh), '#1F2937', 1.2 * lw, 0.007); if (!mini) for (const u of [0.5 - 0.06 / pl, 0.5 + 0.06 / pl]) lijn(Q(u, zk - 0.08), Q(u, zk + 0.08), '#111827', 2 * lw, 0.008); }
-          else if (!mini) lijn(Q(f1 - 0.1 / pl, zk - 0.08), Q(f1 - 0.1 / pl, zk + 0.08), '#111827', 2 * lw, 0.008);
+          vlak([D(f0, vh, 0.01), D(f1, vh, 0.01), D(f1, dh, 0.01), D(f0, dh, 0.01)], pw.glas ? '#B9D3E6' : pw.hout ? '#7E7366' : '#EEF0F2', pw.hout ? '#3F2615' : '#4B5563', { fillOpacity: pw.glas ? 0.45 : 1, strokeWidth: 1.8 * lw, ...pd }, 0.006);
+          const vl = pn.n === 2 ? [[f0, 0.5], [0.5, f1]] : [[f0, f1]]; const kd = bu(0.06); const kk = pw.hout ? '#4F3F30' : alu;
+          if (!mini) {
+            // Kader rond de deur en rond elk deurblad; paniekbalk op 1 m.
+            strip(f0 - kd, vh, f0, dh + 0.06, kk, 1, 0.016); strip(f1, vh, f1 + kd, dh + 0.06, kk, 1, 0.016); strip(f0 - kd, dh, f1 + kd, dh + 0.06, kk, 1, 0.016);
+            for (const [u0, u1] of vl) {
+              if (pw.hout) {
+                // Steigerhouten deur: staande planken met regels en een kruis (zoals bij een wood tent).
+                const nb = Math.max(3, Math.round((u1 - u0) * pl / 0.15)); for (let k2 = 0; k2 < nb; k2++) strip(u0 + ((u1 - u0) * k2) / nb + bu(0.005), vh + 0.02, u0 + ((u1 - u0) * (k2 + 1)) / nb - bu(0.005), dh - 0.02, HOUTK[k2 % 4], 1, 0.014);
+                const zm = (vh + dh) / 2;
+                for (const z of [vh + 0.18, zm - 0.06, dh - 0.3]) strip(u0, z, u1, z + 0.12, '#5E554B', 1, 0.02);
+                for (const [p0, p1] of [[[u0, vh + 0.3], [u1, zm - 0.06]], [[u1, vh + 0.3], [u0, zm - 0.06]], [[u0, zm + 0.06], [u1, dh - 0.3]], [[u1, zm + 0.06], [u0, dh - 0.3]]]) {
+                  const w0 = bu(0.05); vlak([D(p0[0] - w0, p0[1], 0.022), D(p0[0] + w0, p0[1], 0.022), D(p1[0] + w0, p1[1], 0.022), D(p1[0] - w0, p1[1], 0.022)], '#5E554B', 'vul', geen, 0.006);
+                }
+                const links = pn.n === 2 && u0 === f0; strip(links || pn.n === 1 ? u1 - bu(0.14) : u0 + bu(0.04), vh + 1.0, links || pn.n === 1 ? u1 - bu(0.04) : u0 + bu(0.14), vh + 1.04, '#1F2937', 1, 0.03);
+              } else {
+                strip(u0, vh, u0 + kd / 1.5, dh, kk, 1, 0.016); strip(u1 - kd / 1.5, vh, u1, dh, kk, 1, 0.016); strip(u0, vh, u1, vh + 0.18, pw.glas ? kk : '#D1D5DB', 1, 0.016);
+                strip(u0 + bu(0.08), vh + 0.98, u1 - bu(0.08), vh + 1.04, pw.nood || pw.glas ? '#9CA3AF' : '#6B7280', 1, 0.03);
+              }
+            }
+          }
           if (pw.nood) vlak([Q(0.5 - 0.2 / pl, dh + 0.06), Q(0.5 + 0.2 / pl, dh + 0.06), Q(0.5 + 0.2 / pl, dh + 0.26), Q(0.5 - 0.2 / pl, dh + 0.26)], '#16A34A', '#166534', geen, 0.007);
           // Verhoogde vloer zonder terras aan die zijde: een trapje voor de deur.
           if (vh > 0.15 && sg.zijde !== 'I' && !(Number(t.terras?.[sg.zijde]) > 0)) { const nx = (by - ay) / len; const ny = -(bx - ax) / len; trap(Q(f0, 0), Q(f1, 0), [nx, ny], vh); }

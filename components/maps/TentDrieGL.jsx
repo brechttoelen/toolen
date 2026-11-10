@@ -66,7 +66,13 @@ function bouw(T, prims, laad) {
         // Tentprofielen zijn rechthoekig (± 11 × 20 cm voor de staanders en spanten), de rest rond.
         const m = new T.Mesh(alu ? doos : buis, mat(p.kl, 1, { metaal: !hout, alu, hout }));
         m.position.copy(a).add(b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(Y, d.normalize());
-        if (alu) { const k = Math.min(1.6, r / 0.042); m.scale.set(0.11 * k, L, 0.17 * k); } else m.scale.set(r, L, r);
+        if (alu) {
+          // Het doek ligt op de profielen: liggers en spanten zakken een halve profielhoogte onder het doek,
+          // staanders stoppen net onder het dak (anders steken ze erdoor).
+          const k = Math.min(1.5, r / 0.042); const hp = 0.15 * k; const vert = Math.abs(d.y) > 0.98;
+          if (vert) { const kort = Math.min(hp * 0.6, L * 0.2); m.position.y -= kort / 2; m.scale.set(0.1 * k, L - kort, hp); }
+          else { m.position.y -= hp / 2 + 0.005; m.scale.set(0.1 * k, L, hp); }
+        } else m.scale.set(r, L, r);
         m.userData.staaf = true;
         m.castShadow = true; m.receiveShadow = true; groep.add(m);
         if (!leeg(p.data)) { m.userData.data = p.data; doelen.push(m); }

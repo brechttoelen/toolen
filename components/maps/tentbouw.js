@@ -36,18 +36,18 @@ export const isVrijeTent = (m) => m.type === 'stretch' || m.type === 'sail';
 export const WANDEN = [
   { k: 'wit', naam: 'PVC wit', kleur: '#F8FAFC', dekking: 0.96 },
   { k: 'zwart', naam: 'PVC zwart', kleur: '#1F2937', dekking: 0.96 },
-  { k: 'mokka', naam: 'PVC mokka', kleur: '#8A6F5C', dekking: 0.96 },
+  { k: 'mokka', naam: 'PVC mokka', kleur: '#9C9285', dekking: 0.96 },
   { k: 'transparant', naam: 'PVC transparant', kleur: '#BFDBFE', dekking: 0.28 },
   { k: 'venster', naam: 'Met vensterstrook', kleur: '#F8FAFC', dekking: 0.96, strook: true },
   // Houtlook: wanden met houten bekleding (planken), ook met ramen.
-  { k: 'hotlook', naam: 'Houtlook ramen', kleur: '#A9744F', dekking: 1, raster: true, hout: true },
-  { k: 'hotpaneel', naam: 'Houtlook panelen', kleur: '#A9744F', dekking: 1, vakken: true, hout: true },
+  { k: 'hotlook', naam: 'Steigerhout met glas', kleur: '#8A7F72', dekking: 1, raster: true, hout: true },
+  { k: 'hotpaneel', naam: 'Steigerhout dicht', kleur: '#8A7F72', dekking: 1, vakken: true, hout: true },
   { k: 'glas', naam: 'Glas', kleur: '#93C5FD', dekking: 0.22, glas: true },
   { k: 'abs', naam: 'Vast paneel (ABS)', kleur: '#E5E7EB', dekking: 1, paneel: true },
   { k: 'deur1', naam: 'Enkele deur', kleur: '#F8FAFC', dekking: 0.96, deur: 1 },
   { k: 'deur2', naam: 'Dubbele deur', kleur: '#F8FAFC', dekking: 0.96, deur: 2 },
-  { k: 'houtdeur1', naam: 'Houtlook enkele deur', kleur: '#A9744F', dekking: 1, hout: true, deur: 1 },
-  { k: 'houtdeur2', naam: 'Houtlook dubbele deur', kleur: '#A9744F', dekking: 1, hout: true, deur: 2 },
+  { k: 'houtdeur1', naam: 'Steigerhouten deur', kleur: '#8A7F72', dekking: 1, hout: true, deur: 1 },
+  { k: 'houtdeur2', naam: 'Steigerhouten dubbele deur', kleur: '#8A7F72', dekking: 1, hout: true, deur: 2 },
   { k: 'glasdeur', naam: 'Glas met dubbele deur', kleur: '#93C5FD', dekking: 0.22, glas: true, deur: 2 },
   { k: 'rits', naam: 'Ritsdeur PVC', kleur: '#F8FAFC', dekking: 0.96, rits: true },
   { k: 'nood', naam: 'Nooduitgang', kleur: '#F8FAFC', dekking: 0.96, deur: 2, nood: true },
@@ -88,7 +88,7 @@ export const DAKEN = [
   { k: 'transparant', naam: 'Transparant', kleur: '#DBEAFE', dekking: 0.35 },
   { k: 'translucent', naam: 'Lichtdoorlatend', kleur: '#F1F5F9', dekking: 0.75 },
   { k: 'zwart', naam: 'Zwart', kleur: '#1F2937', dekking: 0.97 },
-  { k: 'mokka', naam: 'Mokka', kleur: '#8A6F5C', dekking: 0.97 },
+  { k: 'mokka', naam: 'Mokka', kleur: '#9C9285', dekking: 0.97 },
   { k: 'zand', naam: 'Zand', kleur: '#D9C7A3', dekking: 0.97 },
   { k: 'zeildoek', naam: 'Zeildoek (ivoor)', kleur: '#F7F1E1', dekking: 0.9 },
   { k: 'gestreept', naam: 'Gestreept', kleur: '#FFFFFF', dekking: 0.97, streep: '#DC2626' },
@@ -125,8 +125,8 @@ export function tentMaten(it, el) {
   // Nokhoogte volgt uit het type en de breedte (niet vrij in te stellen).
   const nok = type === 'stretch' ? (Number(t.mastH) > 0 ? Number(t.mastH) : Math.min(B, L) >= 10 ? 5 : 4.2)
     : type === 'sail' ? (Number(t.nokH) > 0 ? Number(t.nokH) : zijH + Math.min(B, L) * 0.33)
-    : type === 'kader' ? zijH + (B / 2) * Math.tan((18 * Math.PI) / 180)
-    : type === 'boog' ? zijH + B * 0.15
+    : type === 'kader' ? zijH + (B / 2) * Math.tan(((B <= 5 ? 23 : B <= 7.5 ? 19.5 : B <= 10 ? 17.2 : B <= 12.5 ? 16.8 : B <= 15 ? 16.3 : 15.1) * Math.PI) / 180)
+    : type === 'boog' ? zijH + B * 0.148
       : type === 'pagode' ? zijH + Math.min(B, L / n) * 0.48
         : zijH + Math.min(B, L) * 0.18;
   return { type, L, B, travee: L / n, n, zijH, nok: Math.round(nok * 100) / 100 };
@@ -296,7 +296,14 @@ export const runBuren = (runs, r) => (r ? { links: runs.find((q) => q !== r && s
 export function dakHoogte(m, x, y) {
   if (m.type === 'kader') return m.zijH + (m.nok - m.zijH) * (1 - Math.abs(y - m.B / 2) / (m.B / 2));
   // Booghal: vlakke cirkelboog (pijl ± 15 % van de breedte), niet half rond.
-  if (m.type === 'boog') { const h = m.nok - m.zijH; const R = (m.B * m.B / 4 + h * h) / (2 * h); const d = y - m.B / 2; return m.zijH + Math.sqrt(Math.max(0, R * R - d * d)) - (R - h); }
+  if (m.type === 'boog') {
+    // Booghal: vanaf de dakrand een flauwe, bijna rechte helling (± 21°) die bovenaan overgaat in een ruime boog,
+    // zoals de gebogen gevel van een curve-tent. De hoogte schaalt mee met de nokhoogte.
+    const half = m.B / 2; const a = 0.44 * half; const al = (21 * Math.PI) / 180; const R = a / Math.sin(al);
+    const hRuw = (half - a) * Math.tan(al) + R * (1 - Math.cos(al)); const k = (m.nok - m.zijH) / hRuw; const d = Math.abs(y - half);
+    const f = d >= a ? (half - d) * Math.tan(al) : (half - a) * Math.tan(al) + (Math.sqrt(Math.max(0, R * R - d * d)) - R * Math.cos(al));
+    return m.zijH + f * k;
+  }
   const xl = m.type === 'pagode' ? x - Math.min(m.n - 1, Math.floor(x / m.travee)) * m.travee : x; const lx = m.type === 'pagode' ? m.travee : m.L;
   const t = Math.max(Math.abs(xl - lx / 2) / (lx / 2), Math.abs(y - m.B / 2) / (m.B / 2));
   return m.zijH + (m.nok - m.zijH) * (1 - t);
