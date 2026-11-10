@@ -4757,9 +4757,9 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                   {(bouwEl.wand || bouwEl.truss || bouwEl.stelling) && (
                     <section>
                       <h3>Constructies</h3>
-                      {bouwEl.wand && bouwRij('wand', 'element', 'B-matrix wand', 'Teken de lijn, de wandbouwer opent meteen', () => kiesBouwer({ soort: 'element', el: bouwEl.wand, naam: 'de B-matrix wand' }))}
-                      {bouwEl.truss && bouwRij('truss', 'element', 'Truss', 'Teken de lijn, de trussbouwer opent meteen', () => kiesBouwer({ soort: 'element', el: bouwEl.truss, naam: 'de truss' }))}
-                      {bouwEl.stelling && bouwRij('stelling', 'element', 'Stelling', 'Klik op de kaart, de stellingbouwer opent meteen', () => kiesBouwer({ soort: 'element', el: bouwEl.stelling, naam: 'de stelling' }))}
+                      {bouwEl.wand && bouwRij('wand', 'bouw-wand', 'B-matrix wand', 'Teken de lijn, de wandbouwer opent meteen', () => kiesBouwer({ soort: 'element', el: bouwEl.wand, naam: 'de B-matrix wand' }))}
+                      {bouwEl.truss && bouwRij('truss', 'bouw-truss', 'Truss', 'Teken de lijn, de trussbouwer opent meteen', () => kiesBouwer({ soort: 'element', el: bouwEl.truss, naam: 'de truss' }))}
+                      {bouwEl.stelling && bouwRij('stelling', 'bouw-stelling', 'Stelling', 'Klik op de kaart, de stellingbouwer opent meteen', () => kiesBouwer({ soort: 'element', el: bouwEl.stelling, naam: 'de stelling' }))}
                     </section>
                   )}
                   <section>
