@@ -23,7 +23,7 @@ export default function PlanPaneel({
   onFasen, onPlan, onVergelijk, onHerstel, vergelijkVersie, onKalibreer, onKiesItem, plekItems = [], onUitFiche, onNaarVast = null, lagen = [], olBewerk = null, onBewerkOl,
   deel = 'fasen', // welk tabblad van het plan: algemeen (locatie), fasen, achtergrond of geschiedenis
 }) {
-  const [open, setOpen] = useState({ fasen: true, onderleggers: true, versies: true, fiche: !!plan.plek_id, prullenbak: false });
+  const [open, setOpen] = useState({ fasen: true, onderleggers: (plan.instellingen?.onderleggers || []).some((o) => !o.binnen), versies: true, fiche: !!plan.plek_id, prullenbak: false });
   const [plekken, setPlekken] = useState(null);
   const plek = plekken?.find((x) => x.id === plan.plek_id) || null;
   useEffect(() => {

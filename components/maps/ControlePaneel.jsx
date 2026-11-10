@@ -80,6 +80,12 @@ export default function ControlePaneel({ plan, lagen, items, elementenMap, lagen
         {onRegels && <button className="fm-knop klein" style={{ alignSelf: 'flex-start' }} onClick={onRegels}>Regels aanpassen</button>}
       </div>
       <Opmerkingen items={items} schrijven={schrijven} onKiesItem={onKiesItem} onAantal={setOpen} />
+      {heeftModule('veiligheid') && (
+      <Blok titel="Keuringsattesten" open={openBlok === 'attesten'} rechts={<span className="fm-sub">{attestProbleem ? `${attestProbleem} na te kijken` : `${attesten.length} items`}</span>}
+        info="Attesten (elektrische keuring, gas, blusser…) hangen aan een item: selecteer het en voeg rechts bij Keuringsattesten een bestand of link toe. Vervallen of ontbrekende attesten komen bij de meldingen.">
+        <AttestenOverzicht plan={plan} items={items} elementenMap={elementenMap} lagenMap={lagenMap} schrijven={schrijven} onPlan={onPlan} onKiesItem={onKiesItem} />
+      </Blok>
+      )}
     </div>
   );
 
@@ -89,12 +95,6 @@ export default function ControlePaneel({ plan, lagen, items, elementenMap, lagen
       <Blok titel="Brandveiligheid" open={openBlok === 'brand'} rechts={<span className="fm-sub">{ib.aan ? (ib.zone?.kort || 'richtwaarden') : 'uit'}</span>}
         info="Tenten en publieke structuren worden getoetst aan het reglement van de brandweerzone: aantal en breedte van de nooduitgangen, afstand tot een uitgang, blustoestellen, brandweertoegang, generatoren en gasflessen buiten. Teken nooduitgangen als lijn over de opening (de lengte is de breedte). Waarden zonder zonereglement zijn richtwaarden.">
         <Brandveiligheid plan={plan} items={items} schrijven={schrijven} onPlan={onPlan} />
-      </Blok>
-      )}
-      {heeftModule('veiligheid') && (
-      <Blok titel="Keuringsattesten" open={openBlok === 'attesten'} rechts={<span className="fm-sub">{attestProbleem ? `${attestProbleem} na te kijken` : `${attesten.length} items`}</span>}
-        info="Attesten (elektrische keuring, gas, blusser…) hangen aan een item: selecteer het en voeg rechts bij Keuringsattesten een bestand of link toe. Vervallen of ontbrekende attesten komen bij de meldingen.">
-        <AttestenOverzicht plan={plan} items={items} elementenMap={elementenMap} lagenMap={lagenMap} schrijven={schrijven} onPlan={onPlan} onKiesItem={onKiesItem} />
       </Blok>
       )}
       <Blok titel="Afstandsregels" open={openBlok === 'afstand'} rechts={<span className="fm-sub">{inst.afstandsregels.length}</span>}
