@@ -13,7 +13,7 @@ function staanders(T, groep) {
   const neem = (mat) => { mat.decompose(p, q, s); as.set(0, 1, 0).applyQuaternion(q); if (Math.abs(as.y) < 0.985 || s.y < 0.6) return; uit.push({ x: p.x, z: p.z, top: p.y + s.y / 2 }); };
   groep.updateMatrixWorld(true);
   groep.traverse((o) => {
-    if (o.geometry?.type !== 'CylinderGeometry') return;
+    if (o.geometry?.type !== 'CylinderGeometry' && !o.userData?.staaf) return;
     if (o.isInstancedMesh) { for (let i = 0; i < o.count; i++) { o.getMatrixAt(i, m4); m4.premultiply(o.matrixWorld); neem(m4); } } else if (o.isMesh) neem(o.matrixWorld);
   });
   return uit;
@@ -25,7 +25,7 @@ function snedeLijnen(T, groep, z) {
   const uit = []; const a = new T.Vector3(); const b = new T.Vector3(); const c = new T.Vector3();
   groep.updateMatrixWorld(true);
   groep.traverse((o) => {
-    if (!o.isMesh || o.isInstancedMesh || o.geometry?.type === 'CylinderGeometry' || !o.geometry?.attributes?.position) return;
+    if (!o.isMesh || o.isInstancedMesh || o.geometry?.type === 'CylinderGeometry' || o.userData?.staaf || o.geometry?.type === 'BoxGeometry' || !o.geometry?.attributes?.position) return;
     const pos = o.geometry.attributes.position; const idx = o.geometry.index; const n = idx ? idx.count : pos.count;
     const kl = o.material?.color ? `#${o.material.color.getHexString()}` : '#374151'; const op = o.material?.opacity ?? 1;
     for (let i = 0; i < n; i += 3) {
@@ -136,11 +136,11 @@ export async function bouwerPdf({ titel, sub = '', soort = 'tent', maakGroep, ho
   try {
     const groep = await maakGroep(T);
     // 3D: met grond en schaduw.
-    const w3 = wereld(T); w3.scene.add(groep); const { c, r } = omkader(T, w3, groep);
+    const w3 = wereld(T); if (soort !== 'stelling') { const { sfeer } = await import('./TentDrieGL'); await sfeer(T, rend, w3); } w3.scene.add(groep); const { c, r } = omkader(T, w3, groep); if (soort !== 'stelling') { const { zonLaag } = await import('./TentDrieGL'); zonLaag(w3, c, r); }
     const cam = new T.PerspectiveCamera(32, 1.5, 0.1, 2000); standpunt(cam, c, r, 32, 24, 0.66);
     rend.setSize(1800, 1200, false); rend.render(w3.scene, cam); const drie = rend.domElement.toDataURL('image/jpeg', 0.9);
     // Zichten: witte achtergrond, zacht licht, zonder grond.
-    w3.scene.remove(w3.grond); w3.scene.background = new T.Color('#ffffff'); rend.shadowMap.enabled = false;
+    w3.scene.remove(w3.grond); w3.scene.background = new T.Color('#ffffff'); rend.shadowMap.enabled = false; rend.toneMapping = T.NoToneMapping;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3', compress: true });
     const W = 420; const H = 297; const M = 12;
     const kop = (blad) => {

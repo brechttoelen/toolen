@@ -7,6 +7,24 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { wereld, omkader, standpunt } from './StellingDrieGL';
 
 const V = (T, p) => new T.Vector3(p[0], p[2], -p[1]);
+// Aluminium van tentprofielen (naturel, wit, zwart): rechthoekig profiel en mat geborsteld metaal.
+const ALU_KL = new Set(['#9CA3AF', '#E5E7EB', '#374151']);
+const HOUT = new Set(['#A47148', '#8B5E34', '#7A4E2D']);
+
+// Licht en omgeving voor een echtere weergave: zachte omgevingsreflecties (voor aluminium en PVC), filmische
+// tooncurve, warm zonlicht en een gras-achtige grond. rend = de renderer die de omgevingskaart maakt.
+// Lagere zon dan bij de stelling: meer licht-donker op het doek, zodat de vorm van het dak leest.
+export function zonLaag(w, c, r) { if (!w.zon) return; w.zon.position.set(c.x + r * 1.5, r * 1.25, c.z + r * 1.1); w.zon.target.position.copy(c); const sh = w.zon.shadow.camera; sh.left = -r * 2; sh.right = r * 2; sh.top = r * 2; sh.bottom = -r * 2; sh.far = r * 8; sh.updateProjectionMatrix(); }
+export async function sfeer(T, rend, w, { grond = '#8E9A7C' } = {}) {
+  try {
+    const { RoomEnvironment } = await import('three/examples/jsm/environments/RoomEnvironment.js');
+    const pm = new T.PMREMGenerator(rend); w.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; w.scene.environmentIntensity = 0.45; pm.dispose();
+  } catch { /* zonder omgevingskaart: gewoon licht */ }
+  rend.toneMapping = T.ACESFilmicToneMapping; rend.toneMappingExposure = 0.92;
+  w.scene.background = new T.Color('#E9EEF3');
+  w.scene.traverse((o) => { if (o.isHemisphereLight) { o.intensity = 0.7; o.groundColor?.set('#6B7560'); } if (o.isDirectionalLight) { o.intensity = 2.6; o.color.set('#FFF4E2'); } });
+  if (w.grond?.material) { w.grond.material.color.set(grond); w.grond.material.roughness = 1; }
+}
 const PX = 0.016; // lijndikte (px in de 2D-tekening) → straal in meter
 const leeg = (d) => !d || !Object.keys(d).length;
 const zelfde = (a, b) => !!a && !!b && a.seg === b.seg && a.dak === b.dak && a.lid === b.lid && a.frame === b.frame && (a.pan == null || b.pan == null || a.pan === b.pan);
@@ -15,8 +33,10 @@ const zelfde = (a, b) => !!a && !!b && a.seg === b.seg && a.dak === b.dak && a.l
 function bouw(T, prims, laad) {
   const groep = new T.Group(); const mats = new Map(); const doelen = [];
   const mat = (kleur, op = 1, extra = {}) => {
-    const k = `${kleur}|${op}|${extra.metaal ? 1 : 0}`;
-    if (!mats.has(k)) mats.set(k, new T.MeshStandardMaterial({ color: kleur || '#ffffff', roughness: extra.metaal ? 0.45 : 0.85, metalness: extra.metaal ? 0.3 : 0, transparent: op < 1, opacity: op, side: T.DoubleSide, depthWrite: op >= 0.6, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
+    const k = `${kleur}|${op}|${extra.metaal ? 1 : 0}|${extra.alu ? 1 : 0}|${extra.hout ? 1 : 0}`;
+    // PVC en doek: licht glanzend; transparant PVC en glas: glad; aluminium: geborsteld metaal; hout: mat.
+    const ruw = extra.alu ? 0.34 : extra.metaal ? 0.45 : extra.hout ? 0.8 : op < 0.5 ? 0.12 : 0.62; const met = extra.alu ? 0.8 : extra.metaal ? 0.45 : 0;
+    if (!mats.has(k)) mats.set(k, new T.MeshStandardMaterial({ color: kleur || '#ffffff', roughness: ruw, metalness: met, envMapIntensity: extra.alu ? 1.2 : op < 0.5 ? 1.2 : 0.35, transparent: op < 1, opacity: op, side: T.DoubleSide, depthWrite: op >= 0.6, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
     return mats.get(k);
   };
   const lijnMats = new Map(); const lijnMat = (kl) => { if (!lijnMats.has(kl)) lijnMats.set(kl, new T.LineBasicMaterial({ color: kl })); return lijnMats.get(kl); };
@@ -26,7 +46,7 @@ function bouw(T, prims, laad) {
     g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); if (uv) g.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2));
     g.computeVertexNormals(); return g;
   };
-  const Y = new T.Vector3(0, 1, 0); const buis = new T.CylinderGeometry(1, 1, 1, 10, 1);
+  const Y = new T.Vector3(0, 1, 0); const buis = new T.CylinderGeometry(1, 1, 1, 12, 1); const doos = new T.BoxGeometry(1, 1, 1);
   for (const p of prims) {
     if (p.k === 'vlak') {
       if (!p.vul || p.w.length < 3) continue;
@@ -42,8 +62,12 @@ function bouw(T, prims, laad) {
       const a = V(T, p.a); const b = V(T, p.b); const d = b.clone().sub(a); const L = d.length(); if (L < 0.005) continue;
       if (p.r || (p.w || 1) >= 1.2) {
         const r = p.r || Math.max(0.012, Math.min(0.07, (p.w || 1) * PX));
-        const m = new T.Mesh(buis, mat(p.kl, 1, { metaal: true }));
-        m.position.copy(a).add(b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(Y, d.normalize()); m.scale.set(r, L, r);
+        const alu = ALU_KL.has(p.kl) && !p.r && r > 0.02; const hout = HOUT.has(p.kl);
+        // Tentprofielen zijn rechthoekig (± 11 × 20 cm voor de staanders en spanten), de rest rond.
+        const m = new T.Mesh(alu ? doos : buis, mat(p.kl, 1, { metaal: !hout, alu, hout }));
+        m.position.copy(a).add(b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(Y, d.normalize());
+        if (alu) { const k = Math.min(1.6, r / 0.042); m.scale.set(0.11 * k, L, 0.17 * k); } else m.scale.set(r, L, r);
+        m.userData.staaf = true;
         m.castShadow = true; m.receiveShadow = true; groep.add(m);
         if (!leeg(p.data)) { m.userData.data = p.data; doelen.push(m); }
       } else groep.add(new T.Line(new T.BufferGeometry().setFromPoints([a, b]), lijnMat(p.kl)));
@@ -76,7 +100,7 @@ export async function tentGroep(T, prims) {
 // Een licht overlay over de meshes van één doel (gekozen of onder de muis).
 function gloed(T, meshes, kleur, op) {
   const g = new T.Group(); const m = new T.MeshBasicMaterial({ color: kleur, transparent: true, opacity: op, depthTest: false, side: T.DoubleSide });
-  for (const x of meshes) { const c = new T.Mesh(x.geometry, m); c.position.copy(x.position); c.quaternion.copy(x.quaternion); c.scale.copy(x.scale).multiplyScalar(x.geometry.type === 'CylinderGeometry' ? 1.6 : 1); c.renderOrder = 10; g.add(c); }
+  for (const x of meshes) { const c = new T.Mesh(x.geometry, m); c.position.copy(x.position); c.quaternion.copy(x.quaternion); c.scale.copy(x.scale).multiplyScalar(x.userData.staaf ? 1.6 : 1); c.renderOrder = 10; g.add(c); }
   return g;
 }
 
@@ -88,10 +112,10 @@ export function tentFoto(prims, sleutel, { b = 640, h = 360, hoek = 32, kantel =
     const T = await import('three');
     if (!rend0) { rend0 = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); rend0.shadowMap.enabled = true; rend0.shadowMap.type = T.PCFSoftShadowMap; rend0.outputColorSpace = T.SRGBColorSpace; }
     rend0.setPixelRatio(2); rend0.setSize(b, h, false);
-    const w = wereld(T); const laders = []; const tl = new T.TextureLoader(); tl.setCrossOrigin('anonymous');
+    const w = wereld(T); await sfeer(T, rend0, w); const laders = []; const tl = new T.TextureLoader(); tl.setCrossOrigin('anonymous');
     const { groep } = bouw(T, prims, (href, zet) => laders.push(new Promise((ok) => tl.load(href, (tx) => { tx.colorSpace = T.SRGBColorSpace; zet(tx); ok(); }, undefined, ok))));
     w.scene.add(groep); await Promise.race([Promise.all(laders), new Promise((r) => setTimeout(r, 4000))]);
-    const { c, r } = omkader(T, w, groep); const cam = new T.PerspectiveCamera(32, b / h, 0.1, 2000); standpunt(cam, c, r, hoek, kantel, 0.62);
+    const { c, r } = omkader(T, w, groep); zonLaag(w, c, r); const cam = new T.PerspectiveCamera(32, b / h, 0.1, 2000); standpunt(cam, c, r, hoek, kantel, 0.62);
     rend0.render(w.scene, cam); const url = rend0.domElement.toDataURL('image/jpeg', 0.86);
     w.scene.traverse((o) => { o.geometry?.dispose?.(); }); return url;
   }).catch(() => null));
@@ -113,7 +137,7 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
         rend = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); rend.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); rend.setSize(w, h);
         rend.shadowMap.enabled = true; rend.shadowMap.type = T.PCFSoftShadowMap; rend.outputColorSpace = T.SRGBColorSpace;
         el.appendChild(rend.domElement); rend.domElement.style.display = 'block';
-        const wr = wereld(T); const cam = new T.PerspectiveCamera(32, w / h, 0.1, 2000);
+        const wr = wereld(T); await sfeer(T, rend, wr); if (weg) return; const cam = new T.PerspectiveCamera(32, w / h, 0.1, 2000);
         ctl = new OrbitControls(cam, rend.domElement); ctl.enableDamping = true; ctl.dampingFactor = 0.12; ctl.maxPolarAngle = Math.PI / 2 - 0.03; ctl.screenSpacePanning = true;
         let raf = 0; const teken = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { if (ctl.update()) teken(); rend.render(wr.scene, cam); }); };
         ctl.addEventListener('change', teken);
@@ -132,7 +156,7 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
     const a = api.current; if (!klaar || !a) return;
     if (a.groep) { a.scene.remove(a.groep); a.groep.traverse((o) => { if (o.geometry?.type === 'BufferGeometry') o.geometry.dispose(); }); }
     const { groep, doelen } = bouw(a.T, prims, a.laad); a.scene.add(groep); a.groep = groep; a.doelen = doelen;
-    const { c, r } = omkader(a.T, a, groep);
+    const { c, r } = omkader(a.T, a, groep); zonLaag(a, c, r);
     a.thuis = () => { standpunt(a.cam, c, r, hoek, kantel); a.ctl.target.copy(c); a.ctl.update(); a.teken(); };
     if (eerste.current || (a.vorigeR && (r > a.vorigeR * 1.6 || r < a.vorigeR / 1.6))) { eerste.current = false; a.thuis(); }
     a.vorigeR = r; a.teken();
