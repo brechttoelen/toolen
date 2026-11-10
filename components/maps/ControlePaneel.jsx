@@ -5,7 +5,7 @@ import { AttestenOverzicht, attestStatus } from './attesten';
 import { heeftModule } from './merk';
 import { useEffect, useMemo, useState } from 'react';
 import { controleer, instControle, meldingSleutel } from './controle';
-import { maps } from './db';
+import { maps, foutTekst } from './db';
 import { instBrand, zoneVoorTekst, VELDEN, haal, zetEigen, STANDAARD_BRON } from './veiligheid';
 import { ZONES } from './brandweerzones';
 import { sorteerCategorieen } from './categorieen';
@@ -52,7 +52,8 @@ export async function telOpenOpmerkingen(items) {
   return count || 0;
 }
 
-export default function ControlePaneel({ plan, lagen, items, elementenMap, lagenMap, fasen, schrijven, onPlan, onKiesItem, openBlok = null, vast = [] }) {
+// deel 'meldingen' staat links naast de kaart; deel 'regels' staat rechts bij het plan (tab Regels).
+export default function ControlePaneel({ plan, lagen, items, elementenMap, lagenMap, fasen, schrijven, onPlan, onKiesItem, openBlok = null, vast = [], deel = 'meldingen', onRegels = null }) {
   const [open, setOpen] = useState(null);
   const inst = instControle(plan, lagen);
   useEffect(() => { telOpenOpmerkingen(items).then(setOpen).catch(() => setOpen(null)); }, [items.length]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -68,7 +69,7 @@ export default function ControlePaneel({ plan, lagen, items, elementenMap, lagen
   const attesten = items.filter((i) => !i.verborgen && i.velden?.attesten?.length);
   const attestProbleem = attesten.filter((i) => i.velden.attesten.some((a) => ['vervallen', 'bijna'].includes(attestStatus(a).code))).length;
 
-  return (
+  if (deel === 'meldingen') return (
     <div>
       <div className="fm-sectie">
         <div style={{ display: 'flex', gap: 8 }}>
@@ -76,9 +77,14 @@ export default function ControlePaneel({ plan, lagen, items, elementenMap, lagen
           <div style={{ flex: 1, padding: 8, border: '1px solid #e8e8e6' }}><div className="fm-sub">Meldingen</div><div style={{ fontSize: 18, fontWeight: 600 }}>{meldingen.filter((x) => !x.goedgekeurd).length}</div></div>
         </div>
         <MeldingenLijst meldingen={meldingen} onKiesItem={onKiesItem} onGoedkeuren={schrijven ? goedkeuren : null} />
+        {onRegels && <button className="fm-knop klein" style={{ alignSelf: 'flex-start' }} onClick={onRegels}>Regels aanpassen</button>}
       </div>
+      <Opmerkingen items={items} schrijven={schrijven} onKiesItem={onKiesItem} onAantal={setOpen} />
+    </div>
+  );
 
-      <div className="fm-meerkop">Regels en instellingen</div>
+  return (
+    <div>
       {heeftModule('veiligheid') && (
       <Blok titel="Brandveiligheid" open={openBlok === 'brand'} rechts={<span className="fm-sub">{ib.aan ? (ib.zone?.kort || 'richtwaarden') : 'uit'}</span>}
         info="Tenten en publieke structuren worden getoetst aan het reglement van de brandweerzone: aantal en breedte van de nooduitgangen, afstand tot een uitgang, blustoestellen, brandweertoegang, generatoren en gasflessen buiten. Teken nooduitgangen als lijn over de opening (de lengte is de breedte). Waarden zonder zonereglement zijn richtwaarden.">
@@ -113,6 +119,42 @@ export default function ControlePaneel({ plan, lagen, items, elementenMap, lagen
       </Blok>
       )}
     </div>
+  );
+}
+
+// Opmerkingen van collega's en externen (via een deellink) bij items van dit plan.
+function Opmerkingen({ items, schrijven, onKiesItem, onAantal }) {
+  const [aan, setAan] = useState(false);
+  const [opm, setOpm] = useState(null);
+  const [fout, setFout] = useState('');
+  useEffect(() => {
+    if (!aan) return;
+    const ids = items.map((i) => i.id);
+    if (!ids.length) { setOpm([]); return; }
+    maps().from('opmerkingen').select('*').in('item_id', ids.slice(0, 900)).order('created_at', { ascending: false })
+      .then(({ data, error }) => { if (error) setFout(foutTekst(error)); else setOpm(data || []); });
+  }, [aan, items.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  const zetStatus = async (o) => {
+    const status = o.status === 'open' ? 'opgelost' : 'open';
+    const { error } = await maps().from('opmerkingen').update({ status }).eq('id', o.id);
+    if (error) { setFout(foutTekst(error)); return; }
+    const nieuw = opm.map((x) => (x.id === o.id ? { ...x, status } : x));
+    setOpm(nieuw); onAantal?.(nieuw.filter((x) => x.status === 'open').length);
+  };
+  const itemNaam = (id) => { const i = items.find((x) => x.id === id); return i?.naam || i?.soort || 'item'; };
+  return (
+    <Blok titel="Opmerkingen" open={aan} onWissel={setAan} rechts={opm ? <span className="fm-sub">{opm.filter((o) => o.status === 'open').length} open</span> : null}>
+      {fout && <div className="fm-melding fout">{fout}</div>}
+      {opm === null && <div className="fm-sub">Laden…</div>}
+      {opm && !opm.length && <div className="fm-sub">Geen opmerkingen in dit plan.</div>}
+      {opm?.map((o) => (
+        <div key={o.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '6px 0', borderBottom: '1px solid #f4f4f2', opacity: o.status === 'open' ? 1 : 0.55 }}>
+          <button onClick={() => onKiesItem(o.item_id)} style={{ border: 0, background: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontSize: 12, color: '#686D76' }}>{itemNaam(o.item_id)} · {o.auteur_naam || 'Een collega'}{o.deel_link_id ? ' (extern)' : ''}</button>
+          <span style={{ fontSize: 13 }}>{o.tekst}</span>
+          {schrijven && <button className="fm-knop klein" style={{ alignSelf: 'flex-start' }} onClick={() => zetStatus(o)}>{o.status === 'open' ? 'Opgelost' : 'Heropenen'}</button>}
+        </div>
+      ))}
+    </Blok>
   );
 }
 

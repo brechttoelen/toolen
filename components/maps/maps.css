@@ -2236,3 +2236,17 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-tekenrij b { font-size: 13px; font-weight: 600; }
 .fm-tekenrij small { font-size: 11.5px; color: var(--t-tekst-2, #4A5A75); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fm-tekenrij kbd { font: 500 11px var(--font-sans, sans-serif); color: var(--t-tekst-3, #8492A8); border: 1px solid var(--t-rand, #E3E8EF); border-radius: 4px; padding: 1px 5px; }
+
+/* Plan rechts (als niets geselecteerd is) */
+.fm-editor .fm-topbalk > .fm-titel { cursor: pointer; padding: 3px 8px; margin-left: -8px; border-radius: 4px; }
+.fm-editor .fm-topbalk > .fm-titel:hover { background: #F1F3F6; }
+.fm-editor .fm-topbalk > .fm-titel.aan { background: #EAF0F8; }
+.fm-editor .fm-topbalk > .fm-titel:focus-visible { outline: 2px solid #022056; outline-offset: 1px; }
+.fm-planzij { display: flex; flex-direction: column; overflow: hidden; }
+.fm-plantabs { display: flex; flex: none; border-bottom: 1px solid var(--fm-rand); padding: 0 6px; overflow-x: auto; scrollbar-width: none; }
+.fm-plantabs::-webkit-scrollbar { display: none; }
+.fm-plantabs button { flex: 1 0 auto; border: 0; background: none; padding: 9px 6px 8px; font: inherit; font-size: 12px; font-weight: 500; color: var(--fm-grijs); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.fm-plantabs button:hover { color: #022056; }
+.fm-plantabs button.aan { color: #022056; font-weight: 600; border-bottom-color: #022056; }
+.fm-plantabs button:focus-visible { outline: 2px solid #022056; outline-offset: -2px; }
+.fm-planzij-inhoud { flex: 1; overflow-y: auto; overflow-x: hidden; }

@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from 'react';
 import { maps, foutTekst, namenVan } from './db';
 import { nieuweOnderlegger, verwijderBestand } from './onderlegger';
 import { zichtbareBreedte } from './OnderleggerGrepen';
-import { getal, middelpunt, lengte } from './geo';
 
 // Vergelijking tussen een bewaarde versie en het huidige plan.
 export function verschil(oud, nu) {
@@ -22,8 +21,9 @@ export function verschil(oud, nu) {
 export default function PlanPaneel({
   plan, fasen, items, schrijven, kaart, kalibratie,
   onFasen, onPlan, onVergelijk, onHerstel, vergelijkVersie, onKalibreer, onKiesItem, plekItems = [], onUitFiche, onNaarVast = null, lagen = [], olBewerk = null, onBewerkOl,
+  deel = 'fasen', // welk tabblad van het plan: algemeen (locatie), fasen, achtergrond of geschiedenis
 }) {
-  const [open, setOpen] = useState({ fasen: true, onderleggers: true, versies: false, opmerkingen: false, fiche: false, afsluitingen: false });
+  const [open, setOpen] = useState({ fasen: true, onderleggers: true, versies: true, fiche: !!plan.plek_id, prullenbak: false });
   const [plekken, setPlekken] = useState(null);
   const plek = plekken?.find((x) => x.id === plan.plek_id) || null;
   useEffect(() => {
@@ -43,36 +43,9 @@ export default function PlanPaneel({
     const { error } = await maps().from('plekken').update({ contacten }).eq('id', plek.id);
     if (error) setFout(foutTekst(error));
   };
-  const afsluitingen = items.filter((i) => i.velden?.afsluiting?.soort);
-  const AFS = { volledig: 'Volledig afgesloten', plaatselijk: 'Plaatselijk verkeer', eenrichting: 'Eenrichting', parkeerverbod: 'Parkeerverbod' };
-  const tijd = (t) => (t ? new Date(t).toLocaleString('nl-BE', { dateStyle: 'short', timeStyle: 'short' }) : '');
-  const afsCsv = () => {
-    const r = [['Straat', 'Soort', 'Van', 'Tot', 'Lengte (m)', 'Naam', 'Breedtegraad', 'Lengtegraad']];
-    for (const i of afsluitingen) { const a = i.velden.afsluiting; const m = middelpunt(i.geometrie) || []; r.push([a.straat || '', AFS[a.soort] || a.soort, tijd(a.van), tijd(a.tot), i.geometrie.type === 'LineString' ? Math.round(lengte(i.geometrie)) : '', i.naam || '', m[1]?.toFixed(6) || '', m[0]?.toFixed(6) || '']); }
-    const blob = new Blob(['\ufeff' + r.map((x) => x.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Wegafsluitingen - ${plan.naam}.csv`; a.click();
-  };
-  const afsPdf = async () => {
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text(`Wegafsluitingen · ${plan.naam}`, 12, 16);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text([plan.editie_naam, plan.locatie, `versie ${plan.versie}`].filter(Boolean).join(' · '), 12, 22);
-    let y = 32;
-    const kol = [12, 82, 132, 172, 212, 240];
-    doc.setFont('helvetica', 'bold'); ['Straat', 'Soort', 'Van', 'Tot', 'Lengte', 'Opmerking'].forEach((t, k) => doc.text(t, kol[k], y)); y += 6;
-    doc.setFont('helvetica', 'normal');
-    for (const i of [...afsluitingen].sort((a, b) => String(a.velden.afsluiting.van || '').localeCompare(String(b.velden.afsluiting.van || '')))) {
-      if (y > 195) { doc.addPage(); y = 16; }
-      const a = i.velden.afsluiting;
-      [a.straat || i.naam || '', AFS[a.soort] || a.soort, tijd(a.van), tijd(a.tot), i.geometrie.type === 'LineString' ? `${Math.round(lengte(i.geometrie))} m` : '', (i.notitie || '').slice(0, 40)].forEach((t, k) => doc.text(String(t).slice(0, 40), kol[k], y));
-      doc.setDrawColor(232, 232, 230); doc.line(12, y + 2, 285, y + 2); y += 7;
-    }
-    doc.save(`Wegafsluitingen - ${plan.naam}.pdf`.replace(/[\\/:*?"<>|]/g, ''));
-  };
   const [fout, setFout] = useState('');
   const [bezig, setBezig] = useState('');
   const [versies, setVersies] = useState(null);
-  const [opm, setOpm] = useState(null);
   const bestandRef = useRef(null);
   const onderleggers = plan.instellingen?.onderleggers || [];
   const buiten = onderleggers.filter((o) => !o.binnen); // grondplannen van binnenplannen staan in het binnenplan zelf
@@ -155,30 +128,11 @@ export default function PlanPaneel({
     onVergelijk({ id: v.id, versie: v.versie, items: data.momentopname?.items || [] });
   };
 
-  // ---------- Opmerkingen ----------
-  useEffect(() => {
-    if (!open.opmerkingen) return;
-    const ids = items.map((i) => i.id);
-    if (!ids.length) { setOpm([]); return; }
-    maps().from('opmerkingen').select('*').in('item_id', ids.slice(0, 900)).order('created_at', { ascending: false })
-      .then(({ data, error }) => { if (error) setFout(foutTekst(error)); else setOpm(data || []); });
-  }, [open.opmerkingen, items.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const zetStatus = async (o) => {
-    const status = o.status === 'open' ? 'opgelost' : 'open';
-    const { error } = await maps().from('opmerkingen').update({ status }).eq('id', o.id);
-    if (error) { setFout(foutTekst(error)); return; }
-    setOpm((l) => l.map((x) => (x.id === o.id ? { ...x, status } : x)));
-  };
-
-  const itemNaam = (id) => { const i = items.find((x) => x.id === id); return i?.naam || i?.soort || 'item'; };
-  const openOpm = (opm || []).filter((o) => o.status === 'open').length;
-
   return (
     <div>
       {fout && <div className="fm-melding fout" style={{ margin: 10 }}>{fout}</div>}
 
-      <Blok titel="Fasen" open={open.fasen} onWissel={() => wissel('fasen')} info="Een item zonder fase hoort bij alle fasen. Bij een geselecteerd item kies je rechts in welke fasen het staat." rechts={<span className="fm-sub">{fasen.length}</span>}>
+      {deel === 'fasen' && <Blok titel="Fasen" open={open.fasen} onWissel={() => wissel('fasen')} info="Een item zonder fase hoort bij alle fasen. Bij een geselecteerd item kies je rechts in welke fasen het staat." rechts={<span className="fm-sub">{fasen.length}</span>}>
         {fasen.map((f, i) => (
           <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 8, borderBottom: '1px solid #f4f4f2' }}>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -201,8 +155,9 @@ export default function PlanPaneel({
         ))}
         {!fasen.length && <div className="fm-sub">Geen fasen. Items zonder fase zijn altijd zichtbaar.</div>}
         {schrijven && <button className="fm-knop klein" onClick={nieuweFase}>Fase toevoegen</button>}
-      </Blok>
+      </Blok>}
 
+      {deel === 'achtergrond' && <>
       <Blok titel="Achtergrondtekeningen" open={open.onderleggers} onWissel={() => wissel('onderleggers')} info="PDF, PNG, JPG of DXF onder je tekening om over te tekenen. Een DXF in Lambert 72, Lambert 2008 of RD New ligt meteen juist; de rest sleep, schaal en draai je op de kaart." rechts={<span className="fm-sub">{buiten.length}</span>}>
         {buiten.map((o) => {
           const bezigHier = olBewerk === o.id;
@@ -234,8 +189,11 @@ export default function PlanPaneel({
         )}
       </Blok>
 
-      <Blok titel="Vaste items van deze locatie" open={open.fiche} onWissel={() => wissel('fiche')} info="Blijft over edities heen: stroomkasten, waterpunten, putten, bomen, doorrijhoogtes, contacten. Grijs zichtbaar onder elk plan op deze plek." rechts={<span className="fm-sub">{plekItems.length}</span>}>
-        <label className="fm-veld">Locatie
+      </>}
+
+      {deel === 'algemeen' && <>
+      <Blok titel="Locatie en vaste items" open={open.fiche} onWissel={() => wissel('fiche')} info="Blijft over edities heen: stroomkasten, waterpunten, putten, bomen, doorrijhoogtes, contacten. Grijs zichtbaar onder elk plan op deze plek." rechts={<span className="fm-sub">{plekItems.length}</span>}>
+        <label className="fm-veld">Plaatsfiche
           <select value={plan.plek_id || ''} disabled={!schrijven} onChange={(e) => onPlan({ plek_id: e.target.value || null })}>
             <option value="">Geen plaatsfiche</option>
             {(plekken || []).map((x) => <option key={x.id} value={x.id}>{x.naam}</option>)}
@@ -269,21 +227,9 @@ export default function PlanPaneel({
         )}
       </Blok>
 
-      <Blok titel="Wegafsluitingen" open={open.afsluitingen} onWissel={() => wissel('afsluitingen')} info="Lijnen en punten met een wegafsluiting (straat en tijdvenster, rechts bij Info). Dit is de lijst voor de politievergunning." rechts={<span className="fm-sub">{afsluitingen.length}</span>}>
-        {afsluitingen.map((i) => (
-          <button key={i.id} onClick={() => onKiesItem(i.id)} style={{ textAlign: 'left', border: 0, borderLeft: '3px solid #B91C1C', background: '#FAFAFB', padding: '6px 8px', fontSize: 12, cursor: 'pointer' }}>
-            <strong>{i.velden.afsluiting.straat || i.naam || 'Straat?'}</strong> · {AFS[i.velden.afsluiting.soort]}<br />
-            <span className="fm-sub">{tijd(i.velden.afsluiting.van)} – {tijd(i.velden.afsluiting.tot)}</span>
-          </button>
-        ))}
-        {afsluitingen.length > 0 && (
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button className="fm-knop klein" onClick={afsCsv}>Excel (CSV)</button>
-            <button className="fm-knop klein" onClick={afsPdf}>PDF</button>
-          </div>
-        )}
-      </Blok>
+      </>}
 
+      {deel === 'geschiedenis' && <>
       <Blok titel="Versies" open={open.versies} onWissel={() => wissel('versies')} rechts={<span className="fm-sub">nu v{plan.versie}</span>}>
         {versies === null && <div className="fm-sub">Laden…</div>}
         {versies && !versies.length && <div className="fm-sub">Nog geen bewaarde versies. Met "Versie bewaren" bovenaan leg je de huidige stand vast.</div>}
@@ -312,17 +258,7 @@ export default function PlanPaneel({
 
       <Prullenbak plan={plan} schrijven={schrijven} open={!!open.prullenbak} onWissel={() => wissel('prullenbak')} />
 
-      <Blok titel="Opmerkingen" open={open.opmerkingen} onWissel={() => wissel('opmerkingen')} rechts={opm ? <span className="fm-sub">{openOpm} open</span> : null}>
-        {opm === null && <div className="fm-sub">Laden…</div>}
-        {opm && !opm.length && <div className="fm-sub">Geen opmerkingen in dit plan.</div>}
-        {opm?.map((o) => (
-          <div key={o.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '6px 0', borderBottom: '1px solid #f4f4f2', opacity: o.status === 'open' ? 1 : 0.55 }}>
-            <button onClick={() => onKiesItem(o.item_id)} style={{ border: 0, background: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontSize: 12, color: '#686D76' }}>{itemNaam(o.item_id)} · {o.auteur_naam || 'een collega'}{o.deel_link_id ? ' (extern)' : ''}</button>
-            <span style={{ fontSize: 13 }}>{o.tekst}</span>
-            {schrijven && <button className="fm-knop klein" style={{ alignSelf: 'flex-start' }} onClick={() => zetStatus(o)}>{o.status === 'open' ? 'Opgelost' : 'Heropenen'}</button>}
-          </div>
-        ))}
-      </Blok>
+      </>}
     </div>
   );
 }

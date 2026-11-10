@@ -203,6 +203,11 @@ export default function Editor({ planId }) {
   const [geselecteerd, setGeselecteerd] = useState(null);
   const [popupDiv, setPopupDiv] = useState(null);
   const [tab, setTab] = useState(null);
+  // Rechts: het plan zelf als niets geselecteerd is (zoals de eigenschappen van een item als er iets geselecteerd is).
+  const [planZicht, setPlanZicht] = useState(() => { try { return localStorage.getItem('fm-planpaneel') !== 'uit'; } catch { return true; } });
+  const [planTab, setPlanTab] = useState('algemeen');
+  const zetPlanZicht = (aan) => { setPlanZicht(aan); try { localStorage.setItem('fm-planpaneel', aan ? 'aan' : 'uit'); } catch {} };
+  const toonPlan = (t) => { setVolScherm(false); setGeselecteerd(null); setExtra([]); setVastSel(null); if (t) setPlanTab(t); zetPlanZicht(true); };
   const [uitklap, setUitklap] = useState(null);
   // Icoon en kleur voor nieuwe punten (blijft bewaard in deze browser).
   const [puntStijl, setPuntStijlState] = useState(() => { try { return JSON.parse(localStorage.getItem('fm-puntstijl') || '{}'); } catch { return {}; } });
@@ -4326,15 +4331,19 @@ export default function Editor({ planId }) {
       ['PDF van het beeld', () => setDialoog('pdf'), 'pdf afdrukken kader schaal'],
       ...(schrijven ? [['Importeren', () => setUitvoer({ tab: 'importeren' }), 'kml gpx csv cad']] : []),
       ['Versie bewaren', () => versieBewaren(), 'opslaan'],
-      ['Versies bekijken en terugzetten', () => zetTab('plan'), 'herstellen'],
+      ['Versies bekijken en terugzetten', () => toonPlan('geschiedenis'), 'herstellen geschiedenis'],
       ['Lagen', () => zetTab('lagen'), ''],
       ['Materiaal per leverancier', () => setMateriaalOpen(true), 'stuklijst lijsten materiaal leveranciers'],
       ...(heeftModule('stroom') ? [['Elektriciteit', () => zetTab('stroom'), 'stroom lijsten kabels']] : []),
       ...(heeftModule('signalisatie') ? [['Borden (signalisatie)', () => zetTab('sign'), 'lijsten wegwijzers']] : []),
       ['Draaiboek', () => zetTab('draaiboek'), 'opbouw afbraak'],
-      ...(heeftModule('veiligheid') ? [['Keuringsattesten', () => { setControleBlok('attesten'); zetTab('controle'); }, 'controle attesten'], ['Brandveiligheid', () => { setControleBlok('brand'); zetTab('controle'); }, 'controle brandweer']] : []),
+      ...(heeftModule('veiligheid') ? [['Keuringsattesten', () => { setControleBlok('attesten'); toonPlan('regels'); }, 'controle attesten regels'], ['Brandveiligheid', () => { setControleBlok('brand'); toonPlan('regels'); }, 'controle brandweer regels']] : []),
       ['Controle', () => zetTab('controle'), 'fouten veiligheid'],
-      ['Plan-instellingen', () => zetTab('plan'), 'titelblok'],
+      ['Plan: gegevens en instellingen', () => toonPlan('algemeen'), 'titelblok naam instellingen'],
+      ['Fasen', () => toonPlan('fasen'), 'opbouw afbraak fase'],
+      ['Achtergrondtekeningen', () => toonPlan('achtergrond'), 'onderlegger pdf dxf'],
+      ['Locatie en vaste items', () => toonPlan('algemeen'), 'plaatsfiche contactpersonen'],
+      ['Regels voor de controle', () => toonPlan('regels'), 'afstandsregels hulpdiensten brandveiligheid'],
       ['Volledig scherm', () => setVolScherm((v) => !v), ''],
       ...WERKRUIMTES.map((w) => [`Werkruimte ${w.naam}`, () => kiesWerkruimte(w.id), `alt ${w.toets}`]),
       [uitgebreid ? 'Eenvoudige weergave' : 'Alle opties tonen', () => setUitgebreid(!uitgebreid), 'uitgebreid eenvoudig'],
@@ -4481,6 +4490,8 @@ export default function Editor({ planId }) {
   const eigenschappenOpen = !volScherm && !!item;
   const veelSel = selectie.length > 1 && !groepSel; // meerdere losse items: selectiepaneel i.p.v. de eigenschappen van één
   const vastOpen = !volScherm && !!vastSel && !item;
+  const plaatsOpen = schrijven && !volScherm && !item && gereedschap === 'element' && !!gekozenElement;
+  const planOpen = !!plan && !volScherm && !item && !vastSel && !plaatsOpen && !binnen && planZicht;
   const gTool = (id) => GEREEDSCHAP.find((x) => x && x.id === id);
   // Feedback: wat er nu te zien is (scherm, werkruimte, gereedschap, item, tab, kaartbeeld).
   fbRef.current = () => {
@@ -4505,7 +4516,7 @@ export default function Editor({ planId }) {
     <div className="fm fm-editor" onClick={() => { if (menu) setMenu(null); if (uitklap) setUitklap(null); }}>
       <header className={`fm-topbalk fm-wr-${werkruimte}`}>
         <a className="fm-terug" href="/maps/plannen" aria-label="Terug naar de plannen"><Icoon naam="terug" /></a>
-        <div className="fm-titel">
+        <div className={`fm-titel${planOpen ? ' aan' : ''}`} role="button" tabIndex={0} title="Gegevens en instellingen van het plan" onClick={() => (planOpen ? zetPlanZicht(false) : toonPlan(null))} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); planOpen ? zetPlanZicht(false) : toonPlan(null); } }}>
           <small style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{planEvent && <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: planEvent.kleur, flex: 'none' }} />}{planEvent?.naam || plan.editie_naam || 'Eventplan'}{plan.locatie ? ` · ${plan.locatie}` : ''}</small>
           <strong>{plan.naam}</strong>
         </div>
@@ -4579,7 +4590,7 @@ export default function Editor({ planId }) {
             <div className="fm-menu" style={{ right: 0, top: 34, minWidth: 230 }} onClick={(e) => e.stopPropagation()}>
               <div className="fm-ctxkop">{bewaarStatus === 'Niet bewaard' ? 'Een wijziging is niet bewaard. Controleer je verbinding.' : bewaarStatus === 'Wacht op verbinding' ? 'Je bent offline. Je wijzigingen staan klaar en worden bewaard zodra je weer verbinding hebt.' : verbinding === 'live' ? 'Elke wijziging wordt meteen bewaard. Live: je ziet wat collega\'s doen.' : 'Elke wijziging wordt meteen bewaard. De live verbinding is weg; wijzigingen van collega\'s verschijnen zodra ze terug is.'}</div>
               {schrijven && <button onClick={() => { setMenu(null); versieBewaren(); }}>Versie bewaren<small>Een vast moment om naar terug te keren</small></button>}
-              <button onClick={() => { setMenu(null); setVolScherm(false); setTab('plan'); }}>Versies bekijken en terugzetten</button>
+              <button onClick={() => { setMenu(null); toonPlan('geschiedenis'); }}>Versies bekijken en terugzetten</button>
               {schrijven && <button onClick={() => { setMenu(null); setUitvoer({ tab: 'importeren' }); }}>Importeren<small>KML, GPX, CSV of een CAD-plan</small></button>}
             </div>
           )}
@@ -4752,18 +4763,7 @@ export default function Editor({ planId }) {
                   onKies={(el) => { setGekozenElement(el); setGereedschap('element'); }} />
               )}
               {tab === 'controle' && (
-                <ControlePaneel plan={plan} lagen={lagen} items={items} elementenMap={elementenMap} lagenMap={lagenMap} fasen={fasen} schrijven={schrijven} onPlan={wijzigPlan} onKiesItem={kiesItemOpKaart} openBlok={controleBlok} vast={vast} />
-              )}
-              {tab === 'plan' && (
-                <>
-                  <PlanAlgemeen plan={plan} items={items} schrijven={schrijven} onPlan={wijzigPlanGecontroleerd} elementenMap={elementenMap} />
-                  <PlanPaneel plan={plan} fasen={fasen} items={items} schrijven={schrijven} kaart={mapRef.current}
-                    kalibratie={kalibratie} onKalibreer={startKalibratie} onFasen={setFasen} onPlan={wijzigPlan}
-                    olBewerk={olBewerk} onBewerkOl={(id) => { setOlBewerk(id); if (id) { setGereedschap('hand'); setGeselecteerd(null); setExtra([]); } }}
-                    vergelijkVersie={vergelijk} onVergelijk={setVergelijkVersie} onHerstel={herstelVersie}
-                    plekItems={plekItems} onUitFiche={uitPlaatsfiche} onNaarVast={naarVast} lagen={lagen}
-                    onKiesItem={(id) => { setGeselecteerd(id); zoomNaar(items.find((x) => x.id === id)); }} />
-                </>
+                <ControlePaneel plan={plan} lagen={lagen} items={items} elementenMap={elementenMap} lagenMap={lagenMap} fasen={fasen} schrijven={schrijven} onPlan={wijzigPlan} onKiesItem={kiesItemOpKaart} vast={vast} deel="meldingen" onRegels={() => toonPlan('regels')} />
               )}
               {LIJST_IDS.includes(tab) && LIJST_TABS.filter(([k]) => uitgebreid || !['draaiboek'].includes(k) || tab === k).length > 1 && (
                 <div className="fm-subtabs" role="tablist">
@@ -4805,7 +4805,7 @@ export default function Editor({ planId }) {
           </aside>
         )}
 
-        <div className="fm-kaartvak" style={{ '--fm-l': paneelOpen ? '256px' : '0px', '--fm-r': eigenschappenOpen || vastOpen || (schrijven && !volScherm && !item && gereedschap === 'element' && gekozenElement) ? '320px' : '0px' }}>
+        <div className="fm-kaartvak" style={{ '--fm-l': paneelOpen ? '256px' : '0px', '--fm-r': eigenschappenOpen || vastOpen || planOpen || plaatsOpen ? '320px' : '0px' }}>
           <div ref={kaartRef} className="fm-kaart" />
           {controleFouten > 0 && tab !== 'controle' && !binnenScherm && (
             <button type="button" className="fm-controlechip" onClick={() => setTab('controle')} title="Controle openen">
@@ -5296,6 +5296,30 @@ export default function Editor({ planId }) {
             <div className="fm-paneelkop"><span className="fm-paneelnaam">{vastSel.id ? vastSel.naam : 'Nieuwe vaste aansluiting'}</span><button className="fm-sluit" aria-label="Sluiten" onClick={() => setVastSel(null)}>×</button></div>
             <VasteAansluitingPaneel va={vastSel} schrijven={schrijven} profielId={profiel?.id} onBewaard={vastBewaard} onSluit={() => setVastSel(null)}
               knoop={vastSel.id ? stroomRef.current?.knopen?.get(vaId(vastSel)) || null : null} onZoom={(v) => mapRef.current?.easeTo({ center: v.geometrie.coordinates, zoom: Math.max(mapRef.current.getZoom(), 18) })} />
+          </aside>
+        )}
+        {planOpen && (
+          <aside className="fm-eigenschappen fm-planzij" aria-label="Plan">
+            <div className="fm-paneelkop"><span className="fm-paneelnaam">Plan</span><button className="fm-sluit" aria-label="Plan sluiten" title="Sluiten. Klik bovenaan op de naam van het plan om het terug te openen." onClick={() => zetPlanZicht(false)}>×</button></div>
+            <div className="fm-plantabs" role="tablist" aria-label="Plan">
+              {[['algemeen', 'Algemeen'], ['fasen', 'Fasen'], ['achtergrond', 'Achtergrond'], ['regels', 'Regels'], ['geschiedenis', 'Versies']].map(([k, t]) => (
+                <button key={k} role="tab" aria-selected={planTab === k} className={planTab === k ? 'aan' : ''} onClick={() => setPlanTab(k)}>{t}</button>
+              ))}
+            </div>
+            <div className="fm-planzij-inhoud" role="tabpanel">
+              {planTab === 'algemeen' && <PlanAlgemeen plan={plan} items={items} schrijven={schrijven} onPlan={wijzigPlanGecontroleerd} elementenMap={elementenMap} />}
+              {planTab === 'regels' && (
+                <ControlePaneel deel="regels" plan={plan} lagen={lagen} items={items} elementenMap={elementenMap} lagenMap={lagenMap} fasen={fasen} schrijven={schrijven} onPlan={wijzigPlan} onKiesItem={kiesItemOpKaart} openBlok={controleBlok} vast={vast} />
+              )}
+              {['algemeen', 'fasen', 'achtergrond', 'geschiedenis'].includes(planTab) && (
+                <PlanPaneel key={planTab} deel={planTab} plan={plan} fasen={fasen} items={items} schrijven={schrijven} kaart={mapRef.current}
+                  kalibratie={kalibratie} onKalibreer={startKalibratie} onFasen={setFasen} onPlan={wijzigPlan}
+                  olBewerk={olBewerk} onBewerkOl={(id) => { setOlBewerk(id); if (id) { setGereedschap('hand'); setGeselecteerd(null); setExtra([]); } }}
+                  vergelijkVersie={vergelijk} onVergelijk={setVergelijkVersie} onHerstel={herstelVersie}
+                  plekItems={plekItems} onUitFiche={uitPlaatsfiche} onNaarVast={naarVast} lagen={lagen}
+                  onKiesItem={(id) => { setGeselecteerd(id); zoomNaar(items.find((x) => x.id === id)); }} />
+              )}
+            </div>
           </aside>
         )}
         {(() => { slotInfo.current = item ? { slot: slotVan(item.id), kijkers: anderen.filter((a) => a.selectie?.includes(item.id) && !(a.bewerkt === item.id && Date.now() - (a.actief || 0) < 30000)) } : { slot: null, kijkers: [] }; return null; })()}

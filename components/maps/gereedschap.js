@@ -75,8 +75,9 @@ export const GROEPEN = [
 export const PANELEN = [
   // Stroom en Borden enkel in hun eigen werkplek (generatoren en borden plaats je in Plan gewoon als element).
   ['lagen', 'Lagen', 'lagen'],
-  ['materiaal', 'Materiaal', 'lijstje'], ['controle', 'Controle', 'vink'], ['plan', 'Plan', 'plan'],
+  ['materiaal', 'Materiaal', 'lijstje'], ['controle', 'Controle', 'vink'],
 ];
+// Het plan zelf (gegevens, fasen, achtergrond, regels, geschiedenis) staat rechts als niets geselecteerd is.
 // Delen van het paneel Tekenen.
 export const TEKEN_DELEN = [
   { naam: 'Lijnen', tools: ['lijn', 'route', 'vrijehand', 'knip'] },
@@ -93,8 +94,7 @@ export const PANEELTIP = {
   sign: 'Signalisatie: borden, routes en bordpunten',
   materiaal: 'Materiaal per leverancier, categorie of laag: wat er nodig is en waar het staat',
   draaiboek: 'Opbouw en afbraak: wie doet wat en wanneer',
-  controle: 'Meldingen, brandveiligheid, keuringsattesten, afstandsregels en hulpdiensten',
-  plan: 'Naam, fasen, versies, achtergrondtekeningen en meer',
+  controle: 'Nakijken voor je deelt: wat botst, ontbreekt of te dicht staat',
 };
 
 export const nieuwId = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {

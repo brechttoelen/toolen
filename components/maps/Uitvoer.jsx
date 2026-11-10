@@ -8,6 +8,7 @@ import { heeftModule, nietInPakket } from './merk';
 import { bestandMaken } from './uitvoer';
 import LagenKiezer from './LagenKiezer';
 import BestandDialoog from './BestandDialoog';
+import { afsluitingenVan, afsluitingenCsv, afsluitingenPdf } from './afsluitingen';
 
 const GROEPEN = [
   { id: 'werkplek', naam: 'Plannen per werkplek' },
@@ -38,6 +39,7 @@ export default function Uitvoer({
     l.push({ id: 'verkeerlijst', groep: 'lijst', naam: 'Stuklijst verkeer', uitleg: 'Verkeersborden, nadars en afsluitingen (CSV).', module: 'signalisatie', soort: 'export' });
     l.push({ id: 'kabellijst', groep: 'lijst', naam: 'Kabellijst', uitleg: 'Elke kabel met type, lengte, van en naar (CSV).', module: 'stroom', soort: 'export' });
     l.push({ id: 'brandinglijst', groep: 'lijst', naam: 'Bestellijst branding', uitleg: 'Ontwerpen en aantallen voor de drukker (CSV).', module: 'branding', soort: 'export' });
+    l.push({ id: 'wegafsluitingen', groep: 'lijst', naam: 'Wegafsluitingen', uitleg: 'Elke afgesloten straat met soort en tijdvenster: de lijst voor de politievergunning. Een afsluiting stel je in bij een lijn of punt, rechts bij Info.', soort: 'afsluitingen' });
     l.push({ id: 'kaartbestand', groep: 'bestand', naam: 'Google Earth, My Maps of QGIS', uitleg: 'De gekozen lagen of mappen, met kleuren en namen. KMZ en KML openen in Google Earth en My Maps, GeoJSON in QGIS.', soort: 'bestand' });
     l.push({ id: 'png', groep: 'bestand', naam: 'Afbeelding van het kaartbeeld', uitleg: 'Een PNG van wat je nu op het scherm ziet.', soort: 'png' });
     return l.map((x) => ({ ...x, slot: !m(x.module) }));
@@ -126,6 +128,16 @@ export default function Uitvoer({
                 </div>
               )}
 
+              {gekozen.soort === 'afsluitingen' && (() => {
+                const n = afsluitingenVan(items).length;
+                return n ? (
+                  <div className="t-rij" style={{ gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                    <button className="t-knop hoofd" disabled={!!bezig} onClick={() => doe(() => afsluitingenCsv(plan, items))}>Excel (CSV)</button>
+                    <button className="t-knop" disabled={!!bezig} onClick={() => doe(() => afsluitingenPdf(plan, items))}>PDF</button>
+                    <span className="fm-sub" style={{ alignSelf: 'center' }}>{n} {n === 1 ? 'afsluiting' : 'afsluitingen'}</span>
+                  </div>
+                ) : <p className="t-melding">Nog geen wegafsluitingen in dit plan.</p>;
+              })()}
               {hoofdknop && (
                 <div className="t-rij" style={{ gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                   <button className="t-knop hoofd fm-uitvoer-hoofd" disabled={!!bezig} onClick={hoofdknop.doe}>{bezig || hoofdknop.tekst}</button>
