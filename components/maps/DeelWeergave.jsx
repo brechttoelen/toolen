@@ -1,6 +1,7 @@
 'use client';
 
 import { getOrganisatie } from './merk';
+import { ToolenTeken } from '../ToolenLogo';
 import { tvCamTekst } from './tvcamera';
 import { MeetPaneel, MEET_TEKST, zorgVoorMeetLagen, meetGeometrie } from './deelmeten';
 import { VeldpuntPaneel, VeldpuntBewerk, VP_TEKST, zorgVoorVeldpuntLagen, zetVeldpunten } from './veldpunten';
@@ -331,7 +332,7 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
         <button className="fm-knop klein" aria-pressed={toonLagen} onClick={() => { setToonLagen((x) => !x); if (gsm) { setToonLijst(false); setGekozen(null); setToonStroom(false); } }}>{t.lagen}</button>
         {opties.pdf !== false && <button className="fm-knop klein rood" data-menuknop disabled={!!bezig} aria-expanded={pdfMenu} onClick={() => setPdfMenu((x) => !x)}>{bezig || t.pdf}</button>}
           <FeedbackKnop deelToken={token} klein />
-          {hs && !hs.toolen_verbergen && <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,.7)', whiteSpace: 'nowrap', alignSelf: 'center' }}>met <b style={{ color: '#fff' }}>toolen maps</b></span>}
+          {hs && !hs.toolen_verbergen && <a className="t-powered" href="https://toolen.be" target="_blank" rel="noreferrer" style={{ color: 'rgba(255,255,255,.82)', alignSelf: 'center' }}>Powered by <ToolenTeken op="navy" grootte={16} /><b style={{ color: '#fff' }}>Toolen Maps</b></a>}
         </div>
       </header>
       {pdfMenu && (

@@ -9,7 +9,6 @@ import { startLobby } from './live';
 import { Avatar } from './Aanwezigheid';
 import { AppDialogen, bevestig } from './dialoog';
 import { NieuwPlan } from './PlannenLijst';
-import { PlanVoorbeeld } from './PlanVoorbeeld';
 import { laadEvents, groepeer, eventDatum, dagenTot, EVENT_KLEUREN, kleurVoor, MAAND_KORT } from './events';
 
 function wieIn(state) {
@@ -76,7 +75,6 @@ export default function Overzicht() {
   const [profiel, setProfiel] = useState(null);
   const [laden, setLaden] = useState(true);
   const [fout, setFout] = useState('');
-  const [voorbeelden, setVoorbeelden] = useState({});
   const [open, setOpen] = useState({ opmerkingen: new Map(), deellinks: new Set() });
   const [aanwezig, setAanwezig] = useState(new Map());
   const [nieuwPlan, setNieuwPlan] = useState(null);
@@ -108,18 +106,6 @@ export default function Overzicht() {
   const zonderDatum = groepen.filter((g) => !g.datum);
   const kaarten = [...komend, ...zonderDatum].slice(0, 3);
   const losse = plannen.filter((p) => !groepen.some((g) => g.plannen.includes(p)));
-
-  // Voorbeelden voor de kaarten: het laatst gewijzigde plan van elk event.
-  const voorbeeldPlannen = kaarten.map((g) => g.plannen[0]?.id).filter(Boolean).join(',');
-  useEffect(() => {
-    if (!voorbeeldPlannen) return;
-    let weg = false;
-    Promise.all(voorbeeldPlannen.split(',').map(async (id) => {
-      const r = await maps().from('items').select('geometrie, soort, velden').eq('plan_id', id).eq('verborgen', false).limit(1500);
-      return [id, r.data || []];
-    })).then((l) => { if (!weg) setVoorbeelden(Object.fromEntries(l)); });
-    return () => { weg = true; };
-  }, [voorbeeldPlannen]);
 
   // Wat aandacht vraagt: echte signalen uit de databank.
   const aandacht = useMemo(() => {
@@ -225,9 +211,17 @@ export default function Overzicht() {
                       </span>
                       {d != null && <span className="tm-ev-teller" aria-label={`Nog ${d} ${d === 1 ? 'dag' : 'dagen'}`}><b>{d}</b><small>{d === 1 ? 'Dag' : 'Dagen'}</small></span>}
                     </div>
-                    <a className="tm-ev-plan" href={eerste ? `/maps/${eerste.id}` : '/maps/plannen'} aria-label={eerste ? `${g.naam}: ${eerste.naam} openen` : g.naam}>
-                      <PlanVoorbeeld items={(eerste && voorbeelden[eerste.id]) || []} hoogte={150} label={eerste ? `Voorbeeld van ${eerste.naam}` : 'Nog geen plan'} />
-                    </a>
+                    <div className="tm-ev-plannen">
+                      {g.plannen.slice(0, 4).map((p) => (
+                        <a key={p.id} className="tm-ev-blok" href={`/maps/${p.id}`}>
+                          <span className="naam">{p.naam}</span>
+                          <span className="meta">{p.items?.[0]?.count ?? 0} items · v{p.versie || 1}</span>
+                          <span className={`t-pil ${p.status === 'definitief' ? 'ok' : ''}`}>{p.status === 'definitief' ? 'Definitief' : 'Concept'}</span>
+                        </a>
+                      ))}
+                      {g.plannen.length > 4 && <a className="tm-ev-meer" href="/maps/plannen">Nog {g.plannen.length - 4} {g.plannen.length - 4 === 1 ? 'plan' : 'plannen'}</a>}
+                      {!g.plannen.length && <span className="tm-ev-leeg">Nog geen plan voor dit event.</span>}
+                    </div>
                     <div className="tm-ev-voet">
                       {g.plannen.length > 0 && <div className="tm-ev-balk" aria-label={`${def} van ${g.plannen.length} plannen definitief`}>{g.plannen.map((p, i) => <span key={p.id} className={i < def ? 'aan' : ''} />)}</div>}
                       <div className="tm-ev-rij">

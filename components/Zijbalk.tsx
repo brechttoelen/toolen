@@ -21,6 +21,7 @@ type Props = {
   melding?: string | null;
   extra?: React.ReactNode;
   huisstijl?: Huisstijl;
+  feedback?: boolean;
   children: React.ReactNode;
 };
 
@@ -36,7 +37,7 @@ function initialen(naam?: string | null, email?: string | null) {
 }
 
 // Schil van Toolen Maps binnen een organisatie: navy kolom links, licht werkvlak rechts.
-export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, platform, plaatsen, melding, extra, huisstijl = null, children }: Props) {
+export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, platform, plaatsen, melding, extra, huisstijl = null, feedback = false, children }: Props) {
   const pad = usePathname() || "";
   const [orgOpen, setOrgOpen] = useState(false);
   const [ikOpen, setIkOpen] = useState(false);
@@ -61,7 +62,6 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
     { href: "/maps/plannen", tekst: "Plannen" },
     { href: "/maps/bibliotheek", tekst: "Bibliotheek" },
     { href: "/maps/leveranciers", tekst: "Leveranciers" },
-    { href: "/maps/feedback", tekst: "Feedback" },
   ];
 
   async function uitloggen() {
@@ -116,13 +116,13 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
           <div className="t-zij-links">
             <span className="t-zij-kop">Organisatie</span>
             {beheerder && <Link href="/instellingen" className={p.startsWith("/instellingen") ? "aan" : ""}>Leden en pakket</Link>}
+            {feedback && beheerder && <Link href="/maps/feedback" className={p.startsWith("/maps/feedback") ? "aan" : ""}>Alle feedback</Link>}
             {platform && <a href={centraalAdres("/beheer")}>Platformbeheer</a>}
           </div>
         )}
 
         <div className="t-zij-voet" ref={ikRef}>
-          {extra}
-          {huisstijl && <MetToolen huisstijl={huisstijl} donker style={{ padding: "0 10px 6px", display: "block" }} />}
+          {feedback && extra}
           <button className="t-zij-ik" onClick={() => setIkOpen(!ikOpen)} aria-expanded={ikOpen}>
             <span className="t-avatar" style={{ background: "#28B571" }}>{initialen(gebruiker.naam, gebruiker.email)}</span>
             <span className="t-zij-orgnaam"><b>{gebruiker.naam || gebruiker.email}</b><small>{ROL[rol || ""] || rol}</small></span>
@@ -137,6 +137,7 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
               <button onClick={uitloggen}>Uitloggen</button>
             </div>
           )}
+          {huisstijl && <MetToolen huisstijl={huisstijl} donker style={{ padding: "4px 10px 0" }} />}
         </div>
       </nav>
       <div className="t-werk">

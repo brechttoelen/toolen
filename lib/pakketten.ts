@@ -10,6 +10,7 @@ export const MODULES: { id: string; naam: string; uitleg: string }[] = [
   { id: "terrein", naam: "Terrein", uitleg: "opbouwmodus offline, afvinken, foto's" },
   { id: "leveranciers", naam: "Leveranciers", uitleg: "links en lijsten per leverancier, taal" },
   { id: "huisstijl", naam: "Huisstijl", uitleg: "eigen logo en kleuren in de app, op deellinks, in PDF en mails" },
+  { id: "feedback", naam: "Feedback", uitleg: "knop om problemen, ideeën en vragen te melden, met de plek in de app" },
   { id: "integraties", naam: "Integraties", uitleg: "API" },
 ];
 export const KOPPELINGEN: { id: string; naam: string }[] = [
@@ -18,10 +19,10 @@ export const KOPPELINGEN: { id: string; naam: string }[] = [
 ];
 
 export const PAKKETTEN: { id: string; naam: string; plaatsen: number; lezers: number; modules: string[] }[] = [
-  { id: "proef", naam: "Proef", plaatsen: 5, lezers: 25, modules: MODULES.map((m) => m.id).filter((m) => m !== "integraties" && m !== "huisstijl") },
+  { id: "proef", naam: "Proef", plaatsen: 5, lezers: 25, modules: MODULES.map((m) => m.id).filter((m) => m !== "integraties" && m !== "huisstijl" && m !== "feedback") },
   { id: "event", naam: "Event", plaatsen: 5, lezers: 25, modules: [] },
   { id: "pro", naam: "Pro", plaatsen: 5, lezers: 25, modules: [] },
-  { id: "organisatie", naam: "Organisatie", plaatsen: 20, lezers: 100, modules: MODULES.map((m) => m.id).filter((m) => m !== "integraties" && m !== "huisstijl") },
+  { id: "organisatie", naam: "Organisatie", plaatsen: 20, lezers: 100, modules: MODULES.map((m) => m.id).filter((m) => m !== "integraties" && m !== "huisstijl" && m !== "feedback") },
   { id: "maatwerk", naam: "Maatwerk", plaatsen: 50, lezers: 1000, modules: MODULES.map((m) => m.id) },
 ];
 

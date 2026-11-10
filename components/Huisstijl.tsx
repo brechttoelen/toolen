@@ -1,4 +1,5 @@
 import { huisstijlCss, toonToolen, type Huisstijl } from "@/lib/huisstijl";
+import { ToolenTeken } from "./ToolenLogo";
 
 // Kleuren van de organisatie als CSS-variabelen voor de hele pagina (ook dialogen en menu's).
 export function HuisstijlStijl({ huisstijl }: { huisstijl: Huisstijl }) {
@@ -14,12 +15,12 @@ export function OrgLogo({ huisstijl, donker = false, hoogte = 32, style }: { hui
   return <img src={src} alt={huisstijl?.naam || ""} style={{ height: hoogte, width: "auto", maxWidth: hoogte * 6, objectFit: "contain", display: "block", ...style }} />;
 }
 
-// Kleine, vaste vermelding van het product bij een eigen huisstijl.
+// Vaste vermelding van het product bij een eigen huisstijl: "Powered by" met het mini-logo.
 export function MetToolen({ huisstijl, donker = false, style }: { huisstijl: Huisstijl; donker?: boolean; style?: React.CSSProperties }) {
   if (!huisstijl || !toonToolen(huisstijl)) return null;
   return (
-    <span style={{ fontSize: 11.5, letterSpacing: ".01em", color: donker ? "rgba(255,255,255,.7)" : "var(--t-tekst-3, #7A828F)", whiteSpace: "nowrap", ...style }}>
-      met <b style={{ fontWeight: 700, color: donker ? "#fff" : "var(--t-tekst-2, #3B4558)" }}>toolen maps</b>
-    </span>
+    <a className="t-powered" href="https://toolen.be" target="_blank" rel="noreferrer" style={{ color: donker ? "rgba(255,255,255,.82)" : "var(--t-tekst-2, #4A5A75)", ...style }}>
+      Powered by <ToolenTeken op={donker ? "navy" : "licht"} grootte={16} /><b style={{ color: donker ? "#fff" : "var(--t-tekst, #0E1A33)" }}>Toolen Maps</b>
+    </a>
   );
 }

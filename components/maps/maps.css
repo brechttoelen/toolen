@@ -1551,6 +1551,8 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 
 /* Feedback (beta) */
 .fm-feedbackknop { gap: 6px; }
+.fm-feedback.zij { left: 248px; right: auto; top: auto; bottom: 16px; color: var(--fm-zwart); }
+@media (max-width: 820px) { .fm-feedback.zij { left: 16px; bottom: auto; top: 16px; } }
 .fm-feedback { position: fixed; right: 16px; top: 52px; width: min(360px, calc(100vw - 32px)); background: #fff; border: 1px solid var(--fm-rand2); box-shadow: 0 10px 30px rgba(0,0,0,.2); z-index: 1400; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
 .fm-feedback.wijst { opacity: .92; }
 .fm-fb-kop { display: flex; align-items: center; gap: 8px; } .fm-fb-kop .fm-sluit { margin-left: auto; }

@@ -14,4 +14,5 @@ export const MIGRATIES: { naam: string; handmatig?: boolean; vervangen?: boolean
   { naam: "0011_toegang" },
   { naam: "0012_werkplekken" },
   { naam: "0013_huisstijl" },
+  { naam: "0014_feedback_module" },
 ];

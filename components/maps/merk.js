@@ -13,6 +13,6 @@ export function heeftKoppeling(naam) { return !!organisatie?.modules?.includes(n
 // de databank weigert wat niet mag.
 export function heeftModule(id) { return !organisatie || !Array.isArray(organisatie.modules) || organisatie.modules.includes(id); }
 export const MODULE_NAAM = { stroom: 'Stroom', signalisatie: 'Signalisatie', stelling: 'Stellingbouwer 3D', branding: 'Branding', veiligheid: 'Veiligheid',
-  binnen: 'Binnenplan', groot: 'Groot formaat', terrein: 'Terrein', leveranciers: 'Leveranciers', integraties: 'Integraties', huisstijl: 'Huisstijl' };
+  binnen: 'Binnenplan', groot: 'Groot formaat', terrein: 'Terrein', leveranciers: 'Leveranciers', integraties: 'Integraties', huisstijl: 'Huisstijl', feedback: 'Feedback' };
 export const nietInPakket = (id) => `${MODULE_NAAM[id] || id} zit niet in het pakket van ${organisatie?.naam || 'je organisatie'}.`;
 export function merkKort() { return organisatie?.kort || organisatie?.naam || PRODUCT; }

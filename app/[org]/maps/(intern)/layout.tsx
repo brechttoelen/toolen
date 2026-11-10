@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: { default: "Toolen Maps", template: "
 export default async function MapsLayout({ children, params }: { children: React.ReactNode; params: Promise<{ org: string }> }) {
   const { org } = await params;
   return (
-    <OrgSchil org={org} verder="/maps" extra={<span className="fm"><FeedbackKnop klein /></span>}>
+    <OrgSchil org={org} verder="/maps" extra={<span className="fm"><FeedbackKnop zij /></span>}>
       {children}
     </OrgSchil>
   );

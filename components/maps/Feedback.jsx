@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { maps, sb, BUCKET, foutTekst } from './db';
 import { Icoon } from './iconen';
+import { heeftModule } from './merk';
 // Eerst de MapLibre-stijl: deze knop zit in de layout, dus zijn CSS laadt vóór die van de kaart. Anders wint
 // .maplibregl-map { position: relative } van .fm-kaart en heeft de kaart geen hoogte.
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -109,7 +110,8 @@ const omgeving = () => ({
   tijd: new Date().toISOString(),
 });
 
-export default function FeedbackKnop({ deelToken = null, klein = false }) {
+// Enkel met de module Feedback (aan te zetten door het platform). zij = als knop onderaan de zijbalk.
+export default function FeedbackKnop({ deelToken = null, klein = false, zij = false }) {
   const [open, setOpen] = useState(false);
   const [soort, setSoort] = useState('probleem');
   const [tekst, setTekst] = useState('');
@@ -166,13 +168,20 @@ export default function FeedbackKnop({ deelToken = null, klein = false }) {
 
   const samenvatting = ctx ? [ctx.scherm, ctx.werkruimte && ctx.werkruimte !== 'Plan' ? ctx.werkruimte : null, ctx.item ? `${ctx.item.naam || ctx.item.element || ctx.item.soort}${ctx.item.familie ? ` (${ctx.item.familie})` : ''}` : null, ctx.tab ? `tab ${ctx.tab}` : null, ctx.gereedschap && ctx.gereedschap !== 'Selecteren' ? ctx.gereedschap : null].filter(Boolean).join(' · ') : '';
 
+  if (!heeftModule('feedback')) return null;
   return (
     <>
+      {zij ? (
+        <button type="button" className="t-zij-actie" onClick={() => (open ? setOpen(false) : openen())} title="Probleem, idee of vraag: de app noteert waar je bent">
+          <Icoon naam="feedback" maat={18} />Feedback geven
+        </button>
+      ) : (
       <button type="button" className={`fm-knop${klein ? ' klein' : ''} fm-feedbackknop`} title="Feedback geven: probleem, idee of vraag (de app noteert waar je bent)" onClick={() => (open ? setOpen(false) : openen())}>
         <Icoon naam="feedback" maat={16} />{!klein && <span className="lbl">Feedback</span>}
       </button>
+      )}
       {open && (
-        <div className={`fm fm-feedback${aanwijzen ? ' wijst' : ''}`} role="dialog" aria-label="Feedback geven">
+        <div className={`fm fm-feedback${zij ? ' zij' : ''}${aanwijzen ? ' wijst' : ''}`} role="dialog" aria-label="Feedback geven">
           <div className="fm-fb-kop"><strong>Feedback</strong><span className="fm-sub">beta</span><button type="button" className="fm-sluit" aria-label="Sluiten" onClick={() => { setOpen(false); setAanwijzen(false); }}>×</button></div>
           {klaar ? <div className="fm-fb-klaar">Bedankt, je feedback is bewaard.</div> : (
             <>
