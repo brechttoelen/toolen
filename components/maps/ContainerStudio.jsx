@@ -63,7 +63,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
       <div className="fm-ws-kop">
         <TerugKnop onClick={onSluit} />
         <strong>Containerbouwer</strong>
-        <span className="fm-sub">{groep.filter((x) => !x.trap).length} units · {hoog} hoog · ± {getal(kw)} kW</span>
+        <span className="fm-sub">{groep.filter((x) => !x.trap).length === 1 ? '1 unit' : `${groep.filter((x) => !x.trap).length} units`} · {hoog} hoog · ± {getal(kw)} kW</span>
         <span style={{ flex: 1 }} />
         <button className="fm-knop klein" disabled={!gl} onClick={maakPdf}>PDF</button>
       </div>

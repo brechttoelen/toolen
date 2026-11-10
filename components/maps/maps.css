@@ -2353,3 +2353,8 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-cb-zijden { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
 .fm-cb-zijden .fm-knop { width: 100%; justify-content: center; }
 .fm-cb-links select { width: 100%; }
+
+.fm-gevel-plan { display: block; margin: 4px 0 6px; }
+.fm-gevel-rijen { display: grid; grid-template-columns: minmax(70px, 1fr) minmax(90px, 1.3fr) 50px 50px 28px; gap: 4px; align-items: center; margin-bottom: 6px; }
+.fm-gevel-rijen select, .fm-gevel-rijen input { width: 100%; min-width: 0; height: 30px; box-sizing: border-box; font: inherit; font-size: 12.5px; }
+.fm-gevel-rijen .fm-knop { width: 28px; padding: 0; justify-content: center; }

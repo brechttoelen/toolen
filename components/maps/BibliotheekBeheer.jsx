@@ -15,6 +15,8 @@ import { leesDxf } from './dxf';
 import { AANSLUITINGEN, FASEN_EL } from './stroom';
 import { AppDialogen, bevestig, vraagTekst } from './dialoog';
 import { Icoon } from './iconen';
+import GevelBeheer from './GevelBeheer';
+import { isUnitEl } from './containerbouw';
 import { sorteerCategorieen, vergelijkCategorie, CATEGORIEEN, rubriekVan, rubriekSecties, rubriekNaam } from './categorieen';
 import { useLeveranciers, juisteNaam, zorgLeverancier } from './leveranciers';
 import { zoekScore } from './zoeken';
@@ -511,6 +513,7 @@ export default function BibliotheekBeheer({ soort = 'elementen' }) {
                 </div>
               );
             })()}
+            {bibTab === 'algemeen' && isUnitEl(vorm) && <GevelBeheer L={Number(vorm.breedte_m) || 6} B={Number(vorm.diepte_m) || 3} gevel={eig.gevel || []} schrijven={schrijven} onZet={(gevel) => setVorm({ ...vorm, eigenschappen: { ...eig, gevel: gevel.length ? gevel : undefined } })} />}
             {bibTab === 'algemeen' && (<>
             <div className="fm-sectie">
               <div className="fm-kop">Varianten<Info>Bv. tent open of dicht, podium 8×6 of 10×8. Je kiest bij het plaatsen; de stuklijst telt per variant.</Info></div>

@@ -47,7 +47,7 @@ export function unitGroep(it, el, items = [], elementenMap = new Map()) {
     const d = ((((B2.rot - A.rot) % 360) + 360) % 360); const q = Math.round(d / 90) * 90 % 360; if (Math.abs(d - Math.round(d / 90) * 90) > 3) return null;
     const hk = [[0, 0], [B2.L, 0], [B2.L, B2.B], [0, B2.B]].map((h) => A.vanGeo(B2.naarGeo(h)));
     const xs = hk.map((h) => h[0]); const ys = hk.map((h) => h[1]);
-    return { it: x, el: e, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), v: Number(x.velden?.verdieping) || 0, rot: q, H: unitHoogte(e), trap: isTrapEl(e) };
+    return { it: x, el: e, T: (q) => A.vanGeo(B2.naarGeo(q)), Lu: B2.L, Bu: B2.B, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), v: Number(x.velden?.verdieping) || 0, rot: q, H: unitHoogte(e), trap: isTrapEl(e) };
   };
   const alle = kand.map(kader).filter(Boolean);
   const eerste = alle.find((k) => k.it.id === it.id); if (!eerste) return [];
@@ -155,6 +155,21 @@ export function plekTrap(g, trapEl, zijde = 'V', kant = 'L') {
   return { x0, y0: zijde === 'V' ? g.y0 - diep : g.y1, L: lang, B: diep, v: Math.max(0, g.v - 1) };
 }
 
+// Deuren en ramen liggen vast per unit (eigenschappen.gevel), zoals de leverancier ze levert:
+//   [{ zijde: V|A|L|R, soort: deur|deur2|raam, van: m vanaf de linkerhoek (van buiten bekeken), breedte, hoogte, onder }]
+// V = voorkant (y = 0), A = achterkant (y = diepte), L = links (x = 0), R = rechts (x = breedte).
+export const GEVEL_SOORTEN = { deur: { naam: 'Deur', b: 0.9, h: 2.0, o: 0 }, deur2: { naam: 'Dubbele deur', b: 1.8, h: 2.0, o: 0 }, raam: { naam: 'Raam', b: 1.2, h: 1.0, o: 1.0 } };
+export const gevelZijdeLengte = (z, L, B) => (z === 'V' || z === 'A' ? L : B);
+// Van een opening: begin- en eindpunt op de wand (unit-lokaal) en de normaal naar buiten.
+export function gevelLijn(o, L, B) {
+  const S = GEVEL_SOORTEN[o.soort] || GEVEL_SOORTEN.raam; const b = Number(o.breedte) > 0 ? Number(o.breedte) : S.b; const v = Math.max(0, Number(o.van) || 0);
+  if (o.zijde === 'A') return { a: [L - v, B], e: [L - v - b, B], n: [0, 1] };
+  if (o.zijde === 'L') return { a: [0, B - v], e: [0, B - v - b], n: [-1, 0] };
+  if (o.zijde === 'R') return { a: [L, v], e: [L, v + b], n: [1, 0] };
+  return { a: [v, 0], e: [v + b, 0], n: [0, -1] };
+}
+export const gevelHoogte = (o) => { const S = GEVEL_SOORTEN[o.soort] || GEVEL_SOORTEN.raam; return [Number(o.onder) >= 0 && o.onder !== '' && o.onder != null ? Number(o.onder) : S.o, Number(o.hoogte) > 0 ? Number(o.hoogte) : S.h]; };
+
 // Stuklijst van de opstelling: per element het aantal, stroom per unit.
 export function containerTelling(groep) {
   const m = new Map();
@@ -197,6 +212,18 @@ export function containerPrims(groep, gekozen = null) {
     const hk = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
     for (const [x, y] of hk) lijn([x, y, z0], [x, y, z1], '#4B5563', 0.06);
     for (let k = 0; k < 4; k++) { const a = hk[k]; const b = hk[(k + 1) % 4]; lijn([a[0], a[1], z0 + 0.05], [b[0], b[1], z0 + 0.05], '#4B5563', 0.05); lijn([a[0], a[1], z1 - 0.05], [b[0], b[1], z1 - 0.05], '#4B5563', 0.05); }
+    // Deuren en ramen (vast per unit), net voor de wand.
+    if (g.T) for (const op of g.el?.eigenschappen?.gevel || []) {
+      const { a, e, n } = gevelLijn(op, g.Lu, g.Bu); const [onder, hoog] = gevelHoogte(op); const za = z0 + onder; const zb = Math.min(z1 - 0.08, za + hoog);
+      const P = (q, d = 0.03) => { const r = g.T([q[0] + n[0] * d, q[1] + n[1] * d]); return r; };
+      const A2 = P(a); const E2 = P(e); const deur = op.soort !== 'raam';
+      vlak([[A2[0], A2[1], za], [E2[0], E2[1], za], [E2[0], E2[1], zb], [A2[0], A2[1], zb]], deur ? '#5B6470' : '#9DB8CC', deur ? 1 : 0.85, data);
+      const K = (p1, p2) => lijn([p1[0], p1[1], p1[2]], [p2[0], p2[1], p2[2]], '#2F363E', 0.025);
+      const A3 = P(a, 0.05); const E3 = P(e, 0.05);
+      K([A3[0], A3[1], za], [A3[0], A3[1], zb]); K([E3[0], E3[1], za], [E3[0], E3[1], zb]); K([A3[0], A3[1], zb], [E3[0], E3[1], zb]); if (!deur) K([A3[0], A3[1], za], [E3[0], E3[1], za]);
+      if (op.soort === 'deur2') { const M = P([(a[0] + e[0]) / 2, (a[1] + e[1]) / 2], 0.05); K([M[0], M[1], za], [M[0], M[1], zb]); }
+      if (!deur) { const M = P([(a[0] + e[0]) / 2, (a[1] + e[1]) / 2], 0.05); K([M[0], M[1], za], [M[0], M[1], zb]); }
+    }
   }
   return prims;
 }
