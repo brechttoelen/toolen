@@ -1,4 +1,6 @@
 import { ToolenWoordmerk } from "./ToolenLogo";
+import { HuisstijlStijl, MetToolen, OrgLogo } from "./Huisstijl";
+import type { Huisstijl } from "@/lib/huisstijl";
 
 // Momenten uit een eventweek, wisselend onder de titel.
 const MOMENTEN = [
@@ -37,11 +39,19 @@ function PlanScene() {
 }
 
 // Navy vlak links met een plan dat zich opbouwt, inhoud rechts. Voor inloggen, organisatie kiezen, uitnodigingen en MFA.
-export default function Inlogkader({ titel, children }: { titel?: string; children: React.ReactNode }) {
+// Met een eigen huisstijl: logo en kleur van de organisatie, met een kleine vermelding van Toolen Maps.
+export default function Inlogkader({ titel, children, huisstijl = null }: { titel?: string; children: React.ReactNode; huisstijl?: Huisstijl }) {
+  const eigen = !!(huisstijl && (huisstijl.logo_donker || huisstijl.logo_licht));
   return (
-    <div className="t-inlog">
-      <section className="t-inlog-merk" aria-label="Toolen Maps">
-        <ToolenWoordmerk op="navy" product="maps" grootte={26} />
+    <div className={`t-inlog${huisstijl ? " t-inlog-eigen" : ""}`}>
+      <HuisstijlStijl huisstijl={huisstijl} />
+      <section className="t-inlog-merk" aria-label={huisstijl?.naam || "Toolen Maps"}>
+        {eigen ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", position: "relative", zIndex: 1 }}>
+            <OrgLogo huisstijl={huisstijl} donker hoogte={40} />
+            <MetToolen huisstijl={huisstijl} donker />
+          </div>
+        ) : <ToolenWoordmerk op="navy" product="maps" grootte={26} />}
         <PlanScene />
         <h1 className="t-titel t-inlog-titel">{titel || "Uitgetekend."}</h1>
         {!titel && <p className="t-inlog-onder">Van eerste lijn tot laatste stroomkabel.</p>}

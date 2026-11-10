@@ -135,3 +135,10 @@ In Supabase (Authentication):
 - `items.werkplekken` berekent de database bij elke wijziging (`maps.werkplekken_van`), met dezelfde regels als de lens van de werkplekken in de editor.
 - Beperkt: items enkel van die werkplekken maken, wijzigen, wissen; van het plan enkel de instellingen van die werkplekken; geen lagen, fasen, versies, deellinks, plannen of events.
 - Test: `test_0012.sql`.
+
+## 0013_huisstijl (eigen logo en kleuren)
+
+- `organisaties.huisstijl` = `{ primair, accent, logo_licht, logo_donker, toolen_verbergen }`, enkel door het platform (Platformbeheer › organisatie › Huisstijl).
+- Zichtbaar enkel met de module `huisstijl`. Logo's in de bucket onder `huisstijl/<organisatie>/` als PNG.
+- `maps.huisstijl(slug)` en `maps.huisstijl_deellink(token)` zijn publiek (inlogscherm, deellink).
+- Test: `test_0013.sql`.

@@ -235,3 +235,10 @@ section.t-kaart:has(> .t-sys-kop), section.t-kaart:has(> .t-rij .t-sys-kop) { pa
 .tm-ev-balk span { flex: 1; height: 4px; border-radius: 2px; background: var(--t-rand); }
 .tm-ev-balk span.aan { background: var(--t-groen); }
 .tm-ev-rij { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--t-tekst-2); }
+
+/* Inlogscherm met een eigen huisstijl: de wegen en het raster volgen de kleur van de organisatie. */
+.t-inlog-eigen .t-scene path[stroke="#0E3170"] { stroke: rgba(255, 255, 255, .09); }
+.t-inlog-eigen .t-scene pattern path { stroke: rgba(255, 255, 255, .06); }
+.t-inlog-eigen .t-sc-tent { fill: rgba(255, 255, 255, .1); }
+.t-inlog-eigen .t-sc-parcours { stroke: rgba(255, 255, 255, .85); }
+.t-inlog-eigen .t-moment b { color: rgba(255, 255, 255, .78); }

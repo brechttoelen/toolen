@@ -9,7 +9,7 @@ import { zetOnderleggers } from './onderlegger';
 import { basisStijl, bronvermelding, drukbaar, registreerProtocollen } from './ondergronden';
 import { effectieveStijl, STREPEN, naarGeojson, losseFeatures, TEXTUUR_KLEUR, doekVan, toebehorenTelling, toebehorenVan, doekRuns, doekenPerHek, totemPanelen, isVlagHek } from './stijl';
 import { publiekeUrl } from './db';
-import { merkKort } from './merk';
+import { merkKort, getOrganisatie } from './merk';
 import { naarDataUrl } from './bord';
 import { icoonPng, laadIconen } from './kaarticonen';
 import { verschil } from './PlanPaneel';
@@ -183,8 +183,25 @@ function tekst(doc, t, x, y, { grootte = 8, kleur = '#1d1d1b', halo = true, uitl
   doc.text(regels, x, y, { align: uitlijning, baseline: 'middle', ...(hoek ? { angle: hoek } : {}) });
 }
 
+// Logo van de eigen huisstijl als PNG voor het titelblok (null zonder huisstijl of als het niet laadt).
+let logoCache = null;
+async function huisstijlLogo() {
+  const url = getOrganisatie()?.huisstijl?.logo_licht || getOrganisatie()?.huisstijl?.logo_donker;
+  if (!url) return null;
+  if (logoCache?.url === url) return logoCache;
+  try {
+    const blob = await (await fetch(url, { mode: 'cors' })).blob();
+    const data = await new Promise((ok, nok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = nok; r.readAsDataURL(blob); });
+    const maat = await new Promise((ok, nok) => { const im = new Image(); im.onload = () => ok([im.naturalWidth, im.naturalHeight]); im.onerror = nok; im.src = data; });
+    logoCache = { url, data, ratio: maat[0] / Math.max(1, maat[1]) };
+    return logoCache;
+  } catch { return null; }
+}
+const metToolen = () => !getOrganisatie()?.huisstijl?.toolen_verbergen;
+
 export async function maakPdf({ plan, lagen, items, elementenMap, fase, inst, voortgang = () => {}, doc: bestaandDoc = null, blad = null }) {
   await laadIconen(items.map((i) => i.stijl?.icoon).filter(Boolean));
+  const logo = await huisstijlLogo();
   const L = indeling(inst);
   const { kader } = L;
   const lagenMap = new Map(lagen.map((l) => [l.id, l]));
@@ -518,7 +535,10 @@ export async function maakPdf({ plan, lagen, items, elementenMap, fase, inst, vo
     const tbH = 16 * groot + (titel.length > 1 ? 4 * groot : 0) + tRegels.length * 4.2 * groot + (org.length ? 4 + org.length * 3.8 * groot : 0) + 4;
     blok(tbH);
     doc.setTextColor(29, 29, 27);
-    doc.setFontSize(8 * groot); doc.text(merkKort(), zx + 4, y + 6 * groot);
+    if (logo) {
+      const lh = 5.2 * groot; const lw = Math.min(zb - 8, lh * logo.ratio);
+      try { doc.addImage(logo.data, 'PNG', zx + 4, y + 1.6 * groot, lw, lw / logo.ratio); } catch { doc.setFontSize(8 * groot); doc.text(merkKort(), zx + 4, y + 6 * groot); }
+    } else { doc.setFontSize(8 * groot); doc.text(merkKort(), zx + 4, y + 6 * groot); }
     doc.setFontSize(10.5 * groot);
     doc.text(titel, zx + 4, y + 11 * groot);
     let ty = y + 16 * groot + (titel.length > 1 ? 4 * groot : 0);
@@ -700,7 +720,7 @@ export async function maakPdf({ plan, lagen, items, elementenMap, fase, inst, vo
       const doelM = (28 * k / 1000) * schaal;
       const mooi = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000].reduce((a, b) => (b <= doelM ? b : a), 1);
       const lenMm = (mooi / schaal) * 1000;
-      const bron = [bronvermelding(ondergrond, centrum), 'Toolen Maps'].filter(Boolean).join(' · ');
+      const bron = [bronvermelding(ondergrond, centrum), metToolen() ? 'Toolen Maps' : null].filter(Boolean).join(' · ');
       doc.setFont('helvetica', 'normal'); doc.setFontSize(4.6 * k);
       const bronR = doc.splitTextToSize(bron, 95 * k).slice(0, 2);
       const bw = Math.max(lenMm + 20 * k, Math.max(...bronR.map((r) => doc.getTextWidth(r))) + 12 * k);
@@ -745,7 +765,7 @@ export async function maakPdf({ plan, lagen, items, elementenMap, fase, inst, vo
     doc.triangle(nx, ny, nx + 3 * groot, ny + 8 * groot, nx - 3 * groot, ny + 8 * groot, 'F');
     doc.setFontSize(7 * groot); doc.text('N', nx, ny + 12 * groot, { align: 'center' });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8 * groot); doc.setTextColor(104, 109, 118);
-    const bron = [bronvermelding(ondergrond, centrum), 'Gemaakt met Toolen Maps'].filter(Boolean).join(' · ');
+    const bron = [bronvermelding(ondergrond, centrum), metToolen() ? 'Gemaakt met Toolen Maps' : null].filter(Boolean).join(' · ');
     doc.text(doc.splitTextToSize(bron, zb - 8), zx + 4, sy + sb - 7 * groot);
     }
 

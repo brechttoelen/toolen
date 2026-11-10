@@ -6,7 +6,7 @@ import { basisAdres, fout, foutTekst, json, ok } from "@/lib/server";
 export const dynamic = "force-dynamic";
 
 type Vraag = { organisatie_id: string; email: string; naam: string; rol: string; event_ids: string[] | null; werkplekken: string[] | null; opnieuw: string };
-type Gegevens = { email: string; naam: string | null; rol: string; organisatie: string; code: string; geldig_tot: string; door: string | null; door_email: string | null; evenementen: string[] };
+type Gegevens = { email: string; naam: string | null; rol: string; organisatie: string; code: string; geldig_tot: string; door: string | null; door_email: string | null; evenementen: string[]; werkplekken: string[] | null; huisstijl: import("@/lib/huisstijl").Huisstijl };
 
 // Uitnodigen (of opnieuw versturen) en de mail sturen. De rechten controleert de database
 // (enkel beheerders van de organisatie of het platform).

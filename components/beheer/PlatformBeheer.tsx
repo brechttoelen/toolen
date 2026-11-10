@@ -8,6 +8,7 @@ import {
   datum, tijdstip,
 } from "@/lib/pakketten";
 import { HOOFDDOMEIN } from "@/lib/org";
+import HuisstijlBeheer from "./HuisstijlBeheer";
 
 type Org = {
   id: string; slug: string; naam: string; kort: string | null; status: string; status_sinds: string; proef_tot: string | null;
@@ -277,7 +278,7 @@ function NieuweOrganisatie({ pk, onSluit, onKlaar }: { pk: ReturnType<typeof use
 }
 
 function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<typeof usePakketten>; org: Org; onSluit: () => void; onGewijzigd: () => void }) {
-  const [tab, setTab] = useState<"abonnement" | "leden" | "logboek">("abonnement");
+  const [tab, setTab] = useState<"abonnement" | "leden" | "huisstijl" | "logboek">("abonnement");
   const [v, setV] = useState({ naam: org.naam, kort: org.kort || "", pakket: org.pakket, plaatsen: org.plaatsen, lezers_max: org.lezers_max,
     modules: org.modules || [], status: org.status, proef_tot: org.proef_tot ? org.proef_tot.slice(0, 10) : "" });
   const [leden, setLeden] = useState<Lid[]>([]);
@@ -345,9 +346,9 @@ function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<t
           <button className="t-knop klein stil" onClick={onSluit}>Sluiten</button>
         </div>
         <div className="t-tabs" style={{ marginTop: 16 }}>
-          {(["abonnement", "leden", "logboek"] as const).map((t) => (
+          {(["abonnement", "leden", "huisstijl", "logboek"] as const).map((t) => (
             <button key={t} className={tab === t ? "aan" : ""} onClick={() => setTab(t)}>
-              {t === "abonnement" ? "Abonnement" : t === "leden" ? `Leden (${leden.filter((l) => l.actief).length})` : "Logboek"}
+              {t === "abonnement" ? "Abonnement" : t === "leden" ? `Leden (${leden.filter((l) => l.actief).length})` : t === "huisstijl" ? "Huisstijl" : "Logboek"}
             </button>
           ))}
         </div>
@@ -425,6 +426,8 @@ function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<t
             </form>
           </div>
         )}
+
+        {tab === "huisstijl" && <HuisstijlBeheer org={org.id} naam={org.naam} kort={org.kort} modules={v.modules} onModule={() => setTab("abonnement")} />}
 
         {tab === "logboek" && (
           <table className="t-tabel">

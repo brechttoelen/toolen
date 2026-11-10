@@ -7,6 +7,7 @@ import { veiligVerder } from "@/lib/verder";
 import { orgAdres } from "@/lib/adres";
 import { geldigeSlug, subdomein } from "@/lib/org";
 import Inlogkader from "./Inlogkader";
+import type { Huisstijl } from "@/lib/huisstijl";
 
 type Info = { code: string; naam: string | null; sso: ("azure" | "google")[] };
 const ALGEMEEN = "Bedrijfscode, e-mailadres of wachtwoord klopt niet.";
@@ -22,7 +23,7 @@ function codeUitAdres(code: string | null, verder: string): string | null {
 
 // Inloggen met bedrijfscode, e-mailadres en wachtwoord. Daarna altijd de code uit de app.
 // Microsoft en Google enkel als de organisatie die heeft (grote klanten).
-export default function InlogScherm() {
+export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstijl }) {
   const zoek = useSearchParams();
   const verder = veiligVerder(zoek.get("verder"));
   const [code, setCode] = useState("");
@@ -94,7 +95,7 @@ export default function InlogScherm() {
 
   if (modus !== "inloggen") {
     return (
-      <Inlogkader>
+      <Inlogkader huisstijl={huisstijl}>
         <div>
           <h2 className="t-titel" style={{ fontSize: 28, marginBottom: 6 }}>Wachtwoord vergeten</h2>
           {modus === "verstuurd" ? (
@@ -115,7 +116,7 @@ export default function InlogScherm() {
   }
 
   return (
-    <Inlogkader>
+    <Inlogkader huisstijl={huisstijl}>
       <div>
         <h2 className="t-titel" style={{ fontSize: 28, marginBottom: 6 }}>Inloggen</h2>
         <p className="t-sub" style={{ marginBottom: 22 }}>{vast && info?.naam ? <>Bij <strong>{info.naam}</strong></> : "Met de bedrijfscode uit je uitnodiging."}</p>

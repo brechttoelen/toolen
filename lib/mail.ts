@@ -28,27 +28,36 @@ export async function verstuur(m: Mail): Promise<void> {
   }
 }
 
+import { leesbaar, type Huisstijl } from "./huisstijl";
+
 // ---------- Sjablonen ----------
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const NAVY = "#022056";
 
 // Eén kader voor alle mails: woordmerk, titel, tekst, één knop, de link als tekst, voetnoot.
-function kader({ titel, alineas, knop, link, voet }: { titel: string; alineas: string[]; knop?: string; link?: string; voet: string }) {
+function kader({ titel, alineas, knop, link, voet, huisstijl = null }: { titel: string; alineas: string[]; knop?: string; link?: string; voet: string; huisstijl?: Huisstijl }) {
+  const knopKleur = leesbaar(huisstijl?.accent || huisstijl?.primair || NAVY);
+  const titelKleur = huisstijl?.primair ? leesbaar(huisstijl.primair) : NAVY;
+  const logo = huisstijl?.logo_licht || huisstijl?.logo_donker;
+  const kop = logo
+    ? `<img src="${esc(logo)}" alt="${esc(huisstijl?.naam || "")}" height="36" style="display:block;height:36px;width:auto;max-width:220px;border:0">`
+    : `toolen maps`;
+  const toolen = !huisstijl ? "" : huisstijl.toolen_verbergen ? "" : `<br>Verstuurd via <strong style="color:${NAVY}">toolen maps</strong>.`;
   const p = (t: string) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#22262E">${t}</p>`;
   return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(titel)}</title></head>
 <body style="margin:0;padding:0;background:#F3F5F8;font-family:'IBM Plex Sans',Segoe UI,Helvetica,Arial,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F5F8;padding:32px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px">
-<tr><td style="padding:0 4px 18px;font-size:21px;font-weight:700;letter-spacing:-.01em;color:${NAVY}">toolen maps</td></tr>
+<tr><td style="padding:0 4px 18px;font-size:21px;font-weight:700;letter-spacing:-.01em;color:${NAVY}">${kop}</td></tr>
 <tr><td style="background:#FFFFFF;border:1px solid #E3E7ED;border-radius:10px;padding:30px 28px">
-<h1 style="margin:0 0 16px;font-size:22px;line-height:1.25;color:${NAVY};font-weight:700">${esc(titel)}</h1>
+<h1 style="margin:0 0 16px;font-size:22px;line-height:1.25;color:${titelKleur};font-weight:700">${esc(titel)}</h1>
 ${alineas.map(p).join("\n")}
-${knop && link ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 18px"><tr><td style="background:${NAVY};border-radius:8px">
+${knop && link ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 18px"><tr><td style="background:${knopKleur};border-radius:8px">
 <a href="${esc(link)}" style="display:inline-block;padding:13px 22px;font-size:15px;font-weight:600;color:#FFFFFF;text-decoration:none">${esc(knop)}</a></td></tr></table>
-<p style="margin:0;font-size:12.5px;line-height:1.5;color:#6B7380">Werkt de knop niet? Kopieer deze link in je browser:<br><a href="${esc(link)}" style="color:${NAVY};word-break:break-all">${esc(link)}</a></p>` : ""}
+<p style="margin:0;font-size:12.5px;line-height:1.5;color:#6B7380">Werkt de knop niet? Kopieer deze link in je browser:<br><a href="${esc(link)}" style="color:${titelKleur};word-break:break-all">${esc(link)}</a></p>` : ""}
 </td></tr>
-<tr><td style="padding:16px 6px 0;font-size:12px;line-height:1.5;color:#7A828F">${voet}</td></tr>
+<tr><td style="padding:16px 6px 0;font-size:12px;line-height:1.5;color:#7A828F">${voet}${toolen}</td></tr>
 </table></td></tr></table></body></html>`;
 }
 
@@ -58,18 +67,21 @@ const tekstVan = (titel: string, alineas: string[], link?: string, voet?: string
 const ROL: Record<string, string> = { eigenaar: "eigenaar", beheerder: "beheerder", bewerker: "bewerker", lezer: "lezer" };
 const dag = (d: string | Date) => new Date(d).toLocaleDateString("nl-BE", { day: "numeric", month: "long" });
 
-export function uitnodigingMail(g: { naam?: string | null; door?: string | null; organisatie: string; code: string; rol: string; evenementen?: string[]; geldig_tot: string; link: string }) {
+const WP: Record<string, string> = { sign: "Signalisatie", stroom: "Stroom", veiligheid: "Veiligheid", branding: "Branding", tv: "TV" };
+
+export function uitnodigingMail(g: { naam?: string | null; door?: string | null; organisatie: string; code: string; rol: string; evenementen?: string[]; werkplekken?: string[] | null; geldig_tot: string; link: string; huisstijl?: Huisstijl }) {
   const titel = `Je bent uitgenodigd voor ${g.organisatie}`;
   const wie = g.door ? `<strong>${esc(g.door)}</strong> nodigt je uit` : "Je bent uitgenodigd";
   const ev = g.evenementen?.length ? ` voor ${g.evenementen.map(esc).join(", ")}` : "";
+  const wp = g.werkplekken?.length ? ` Je werkt in ${g.werkplekken.map((w) => WP[w] || esc(w)).join(" en ")}.` : "";
   const alineas = [
     `${g.naam ? `Dag ${esc(g.naam.split(" ")[0])},` : "Dag,"}`,
-    `${wie} om als ${ROL[g.rol] || esc(g.rol)} mee te werken aan de plannen van <strong>${esc(g.organisatie)}</strong>${ev} in Toolen Maps.`,
+    `${wie} om als ${ROL[g.rol] || esc(g.rol)} mee te werken aan de plannen van <strong>${esc(g.organisatie)}</strong>${ev}${g.huisstijl?.toolen_verbergen ? "" : " in Toolen Maps"}.${wp}`,
     `Maak je account aan met een eigen wachtwoord. Daarna stel je een code in op je gsm (tweestapsverificatie): zo kan niemand anders met je wachtwoord binnen.`,
     `Je bedrijfscode is <strong>${esc(g.code.toUpperCase())}</strong>. Die heb je later nodig om in te loggen.`,
   ];
   const voet = `Deze uitnodiging is geldig tot ${dag(g.geldig_tot)} en werkt één keer. Verwachtte je deze mail niet? Dan mag je ze negeren.`;
-  return { onderwerp: `${g.door || "Je collega"} nodigt je uit voor ${g.organisatie} in Toolen Maps`, html: kader({ titel, alineas, knop: "Account aanmaken", link: g.link, voet }), tekst: tekstVan(titel, alineas, g.link, voet) };
+  return { onderwerp: `${g.door || "Je collega"} nodigt je uit voor ${g.organisatie}${g.huisstijl?.toolen_verbergen ? "" : " in Toolen Maps"}`, html: kader({ titel, alineas, knop: "Account aanmaken", link: g.link, voet, huisstijl: g.huisstijl }), tekst: tekstVan(titel, alineas, g.link, voet) };
 }
 
 export function wachtwoordMail(g: { naam?: string | null; link: string; nieuw?: boolean }) {

@@ -1,6 +1,7 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import Inlogkader from "@/components/Inlogkader";
 import Aanvaarden, { AccountMaken } from "./Aanvaarden";
+import { huisstijlVan } from "@/lib/huisstijlServer";
 
 export const metadata = { title: "Uitnodiging" };
 
@@ -13,9 +14,10 @@ export default async function Uitnodiging({ params }: { params: Promise<{ token:
   const [{ data }, { data: auth }] = await Promise.all([supabase.rpc("uitnodiging_info", { p_token: token }), supabase.auth.getUser()]);
   const info = data as Info;
   const ik = auth.user?.email?.toLowerCase();
+  const huisstijl = info?.slug ? await huisstijlVan(info.slug) : null;
 
   return (
-    <Inlogkader>
+    <Inlogkader huisstijl={huisstijl}>
       <div>
         {!info || !info.geldig ? (
           <>

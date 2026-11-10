@@ -1,5 +1,6 @@
 'use client';
 
+import { getOrganisatie } from './merk';
 import { tvCamTekst } from './tvcamera';
 import { MeetPaneel, MEET_TEKST, zorgVoorMeetLagen, meetGeometrie } from './deelmeten';
 import { VeldpuntPaneel, VeldpuntBewerk, VP_TEKST, zorgVoorVeldpuntLagen, zetVeldpunten } from './veldpunten';
@@ -91,7 +92,7 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
       setOndergrond(bewaard.current?.o || d.plan.basiskaart || 'luchtfoto');
       if (Array.isArray(bewaard.current?.v)) setVerborgen(new Set(bewaard.current.v));
       if (bewaard.current?.binnen) setBinnenOpen(bewaard.current.binnen);
-      if (typeof document !== 'undefined') document.title = `${d.plan.naam} · Toolen Maps`;
+      if (typeof document !== 'undefined') document.title = `${d.plan.naam} · ${getOrganisatie()?.huisstijl?.toolen_verbergen ? (getOrganisatie()?.huisstijl?.kort || getOrganisatie()?.naam) : 'Toolen Maps'}`;
     });
   }, [token, deel]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -301,11 +302,14 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
     return <Groot3D vast it={di} el={elementenMap.get(di.element_id)} naam={data.link.naam ? `${di.naam || elementenMap.get(di.element_id)?.naam || ''}` : undefined} elementenMap={elementenMap} items={items} plannen={(data.stellingplannen || []).filter((p) => p.item_id === di.id).map((p) => ({ pad: p.pad, meta: { naam: p.naam } }))} onSluit={() => {}} />;
   }
   const it = gekozen ? items.find((x) => x.id === gekozen) : null;
+  const hs = getOrganisatie()?.huisstijl || null;
 
   return (
     <div className="fm" style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column' }}>
-      <header className="fm-deelkop" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '8px 16px', background: '#022056', color: '#fff' }}>
-        <span aria-hidden style={{ width: 12, height: 12, borderRadius: 3, background: '#108AED' }} />
+      <header className="fm-deelkop" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '8px 16px', background: 'var(--t-navy, #022056)', color: '#fff' }}>
+        {hs && (hs.logo_donker || hs.logo_licht)
+          ? <img src={hs.logo_donker || hs.logo_licht} alt={hs.naam || ''} style={{ height: 26, width: 'auto', maxWidth: 160, objectFit: 'contain' }} />
+          : <span aria-hidden style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--t-blauw, #108AED)' }} />}
         <div className="fm-deeltitel" style={{ flex: '1 1 200px', minWidth: 0 }}>
           <strong style={{ fontSize: 16, fontFamily: 'var(--font-titel)', fontStretch: '112%', fontWeight: 700 }}>{data.plan.naam}</strong>
           <span style={{ fontSize: 13, color: '#a9a9a5', marginLeft: 8 }}>{[data.plan.editie_naam, data.plan.locatie, `${t.versie} ${data.plan.versie}`, data.link.stand ? new Date(data.link.stand.op).toLocaleDateString(taal === 'en' ? 'en-GB' : taal === 'fr' ? 'fr-BE' : 'nl-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : (data.link.live ? 'live' : null)].filter(Boolean).join(' · ')}</span>
@@ -327,6 +331,7 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
         <button className="fm-knop klein" aria-pressed={toonLagen} onClick={() => { setToonLagen((x) => !x); if (gsm) { setToonLijst(false); setGekozen(null); setToonStroom(false); } }}>{t.lagen}</button>
         {opties.pdf !== false && <button className="fm-knop klein rood" data-menuknop disabled={!!bezig} aria-expanded={pdfMenu} onClick={() => setPdfMenu((x) => !x)}>{bezig || t.pdf}</button>}
           <FeedbackKnop deelToken={token} klein />
+          {hs && !hs.toolen_verbergen && <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,.7)', whiteSpace: 'nowrap', alignSelf: 'center' }}>met <b style={{ color: '#fff' }}>toolen maps</b></span>}
         </div>
       </header>
       {pdfMenu && (

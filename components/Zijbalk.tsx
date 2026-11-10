@@ -7,6 +7,8 @@ import { ToolenTeken } from "./ToolenLogo";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { orgAdres, centraalAdres } from "@/lib/adres";
 import SessieWacht from "./SessieWacht";
+import { MetToolen, OrgLogo } from "./Huisstijl";
+import type { Huisstijl } from "@/lib/huisstijl";
 
 type Org = { slug: string; naam: string; kort?: string; pakket?: string };
 type Props = {
@@ -18,6 +20,7 @@ type Props = {
   plaatsen?: number | null;
   melding?: string | null;
   extra?: React.ReactNode;
+  huisstijl?: Huisstijl;
   children: React.ReactNode;
 };
 
@@ -33,7 +36,7 @@ function initialen(naam?: string | null, email?: string | null) {
 }
 
 // Schil van Toolen Maps binnen een organisatie: navy kolom links, licht werkvlak rechts.
-export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, platform, plaatsen, melding, extra, children }: Props) {
+export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, platform, plaatsen, melding, extra, huisstijl = null, children }: Props) {
   const pad = usePathname() || "";
   const [orgOpen, setOrgOpen] = useState(false);
   const [ikOpen, setIkOpen] = useState(false);
@@ -70,10 +73,16 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
     <div className="t-schil">
       <SessieWacht />
       <nav className="t-zij" aria-label="Hoofdmenu">
-        <Link href="/maps" className="t-zij-merk">
-          <ToolenTeken grootte={30} />
-          <span>toolen<small>maps</small></span>
-        </Link>
+        {huisstijl && (huisstijl.logo_donker || huisstijl.logo_licht) ? (
+          <Link href="/maps" className="t-zij-merk t-zij-eigen" aria-label={huisstijl.naam || organisatie.naam}>
+            <OrgLogo huisstijl={huisstijl} donker hoogte={34} />
+          </Link>
+        ) : (
+          <Link href="/maps" className="t-zij-merk">
+            <ToolenTeken grootte={30} />
+            <span>toolen<small>maps</small></span>
+          </Link>
+        )}
 
         <div ref={orgRef} style={{ position: "relative" }}>
           <button className="t-zij-org" onClick={() => setOrgOpen(!orgOpen)} aria-expanded={orgOpen}>
@@ -113,6 +122,7 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
 
         <div className="t-zij-voet" ref={ikRef}>
           {extra}
+          {huisstijl && <MetToolen huisstijl={huisstijl} donker style={{ padding: "0 10px 6px", display: "block" }} />}
           <button className="t-zij-ik" onClick={() => setIkOpen(!ikOpen)} aria-expanded={ikOpen}>
             <span className="t-avatar" style={{ background: "#28B571" }}>{initialen(gebruiker.naam, gebruiker.email)}</span>
             <span className="t-zij-orgnaam"><b>{gebruiker.naam || gebruiker.email}</b><small>{ROL[rol || ""] || rol}</small></span>

@@ -13,4 +13,5 @@ export const MIGRATIES: { naam: string; handmatig?: boolean; vervangen?: boolean
   { naam: "0010_inloggen_limieten_systeem" },
   { naam: "0011_toegang" },
   { naam: "0012_werkplekken" },
+  { naam: "0013_huisstijl" },
 ];

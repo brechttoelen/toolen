@@ -5,6 +5,7 @@ import Zijbalk from "./Zijbalk";
 import Inlogkader from "./Inlogkader";
 import MfaScherm from "./MfaScherm";
 import { mfaStap } from "@/lib/mfa";
+import { huisstijlVan } from "@/lib/huisstijlServer";
 
 export type Ik = {
   id?: string; role?: string; rol?: string; email?: string; display_name?: string;
@@ -24,10 +25,11 @@ export default async function OrgSchil({ org, verder, children, extra }: { org: 
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect(`/login?verder=${encodeURIComponent(verder)}`);
   const stap = await mfaStap(supabase);
-  if (stap) return <Inlogkader><MfaScherm stap={stap} /></Inlogkader>;
-  const [{ data: ikData }, { data: pb }] = await Promise.all([
+  if (stap) return <Inlogkader huisstijl={await huisstijlVan(org)}><MfaScherm stap={stap} /></Inlogkader>;
+  const [{ data: ikData }, { data: pb }, huisstijl] = await Promise.all([
     supabase.rpc("ik"),
     supabase.from("platform_beheerders").select("user_id").eq("user_id", auth.user.id).maybeSingle(),
+    huisstijlVan(org),
   ]);
   const ik = ikData as Ik;
   const platform = !!pb;
@@ -56,6 +58,7 @@ export default async function OrgSchil({ org, verder, children, extra }: { org: 
       platform={platform}
       melding={melding}
       extra={extra}
+      huisstijl={huisstijl}
     >
       {children}
     </Zijbalk>
