@@ -1,6 +1,9 @@
 import pakket from "@/package.json";
 import { supabaseServer } from "@/lib/supabase/server";
 import { MIGRATIES } from "@/lib/migraties";
+import { adminIngesteld } from "@/lib/supabase/admin";
+import { mailIngesteld } from "@/lib/mail";
+import WachtwoordMails from "./WachtwoordMails";
 
 type Org = { id: string; naam: string; slug: string; pakket: string | null; status: string; plannen: number; items: number; leden: number; plaatsen: number;
   gebruik: { events_jaar: number; max_events_jaar: number | null; deellinks: number; max_deellinks: number | null; opslag_mb: number; max_opslag_mb: number | null } | null;
@@ -33,7 +36,9 @@ const vol = (n: number, max: number | null) => max != null && n >= max * 0.9;
 // Systeempagina voor de platformbeheerder: versie, databank, gebruik per organisatie, signalen en updates.
 export default async function Systeem() {
   const supabase = await supabaseServer();
-  const [{ data, error }, lijst] = await Promise.all([supabase.rpc("platform_systeem"), updates()]);
+  const [{ data, error }, lijst, { data: zonderWw }] = await Promise.all([supabase.rpc("platform_systeem"), updates(), supabase.rpc("platform_zonder_wachtwoord")]);
+  const zonder = (zonderWw || []) as { user_id: string; email: string; organisatie: string }[];
+  const sleutel = adminIngesteld(); const mail = mailIngesteld();
   const c = data as Cijfers | null;
   const sha = process.env.VERCEL_GIT_COMMIT_SHA;
   const gedraaid = new Set(c?.migraties || []);
@@ -86,6 +91,16 @@ export default async function Systeem() {
           </ul>
         </section>
       </div>
+
+      <section className="t-kaart t-sys-vak" style={{ marginTop: 20 }}>
+        <h2>Inloggen</h2>
+        <dl className="t-sys-feiten">
+          <dt>Geheime sleutel Supabase</dt><dd>{sleutel ? <span className="t-pil ok">Ingesteld</span> : <span className="t-pil let-op">Ontbreekt: zet SUPABASE_SERVICE_ROLE_KEY in Vercel</span>}</dd>
+          <dt>Mails (Brevo)</dt><dd>{mail ? <span className="t-pil ok">Ingesteld</span> : <span className="t-pil let-op">Ontbreekt: zet BREVO_API_KEY en MAIL_VAN in Vercel</span>}</dd>
+          <dt>Zonder wachtwoord</dt><dd>{zonder.length ? `${zonder.length} account${zonder.length === 1 ? "" : "s"}: ${zonder.slice(0, 5).map((z) => z.email).join(", ")}${zonder.length > 5 ? " …" : ""}` : "Iedereen heeft een wachtwoord."}</dd>
+        </dl>
+        {zonder.length > 0 && sleutel && mail && <WachtwoordMails aantal={zonder.length} />}
+      </section>
 
       <section className="t-kaart" style={{ overflowX: "auto", marginTop: 20 }}>
         <h2 className="t-sys-kop">Organisaties</h2>

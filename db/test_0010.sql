@@ -13,8 +13,8 @@ update maps.organisaties set status = 'actief', pakket = 'event' where slug = 'f
 -- MFA
 select pg_temp.als('00000000-0000-0000-0000-00000000000a', 'flcs', '{"aal":"aal1","amr":[{"method":"otp"}]}');
 set role authenticated;
-select pg_temp.ok(cardinality(maps.mijn_organisaties()) = 1, 'e-mailcode zonder tweede stap: toegang');
-select pg_temp.ok((select count(*) from maps.plannen) > 0, 'e-mailcode: plannen zichtbaar');
+select pg_temp.ok(cardinality(maps.mijn_organisaties()) = 0, 'e-mailcode zonder tweede stap: geen toegang (sinds 0011)');
+select pg_temp.ok((select count(*) from maps.plannen) = 0, 'e-mailcode: geen plannen (sinds 0011)');
 reset role;
 select pg_temp.als('00000000-0000-0000-0000-00000000000a', 'flcs', '{"aal":"aal1","amr":[{"method":"password"}]}');
 set role authenticated;

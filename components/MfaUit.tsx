@@ -2,14 +2,14 @@
 
 import { supabaseBrowser } from "@/lib/supabase/client";
 
-// Tweestapsverificatie weer uitzetten (bv. nieuwe gsm: uitzetten en opnieuw instellen).
+// Nieuwe gsm: de huidige code wissen en meteen opnieuw instellen (uitzetten kan niet: ze is verplicht).
 export default function MfaUit({ factorId }: { factorId: string }) {
   return (
     <button type="button" className="t-knop" onClick={async () => {
-      if (!window.confirm("Tweestapsverificatie uitzetten? Met een wachtwoord inloggen vraagt dan meteen opnieuw om ze in te stellen.")) return;
+      if (!window.confirm("Op een nieuwe gsm instellen? De code op je huidige gsm werkt daarna niet meer.")) return;
       const { error } = await supabaseBrowser().auth.mfa.unenroll({ factorId });
       if (error) { window.alert(error.message); return; }
       window.location.reload();
-    }}>Uitzetten of nieuwe gsm</button>
+    }}>Nieuwe gsm instellen</button>
   );
 }

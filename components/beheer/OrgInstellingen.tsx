@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { sb } from "@/components/maps/db";
-import { MODULES, ROLLEN, statusVan, pakketVan, rolNaam, uitnodigingsAdres, datum } from "@/lib/pakketten";
+import { MODULES, ROLLEN, statusVan, pakketVan, rolNaam, datum } from "@/lib/pakketten";
+import { Toegang, ToegangBewerken, ToegangKiezer } from "./Toegang";
 
 type Ik = { id: string; rol: string; organisatie: { id: string; slug: string; naam: string } };
-type Lid = { user_id: string; email: string; naam: string | null; rol: string; actief: boolean; sinds: string; ik: boolean };
-type Uitn = { id: string; email: string; rol: string; token: string; geldig_tot: string };
+type Lid = { user_id: string; email: string; naam: string | null; rol: string; actief: boolean; sinds: string; ik: boolean; event_ids: string[] | null; mfa: boolean };
+type Uitn = { id: string; email: string; naam: string | null; rol: string; event_ids: string[] | null; geldig_tot: string; verstuurd_op: string | null };
+type Ev = { id: string; naam: string; datum: string | null };
 type Org = { id: string; naam: string; kort: string | null; adres: string | null; ondernemingsnummer: string | null; land: string;
   status: string; pakket: string; plaatsen: number; lezers_max: number; modules: string[]; proef_tot: string | null };
 type Gebruik = { plaatsen: number; plaatsen_max: number; lezers: number; lezers_max: number };
@@ -45,8 +47,13 @@ export default function OrgInstellingen() {
   useEffect(() => { if (org?.pakket) db().from("pakketten").select("naam").eq("id", org.pakket).maybeSingle().then(({ data }: { data: unknown }) => setPakketNaam((data as { naam: string } | null)?.naam || null)); }, [org?.pakket]);
   const [melding, setMelding] = useState<{ soort: "ok" | "fout"; tekst: string } | null>(null);
   const [mail, setMail] = useState("");
+  const [naam, setNaam] = useState("");
   const [rol, setRol] = useState("bewerker");
+  const [evIds, setEvIds] = useState<string[] | null>(null);
+  const [events, setEvents] = useState<Ev[]>([]);
   const [nieuweLink, setNieuweLink] = useState<{ email: string; link: string } | null>(null);
+  const [bezig, setBezig] = useState("");
+  const [toegangVan, setToegangVan] = useState<string | null>(null); // lid waarvan je de evenementen wijzigt
 
   const beheer = ik?.rol === "eigenaar" || ik?.rol === "beheerder";
   const eigenaar = ik?.rol === "eigenaar";
@@ -60,24 +67,51 @@ export default function OrgInstellingen() {
     db().rpc("gebruik", { p_org: id }).then((r: { data: unknown }) => setLimieten(r.data as Limieten | null));
     const [l, u, o, g] = await Promise.all([
       db().rpc("leden_van", { p_org: id }),
-      db().from("uitnodigingen").select("id, email, rol, token, geldig_tot").eq("organisatie_id", id).is("aanvaard_op", null).gt("geldig_tot", new Date().toISOString()).order("created_at"),
+      db().from("uitnodigingen").select("id, email, naam, rol, event_ids, geldig_tot, verstuurd_op").eq("organisatie_id", id).is("aanvaard_op", null).order("created_at"),
       db().from("organisaties").select("*").eq("id", id).single(),
       db().rpc("plaatsen_in_gebruik", { p_org: id }),
     ]);
     setLeden((l.data || []) as Lid[]); setUitn((u.data || []) as Uitn[]); setOrg(o.data as Org); setGebruik(g.data as Gebruik);
+    db().from("events").select("id, naam, datum").eq("organisatie_id", id).order("datum", { ascending: false, nullsFirst: false }).then((r: { data: unknown }) => setEvents((r.data || []) as Ev[]));
   }
   useEffect(() => { laad(); }, []);
 
   const toon = (soort: "ok" | "fout", tekst: string) => setMelding({ soort, tekst });
 
-  async function nodigUit(e: React.FormEvent) {
-    e.preventDefault(); setMelding(null); setNieuweLink(null);
-    const { data, error } = await db().from("uitnodigingen").insert({ organisatie_id: ik!.organisatie.id, email: mail, rol }).select("email, token").single();
-    if (error) return toon("fout", error.message);
-    setNieuweLink({ email: data.email, link: uitnodigingsAdres(data.token) });
-    setMail(""); laad();
+  async function post(pad: string, body: unknown) {
+    const r = await fetch(pad, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.fout || "Er liep iets mis.");
+    return j as { link?: string; verstuurd?: boolean; melding?: string };
   }
-  async function wijzigLid(l: Lid, velden: Partial<Pick<Lid, "rol" | "actief">>) {
+  async function nodigUit(e: React.FormEvent) {
+    e.preventDefault(); setMelding(null); setNieuweLink(null); setBezig("uitnodigen");
+    try {
+      const j = await post("/api/uitnodigen", { organisatie_id: ik!.organisatie.id, email: mail, naam, rol, event_ids: ["bewerker", "lezer"].includes(rol) ? evIds : null });
+      if (j.verstuurd) toon("ok", `Uitnodiging verstuurd naar ${mail}.`);
+      else { toon("fout", j.melding || "De mail kon niet verstuurd worden. Stuur de link zelf door."); if (j.link) setNieuweLink({ email: mail, link: j.link }); }
+      setMail(""); setNaam(""); setEvIds(null); laad();
+    } catch (x) { toon("fout", (x as Error).message); }
+    setBezig("");
+  }
+  async function opnieuw(u: Uitn) {
+    setMelding(null); setNieuweLink(null); setBezig(u.id);
+    try {
+      const j = await post("/api/uitnodigen", { opnieuw: u.id });
+      if (j.verstuurd) toon("ok", `Opnieuw verstuurd naar ${u.email}. De vorige link werkt niet meer.`);
+      else { toon("fout", j.melding || "De mail kon niet verstuurd worden."); if (j.link) setNieuweLink({ email: u.email, link: j.link }); }
+      laad();
+    } catch (x) { toon("fout", (x as Error).message); }
+    setBezig("");
+  }
+  async function mfaReset(l: Lid) {
+    if (!confirm(`De tweestapsverificatie van ${l.naam || l.email} wissen? Bij de volgende aanmelding stelt die ze opnieuw in. ${l.naam || l.email} krijgt hierover een mail.`)) return;
+    setMelding(null); setBezig(l.user_id);
+    try { await post("/api/mfa-reset", { user_id: l.user_id, organisatie_id: ik!.organisatie.id }); toon("ok", `Tweestapsverificatie van ${l.naam || l.email} gewist.`); laad(); }
+    catch (x) { toon("fout", (x as Error).message); }
+    setBezig("");
+  }
+  async function wijzigLid(l: Lid, velden: Partial<Pick<Lid, "rol" | "actief" | "event_ids">>) {
     setMelding(null);
     const { error } = await db().from("leden").update(velden).eq("organisatie_id", ik!.organisatie.id).eq("user_id", l.user_id);
     if (error) toon("fout", error.message); else laad();
@@ -122,18 +156,28 @@ export default function OrgInstellingen() {
           )}
 
           {beheer && (
-            <div className="t-kaart" style={{ padding: 16 }}>
-              <form onSubmit={nodigUit} className="t-rij" style={{ flexWrap: "wrap" }}>
-                <input className="t-veld" style={{ flex: "1 1 240px" }} type="email" required placeholder="naam@bedrijf.be" value={mail} onChange={(e) => setMail(e.target.value)} />
-                <select className="t-veld" style={{ width: 170 }} value={rol} onChange={(e) => setRol(e.target.value)}>
-                  {ROLLEN.filter((r) => r.id !== "eigenaar" || eigenaar).map((r) => <option key={r.id} value={r.id}>{r.naam}</option>)}
-                </select>
-                <button className="t-knop hoofd">Uitnodigen</button>
+            <div className="t-kaart" style={{ padding: 18 }}>
+              <h2 style={{ fontSize: 16, margin: "0 0 12px" }}>Iemand uitnodigen</h2>
+              <form onSubmit={nodigUit} className="t-stapel" style={{ gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+                  <label><span className="t-label">Naam</span><input className="t-veld" placeholder="Voornaam Achternaam" value={naam} onChange={(e) => setNaam(e.target.value)} /></label>
+                  <label><span className="t-label">E-mailadres</span><input className="t-veld" type="email" required placeholder="naam@bedrijf.be" value={mail} onChange={(e) => setMail(e.target.value)} /></label>
+                  <label><span className="t-label">Rol</span>
+                    <select className="t-veld" value={rol} onChange={(e) => setRol(e.target.value)}>
+                      {ROLLEN.filter((r) => r.id !== "eigenaar" || eigenaar).map((r) => <option key={r.id} value={r.id}>{r.naam}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <p className="t-stil" style={{ fontSize: 12.5, margin: 0 }}>{ROLLEN.find((r) => r.id === rol)?.naam}: {ROLLEN.find((r) => r.id === rol)?.uitleg}.</p>
+                {["bewerker", "lezer"].includes(rol) && events.length > 0 && <ToegangKiezer events={events} ids={evIds} onIds={setEvIds} />}
+                <div className="t-rij" style={{ gap: 10, flexWrap: "wrap" }}>
+                  <button className="t-knop hoofd" style={{ flex: "none" }} disabled={bezig === "uitnodigen"}>{bezig === "uitnodigen" ? "Bezig…" : "Uitnodiging versturen"}</button>
+                  <span className="t-stil" style={{ fontSize: 12.5 }}>Een mail met een link om een wachtwoord te kiezen, 7 dagen geldig.</span>
+                </div>
               </form>
-              <p className="t-stil" style={{ fontSize: 12.5, margin: "8px 0 0" }}>{ROLLEN.find((r) => r.id === rol)?.uitleg}</p>
               {nieuweLink && (
                 <div className="t-stapel" style={{ marginTop: 12, gap: 8 }}>
-                  <span style={{ fontSize: 13.5 }}>Stuur deze link naar {nieuweLink.email} (14 dagen geldig):</span>
+                  <span style={{ fontSize: 13.5 }}>Link voor {nieuweLink.email}:</span>
                   <div className="t-rij"><input className="t-veld" readOnly value={nieuweLink.link} /><Kopieer tekst={nieuweLink.link} /></div>
                 </div>
               )}
@@ -142,12 +186,13 @@ export default function OrgInstellingen() {
 
           <div className="t-kaart" style={{ overflowX: "auto" }}>
             <table className="t-tabel">
-              <thead><tr><th>Naam</th><th>Rol</th><th>Sinds</th>{beheer && <th style={{ width: 1 }} />}</tr></thead>
+              <thead><tr><th>Naam</th><th>Rol</th><th>Toegang</th><th>Tweestap</th><th>Sinds</th>{beheer && <th style={{ width: 1 }} />}</tr></thead>
               <tbody>
                 {leden.map((l) => {
                   const magRol = beheer && !l.ik && (l.rol !== "eigenaar" || eigenaar);
-                  return (
-                    <tr key={l.user_id} style={l.actief ? undefined : { opacity: 0.55 }}>
+                  const beperkbaar = ["bewerker", "lezer"].includes(l.rol);
+                  return (<Fragment key={l.user_id}>
+                    <tr style={l.actief ? undefined : { opacity: 0.55 }}>
                       <td>
                         <div style={{ fontWeight: 500 }}>{l.naam || l.email}{l.ik && <span className="t-stil" style={{ fontWeight: 400 }}> (jij)</span>}</div>
                         {l.naam && <div className="t-stil" style={{ fontSize: 12.5 }}>{l.email}</div>}
@@ -160,11 +205,17 @@ export default function OrgInstellingen() {
                         ) : rolNaam(l.rol)}
                         {!l.actief && <span className="t-pil" style={{ marginLeft: 8 }}>Gedeactiveerd</span>}
                       </td>
-                      <td className="t-stil">{datum(l.sinds)}</td>
+                      <td>
+                        <Toegang ids={l.event_ids} events={events} />
+                        {magRol && beperkbaar && events.length > 0 && <button className="t-knop klein" style={{ marginLeft: 8 }} onClick={() => setToegangVan(toegangVan === l.user_id ? null : l.user_id)}>{toegangVan === l.user_id ? "Sluiten" : "Wijzigen"}</button>}
+                      </td>
+                      <td>{l.mfa ? <span className="t-pil ok">Aan</span> : <span className="t-pil">Nog niet</span>}</td>
+                      <td className="t-stil" style={{ whiteSpace: "nowrap" }}>{datum(l.sinds)}</td>
                       {beheer && (
                         <td style={{ whiteSpace: "nowrap" }}>
                           {magRol && (
                             <div className="t-rij" style={{ gap: 6 }}>
+                              {l.mfa && l.rol !== "eigenaar" && <button className="t-knop klein" disabled={bezig === l.user_id} onClick={() => mfaReset(l)} title="Gsm kwijt: de code wissen, bij de volgende aanmelding opnieuw instellen">Tweestap wissen</button>}
                               <button className="t-knop klein" onClick={() => wijzigLid(l, { actief: !l.actief })}>{l.actief ? "Deactiveren" : "Activeren"}</button>
                               <button className="t-knop klein gevaar" onClick={() => verwijderLid(l)}>Verwijderen</button>
                             </div>
@@ -172,7 +223,12 @@ export default function OrgInstellingen() {
                         </td>
                       )}
                     </tr>
-                  );
+                    {toegangVan === l.user_id && (
+                      <tr><td colSpan={beheer ? 6 : 5} style={{ background: "var(--t-vlak, #F7F8FA)" }}>
+                        <ToegangBewerken events={events} ids={l.event_ids} onBewaar={(ids) => { wijzigLid(l, { event_ids: ids }); setToegangVan(null); }} />
+                      </td></tr>
+                    )}
+                  </Fragment>);
                 })}
               </tbody>
             </table>
@@ -182,12 +238,18 @@ export default function OrgInstellingen() {
             <div>
               <span className="t-label">Openstaande uitnodigingen</span>
               <div className="t-kaart">
-                {uitn.map((u, i) => (
-                  <div key={u.id} className="t-rij" style={{ padding: "10px 14px", borderTop: i ? "1px solid var(--t-rand)" : 0, fontSize: 13.5 }}>
-                    <span style={{ flex: 1 }}>{u.email} <span className="t-stil">· {rolNaam(u.rol)} · geldig tot {datum(u.geldig_tot)}</span></span>
-                    {beheer && <><Kopieer tekst={uitnodigingsAdres(u.token)} /><button className="t-knop klein gevaar" onClick={() => trekIn(u.id)}>Intrekken</button></>}
-                  </div>
-                ))}
+                {uitn.map((u, i) => {
+                  const verlopen = new Date(u.geldig_tot) < new Date();
+                  return (
+                    <div key={u.id} className="t-rij" style={{ padding: "10px 14px", borderTop: i ? "1px solid var(--t-rand)" : 0, fontSize: 13.5, flexWrap: "wrap" }}>
+                      <span style={{ flex: 1, minWidth: 220 }}>
+                        <span style={{ fontWeight: 500 }}>{u.naam || u.email}</span>{u.naam && <span className="t-stil"> · {u.email}</span>}
+                        <span className="t-stil" style={{ display: "block", fontSize: 12.5 }}>{rolNaam(u.rol)} · <Toegang ids={u.event_ids} events={events} kaal /> · {verlopen ? "verlopen" : `geldig tot ${datum(u.geldig_tot)}`}{u.verstuurd_op ? "" : " · nog niet verstuurd"}</span>
+                      </span>
+                      {beheer && <><button className="t-knop klein" disabled={bezig === u.id} onClick={() => opnieuw(u)}>{bezig === u.id ? "Bezig…" : "Opnieuw versturen"}</button><button className="t-knop klein gevaar" onClick={() => trekIn(u.id)}>Intrekken</button></>}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

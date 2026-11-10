@@ -110,3 +110,21 @@ Gsm kwijt (MFA herstellen voor iemand): in de SQL Editor `delete from auth.mfa_f
 
 - Bestanden: lezen is publiek, opladen kan iedereen die in een organisatie mag schrijven, wijzigen en wissen enkel wie het bestand opleverde of een beheerder. Paden per organisatie (`<organisatie_id>/…`) volgen bij de dataverhuis.
 - Stock (`logistiek.artikels`) en GridLab bestaan niet in dit project: die schermen tonen voorlopig niets (fase 4).
+
+## 0011_toegang (inloggen, uitnodigen, toegang per evenement)
+
+- Inloggen: bedrijfscode (de slug, bv. FLCS) + e-mail + wachtwoord, daarna altijd een code uit een app (aal2).
+  Microsoft of Google enkel als het platform die per organisatie aanzet (`organisaties.sso`); dan doet het bedrijf zelf de tweede stap.
+- Uitnodigen gaat via `/api/uitnodigen` (mail via Brevo). Het token staat enkel als hash in de database, 7 dagen geldig, één keer bruikbaar.
+- `leden.event_ids` / `uitnodigingen.event_ids`: null = alle evenementen. Restrictieve policies `evenementen` op events, plannen en alles erin.
+- Tweestapsverificatie wissen (gsm kwijt): beheerder via Instellingen › Leden, eigenaar enkel via het platform. Wordt gelogd.
+- Test: `test_0011.sql` (rolt alles terug).
+
+Nodig in Vercel (Production en Preview), nooit in de code:
+- `SUPABASE_SERVICE_ROLE_KEY` (Supabase › Project settings › API keys › secret)
+- `BREVO_API_KEY`, `MAIL_VAN` (bv. no-reply@toolen.be), optioneel `MAIL_VAN_NAAM` (standaard "Toolen Maps")
+
+In Supabase (Authentication):
+- Sign up uitzetten ("Allow new users to sign up" uit): accounts komen enkel nog via een uitnodiging.
+- Minimum wachtwoordlengte op 12.
+- Email-provider: magic links en e-mailcodes niet meer gebruikt door de app.

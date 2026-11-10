@@ -5,7 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { orgAdres } from "@/lib/adres";
 import {
   MODULES, KOPPELINGEN, PAKKETTEN, STATUSSEN, ROLLEN, statusVan, pakketVan, rolNaam, slugVan,
-  uitnodigingsAdres, datum, tijdstip,
+  datum, tijdstip,
 } from "@/lib/pakketten";
 import { HOOFDDOMEIN } from "@/lib/org";
 
@@ -15,7 +15,13 @@ type Org = {
   plannen: number; eigenaars: string | null; laatste_wijziging: string | null; created_at: string;
 };
 type Lid = { user_id: string; email: string; naam: string | null; rol: string; actief: boolean; sinds: string };
-type Uitn = { id: string; email: string; rol: string; token: string; geldig_tot: string; aanvaard_op: string | null; created_at: string };
+type Uitn = { id: string; email: string; rol: string; geldig_tot: string; aanvaard_op: string | null; created_at: string; verstuurd_op: string | null };
+
+// Uitnodiging (opnieuw) versturen via de server: nieuwe link, 7 dagen geldig, met mail.
+async function verstuurUitnodiging(id: string): Promise<{ link?: string; verstuurd?: boolean; melding?: string; fout?: string }> {
+  const r = await fetch("/api/uitnodigen", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ opnieuw: id }) });
+  return r.json().catch(() => ({ fout: "Er liep iets mis." }));
+}
 type Log = { id: number; actie: string; details: Record<string, unknown>; op: string };
 export type Pakket = {
   id: string; naam: string; omschrijving: string | null; plaatsen: number; lezers: number; modules: string[]; modules_keuze: number;
@@ -179,7 +185,7 @@ function NieuweOrganisatie({ pk, onSluit, onKlaar }: { pk: ReturnType<typeof use
   const [eigenaar, setEigenaar] = useState("");
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState("");
-  const [klaar, setKlaar] = useState<{ slug: string; token: string | null; lid: boolean } | null>(null);
+  const [klaar, setKlaar] = useState<{ slug: string; link: string | null; verstuurd: boolean; lid: boolean } | null>(null);
 
   function kiesPakket(id: string) {
     const p = pk.van(id);
@@ -198,8 +204,9 @@ function NieuweOrganisatie({ pk, onSluit, onKlaar }: { pk: ReturnType<typeof use
     });
     setBezig(false);
     if (error) { setFout(error.message); return; }
-    const d = data as { slug: string; token: string | null; eigenaar_lid: boolean };
-    setKlaar({ slug: d.slug, token: d.token, lid: d.eigenaar_lid });
+    const d = data as { slug: string; uitnodiging: string | null; eigenaar_lid: boolean };
+    const v = d.uitnodiging ? await verstuurUitnodiging(d.uitnodiging) : null;
+    setKlaar({ slug: d.slug, link: v?.link || null, verstuurd: !!v?.verstuurd, lid: d.eigenaar_lid });
     onKlaar();
   }
 
@@ -210,10 +217,12 @@ function NieuweOrganisatie({ pk, onSluit, onKlaar }: { pk: ReturnType<typeof use
           <>
             <h2>{naam} is aangemaakt</h2>
             <p className="t-sub">Adres: {klaar.slug}.{HOOFDDOMEIN}</p>
-            {klaar.token ? (
+            {klaar.verstuurd ? (
+              <p style={{ marginTop: 16 }}>{eigenaar} kreeg een uitnodiging per mail (7 dagen geldig).</p>
+            ) : klaar.link ? (
               <div className="t-stapel" style={{ marginTop: 16 }}>
-                <p style={{ margin: 0 }}>{eigenaar} heeft nog geen account. Stuur deze uitnodigingslink (14 dagen geldig):</p>
-                <div className="t-rij"><input className="t-veld" readOnly value={uitnodigingsAdres(klaar.token)} /><Kopieer tekst={uitnodigingsAdres(klaar.token)} /></div>
+                <p style={{ margin: 0 }}>De mail kon niet verstuurd worden. Stuur {eigenaar} deze link (7 dagen geldig):</p>
+                <div className="t-rij"><input className="t-veld" readOnly value={klaar.link} /><Kopieer tekst={klaar.link} /></div>
               </div>
             ) : klaar.lid ? <p style={{ marginTop: 16 }}>{eigenaar} is meteen eigenaar.</p> : <p style={{ marginTop: 16 }} className="t-stil">Nog geen eigenaar: nodig er een uit via de organisatie.</p>}
             <div className="t-rij" style={{ marginTop: 24, justifyContent: "flex-end" }}>
@@ -277,6 +286,8 @@ function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<t
   const [melding, setMelding] = useState<{ soort: "ok" | "fout"; tekst: string } | null>(null);
   const [nieuwMail, setNieuwMail] = useState("");
   const [nieuwRol, setNieuwRol] = useState("eigenaar");
+  const [sso, setSso] = useState<string[]>([]);
+  useEffect(() => { sb().from("organisaties").select("sso").eq("id", org.id).single().then(({ data }) => setSso(((data as { sso?: string[] } | null)?.sso) || [])); }, [org.id]);
 
   async function laad() {
     const [l, u, g] = await Promise.all([
@@ -300,8 +311,23 @@ function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<t
 
   async function nodigUit(e: React.FormEvent) {
     e.preventDefault(); setMelding(null);
-    const { error } = await sb().from("uitnodigingen").insert({ organisatie_id: org.id, email: nieuwMail, rol: nieuwRol });
-    if (error) setMelding({ soort: "fout", tekst: error.message }); else { setNieuwMail(""); laad(); onGewijzigd(); }
+    const r = await fetch("/api/uitnodigen", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ organisatie_id: org.id, email: nieuwMail, rol: nieuwRol }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { setMelding({ soort: "fout", tekst: j.fout || "Er liep iets mis." }); return; }
+    setMelding(j.verstuurd ? { soort: "ok", tekst: `Uitnodiging verstuurd naar ${nieuwMail}.` } : { soort: "fout", tekst: `${j.melding || "Niet verstuurd."} ${j.link || ""}` });
+    setNieuwMail(""); laad(); onGewijzigd();
+  }
+  async function opnieuw(u: Uitn) {
+    setMelding(null);
+    const j = await verstuurUitnodiging(u.id);
+    setMelding(j.fout ? { soort: "fout", tekst: j.fout } : j.verstuurd ? { soort: "ok", tekst: `Opnieuw verstuurd naar ${u.email}.` } : { soort: "fout", tekst: `${j.melding || "Niet verstuurd."} ${j.link || ""}` });
+    laad();
+  }
+  async function zetSso(id: "azure" | "google", aan: boolean) {
+    setMelding(null);
+    const nieuw = aan ? [...new Set([...sso, id])] : sso.filter((x) => x !== id);
+    const { error } = await sb().from("organisaties").update({ sso: nieuw }).eq("id", org.id);
+    if (error) setMelding({ soort: "fout", tekst: error.message }); else { setSso(nieuw); setMelding({ soort: "ok", tekst: "Inlogmethodes bewaard." }); }
   }
   async function trekIn(id: string) {
     await sb().from("uitnodigingen").delete().eq("id", id); laad(); onGewijzigd();
@@ -378,12 +404,20 @@ function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<t
                 {uitn.map((u) => (
                   <div key={u.id} className="t-rij" style={{ fontSize: 13.5 }}>
                     <span style={{ flex: 1 }}>{u.email} <span className="t-stil">· {rolNaam(u.rol)} · tot {datum(u.geldig_tot)}</span></span>
-                    <Kopieer tekst={uitnodigingsAdres(u.token)} />
+                    <button className="t-knop klein" onClick={() => opnieuw(u)}>Opnieuw versturen</button>
                     <button className="t-knop klein gevaar" onClick={() => trekIn(u.id)}>Intrekken</button>
                   </div>
                 ))}
               </>
             )}
+            <div className="t-kaart" style={{ padding: 14, marginTop: 8 }}>
+              <span className="t-label">Inloggen met het account van het werk (grote klanten)</span>
+              <p className="t-stil" style={{ fontSize: 12.5, margin: "0 0 8px" }}>Standaard: bedrijfscode, e-mail, wachtwoord en een code uit een app. Met Microsoft of Google doet het bedrijf zelf de tweede stap.</p>
+              <div className="t-rij" style={{ gap: 18 }}>
+                <label className="t-rij" style={{ gap: 6, fontSize: 13.5 }}><input type="checkbox" checked={sso.includes("azure")} onChange={(e) => zetSso("azure", e.target.checked)} />Microsoft</label>
+                <label className="t-rij" style={{ gap: 6, fontSize: 13.5 }}><input type="checkbox" checked={sso.includes("google")} onChange={(e) => zetSso("google", e.target.checked)} />Google</label>
+              </div>
+            </div>
             <form onSubmit={nodigUit} className="t-rij" style={{ marginTop: 8 }}>
               <input className="t-veld" type="email" required placeholder="naam@bedrijf.be" value={nieuwMail} onChange={(e) => setNieuwMail(e.target.value)} />
               <select className="t-veld" style={{ width: 150 }} value={nieuwRol} onChange={(e) => setNieuwRol(e.target.value)}>{ROLLEN.map((r) => <option key={r.id} value={r.id}>{r.naam}</option>)}</select>

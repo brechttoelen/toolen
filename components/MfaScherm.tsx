@@ -48,7 +48,7 @@ export default function MfaScherm({ stap, reden }: { stap: "code" | "instellen";
       <h2 className="t-titel" style={{ fontSize: 28, marginBottom: 6 }}>{instellen ? "Tweestapsverificatie instellen" : "Code uit je app"}</h2>
       <p className="t-sub" style={{ marginBottom: 18 }}>
         {reden || (instellen
-          ? "Wie met een wachtwoord inlogt, geeft ook een code uit een app op de gsm. Zo kan niemand anders met je wachtwoord binnen."
+          ? "Naast je wachtwoord geef je telkens een code uit een app op je gsm. Zo kan niemand anders met je wachtwoord binnen. Tip: zet de code ook op een tweede toestel, dan sta je niet buiten als je gsm kwijt is."
           : "Geef de code van 6 cijfers uit je app (bv. Microsoft Authenticator of Google Authenticator).")}
       </p>
       {instellen && (
@@ -72,7 +72,7 @@ export default function MfaScherm({ stap, reden }: { stap: "code" | "instellen";
       </form>
       {fout && <p className="t-melding fout" style={{ marginTop: 14 }}>{fout}</p>}
       <button type="button" onClick={afmelden} style={{ border: 0, background: "none", padding: "14px 0 0", color: "var(--t-blauw-donker)", cursor: "pointer", font: "inherit", fontSize: 13.5 }}>Afmelden</button>
-      <p className="t-stil" style={{ fontSize: 12.5, marginTop: 14 }}>Gsm kwijt? Vraag de beheerder van Toolen om je tweestapsverificatie te wissen.</p>
+      <p className="t-stil" style={{ fontSize: 12.5, marginTop: 14 }}>Gsm kwijt? Vraag een beheerder van je bedrijf om je tweestapsverificatie te wissen.</p>
     </div>
   );
 }
