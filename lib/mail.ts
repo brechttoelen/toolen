@@ -1,31 +1,50 @@
-// Mails versturen via Brevo (Europees). Sleutel en afzender staan in de omgeving van de server:
-//   BREVO_API_KEY, MAIL_VAN (bv. no-reply@toolen.be), MAIL_VAN_NAAM (standaard "Toolen Maps").
+// Mails versturen. Resend (EU, Ierland) als RESEND_API_KEY er is, anders Brevo (BREVO_API_KEY).
+// Resend volgt standaard geen links en geen openingen, Brevo wel.
+// Afzender: MAIL_VAN (bv. no-reply@toolen.be), MAIL_VAN_NAAM (standaard "Toolen Maps").
 // Elke mail heeft een HTML- en een tekstversie, in dezelfde rustige stijl als de app.
 
 export type Mail = { aan: string; naam?: string | null; onderwerp: string; html: string; tekst: string; antwoordAan?: { email: string; naam?: string | null } | null };
 
-export const mailIngesteld = () => !!process.env.BREVO_API_KEY;
+export const mailIngesteld = () => !!(process.env.RESEND_API_KEY || process.env.BREVO_API_KEY);
+export const mailDienst = () => (process.env.RESEND_API_KEY ? "Resend" : process.env.BREVO_API_KEY ? "Brevo" : null);
+
+const van = () => ({ email: process.env.MAIL_VAN || "no-reply@toolen.be", naam: process.env.MAIL_VAN_NAAM || "Toolen Maps" });
+const adres = (email: string, naam?: string | null) => (naam ? `${naam.replace(/["<>]/g, "")} <${email}>` : email);
+
+async function fout(r: Response) {
+  const t = await r.text().catch(() => "");
+  throw new Error(`De mail kon niet verstuurd worden (${r.status}). ${t.slice(0, 200)}`);
+}
 
 export async function verstuur(m: Mail): Promise<void> {
-  const sleutel = process.env.BREVO_API_KEY;
-  if (!sleutel) throw new Error("Mails versturen is nog niet ingesteld (BREVO_API_KEY ontbreekt).");
+  const resend = process.env.RESEND_API_KEY; const brevo = process.env.BREVO_API_KEY;
+  if (resend) {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { authorization: `Bearer ${resend}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        from: adres(van().email, van().naam),
+        to: [adres(m.aan, m.naam)],
+        ...(m.antwoordAan ? { reply_to: adres(m.antwoordAan.email, m.antwoordAan.naam) } : {}),
+        subject: m.onderwerp, html: m.html, text: m.tekst,
+        tags: [{ name: "app", value: "toolen" }],
+      }),
+    });
+    if (!r.ok) await fout(r);
+    return;
+  }
+  if (!brevo) throw new Error("Mails versturen is nog niet ingesteld (RESEND_API_KEY of BREVO_API_KEY ontbreekt).");
   const r = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
-    headers: { "api-key": sleutel, "content-type": "application/json", accept: "application/json" },
+    headers: { "api-key": brevo, "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify({
-      sender: { email: process.env.MAIL_VAN || "no-reply@toolen.be", name: process.env.MAIL_VAN_NAAM || "Toolen Maps" },
+      sender: { email: van().email, name: van().naam },
       to: [{ email: m.aan, ...(m.naam ? { name: m.naam } : {}) }],
       ...(m.antwoordAan ? { replyTo: { email: m.antwoordAan.email, ...(m.antwoordAan.naam ? { name: m.antwoordAan.naam } : {}) } } : {}),
-      subject: m.onderwerp,
-      htmlContent: m.html,
-      textContent: m.tekst,
-      tags: ["toolen"],
+      subject: m.onderwerp, htmlContent: m.html, textContent: m.tekst, tags: ["toolen"],
     }),
   });
-  if (!r.ok) {
-    const t = await r.text().catch(() => "");
-    throw new Error(`De mail kon niet verstuurd worden (${r.status}). ${t.slice(0, 200)}`);
-  }
+  if (!r.ok) await fout(r);
 }
 
 import { leesbaar, type Huisstijl } from "./huisstijl";

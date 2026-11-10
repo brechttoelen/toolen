@@ -122,7 +122,7 @@ Gsm kwijt (MFA herstellen voor iemand): in de SQL Editor `delete from auth.mfa_f
 
 Nodig in Vercel (Production en Preview), nooit in de code:
 - `SUPABASE_SERVICE_ROLE_KEY` (Supabase › Project settings › API keys › secret)
-- `BREVO_API_KEY`, `MAIL_VAN` (bv. no-reply@toolen.be), optioneel `MAIL_VAN_NAAM` (standaard "Toolen Maps")
+- `RESEND_API_KEY` (aangeraden, EU) of `BREVO_API_KEY`, `MAIL_VAN` (bv. no-reply@toolen.be), optioneel `MAIL_VAN_NAAM` (standaard "Toolen Maps")
 
 In Supabase (Authentication):
 - Sign up uitzetten ("Allow new users to sign up" uit): accounts komen enkel nog via een uitnodiging.
