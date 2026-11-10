@@ -11,6 +11,8 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { maakPdf, maakBladen, indeling, passendeSchaal, PAPIER } from './pdf';
 import { maps } from './db';
+import { startExport } from './planLaden';
+import { profielenVan, PROFIEL_VELDEN } from './uitvoer';
 import { elementVeelhoek, kader as bbox, getal } from './geo';
 import { basisStijl, registreerProtocollen, zetOndergrond, klapBronvermeldingIn } from './ondergronden';
 import { kaartLagen, naarGeojson, zorgVoorPatronen } from './stijl';
@@ -26,7 +28,7 @@ const rondSchaal = (s) => {
 };
 const schaalTekst = (s) => `1:${Number(s).toLocaleString('nl-BE')}`;
 
-export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items, elementenMap, actieveFase, kaart, onSluit, onPlan }) {
+export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items, elementenMap, actieveFase, kaart, onSluit, onPlan, startProfiel = null }) {
   const opgeslagen = plan.instellingen?.pdf || {};
   const [inst, setInst] = useState({
     papier: 'A3', orientatie: 'liggend', vrijB: 2100, vrijH: 1500, schaal: null, ondergrond: plan.basiskaart === 'stratenkaart' ? 'lijntekening' : plan.basiskaart,
@@ -37,7 +39,7 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
   const [bezig, setBezig] = useState('');
   const [meldingen, setMeldingen] = useState([]);
   const [fout, setFout] = useState('');
-  const [uitsneden, setUitsneden] = useState(() => plan.instellingen?.pdf_uitsneden || []);
+  const [uitsneden, setUitsneden] = useState(() => profielenVan(plan));
   const [actief, setActief] = useState(null); // id van de geladen uitsnede
   const [aangevinkt, setAangevinkt] = useState([]);
 
@@ -79,20 +81,22 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
     klapBronvermeldingIn(map);
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric', maxWidth: 140 }), 'bottom-left');
-    map.on('load', () => {
+    // Zodra de stijl er is (niet wachten op alle tegels: een trage kaartdienst mag het scherm niet blokkeren).
+    const bijKlaar = (f) => { let gedaan = false; const doe = () => { if (gedaan || !map.style?._loaded) return; gedaan = true; map.off('styledata', doe); f(); }; map.on('styledata', doe); map.once('load', doe); setTimeout(doe, 0); };
+    bijKlaar(() => {
       zetOndergrond(map, inst.ondergrond);
       map.addSource('fm-vormen', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addSource('fm-labels', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       for (const l of kaartLagen(centrum[1])) map.addLayer(l);
       const leeg = { type: 'FeatureCollection', features: [] };
       map.addSource('pdf-buiten', { type: 'geojson', data: leeg });
-      map.addLayer({ id: 'pdf-buiten', type: 'fill', source: 'pdf-buiten', paint: { 'fill-color': '#1d1d1b', 'fill-opacity': 0.35 } });
+      map.addLayer({ id: 'pdf-buiten', type: 'fill', source: 'pdf-buiten', paint: { 'fill-color': '#022056', 'fill-opacity': 0.35 } });
       map.addSource('pdf-kader', { type: 'geojson', data: leeg });
-      map.addLayer({ id: 'pdf-kader-l', type: 'line', source: 'pdf-kader', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'line-color': '#E11D48', 'line-width': 2.5 } });
-      map.addLayer({ id: 'pdf-kader-h', type: 'circle', source: 'pdf-kader', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': '#E11D48', 'circle-stroke-width': 2.5 } });
+      map.addLayer({ id: 'pdf-kader-l', type: 'line', source: 'pdf-kader', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'line-color': '#108AED', 'line-width': 2.5 } });
+      map.addLayer({ id: 'pdf-kader-h', type: 'circle', source: 'pdf-kader', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': '#108AED', 'circle-stroke-width': 2.5 } });
       map.addSource('pdf-andere', { type: 'geojson', data: leeg });
-      map.addLayer({ id: 'pdf-andere-l', type: 'line', source: 'pdf-andere', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'line-color': '#2563EB', 'line-width': 1.5, 'line-dasharray': [3, 2] } });
-      map.addLayer({ id: 'pdf-andere-t', type: 'symbol', source: 'pdf-andere', filter: ['==', ['geometry-type'], 'Point'], layout: { 'text-field': ['get', 'naam'], 'text-size': 12, 'text-font': ['Noto Sans Bold'], 'symbol-placement': 'point', 'text-anchor': 'top-left', 'text-offset': [0.4, 0.4], 'text-allow-overlap': true }, paint: { 'text-color': '#ffffff', 'text-halo-color': '#2563EB', 'text-halo-width': 2.5 } });
+      map.addLayer({ id: 'pdf-andere-l', type: 'line', source: 'pdf-andere', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'line-color': '#28B571', 'line-width': 1.5, 'line-dasharray': [3, 2] } });
+      map.addLayer({ id: 'pdf-andere-t', type: 'symbol', source: 'pdf-andere', filter: ['==', ['geometry-type'], 'Point'], layout: { 'text-field': ['get', 'naam'], 'text-size': 12, 'text-font': ['Noto Sans Bold'], 'symbol-placement': 'point', 'text-anchor': 'top-left', 'text-offset': [0.4, 0.4], 'text-allow-overlap': true }, paint: { 'text-color': '#ffffff', 'text-halo-color': '#28B571', 'text-halo-width': 2.5 } });
       // Het kader in beeld brengen.
       const g = stRef.current.kaderGeom.coordinates[0];
       const xs = g.map((p) => p[0]); const ys = g.map((p) => p[1]);
@@ -185,17 +189,20 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
   // ---------- Uitsneden ----------
   const bewaarUitsneden = (lijst) => {
     setUitsneden(lijst);
-    onPlan?.({ instellingen: { ...(plan.instellingen || {}), pdf_uitsneden: lijst } });
+    onPlan?.({ instellingen: { ...(plan.instellingen || {}), pdf_profielen: lijst } });
   };
-  const huidigeUitsnede = () => ({ centrum, schaal, papier: inst.papier, orientatie: inst.orientatie, vrijB: inst.vrijB, vrijH: inst.vrijH });
+  // Een profiel bewaart alles: kader, papier, schaal, fase, lagen en wat op het blad komt.
+  const huidigeUitsnede = () => ({ centrum, schaal, papier: inst.papier, orientatie: inst.orientatie, vrijB: inst.vrijB, vrijH: inst.vrijH, fase: fase || null,
+    inst: Object.fromEntries(PROFIEL_VELDEN.map((k) => [k, inst[k]])) });
   const nieuweUitsnede = async () => {
-    const naam = await vraagTekst('Naam van deze uitsnede (bv. "Aankomstzone detail")', `Uitsnede ${uitsneden.length + 1}`, { titel: 'Uitsnede bewaren', ok: 'Bewaren' });
+    const naam = await vraagTekst('Naam van dit profiel (bv. "Politie A3 afsluitingen")', `Profiel ${uitsneden.length + 1}`, { titel: 'Profiel bewaren', ok: 'Bewaren' });
     if (!naam?.trim()) return;
     const u = { id: nieuwId(), naam: naam.trim(), ...huidigeUitsnede() };
     bewaarUitsneden([...uitsneden, u]); setActief(u.id);
   };
   const laad = (u) => {
-    setInst((i) => ({ ...i, papier: u.papier || i.papier, orientatie: u.orientatie || i.orientatie, vrijB: u.vrijB ?? i.vrijB, vrijH: u.vrijH ?? i.vrijH, schaal: u.schaal }));
+    setInst((i) => ({ ...i, ...(u.inst || {}), papier: u.papier || i.papier, orientatie: u.orientatie || i.orientatie, vrijB: u.vrijB ?? i.vrijB, vrijH: u.vrijH ?? i.vrijH, schaal: u.schaal }));
+    if (u.fase !== undefined) setFase(u.fase || '');
     setEigenMidden(u.centrum); setActief(u.id);
     setTimeout(() => {
       const map = mapRef.current; if (!map) return;
@@ -205,6 +212,7 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
       map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: 80, maxZoom: 21 });
     }, 0);
   };
+  useEffect(() => { if (!startProfiel) return; const u = uitsneden.find((x) => x.id === startProfiel); if (u) setTimeout(() => laad(u), 300); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const actieveU = uitsneden.find((u) => u.id === actief);
   const gewijzigdeU = actieveU && (Math.abs(actieveU.schaal - schaal) > 0.1 || actieveU.papier !== inst.papier || actieveU.orientatie !== inst.orientatie || turf.distance(actieveU.centrum, centrum, { units: 'meters' }) > 0.5);
 
@@ -220,10 +228,9 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
     return { f, revisie, revisies };
   };
   const bestandsnaam = (f, extra = '') => [plan.editie_naam, plan.naam, extra, f?.naam, `v${plan.versie}`].filter(Boolean).join(' - ').replace(/[\\/:*?"<>|]/g, '');
-  const bewaarInstellingen = () => onPlan?.({ instellingen: { ...(plan.instellingen || {}), pdf_uitsneden: uitsneden, pdf: { ...inst, lagen: undefined, centrum: inst.schaal ? centrum : undefined } } });
+  const bewaarInstellingen = () => onPlan?.({ instellingen: { ...(plan.instellingen || {}), pdf_profielen: uitsneden, pdf: { ...inst, lagen: undefined, centrum: inst.schaal ? centrum : undefined } } });
   // In een eigen tabblad (met voortgang), zodat je hier verder kan werken.
   const inTab = async (opdracht) => {
-    const { startExport } = await import('./planLaden');
     const { lagen: _l, revisie: _r, revisies: _rs, onTegels: _o, ...rest } = inst;
     const ok = startExport(plan.id, { ...opdracht, faseId: fase || null, revisieVan: revisieVan || null, revisies: inst.revisietabel !== false ? versies : [], inst: { ...rest, lagen: inst.lagen, centrum } });
     if (ok) { bewaarInstellingen(); onSluit(); }
@@ -231,7 +238,7 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
   };
   const maak = async () => {
     setFout(''); setMeldingen([]);
-    if (nieuwTab && await inTab({ soort: 'pdf', inst: null, bestandsnaam: bestandsnaam(fasen.find((x) => x.id === fase) || null, actieveU && !gewijzigdeU ? actieveU.naam : '') }).catch(() => false)) return;
+    if (nieuwTab && await inTab({ soort: 'pdf', bestandsnaam: bestandsnaam(fasen.find((x) => x.id === fase) || null, actieveU && !gewijzigdeU ? actieveU.naam : '') }).catch(() => false)) return;
     try {
       const { f, revisie, revisies } = await opties();
       const args = { plan, lagen, items, elementenMap, fase: f, inst: { ...inst, schaal: inst.schaal, centrum, revisie, revisies }, voortgang: setBezig };
@@ -255,7 +262,7 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
       for (let i = 0; i < lijst.length; i++) {
         const u = lijst[i];
         setBezig(`Uitsnede ${i + 1} van ${lijst.length}: ${u.naam}…`);
-        const r = await maakPdf({ plan, lagen, items, elementenMap, fase: f, inst: { ...inst, papier: u.papier || inst.papier, orientatie: u.orientatie || inst.orientatie, vrijB: u.vrijB ?? inst.vrijB, vrijH: u.vrijH ?? inst.vrijH, schaal: u.schaal, centrum: u.centrum, revisie, revisies }, voortgang: () => {}, doc, blad: { label: u.naam, laatste: i === lijst.length - 1 } });
+        const r = await maakPdf({ plan, lagen, items, elementenMap, fase: f, inst: { ...inst, ...(u.inst || {}), papier: u.papier || inst.papier, orientatie: u.orientatie || inst.orientatie, vrijB: u.vrijB ?? inst.vrijB, vrijH: u.vrijH ?? inst.vrijH, schaal: u.schaal, centrum: u.centrum, revisie, revisies }, voortgang: () => {}, doc, blad: { label: u.naam, laatste: i === lijst.length - 1 } });
         doc = r.doc;
         for (const m of r.meldingen) if (!alle.includes(m)) alle.push(m);
       }
@@ -292,19 +299,19 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
       <div className="fm-pdfromp">
         <aside className="fm-pdfpaneel">
           <div className="fm-sectie">
-            <div className="fm-kop">Uitsneden<Info>Bewaar een zone (bv. een detail van de aankomst) om ze later opnieuw af te drukken. Vink er meerdere aan voor één PDF.</Info></div>
+            <div className="fm-kop">Profielen<Info>Een profiel bewaart het kader, het papier, de schaal, de fase, de lagen en wat op het blad komt. Zo maak je dezelfde PDF later met één klik opnieuw, ook vanuit Exporteren. Vink er meerdere aan voor één PDF.</Info></div>
             <div className="fm-uitsneden">
               <button className={`fm-uitsnede ${!actief && !inst.schaal ? 'aan' : ''}`} onClick={() => { zet({ schaal: null }); setActief(null); setTimeout(naarKader, 0); }}>
-                <span className="naam">Alles passend</span><small>alle items op één blad</small>
+                <span className="naam">Alles passend</span><small>Alle items op één blad</small>
               </button>
               {uitsneden.map((u) => (
                 <div key={u.id} className={`fm-uitsnede ${actief === u.id ? 'aan' : ''}`}>
                   <input type="checkbox" aria-label={`${u.naam} meenemen in één PDF`} checked={aangevinkt.includes(u.id)} onChange={(e) => setAangevinkt((a) => (e.target.checked ? [...a, u.id] : a.filter((x) => x !== u.id)))} />
                   <button className="tekst" onClick={() => laad(u)}>
-                    <span className="naam">{u.naam}</span><small>{u.papier === 'vrij' ? 'vrij formaat' : u.papier} {u.orientatie} · {schaalTekst(u.schaal)}</small>
+                    <span className="naam">{u.naam}</span><small>{u.papier === 'vrij' ? 'Vrij formaat' : u.papier} {u.orientatie} · {schaalTekst(u.schaal)}</small>
                   </button>
                   <button className="ic" title="Hernoemen" onClick={async () => { const n = await vraagTekst('Nieuwe naam', u.naam, { ok: 'Hernoemen' }); if (n?.trim()) bewaarUitsneden(uitsneden.map((x) => (x.id === u.id ? { ...x, naam: n.trim() } : x))); }}>✎</button>
-                  <button className="ic gevaar" title="Verwijderen" onClick={async () => { if (await bevestig(`Uitsnede "${u.naam}" verwijderen?`, { ok: 'Verwijderen', gevaar: true })) { bewaarUitsneden(uitsneden.filter((x) => x.id !== u.id)); setAangevinkt((a) => a.filter((x) => x !== u.id)); if (actief === u.id) setActief(null); } }}>×</button>
+                  <button className="ic gevaar" title="Verwijderen" onClick={async () => { if (await bevestig(`Profiel "${u.naam}" verwijderen?`, { ok: 'Verwijderen', gevaar: true })) { bewaarUitsneden(uitsneden.filter((x) => x.id !== u.id)); setAangevinkt((a) => a.filter((x) => x !== u.id)); if (actief === u.id) setActief(null); } }}>×</button>
                 </div>
               ))}
             </div>
@@ -312,7 +319,7 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
               {gewijzigdeU
                 ? <button className="fm-knop klein zwart" onClick={() => bewaarUitsneden(uitsneden.map((x) => (x.id === actief ? { ...x, ...huidigeUitsnede() } : x)))}>Wijziging bewaren in "{actieveU.naam}"</button>
                 : null}
-              <button className="fm-knop klein" onClick={nieuweUitsnede}>+ Huidig kader bewaren als uitsnede</button>
+              <button className="fm-knop klein" onClick={nieuweUitsnede}>Bewaren als profiel</button>
             </div>
           </div>
           <div className="fm-sectie">
@@ -404,7 +411,7 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
             {fout && <div className="fm-melding fout">{fout}</div>}
             {meldingen.map((m) => <div key={m} className="fm-melding">{m}</div>)}
             <button className="fm-knop rood vol" disabled={!!bezig} onClick={maak}>{bezig || `PDF maken${actieveU && !gewijzigdeU ? ` · ${actieveU.naam}` : ''}`}</button>
-            {aangevinkt.length > 1 && <button className="fm-knop vol" disabled={!!bezig} onClick={maakMeerdere}>{aangevinkt.length} uitsneden samen in één PDF</button>}
+            {aangevinkt.length > 1 && <button className="fm-knop vol" disabled={!!bezig} onClick={maakMeerdere}>{aangevinkt.length} profielen samen in één PDF</button>}
           </div>
         </aside>
         <div className="fm-pdfkaart">

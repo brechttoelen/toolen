@@ -32,7 +32,7 @@ async function kaartMaker(ondergrond, w, h, centrum) {
   Object.assign(doos.style, { position: 'fixed', left: '-100000px', top: '0', width: `${w}px`, height: `${h}px` });
   document.body.appendChild(doos);
   const map = new maplibregl.Map({ container: doos, style: basisStijl(ondergrond), center: centrum, zoom: 16, interactive: false, pixelRatio: 1, preserveDrawingBuffer: true, attributionControl: false, fadeDuration: 0 });
-  await new Promise((ok) => map.once('load', ok));
+  await new Promise((ok) => { if (map.style?._loaded) { ok(); return; } const t = setTimeout(ok, 15000); map.once('load', () => { clearTimeout(t); ok(); }); const h = () => { if (map.style?._loaded) { clearTimeout(t); map.off('styledata', h); ok(); } }; map.on('styledata', h); });
   return { map, async beeld() { await wachtIdle(map); try { return map.getCanvas().toDataURL('image/jpeg', 0.85); } catch { return null; } }, weg() { map.remove(); doos.remove(); } };
 }
 

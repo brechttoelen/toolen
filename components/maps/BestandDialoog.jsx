@@ -6,7 +6,7 @@ import { maps, foutTekst } from './db';
 import { leesBestand, naarKml, naarGeojsonBestand, download, geocodeer, KLEUREN_STANDAARD } from './uitwisseling';
 import { effectieveStijl } from './stijl';
 
-export default function BestandDialoog({ binnen = null, plan, lagen, items, elementenMap, schrijven, onSluit, onGeimporteerd, kaart, onCad }) {
+export default function BestandDialoog({ ingebed = false, binnen = null, plan, lagen, items, elementenMap, schrijven, onSluit, onGeimporteerd, kaart, onCad }) {
   const [gelezen, setGelezen] = useState(null);
   const [koppeling, setKoppeling] = useState({});
   const [expLaag, setExpLaag] = useState(''); // '' = alle lagen
@@ -104,6 +104,41 @@ export default function BestandDialoog({ binnen = null, plan, lagen, items, elem
       } catch { setFout('KMZ maken lukte niet. Probeer KML.'); }
     } else download(naarGeojsonBestand({ lagen: expL, items: expI, stijlVan }), `${naam}.geojson`, 'application/geo+json');
   };
+
+  // Ingebed in Exporteren → Importeren: enkel het importeren.
+  if (ingebed) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <input ref={ref} type="file" accept=".kml,.kmz,.gpx,.geojson,.json,.csv,.txt,.xlsx" onChange={kies} style={{ display: 'none' }} />
+        <button className="t-knop hoofd" style={{ alignSelf: 'flex-start' }} onClick={() => ref.current?.click()}>{gelezen ? 'Ander bestand kiezen' : 'Bestand kiezen'}</button>
+        {fout && <div className="t-melding fout">{fout}</div>}
+        {gelezen && (
+          <>
+            <div className="t-sub" style={{ margin: 0 }}>{gelezen.naam}: {gelezen.items.length} items in {gelezen.lagen.length} {gelezen.lagen.length === 1 ? 'laag' : 'lagen'}.</div>
+            <table className="t-tabel">
+              <thead><tr><th>Laag in het bestand</th><th>Items</th><th>Komt in</th></tr></thead>
+              <tbody>
+                {gelezen.lagen.map((l) => (
+                  <tr key={l.naam}>
+                    <td><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: l.kleur || '#686D76', marginRight: 6 }} />{l.naam}</td>
+                    <td>{gelezen.items.filter((i) => i.laag === l.naam).length}</td>
+                    <td>
+                      <select className="t-veld" value={koppeling[l.naam]} onChange={(e) => setKoppeling({ ...koppeling, [l.naam]: e.target.value })}>
+                        <option value="nieuw">Nieuwe laag</option>
+                        {lagen.map((x) => <option key={x.id} value={x.id}>{x.naam}</option>)}
+                        <option value="overslaan">Niet importeren</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button className="t-knop hoofd" style={{ alignSelf: 'flex-start' }} disabled={!!bezig} onClick={importeer}>{bezig || `${gelezen.items.length} items importeren`}</button>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="fm-dialoog-achter" onClick={(e) => { if (e.target === e.currentTarget) onSluit(); }}>

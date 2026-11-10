@@ -2004,3 +2004,51 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
   box-shadow: 0 2px 10px rgba(2,32,86,.16); cursor: pointer; }
 .fm-controlechip:hover { background: #FFF6F5; }
 .fm-controlechip-getal { min-width: 24px; height: 24px; padding: 0 6px; box-sizing: border-box; border-radius: 6px; background: var(--t-fout, #D93A3A); color: #fff; display: grid; place-items: center; font-size: 12.5px; }
+
+/* ---------- Exporteren en importeren (Uitvoer.jsx) ---------- */
+.fm-uitvoer-achter { position: fixed; inset: 0; z-index: 70; background: rgba(2,32,86,.32); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.fm-uitvoer { width: 100%; max-width: 1040px; height: min(720px, calc(100vh - 32px)); background: #fff; border-radius: 14px; box-shadow: 0 20px 60px rgba(2,32,86,.28);
+  display: flex; flex-direction: column; overflow: hidden; font-family: var(--font-sans, 'IBM Plex Sans'), system-ui, sans-serif; color: var(--t-tekst, #0E1A33); }
+.fm-uitvoer-kop { display: flex; align-items: center; gap: 16px; padding: 12px 16px 12px 20px; border-bottom: 1px solid var(--t-rand, #E3E8EF); }
+.fm-uitvoer-tabs { display: flex; gap: 2px; padding: 3px; background: #EEF1F5; border-radius: 9px; }
+.fm-uitvoer-tabs button { height: 36px; padding: 0 16px; border: 0; border-radius: 7px; background: transparent; font: inherit; font-size: 14px; font-weight: 500; color: #33445C; cursor: pointer; }
+.fm-uitvoer-tabs button.aan { background: #fff; color: var(--t-navy, #022056); font-weight: 600; box-shadow: 0 1px 2px rgba(2,32,86,.15); }
+.fm-uitvoer-plan { flex: 1; min-width: 0; font-size: 13.5px; color: var(--t-tekst-2, #4A5A75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fm-uitvoer-romp { flex: 1; min-height: 0; display: flex; }
+.fm-uitvoer-lijst { width: 320px; flex: none; overflow-y: auto; border-right: 1px solid var(--t-rand, #E3E8EF); padding: 12px 10px 20px; background: #F7F9FB; }
+.fm-uitvoer-groep { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
+.fm-uitvoer-groepnaam { font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--t-tekst-3, #6B7A90); padding: 6px 10px; }
+.fm-uitvoer-lijst button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 1px; padding: 9px 10px; border-radius: 8px; min-height: 40px; }
+.fm-uitvoer-lijst button:hover { background: #EEF1F5; }
+.fm-uitvoer-lijst button:focus-visible { outline: 2px solid var(--t-blauw, #108AED); outline-offset: -2px; }
+.fm-uitvoer-lijst button.aan { background: #fff; box-shadow: 0 0 0 1px var(--t-rand-2, #CFD7E3), 0 1px 2px rgba(2,32,86,.08); }
+.fm-uitvoer-lijst button .naam { font-size: 14px; font-weight: 500; }
+.fm-uitvoer-lijst button.aan .naam { font-weight: 600; color: var(--t-navy, #022056); }
+.fm-uitvoer-lijst button .sub { font-size: 12px; color: var(--t-tekst-2, #4A5A75); }
+.fm-uitvoer-lijst button.profiel .naam::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 2px; background: var(--t-blauw, #108AED); margin-right: 8px; vertical-align: 1px; }
+.fm-uitvoer-lijst button.slot { opacity: .5; }
+.fm-uitvoer-tip { font-size: 12.5px; color: var(--t-tekst-2, #4A5A75); margin: 4px 10px 0; line-height: 1.45; }
+.fm-uitvoer-detail { flex: 1; min-width: 0; overflow-y: auto; padding: 28px 32px; display: flex; flex-direction: column; gap: 14px; }
+.fm-uitvoer-detail h2 { margin: 0; font-family: var(--font-titel, sans-serif); font-stretch: 112%; font-weight: 700; font-size: 24px; letter-spacing: -0.01em; }
+.fm-uitvoer-uitleg { margin: 0; font-size: 14.5px; line-height: 1.55; color: #33445C; max-width: 560px; }
+.fm-uitvoer-fase { margin: 0; font-size: 13.5px; color: var(--t-tekst-2, #4A5A75); }
+.fm-uitvoer-feiten { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 18px; font-size: 14px; max-width: 520px; }
+.fm-uitvoer-feiten dt { color: var(--t-tekst-2, #4A5A75); }
+.fm-uitvoer-feiten dd { margin: 0; }
+.fm-uitvoer-keuze { display: flex; flex-direction: column; gap: 12px; max-width: 420px; }
+.fm-uitvoer-hoofd { height: 44px !important; padding: 0 20px !important; font-size: 14.5px !important; }
+.fm-uitvoer-import { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; background: #F7F9FB; }
+.fm-uitvoer-kaarten { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+.fm-uitvoer-kaart { background: #fff; border: 1px solid var(--t-rand, #E3E8EF); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.fm-uitvoer-kaart h2 { margin: 0; font-family: var(--font-titel, sans-serif); font-stretch: 112%; font-weight: 700; font-size: 19px; }
+.fm-uitvoer-kaart p { margin: 0; font-size: 13.5px; line-height: 1.5; color: #33445C; }
+@media (max-width: 760px) {
+  .fm-uitvoer { height: calc(100vh - 32px); }
+  .fm-uitvoer-romp { flex-direction: column; }
+  .fm-uitvoer-lijst { width: auto; max-height: 40%; border-right: 0; border-bottom: 1px solid var(--t-rand, #E3E8EF); }
+  .fm-uitvoer-detail { padding: 20px; }
+}
+.fm-uitvoer .t-knop { height: 40px; flex: none; font-size: 14px; padding: 0 16px; border-radius: 8px; }
+.fm-uitvoer .t-knop.stil { height: 36px; }
+.fm-uitvoer .fm-uitvoer-hoofd { min-width: 180px; }
+.fm-uitvoer select.t-veld { height: 40px; }

@@ -10,7 +10,7 @@ import { maps } from './db';
 import { berekenStroom } from './stroom';
 import './maps.css';
 
-const NAMEN = { stroomplan: 'Stroomdossier', veiligheidsplan: 'Veiligheidsplan', brandingplan: 'Brandingplan', pdf: 'PDF op schaal', uitsneden: 'PDF met uitsneden' };
+const NAMEN = { stroomplan: 'Stroomdossier', veiligheidsplan: 'Veiligheidsplan', brandingplan: 'Brandingplan', pdf: 'PDF op schaal', uitsneden: 'PDF met profielen' };
 
 export default function ExportScherm({ planId }) {
   const [opdracht, setOpdracht] = useState(null);
@@ -55,11 +55,14 @@ export default function ExportScherm({ planId }) {
           let revisie = null;
           if (o.revisieVan) { const { data } = await maps().from('versies').select('versie, momentopname').eq('id', o.revisieVan).single(); if (data) revisie = { versie: data.versie, items: data.momentopname?.items || [] }; }
           const inst = { ...o.inst, revisie, revisies: o.revisies || [], onTegels: opTegels };
+          // Zonder vast midden (passend): het midden van het plan.
+          if (!Array.isArray(inst.centrum)) inst.centrum = d.plan.centrum || [4.4, 50.9];
+          if (!Array.isArray(inst.lagen)) inst.lagen = d.lagen.filter((l) => l.printbaar !== false && l.zichtbaar !== false).map((l) => l.id);
           let doc = null;
           if (o.soort === 'uitsneden') {
             for (let i = 0; i < o.lijst.length; i++) {
               const u = o.lijst[i]; zetStap(i, o.lijst.length, u.naam);
-              const r = await maakPdf({ plan: d.plan, lagen: d.lagen, items, elementenMap: d.elementenMap, fase, inst: { ...inst, papier: u.papier || inst.papier, orientatie: u.orientatie || inst.orientatie, vrijB: u.vrijB ?? inst.vrijB, vrijH: u.vrijH ?? inst.vrijH, schaal: u.schaal, centrum: u.centrum }, voortgang: setTekst, doc, blad: { label: u.naam, laatste: i === o.lijst.length - 1 } });
+              const r = await maakPdf({ plan: d.plan, lagen: d.lagen, items, elementenMap: d.elementenMap, fase, inst: { ...inst, ...(u.inst || {}), papier: u.papier || inst.papier, orientatie: u.orientatie || inst.orientatie, vrijB: u.vrijB ?? inst.vrijB, vrijH: u.vrijH ?? inst.vrijH, schaal: u.schaal, centrum: u.centrum }, voortgang: setTekst, doc, blad: { label: u.naam, laatste: i === o.lijst.length - 1 } });
               doc = r.doc; for (const x of r.meldingen) if (!m.includes(x)) m.push(x);
             }
           } else {

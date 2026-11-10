@@ -192,8 +192,10 @@ export async function maakPdf({ plan, lagen, items, elementenMap, fase, inst, vo
   const zichtbaar = items.filter((it) => !it.verborgen && !it.velden?.binnen && (!it.laag_id || printLagen.has(it.laag_id))
     && (!fase || !it.fase_ids?.length || it.fase_ids.includes(fase.id)));
 
-  const schaal = inst.schaal || passendeSchaal(kader.b, kader.h, geo.kader(zichtbaar.map((i) => i.geometrie)));
-  const centrum = inst.centrum;
+  const kaderItems = geo.kader(zichtbaar.map((i) => i.geometrie));
+  const schaal = inst.schaal || passendeSchaal(kader.b, kader.h, kaderItems);
+  // Passend: het midden van de items; anders het gekozen midden.
+  const centrum = (!inst.schaal && kaderItems) ? [(kaderItems[0] + kaderItems[2]) / 2, (kaderItems[1] + kaderItems[3]) / 2] : (Array.isArray(inst.centrum) ? inst.centrum : plan.centrum || [4.4, 50.9]);
   const meldingen = [];
   let ondergrond = inst.ondergrond;
   if (!drukbaar(ondergrond, centrum)) {

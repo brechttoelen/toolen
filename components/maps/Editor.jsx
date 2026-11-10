@@ -56,14 +56,15 @@ import { stroomVan, berekenStroom, kabellijstCsv, KABEL_KLEUR, kabelSpanning, ka
 import SignalisatiePaneel from './SignalisatiePaneel';
 import CommandoPalet from './CommandoPalet';
 import { IcoonKiezer, IcoonBol, icoonNaam } from './kaarticonen';
-import BestandDialoog from './BestandDialoog';
+import Uitvoer from './Uitvoer';
+import { startExport } from './planLaden';
 import CadImport from './CadImport';
 import ControlePaneel, { DefinitiefDialoog } from './ControlePaneel';
 import { isSign, instSign, volgendNr, richtingUitRoutes, signGeojson, zorgVoorKijkIcoon } from './signalisatie';
 import { laadVasteAansluitingen, uitPlekItem, naarGeojsonVa, zorgVoorVaIconen, vaKaartLagen, zetVaDekking, vaId, isVaId, vaUuid, alsStroomItem } from './vasteAansluitingen';
 import VasteAansluitingPaneel from './VasteAansluitingPaneel';
 import { WR_MODULE, WERKRUIMTES, werkruimteOp, onthoudWerkruimte, laatsteWerkruimte, relevanteItems, kerncijfers, tvTelling } from './werkruimtes';
-import WerkruimteBalk, { WerkruimteExport } from './WerkruimteBalk';
+import WerkruimteBalk from './WerkruimteBalk';
 import SignPuntDetail, { signPunten } from './SignPuntDetail';
 import VerkeerPaneel, { VerkeerDetail } from './VerkeerPaneel';
 import { isVerkeer, isVerkeerBord, verkeerGeojson, laadVerkeerIconen, verkeerKaartLagen, instVerkeer, verkeerStuklijst, verkeerStuklijstCsv, volgendVerkeerNr, VERKEER_LAAG, BORD_MAP } from './verkeer';
@@ -239,6 +240,8 @@ export default function Editor({ planId }) {
   const [fotos, setFotos] = useState([]);
   const [plekItems, setPlekItems] = useState([]);
   const [dialoog, setDialoog] = useState(null);
+  const [uitvoer, setUitvoer] = useState(null); // { tab, id } van het scherm Exporteren
+  const [pdfProfiel, setPdfProfiel] = useState(null);
   const [bewaarStatus, setBewaarStatus] = useState('');
   const [verbinding, setVerbinding] = useState('verbinden'); // live | verbinden | offline
   const verbindingRef = useRef('verbinden');
@@ -4251,13 +4254,14 @@ export default function Editor({ planId }) {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = naam; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
+  // Geeft een bericht terug (bv. 'Nog geen kabels getekend.') of gooit een fout; het scherm Exporteren toont het.
   const exporteer = async (id) => {
+    let bericht = '';
     const s0 = st.current; const fase = fasen.find((f) => f.id === actieveFase) || null;
     setFout('');
     // Kaart-PDF's in een eigen tabblad, met voortgang; hier kan je verder werken.
     if (['stroomplan', 'veiligheidsplan', 'brandingplan'].includes(id)) {
-      const { startExport } = await import('./planLaden');
-      if (startExport(s0.plan.id, { soort: 'werkruimte', id, faseId: fase?.id || null })) { setMelding('De export loopt in een nieuw tabblad.'); return; }
+      if (startExport(s0.plan.id, { soort: 'werkruimte', id, faseId: fase?.id || null })) { return 'De PDF wordt gemaakt in een nieuw tabblad. Je kan hier verder werken.'; }
     }
     try {
       if (id === 'drukbestand') {
@@ -4266,7 +4270,7 @@ export default function Editor({ planId }) {
         const inst = instSign(s0.plan);
         const { doc, meldingen } = await bordenPdf({ plan: s0.plan, items: s0.items, inst, isSign, formaat: inst.formaat, voortgang: setExportBezig });
         if (doc) doc.save(`Borden - ${s0.plan.naam}.pdf`);
-        if (meldingen.length) setMelding(meldingen.join(' '));
+        if (meldingen.length) bericht = (meldingen.join(' '));
       } else if (id === 'bestellijst') {
         const inst = instSign(s0.plan);
         laadCsv(bestellijstCsv(bestellijst(s0.items, inst.bestemmingen, inst.reserve, inst.bord), inst.reserve), `Signalisatie bestellijst - ${s0.plan.naam}.csv`);
@@ -4274,38 +4278,39 @@ export default function Editor({ planId }) {
         setExportBezig('Stroomplan…');
         const { stroomplanPdf } = await import('./werkruimtePdf');
         const m = await stroomplanPdf({ plan: s0.plan, lagen: s0.lagen, items: s0.items, elementenMap, lagenMap, fase, fasen, stroom: stroomRef.current, voortgang: setExportBezig });
-        if (m?.length) setMelding(m.join(' '));
+        if (m?.length) bericht = (m.join(' '));
       } else if (id === 'kabellijst') {
-        if (!stroomRef.current?.kabels?.length) { setMelding('Nog geen kabels getekend.'); return; }
+        if (!stroomRef.current?.kabels?.length) { return 'Nog geen kabels getekend.'; }
         laadCsv(kabellijstCsv(stroomRef.current), `Kabellijst - ${s0.plan.naam}.csv`);
       } else if (id === 'veiligheidsplan') {
         setExportBezig('Veiligheidsplan…');
         const { veiligheidsplanPdf } = await import('./werkruimtePdf');
         const m = await veiligheidsplanPdf({ plan: s0.plan, lagen: s0.lagen, items: s0.items, elementenMap, lagenMap, fase, voortgang: setExportBezig });
-        if (m?.length) setMelding(m.join(' '));
+        if (m?.length) bericht = (m.join(' '));
       } else if (id === 'verkeersplan') {
         setExportBezig('Signalisatieplan…');
         const { verkeersplanPdf } = await import('./verkeerPdf');
         const m = await verkeersplanPdf({ plan: s0.plan, items: s0.items, voortgang: setExportBezig });
-        if (m?.length) setMelding(m.join(' '));
+        if (m?.length) bericht = (m.join(' '));
       } else if (id === 'verkeerlijst') {
         laadCsv(verkeerStuklijstCsv(verkeerStuklijst(s0.items, instVerkeer(s0.plan))), `Verkeerssignalisatie stuklijst - ${s0.plan.naam}.csv`);
       } else if (id === 'brandingplan') {
         setExportBezig('Brandingplan…');
         const { brandingplanPdf } = await import('./werkruimtePdf');
         const m = await brandingplanPdf({ plan: s0.plan, lagen: s0.lagen, items: s0.items, elementenMap, lagenMap, fase, voortgang: setExportBezig });
-        if (m?.length) setMelding(m.join(' '));
+        if (m?.length) bericht = (m.join(' '));
       } else if (id === 'brandinglijst') {
         const rijen = brandingBestellijst(s0.items, elementenMap);
-        if (!rijen.length) { setMelding('Nog geen ontwerpen toegewezen.'); return; }
+        if (!rijen.length) { return 'Nog geen ontwerpen toegewezen.'; }
         laadCsv(brandingCsv(rijen), `Branding bestellijst - ${s0.plan.naam}.csv`);
       } else if (id === 'checklist') {
         setExportBezig('Checklist…');
         const { checklistPdf } = await import('./werkruimtePdf');
         await checklistPdf({ plan: s0.plan, items: s0.items, elementenMap });
       }
-    } catch (e) { setFout(e?.message || String(e)); }
+    } catch (e) { setExportBezig(''); throw e; }
     setExportBezig('');
+    return bericht || undefined;
   };
   // ---------- Weergave ----------
   if (laden) return <div className="fm" style={{ padding: 40 }}>Plan laden…</div>;
@@ -4320,7 +4325,8 @@ export default function Editor({ planId }) {
       ...(schrijven ? [['Tekenscherm (op maat tekenen met raster)', () => openTekenscherm(selectieRef.current?.length ? selectieRef.current : null), 'raster groep precisie']] : []),
       ...(heeftModule('signalisatie') ? [['Signalisatie-PDF', () => maakSignPdf(), 'borden']] : []),
       ['Delen met externen', () => setDialoog('delen'), 'link deel-link'],
-      ['Importeren of exporteren', () => setDialoog('bestand'), 'kml gpx csv'],
+      ['Exporteren', () => setUitvoer({ tab: 'exporteren' }), 'pdf lijsten kml'],
+      ...(schrijven ? [['Importeren', () => setUitvoer({ tab: 'importeren' }), 'kml gpx csv cad']] : []),
       ['Versie bewaren', () => versieBewaren(), 'opslaan'],
       ['Versies bekijken en terugzetten', () => zetTab('plan'), 'herstellen'],
       ['Lagen', () => zetTab('lagen'), ''],
@@ -4576,29 +4582,11 @@ export default function Editor({ planId }) {
               <div className="fm-ctxkop">{bewaarStatus === 'Niet bewaard' ? 'Een wijziging is niet bewaard. Controleer je verbinding.' : bewaarStatus === 'Wacht op verbinding' ? 'Je bent offline. Je wijzigingen staan klaar en worden bewaard zodra je weer verbinding hebt.' : verbinding === 'live' ? 'Elke wijziging wordt meteen bewaard. Live: je ziet wat collega\'s doen.' : 'Elke wijziging wordt meteen bewaard. De live verbinding is weg; wijzigingen van collega\'s verschijnen zodra ze terug is.'}</div>
               {schrijven && <button onClick={() => { setMenu(null); versieBewaren(); }}>Versie bewaren<small>een vast moment om naar terug te keren</small></button>}
               <button onClick={() => { setMenu(null); setVolScherm(false); setTab('plan'); }}>Versies bekijken en terugzetten</button>
+              {schrijven && <button onClick={() => { setMenu(null); setUitvoer({ tab: 'importeren' }); }}>Importeren<small>KML, GPX, CSV of een CAD-plan</small></button>}
             </div>
           )}
         </div>
-        {werkruimte !== 'plan' && <WerkruimteExport wr={{ ...wr, exports: wrExports }} bezig={exportBezig} onExport={exporteer} />}
-        <div style={{ position: 'relative' }}>
-          <button data-menuknop className="fm-knop" title="Alle exports" onClick={(e) => { e.stopPropagation(); setMenu(menu === 'export' ? null : 'export'); }}>{werkruimte === 'plan' ? <span className="fm-exp-lbl">Exporteren </span> : ''}<Icoon naam="pijlomlaag" maat={14} /></button>
-          {menu === 'export' && (
-            <div className="fm-menu" style={{ right: 0, top: 34 }} onClick={(e) => e.stopPropagation()}>
-              {werkruimte !== 'plan' && (wrExports || []).map((x) => <button key={x.id} onClick={() => { setMenu(null); exporteer(x.id); }}>{x.naam}<small>{wr.naam}</small></button>)}
-              <button onClick={() => { setMenu(null); setDialoog('pdf'); }}>PDF op schaal<small>plan, rasterplan, bladen</small></button>
-              {heeftModule('signalisatie') && <button onClick={() => { setMenu(null); maakSignPdf(); }}>Signalisatie-PDF</button>}
-              {(() => {
-                // Binnenplannen: elk gebouw of elke tent met een inrichting, als pdf (A3).
-                const hosts = !heeftModule('binnen') ? [] : [...new Set(items.map((x) => x.velden?.binnen?.host).filter(Boolean))].map((id) => items.find((x) => x.id === id)).filter(Boolean);
-                return hosts.map((h) => { const vs = verdiepingenVan(h); return vs.map((v) => (
-                  <button key={`bp${h.id}${v.id}`} onClick={() => { setMenu(null); setBinnenScherm({ host: h.id, verd: v.id, pdf: true }); }}>Binnenplan {h.naam || elementenMap.get(h.element_id)?.naam || ''}{vs.length > 1 ? ` · ${v.naam}` : ''}<small>pdf A3</small></button>
-                )); });
-              })()}
-              <button onClick={() => { setMenu(null); setDialoog('bestand'); }}>Importeren of exporteren<small>KML, GPX, CSV, PNG</small></button>
-              {heeftModule('terrein') && <a href={`/maps/${planId}/opbouw`}>Opbouwmodus (gsm)</a>}
-            </div>
-          )}
-        </div>
+        <button className="fm-knop" title="PDF, lijsten en kaartbestanden" onClick={() => setUitvoer({ tab: 'exporteren', id: { plan: 'schaal', stroom: 'stroomplan', veiligheid: 'veiligheidsplan', branding: 'brandingplan', sign: verkeerModus ? 'verkeersplan' : 'drukbestand' }[werkruimte] || 'schaal' })}>{exportBezig || 'Exporteren'}</button>
         <FeedbackKnop />
         <button className="fm-knop fm-ikoon" title="Volledig scherm: panelen verbergen" aria-label="Volledig scherm" aria-pressed={volScherm} onClick={() => setVolScherm((v) => !v)}><Icoon naam="scherm" maat={16} /></button>
         {schrijven && <span className="fm-scheiding" aria-hidden />}
@@ -5428,7 +5416,21 @@ export default function Editor({ planId }) {
       {popupDiv && item && createPortal(
         <PopupInhoud item={item} laag={lagenMap.get(item.laag_id)} element={elementenMap.get(item.element_id)} profiel={profiel} />, popupDiv,
       )}
-      {dialoog === 'bestand' && <BestandDialoog binnen={binnen} plan={plan} lagen={lagen} items={items} elementenMap={elementenMap} schrijven={schrijven} kaart={mapRef.current} onSluit={() => setDialoog(null)} onGeimporteerd={naImport} onCad={() => { setCadVervang(null); setDialoog('cad'); }} />}
+      {uitvoer && (() => {
+        const hosts = !heeftModule('binnen') ? [] : [...new Set(items.map((x) => x.velden?.binnen?.host).filter(Boolean))].map((id) => items.find((x) => x.id === id)).filter(Boolean)
+          .flatMap((h) => { const vs = verdiepingenVan(h); return vs.map((v) => ({ host: h.id, verd: v.id, naam: `${h.naam || elementenMap.get(h.element_id)?.naam || ''}${vs.length > 1 ? ` · ${v.naam}` : ''}` })); });
+        return (
+          <Uitvoer plan={plan} lagen={lagen} fasen={fasen} items={items} elementenMap={elementenMap} actieveFase={actieveFase} schrijven={schrijven} binnenHosts={hosts} kaart={mapRef.current} binnen={binnen}
+            startTab={uitvoer.tab} startId={uitvoer.id} onSluit={() => setUitvoer(null)} onPlan={wijzigPlan}
+            onPdf={(profiel) => { setUitvoer(null); setPdfProfiel(profiel); setDialoog('pdf'); }}
+            onExport={exporteer}
+            onSignPdf={async () => { const { signalisatiePdf } = await import('./signPdf'); const { doc, meldingen } = await signalisatiePdf({ plan, items, voortgang: () => {} }); doc.save(`Signalisatie - ${plan.naam} v${plan.versie}.pdf`.replace(/[\\/:*?"<>|]/g, '')); return meldingen.join(' ') || undefined; }}
+            onBinnenPdf={(host, verd) => { setUitvoer(null); setBinnenScherm({ host, verd, pdf: true }); }}
+            onMateriaal={() => { setUitvoer(null); setMateriaalOpen(true); }}
+            onCad={schrijven ? () => { setUitvoer(null); setCadVervang(null); setDialoog('cad'); } : null}
+            onGeimporteerd={naImport} />
+        );
+      })()}
       {dialoog === 'cad' && <CadImport vervang={cadVervang} onSluit={() => { setDialoog(null); setCadVervang(null); }} onKlaar={cadKlaar} />}
       {dialoog === 'definitief' && (
         <DefinitiefDialoog plan={plan} lagen={lagen} items={items} elementenMap={elementenMap} fasen={fasen} vast={vast} onSluit={() => setDialoog(null)} onBevestig={maakDefinitief}
@@ -5450,7 +5452,7 @@ export default function Editor({ planId }) {
       )}
       {dialoog === 'delen' && <DeelDialoog kaartBeeld={() => { const m = mapRef.current; if (!m) return null; const c = m.getCenter(); return { c: [Math.round(c.lng * 1e6) / 1e6, Math.round(c.lat * 1e6) / 1e6], z: Math.round(m.getZoom() * 100) / 100, b: Math.round(m.getBearing()) || 0 }; }} plan={plan} lagen={lagen} fasen={fasen} items={items} elementenMap={elementenMap} leveranciers={[...new Set(items.filter((i) => i.element_id).map((i) => herkomstVan(i, elementenMap.get(i.element_id), levStd)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'nl'))} onSluit={() => setDialoog(null)} />}
       {tekenscherm && <Tekenscherm start={tekenscherm} elementen={elementen} elementenMap={elementenMap} onKlaar={tekenschermKlaar} onSluit={() => setTekenscherm(null)} />}
-      {dialoog === 'pdf' && <PdfDialoog nieuwTab={!binnen} plan={plan} lagen={lagen} fasen={fasen} items={binnen ? items.filter((x) => x.id === binnen.host || inBinnen(x, binnen)) : items.filter((x) => !x.velden?.binnen)} elementenMap={elementenMap} actieveFase={actieveFase} kaart={mapRef.current} onPlan={wijzigPlan} onSluit={() => setDialoog(null)} />}
+      {dialoog === 'pdf' && <PdfDialoog nieuwTab={!binnen} plan={plan} lagen={lagen} fasen={fasen} items={binnen ? items.filter((x) => x.id === binnen.host || inBinnen(x, binnen)) : items.filter((x) => !x.velden?.binnen)} elementenMap={elementenMap} actieveFase={actieveFase} kaart={mapRef.current} onPlan={wijzigPlan} startProfiel={pdfProfiel} onSluit={() => { setDialoog(null); setPdfProfiel(null); }} />}
     </div>
   );
 }
