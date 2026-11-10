@@ -2312,3 +2312,8 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 
 /* 3D over het hele scherm: de 3D blijft in zijn vak (de kop met de terugknop blijft bovenaan zichtbaar). */
 .fm-3d-zicht { position: relative; }
+.fm-tb-drie:not(.klein) { flex: 1 1 auto !important; min-height: 320px; }
+/* Kop van de bouwers: bij weinig plaats naar een tweede regel in plaats van knoppen uit beeld te duwen. */
+.fm-ws-kop { flex-wrap: wrap; row-gap: 6px; }
+.fm-ws-kop > .fm-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+.fm-tb-leden button { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

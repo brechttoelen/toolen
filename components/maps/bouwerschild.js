@@ -15,7 +15,8 @@ export function useBouwerSchild() {
     return () => document.removeEventListener('keydown', stop, true);
   }, []);
 }
+// pointerup laten we door: de 3D-besturing (three.js) luistert daar op het document naar; anders blijft draaien hangen.
 export const schildProps = {
   onPointerDown: (e) => e.stopPropagation(), onMouseDown: (e) => e.stopPropagation(), onClick: (e) => e.stopPropagation(),
-  onPointerUp: (e) => e.stopPropagation(), onKeyDown: (e) => e.stopPropagation(), onWheel: (e) => e.stopPropagation(), onDoubleClick: (e) => e.stopPropagation(),
+  onKeyDown: (e) => e.stopPropagation(), onWheel: (e) => e.stopPropagation(), onDoubleClick: (e) => e.stopPropagation(),
 };
