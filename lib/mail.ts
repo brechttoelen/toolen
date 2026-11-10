@@ -57,6 +57,8 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 const NAVY = "#022056";
 const TEKST = "#1F2328";
 const STIL = "#6A717D";
+// Woordmerk als PNG (mailprogramma's tonen geen SVG), uit public/mail/.
+const LOGO = `https://login.${process.env.NEXT_PUBLIC_HOOFDDOMEIN || "toolen.be"}/mail/toolen-maps.png`;
 const voornaam = (n?: string | null) => (n || "").trim().split(/\s+/)[0] || "";
 
 type Blok = { tekst: string } | { knop: string; link: string };
@@ -66,7 +68,7 @@ function mail({ blokken, voet, huisstijl = null }: { blokken: Blok[]; voet: stri
   const logo = huisstijl?.logo_licht || huisstijl?.logo_donker;
   const merk = logo
     ? `<img src="${esc(logo)}" alt="${esc(huisstijl?.naam || "")}" height="28" style="display:block;height:28px;width:auto;max-width:200px;border:0;margin:0 0 18px">`
-    : `<div style="margin:0 0 18px;font-size:19px;font-weight:700;color:${NAVY};letter-spacing:-.01em">toolen maps</div>`;
+    : `<img src="${LOGO}" alt="toolen maps" width="134" height="28" style="display:block;width:134px;height:28px;border:0;margin:0 0 18px">`;
   const toolen = huisstijl && !huisstijl.toolen_verbergen ? "Verstuurd via Toolen Maps." : !huisstijl ? "Toolen Maps · toolen.be" : "";
   const regel = (t: string) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${TEKST}">${t}</p>`;
   const knop = (k: string, l: string) => `<p style="margin:24px 0 24px"><a href="${esc(l)}" style="display:inline-block;background:${kleur};color:#FFFFFF;text-decoration:none;font-size:15px;font-weight:600;padding:11px 18px;border-radius:6px">${esc(k)}</a></p>`;
