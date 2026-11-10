@@ -8,7 +8,7 @@ export const GEREEDSCHAP = [
   { id: 'punt', naam: 'Punt', toets: 'P', icoon: 'punt' },
   { id: 'lijn', naam: 'Lijn', toets: 'L', icoon: 'lijn' },
   { id: 'route', naam: 'Route langs de weg', toets: '', icoon: 'navigeer' },
-  { id: 'vlak', naam: 'Veelhoek (klik de hoekpunten)', toets: 'G', icoon: 'vlak' },
+  { id: 'vlak', naam: 'Veelhoek', toets: 'G', icoon: 'vlak' },
   { id: 'rechthoek', naam: 'Rechthoek', toets: 'R', icoon: 'rechthoek' },
   { id: 'cirkel', naam: 'Cirkel', toets: 'C', icoon: 'cirkel' },
   { id: 'vrijehand', naam: 'Vrij tekenen', toets: 'F', icoon: 'vrijehand' },
@@ -68,16 +68,23 @@ export const TD_MODUS = { punt: 'point', tekst: 'point', lijn: 'linestring', met
 export const GROEPEN = [
   { id: 'selectie', label: 'Selectie', tools: ['selecteer', 'kader', 'hand'] },
   { id: 'element', label: 'Element', tools: ['element'] },
-  { id: 'lijn', label: 'Lijn', tools: ['lijn', 'route', 'vrijehand', 'knip'] },
-  { id: 'vorm', label: 'Vorm', tools: ['rechthoek', 'cirkel', 'vlak', 'veelhoek', 'ellips', 'sector'] },
-  { id: 'punt', label: 'Punt', tools: ['punt', 'tekst', 'notitie', 'binnenlocatie'] },
+  // Lijnen, vormen en punten samen: één knop Tekenen die een paneel opent, zoals Element.
+  { id: 'tekenen', label: 'Tekenen', icoon: 'tekenen', paneel: true, tools: ['lijn', 'route', 'vrijehand', 'knip', 'rechthoek', 'cirkel', 'vlak', 'veelhoek', 'ellips', 'sector', 'punt', 'tekst', 'notitie', 'binnenlocatie'] },
   { id: 'meten', label: 'Meten', tools: ['meten', 'meten-vlak', 'maatlijn'] },
 ];
 export const PANELEN = [
-  ['lagen', 'Lagen', 'lagen'], ['stroom', 'Stroom', 'bliksem'], ['sign', 'Borden', 'bord'],
+  // Stroom en Borden enkel in hun eigen werkplek (generatoren en borden plaats je in Plan gewoon als element).
+  ['lagen', 'Lagen', 'lagen'],
   ['materiaal', 'Materiaal', 'lijstje'], ['controle', 'Controle', 'vink'], ['plan', 'Plan', 'plan'],
 ];
-export const PANEELNAAM = { lagen: 'Lagen', bibliotheek: 'Bibliotheek', lijsten: 'Lijsten', materiaal: 'Materiaal', stuklijst: 'Materiaal', stroom: 'Elektriciteit', sign: 'Signalisatie', draaiboek: 'Draaiboek', controle: 'Controle', plan: 'Plan', veiligheid: 'Veiligheid', branding: 'Branding' };
+// Delen van het paneel Tekenen.
+export const TEKEN_DELEN = [
+  { naam: 'Lijnen', tools: ['lijn', 'route', 'vrijehand', 'knip'] },
+  { naam: 'Vormen', tools: ['rechthoek', 'cirkel', 'vlak', 'veelhoek', 'ellips', 'sector'] },
+  { naam: 'Punten en tekst', tools: ['punt', 'tekst', 'notitie', 'binnenlocatie'] },
+];
+
+export const PANEELNAAM = { tekenen: 'Tekenen', lagen: 'Lagen', bibliotheek: 'Bibliotheek', lijsten: 'Lijsten', materiaal: 'Materiaal', stuklijst: 'Materiaal', stroom: 'Elektriciteit', sign: 'Signalisatie', draaiboek: 'Draaiboek', controle: 'Controle', plan: 'Plan', veiligheid: 'Veiligheid', branding: 'Branding' };
 
 export const PANEELTIP = {
   bibliotheek: 'Tenten, hekken, podia… kies een element en zet het op de kaart',

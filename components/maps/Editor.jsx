@@ -77,7 +77,7 @@ import { tentChecklist } from './veiligheid';
 import { opDeGrond, afstand as afstandTussen } from './controle';
 import { bestellijst, bestellijstCsv } from './signalisatie';
 
-import { GEREEDSCHAP, UITLEG, UITGEBREID_TOOLS, LIJST_TABS, LIJST_IDS, TD_MODUS, GROEPEN, PANELEN, PANEELNAAM, PANEELTIP, nieuwId } from './gereedschap';
+import { GEREEDSCHAP, UITLEG, UITGEBREID_TOOLS, LIJST_TABS, LIJST_IDS, TD_MODUS, GROEPEN, PANELEN, PANEELNAAM, PANEELTIP, TEKEN_DELEN, nieuwId } from './gereedschap';
 import { tdModusVoor, draaiItem, maatVan, lokaalNaarKaart, draaiRond } from './itemgeo';
 import ZoekBalk from './ZoekBalk';
 import HoekVeld from './HoekVeld';
@@ -212,7 +212,7 @@ export default function Editor({ planId }) {
   const [palet, setPalet] = useState(false);
   useSluitBuiten(puntKiezerOpen, () => setPuntKiezerOpen(false));
   const [uitklapY, setUitklapY] = useState(0);
-  const [laatsteTool, setLaatsteTool] = useState({ selectie: 'selecteer', punt: 'punt', lijn: 'lijn', vorm: 'rechthoek', element: 'element', meten: 'meten' });
+  const [laatsteTool, setLaatsteTool] = useState({ selectie: 'selecteer', tekenen: 'lijn', element: 'element', meten: 'meten' });
   const [menu, setMenu] = useState(null);
   useSluitBuiten(!!menu, () => setMenu(null));
   useSluitBuiten(!!uitklap, () => setUitklap(null));
@@ -4618,23 +4618,24 @@ export default function Editor({ planId }) {
             const actief = gr.tools.includes(gereedschap);
             const toonId = actief ? gereedschap : (gr.tools.includes(laatsteTool[gr.id]) ? laatsteTool[gr.id] : gr.tools[0]);
             const t = gTool(toonId);
-            const meer = gr.tools.length > 1;
+            const meer = gr.tools.length > 1 && !gr.paneel;
             const uit = !schrijven && !['selectie', 'meten'].includes(gr.id);
             return (
-              <button key={gr.id} data-menuknop className={actief ? 'aan' : ''} disabled={uit}
+              <button key={gr.id} data-menuknop className={actief || (gr.paneel && tab === gr.id) ? 'aan' : ''} disabled={uit}
                 title={meer ? `${gr.label}: ${gr.tools.map((x) => gTool(x).naam).join(', ')}` : t.naam}
                 onClick={(e) => {
                   e.stopPropagation();
                   const r = e.currentTarget.getBoundingClientRect();
                   setUitklapY(r.top);
                   // Overal op klik (zoals Bouwers): niets klapt open door er enkel over te gaan.
+                  if (gr.paneel) { setUitklap(null); setVolScherm(false); if (tab === gr.id) { setTab(null); return; } if (!actief) kiesTool(toonId); setTab(gr.id); return; }
                   if (uitklap === gr.id) { setUitklap(null); return; }
                   // Nogmaals op Element: bibliotheek dicht en terug naar Selectie.
                   if (actief && gr.id === 'element' && !meer) { setTab(null); kiesTool('selecteer'); return; }
                   if (!actief) kiesTool(toonId);
                   if (meer) setUitklap(gr.id);
                 }}>
-                <Icoon naam={t.icoon} maat={22} /><span>{gr.label}</span>
+                <Icoon naam={gr.icoon || t.icoon} maat={22} /><span>{gr.label}</span>
                 {meer && <i className="pijltje" />}
               </button>
             );
@@ -4652,7 +4653,7 @@ export default function Editor({ planId }) {
             </button>
           )}
           <hr />
-          {[...PANELEN.slice(0, 4), ...(uitgebreid || tab === 'draaiboek' ? [['draaiboek', 'Draaiboek', 'lijstje']] : []), ...PANELEN.slice(4)]
+          {[...PANELEN.slice(0, 2), ...(uitgebreid || tab === 'draaiboek' ? [['draaiboek', 'Draaiboek', 'lijstje']] : []), ...PANELEN.slice(2)]
             .filter(([id]) => (id !== 'stroom' || heeftModule('stroom')) && (id !== 'sign' || heeftModule('signalisatie')))
             .map(([id, label, ic]) => {
             // Materiaal opent het volledige materiaalscherm (geen zijpaneel).
@@ -4689,11 +4690,11 @@ export default function Editor({ planId }) {
         {uitklap && (
             <div className="fm-uitklap" style={{ top: uitklapY }} onClick={(e) => e.stopPropagation()}
               >
-              {GROEPEN.find((g) => g.id === uitklap).tools.filter((x) => uitgebreid || !UITGEBREID_TOOLS.includes(x)).map((id) => {
+              {(() => { const gr = GROEPEN.find((g) => g.id === uitklap); return gr.tools.filter((x) => uitgebreid || !UITGEBREID_TOOLS.includes(x)).map((id) => {
                 const t = gTool(id);
                 const uit = !schrijven && !['selecteer', 'hand', 'meten', 'meten-vlak'].includes(id);
-                return <button key={id} disabled={uit} className={gereedschap === id ? 'aan' : ''} onClick={() => kiesTool(id)}><Icoon naam={t.icoon} maat={16} />{t.naam}<kbd>{t.toets}</kbd></button>;
-              })}
+                return <Fragment key={id}>{gr.scheiding === id && <hr />}<button disabled={uit} className={gereedschap === id ? 'aan' : ''} onClick={() => kiesTool(id)}><Icoon naam={t.icoon} maat={16} />{t.naam}<kbd>{t.toets}</kbd></button></Fragment>;
+              }); })()}
             </div>
           )}
 
@@ -4701,6 +4702,26 @@ export default function Editor({ planId }) {
           <aside className="fm-paneel">
             <div className="fm-paneelkop"><span>{tab === 'wrlijst' ? wrTool(wrLijst?.id)?.naam || 'Kiezen' : PANEELNAAM[tab]}</span><button className="fm-sluit" aria-label="Paneel sluiten" onClick={() => setTab(null)}>×</button></div>
             <div className="fm-paneel-inhoud">
+              {tab === 'tekenen' && (
+                <div className="fm-teken">
+                  {TEKEN_DELEN.map((d) => (
+                    <section key={d.naam}>
+                      <h3>{d.naam}</h3>
+                      {d.tools.filter((x) => uitgebreid || !UITGEBREID_TOOLS.includes(x)).map((id) => {
+                        const t = gTool(id); if (!t) return null;
+                        const uit = !schrijven;
+                        return (
+                          <button key={id} type="button" disabled={uit} className={`fm-tekenrij${gereedschap === id ? ' aan' : ''}`} onClick={() => kiesTool(id)}>
+                            <span className="ic"><Icoon naam={t.icoon} maat={20} /></span>
+                            <span className="tekst"><b>{t.naam}</b>{UITLEG[id] && <small>{UITLEG[id].split(' · ')[0]}</small>}</span>
+                            {t.toets && <kbd>{t.toets}</kbd>}
+                          </button>
+                        );
+                      })}
+                    </section>
+                  ))}
+                </div>
+              )}
               {tab === 'lagen' && (
                 <Lagenpaneel lagen={lagen} items={items} actieveLaag={actieveLaag} schrijven={schrijven}
                   onKies={setActieveLaag} onWijzig={wijzigLaag} onNieuw={nieuweLaag} onVerwijder={verwijderLaag} onRuimOp={ruimLegeLagenOp} onVolgorde={herschikLagen}

@@ -2221,3 +2221,18 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-weergavemenu .fm-veld select { height: 34px; border-radius: 6px; border: 1px solid var(--t-rand-2, #CFD7E3); padding: 0 8px; font-size: 13px; font-weight: 400; }
 /* Geen gekleurde lijn onder de topbalk per werkplek: het symbool in de werkplekkiezer zegt al waar je zit. */
 .fm-editor .fm-topbalk, .fm-editor .fm-topbalk.fm-wr-plan { border-bottom: 1px solid var(--t-rand, #E3E8EF); }
+
+/* Paneel Tekenen: lijnen, vormen en punten, zoals de bibliotheek met elementen. */
+.fm-teken { display: flex; flex-direction: column; padding: 4px 0 12px; }
+.fm-teken section { display: flex; flex-direction: column; }
+.fm-teken h3 { margin: 0; padding: 12px 14px 6px; font-size: 11.5px; font-weight: 600; color: var(--t-tekst-2, #4A5A75); }
+.fm-tekenrij { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 6px 12px; border: 0; background: #fff; color: var(--t-tekst, #0E1A33); font: inherit; text-align: left; cursor: pointer; }
+.fm-tekenrij:hover:not(:disabled) { background: var(--t-vlak, #F5F7FA); }
+.fm-tekenrij.aan { background: var(--t-blauw-zacht, #E8F3FD); }
+.fm-tekenrij:disabled { opacity: .5; cursor: default; }
+.fm-tekenrij .ic { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border: 1px solid var(--t-rand, #E3E8EF); border-radius: 8px; background: #fff; color: var(--t-navy, #022056); }
+.fm-tekenrij.aan .ic { border-color: #9CCBF5; color: var(--t-blauw-donker, #0B6FC2); }
+.fm-tekenrij .tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.fm-tekenrij b { font-size: 13px; font-weight: 600; }
+.fm-tekenrij small { font-size: 11.5px; color: var(--t-tekst-2, #4A5A75); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-tekenrij kbd { font: 500 11px var(--font-sans, sans-serif); color: var(--t-tekst-3, #8492A8); border: 1px solid var(--t-rand, #E3E8EF); border-radius: 4px; padding: 1px 5px; }
