@@ -48,4 +48,4 @@ export function rubriekSecties(rubrieken) {
   }
   return uit;
 }
-export const rubriekNaam = (r) => (r === 'Tenten en vloeren' ? 'Tenten' : r === LOCATIE ? 'Locatie (binnenruimte, huismateriaal)' : r);
+export const rubriekNaam = (r) => (r === 'Tenten en vloeren' ? 'Tenten' : r === 'Doeken en drukwerk' ? 'Branding' : r === LOCATIE ? 'Locatie (binnenruimte, huismateriaal)' : r);
