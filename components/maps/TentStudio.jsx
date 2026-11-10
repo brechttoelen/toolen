@@ -272,7 +272,12 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
         // Glaswand: aluminium kader met een onderregel en een tussenregel.
         if (pw.glas && !pw.deur && !mini) { for (const u of [0, 1 - bu(0.05)]) strip(u, 0, u + bu(0.05), zh, alu); for (const z of [0, 0.25, zh - 0.06]) strip(0, z, 1, z + 0.06, alu); strip(0, 0.06, 1, 0.25, '#D1D5DB', 0.95, 0.006); }
         // ABS-wand: harde panelen met een groef om de 50 cm en een aluminium stijl.
-        if (pw.paneel && !mini) { for (let z = 0.5; z < zh - 0.1; z += 0.5) strip(0, z - 0.012, 1, z + 0.012, '#C7CCD2'); strip(1 - bu(0.04), 0, 1, zh, alu); }
+        if (pw.paneel && !mini) {
+          // ABS-cassette: een ingezet vak met schuine ribben per paneel van 1 m, en een aluminium stijl.
+          const r = bu(0.09); strip(r, 0.12, 1 - r, zh - 0.12, '#F3F4F6', 1, 0.01);
+          for (const [u0, u1] of [[r, 1 - r]]) for (const zz of [0.25, 0.42, 0.59].map((f) => f * zh)) { const w0 = 0.05; vlak([D(u0 + bu(0.05), zz, 0.018), D(u1 - bu(0.05), zz + 0.22, 0.018), D(u1 - bu(0.05), zz + 0.22 + w0, 0.018), D(u0 + bu(0.05), zz + w0, 0.018)], '#D9DDE2', 'vul', geen, 0.006); }
+          strip(1 - bu(0.04), 0, 1, zh, alu);
+        }
         // Steigerhout dicht: staande planken van ± 20 cm, in licht verschillende tinten.
         if (pw.hout && !pw.raster && !pw.deur && !mini) { const nb = Math.max(2, Math.round(pl / 0.2)); for (let k2 = 0; k2 < nb; k2++) strip(k2 / nb + bu(0.006), 0.02, (k2 + 1) / nb - bu(0.006), zh - 0.02, HOUTK[(k2 * 7 + sg.i * 3) % 4]); strip(0, zh - 0.12, 1, zh - 0.02, '#5E554B'); }
         // Steigerhout met glas: houten onderpaneel, glas in een houten kader met een tussenregel.
@@ -366,7 +371,9 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
       const x0 = i * m.travee; const x1 = (i + 1) * m.travee; const dk = dakSoort(t.dakPer?.[i] || t.dak);
       const banden = dk.streep && !mini ? 4 : 1;
       for (let bnd = 0; bnd < banden; bnd++) {
-        const a = x0 + ((x1 - x0) * bnd) / banden; const b = x0 + ((x1 - x0) * (bnd + 1)) / banden; const kl = dk.streep && bnd % 2 ? { ...dk, kleur: dk.streep } : dk;
+        const a0 = x0 + ((x1 - x0) * bnd) / banden; const b0 = x0 + ((x1 - x0) * (bnd + 1)) / banden; const kl = dk.streep && bnd % 2 ? { ...dk, kleur: dk.streep } : dk;
+        // Het dakzeil steekt aan de gevels een beetje over het spant, zodat het frame eronder verdwijnt.
+        const OV = mini ? 0 : 0.09; const a = i === 0 && bnd === 0 ? a0 - OV : a0; const b = i === m.n - 1 && bnd === banden - 1 ? b0 + OV : b0;
         if (m.type === 'kader') {
           dakVlak([[a, 0, m.zijH], [b, 0, m.zijH], [b, m.B / 2, m.nok], [a, m.B / 2, m.nok]], i, kl);
           dakVlak([[a, m.B, m.zijH], [b, m.B, m.zijH], [b, m.B / 2, m.nok], [a, m.B / 2, m.nok]], i, kl);
@@ -374,6 +381,14 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
           const n = mini ? 6 : 12;
           for (let k = 0; k < n; k++) { const y0 = (m.B * k) / n; const y1 = (m.B * (k + 1)) / n; dakVlak([[a, y0, dakHoogte(m, a, y0)], [b, y0, dakHoogte(m, b, y0)], [b, y1, dakHoogte(m, b, y1)], [a, y1, dakHoogte(m, a, y1)]], i, kl); }
         }
+      }
+      // Boord van het dakzeil: aan de gevels en langs de dakrand hangt het zeil ± 20 cm naar beneden over het frame
+      // (zoals bij een verhuurtent: van buiten zie je enkel de staanders, niet de spanten of de nokbalk).
+      if ((m.type === 'kader' || m.type === 'boog') && !mini) {
+        const BD = 0.2; const OV = 0.09; const nS = m.type === 'kader' ? 2 : 16;
+        const gevel = (x) => { for (let k = 0; k < nS; k++) { const y0 = (m.B * k) / nS; const y1 = (m.B * (k + 1)) / nS; const h0 = dakHoogte(m, Math.max(0, Math.min(m.L, x)), y0); const h1 = dakHoogte(m, Math.max(0, Math.min(m.L, x)), y1); vlak([[x, y0, h0 + 0.01], [x, y1, h1 + 0.01], [x, y1, h1 - BD], [x, y0, h0 - BD]], dk.kleur, 'vul', { fillOpacity: Math.max(0.85, dk.dekking), ...geen }); } };
+        if (i === 0) gevel(-OV); if (i === m.n - 1) gevel(m.L + OV);
+        for (const [y, yo] of [[0, -0.07], [m.B, m.B + 0.07]]) { const xa = i === 0 ? -OV : x0; const xb = i === m.n - 1 ? m.L + OV : x1; vlak([[xa, yo, m.zijH + 0.03], [xb, yo, m.zijH + 0.03], [xb, yo, m.zijH - 0.16], [xa, yo, m.zijH - 0.16]], dk.kleur, 'vul', { fillOpacity: Math.max(0.85, dk.dekking), ...geen }); vlak([[xa, y, m.zijH + 0.02], [xb, y, m.zijH + 0.02], [xb, yo, m.zijH + 0.03], [xa, yo, m.zijH + 0.03]], dk.kleur, 'vul', { fillOpacity: Math.max(0.85, dk.dekking), ...geen }); }
       }
       if (m.type === 'pagode' || m.type === 'vouw') {
         const tp = [(x0 + x1) / 2, m.B / 2, m.nok]; const c = [[x0, 0], [x1, 0], [x1, m.B], [x0, m.B]];
