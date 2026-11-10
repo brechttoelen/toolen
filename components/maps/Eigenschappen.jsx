@@ -36,6 +36,8 @@ import { isWand, zijLengtes } from './framewand';
 import { isPubliekeStructuur, capaciteit, instBrand } from './veiligheid';
 import { sorteerCategorieen } from './categorieen';
 import { familieVan, BOUWFAMILIES } from './familie';
+import { ContainerBlok } from './ContainerStudio';
+import { isContainerDeel } from './containerbouw';
 import { magModule } from './modules';
 import { PaneelKop, Kern, PaneelTabs } from './Paneel';
 
@@ -654,6 +656,7 @@ export default function Eigenschappen(props) {
             </label>
           );
         })()}
+        {isContainerDeel(el) && item.parameters?.midden && <ContainerBlok it={item} el={el} items={items} elementen={elementen} elementenMap={elementenMap} schrijven={schrijven} onActie={onActie} />}
         {isTentBouw(el) && item.parameters?.midden && <TentBlok it={item} el={el} doeken={alleDoeken} items={items} elementen={elementen} elementenMap={elementenMap} schrijven={schrijven} onZet={(tent) => onWijzig({ velden: { ...(item.velden || {}), tent } })} onVloer={(id) => onWijzig({ velden: { ...(item.velden || {}), vloer: id || null } })} onActie={onActie} />}
         {el && el.eigenschappen?.stelling3d && !isStellingBouw(item) && <Vaste3D item={item} el={el} />}
         {el && el.eigenschappen?.stelling && item.geometrie?.type === 'LineString' && <StellingBlok it={item} el={el} doeken={alleDoeken} schrijven={schrijven} onZet={(stelling, extra) => onWijzig({ velden: { ...(item.velden || {}), stelling, ...(extra || {}) } })} />}
@@ -1285,7 +1288,7 @@ export default function Eigenschappen(props) {
     const stroomTab = familie === 'stroom' && magModule('stroom');
     const standaard = isBouwer ? 'bouwer' : brandingJsx && (familie === 'branding' || panelenJsx) ? 'branding' : stroomTab ? 'stroom' : familie === 'vormen' && item.soort !== 'notitie' ? 'stijl' : 'in';
     const tab = tabKeuze || standaard;
-    const tabs = [isBouwer && { k: 'bouwer', naam: cameraJsx ? 'Camera' : 'Bouwer' }, stroomTab && { k: 'stroom', naam: lichtJsx ? 'Licht' : 'Stroom' }, { k: 'in', naam: legTab ? 'Leggen' : 'Instellen' }, brandingJsx && { k: 'branding', naam: 'Branding' }, metBinnen && { k: 'binnen', naam: 'Binnen' }, metStijl && { k: 'stijl', naam: g.type === 'Point' && familie === 'vormen' ? 'Icoon' : 'Stijl' }, { k: 'meer', naam: 'Meer' }];
+    const tabs = [(isBouwer || (!!el && isContainerDeel(el) && !!item.parameters?.midden)) && { k: 'bouwer', naam: cameraJsx ? 'Camera' : 'Bouwer' }, stroomTab && { k: 'stroom', naam: lichtJsx ? 'Licht' : 'Stroom' }, { k: 'in', naam: legTab ? 'Leggen' : 'Instellen' }, brandingJsx && { k: 'branding', naam: 'Branding' }, metBinnen && { k: 'binnen', naam: 'Binnen' }, metStijl && { k: 'stijl', naam: g.type === 'Point' && familie === 'vormen' ? 'Icoon' : 'Stijl' }, { k: 'meer', naam: 'Meer' }];
     return (
       <div className="fm-paneel2" data-familie={familie}>
         <PaneelKop std={plan?.instellingen?.leveranciers || null} item={item} el={el} elementen={elementen} lagen={lagen} fasen={fasen} items={items} elementenMap={elementenMap} schrijven={schrijven}

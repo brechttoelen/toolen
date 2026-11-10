@@ -33,6 +33,7 @@ import { vernieuwGridlabDoeken } from './gridlab';
 import { isLichtmast } from './licht';
 import { isTentBouw, tentTypeVan, TENTTYPES, tentMaten, tentErnaast, naastTent, stukOpPlan, tentAssen } from './tentbouw';
 import { vraagBouwer } from './bouwerSignaal';
+import { isUnitEl } from './containerbouw';
 import { Icoon } from './iconen';
 import Lagenpaneel from './Lagenpaneel';
 import { LaagOpties } from './laagOpties';
@@ -1116,6 +1117,14 @@ export default function Editor({ planId }) {
     const k = bouwerRef.current; bouwerRef.current = null; setGereedschap('selecteer');
     if (!k) return;
     if (k.soort === 'teken') { openTekenschermRef.current?.(null, p); return; }
+    if (k.soort === 'unit' && k.el) {
+      const el = k.el; const b = Number(el.breedte_m) || 3; const d = Number(el.diepte_m) || 6; const rot = Number(st.current.elementRot) || 0;
+      const it = maakItem({ laag_id: laagVoorElement(el), soort: 'element', element_id: el.id, geometrie: geo.elementVeelhoek(p, b, d, rot), parameters: { midden: p, breedte: b, diepte: d, rot } });
+      tdRef.current?.addFeatures([tdFeature(it)]);
+      vraagBouwer(it.id);
+      setTimeout(() => { setGeselecteerd(it.id); try { tdRef.current?.selectFeature(it.id); } catch {} }, 30);
+      return;
+    }
     if (k.soort === 'tent' && k.el) {
       const el = k.el; const n = el.eigenschappen?.module ? 3 : 1; const b = (Number(el.breedte_m) || 5) * n; const d = Number(el.diepte_m) || 5; const rot = Number(st.current.elementRot) || 0;
       const it = maakItem({ laag_id: laagVoorElement(el), soort: 'element', element_id: el.id, geometrie: geo.elementVeelhoek(p, b, d, rot, n > 1 ? null : el.omtrek), parameters: { midden: p, breedte: b, diepte: d, rot } });
@@ -3078,6 +3087,22 @@ export default function Editor({ planId }) {
         wijzigItem(it.id, { velden: { ...(it.velden || {}), vloer: arg?.vloer || null } });
         break;
       }
+      case 'unit-plaats': {
+        // Containerbouwer: een unit of trap erbij, in dezelfde laag als de unit waarmee je begon.
+        const e2 = st.current.elementen.find((x) => x.id === arg?.el); if (!e2 || !arg?.midden) break;
+        const nieuw = maakItem({ laag_id: it.laag_id, soort: 'element', element_id: e2.id, geometrie: geo.elementVeelhoek(arg.midden, arg.breedte, arg.diepte, arg.rot), parameters: { midden: arg.midden, breedte: arg.breedte, diepte: arg.diepte, rot: arg.rot }, velden: arg.verdieping ? { verdieping: arg.verdieping } : {} });
+        tdRef.current?.addFeatures([tdFeature(nieuw)]);
+        break;
+      }
+      case 'unit-wijzig': {
+        // Ander type (schakelunit eind/midden) of 180° gedraaid: zelfde midden.
+        const e2 = arg?.el ? st.current.elementen.find((x) => x.id === arg.el) : null;
+        const p0 = it.parameters || {}; const b = e2 ? Number(e2.breedte_m) || p0.breedte : p0.breedte; const d = e2 ? Number(e2.diepte_m) || p0.diepte : p0.diepte; const rot = arg?.rot != null ? arg.rot : Number(p0.rot) || 0;
+        wijzigItem(it.id, { ...(e2 ? { element_id: e2.id } : {}), geometrie: geo.elementVeelhoek(p0.midden, b, d, rot), parameters: { ...p0, breedte: b, diepte: d, rot } });
+        setTimeout(syncTd, 0);
+        break;
+      }
+      case 'unit-weg': { verwijderItems([it.id]); break; }
       case 'tent-lid': {
         // Tentbouwer: een gekoppelde tent aangepast in dezelfde bouwer.
         if (arg?.tent) wijzigItem(it.id, { velden: { ...(it.velden || {}), tent: arg.tent } });
@@ -4420,6 +4445,7 @@ export default function Editor({ planId }) {
   // Bouwers: de elementen die met een bouwer opgebouwd worden.
   const TENT_VOORKEUR = { kader: /10 m breed \(per travee 5/, boog: /15 m/, pagode: /5 × 5/, vouw: /3×3|3 × 3/, stretch: /10 × 15/, sail: /12 × 18/ };
   // Laatst gebruikte tent (anders een kadertent van 10 m): daarmee start een nieuwe tent, de rest kies je in de bouwer.
+  const standaardUnit = elementen.find((e) => e.actief !== false && !e.plan_id && /BU-06-CD/.test(e.naam || '')) || elementen.find((e) => e.actief !== false && !e.plan_id && isUnitEl(e)) || null;
   const standaardTent = (() => {
     let id = null; try { id = localStorage.getItem('fm-tent-laatst'); } catch {}
     const l = elementen.filter((e) => e.actief !== false && !e.plan_id && isTentBouw(e));
@@ -4443,7 +4469,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
     if (k.soort === 'element') { bouwerRef.current = null; setGekozenElement(k.el); setGereedschap('element'); setMelding(`Klik waar ${k.naam} moet komen: de bouwer opent meteen.`); return; }
     if (k.soort === 'binnen') { kiesGereedschap('binnenlocatie'); bouwerRef.current = { soort: 'binnen' }; setMelding('Klik op het gebouw of de plek: het binnenplan opent meteen.'); return; }
     kiesGereedschap('bouwer'); bouwerRef.current = k;
-    setMelding(k.soort === 'teken' ? 'Klik waar het element moet komen: het tekenscherm opent op die plek.' : `Klik waar de ${k.el.naam} moet komen: de tentbouwer opent meteen.`);
+    setMelding(k.soort === 'teken' ? 'Klik waar het element moet komen: het tekenscherm opent op die plek.' : k.soort === 'unit' ? 'Klik waar de units moeten komen: de containerbouwer opent meteen.' : 'Klik waar de tent moet komen: de tentbouwer opent meteen.');
   };
   // Groepen: één naam per groep (plan.instellingen.groepen), de onderdelen zelf hebben geen naam.
   const groepNaam = (gid) => (plan?.instellingen?.groepen || []).find((g) => g.id === gid)?.naam || '';
@@ -4762,6 +4788,12 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                     {/* Eén ingang voor alle tenten: soort, breedte en gekoppelde tenten kies je in de tentbouwer. */}
                     {standaardTent && bouwRij('tent', `tent-${tentTypeVan(standaardTent) || 'kader'}`, 'Tent', 'Klik op de kaart; soort, breedte en tenten ertegen kies je in de bouwer', () => kiesBouwer({ soort: 'tent', el: standaardTent }))}
                   </section>
+                  {standaardUnit && (
+                    <section>
+                      <h3>Units</h3>
+                      {bouwRij('unit', 'bouw-unit', 'Containers', 'Klik op de kaart; units, stapelen en trappen kies je in de bouwer', () => kiesBouwer({ soort: 'unit', el: standaardUnit }))}
+                    </section>
+                  )}
                   {(bouwEl.wand || bouwEl.truss || bouwEl.stelling) && (
                     <section>
                       <h3>Constructies</h3>

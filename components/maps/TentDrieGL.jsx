@@ -165,8 +165,10 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
     const { groep, doelen } = bouw(a.T, prims, a.laad); a.scene.add(groep); a.groep = groep; a.doelen = doelen;
     const { c, r } = omkader(a.T, a, groep); zonLaag(a, c, r);
     a.thuis = () => { standpunt(a.cam, c, r, hoek, kantel); a.ctl.target.copy(c); a.ctl.update(); a.teken(); };
-    if (eerste.current || (a.vorigeR && (r > a.vorigeR * 1.6 || r < a.vorigeR / 1.6))) { eerste.current = false; a.thuis(); }
-    a.vorigeR = r; a.teken();
+    // Opnieuw in beeld brengen als het geheel duidelijk groter of kleiner wordt, of verschuift (bv. een unit erbij).
+    const weg = a.vorigeC ? c.distanceTo(a.vorigeC) : 0;
+    if (eerste.current || (a.vorigeR && (r > a.vorigeR * 1.2 || r < a.vorigeR / 1.6 || weg > a.vorigeR * 0.35))) { eerste.current = false; a.thuis(); a.vorigeR = r; a.vorigeC = c.clone(); }
+    a.teken();
   }, [klaar, prims]); // eslint-disable-line react-hooks/exhaustive-deps
   const vorigStand = useRef(`${hoek}|${kantel}`);
   useEffect(() => { const k = `${hoek}|${kantel}`; if (k === vorigStand.current) return; vorigStand.current = k; api.current?.thuis?.(); }, [hoek, kantel, klaar]);

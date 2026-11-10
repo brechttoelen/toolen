@@ -2345,3 +2345,11 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-tb-ertegen { border: 1px solid var(--t-rand, #E3E8EF); border-radius: 8px; padding: 6px 8px; }
 .fm-tb-ertegen[open] { display: flex; flex-direction: column; gap: 6px; }
 .fm-tb-ertegen summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+
+/* Containerbouwer */
+.fm-cb-links { display: flex; flex-direction: column; gap: 8px; }
+.fm-cb-gekozen { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--t-rand, #E3E8EF); border-radius: 8px; }
+.fm-cb-gekozen b { font-size: 13px; }
+.fm-cb-zijden { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.fm-cb-zijden .fm-knop { width: 100%; justify-content: center; }
+.fm-cb-links select { width: 100%; }
