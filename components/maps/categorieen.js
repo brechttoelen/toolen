@@ -3,7 +3,7 @@
 // Een categorie die hier niet in staat (bv. "Eigen") komt achteraan, alfabetisch.
 export const SECTIES = [
   ['Structuren', ['Tenten en vloeren', 'Mobiele structuren', 'Podium', 'Stellingbouw', 'Truss', 'Units en containers']],
-  ['Terrein', ['Hekken en afsluitingen', 'Fietsenstalling', 'Grondbescherming', 'Doeken en drukwerk', 'Wegmarkering']],
+  ['Terrein', ['Hekken en afsluitingen', 'Fietsenstalling', 'Grondbescherming', 'Doeken en drukwerk', 'Vlaggen', 'Totems en frames', 'Wegmarkering']],
   ['Techniek', ['Elektriciteit', 'Licht en geluid', 'Verwarming', 'Data en telecom', 'Schermen', 'TV-compound']],
   ['Voorzieningen', ['Catering', 'Meubilair', 'Toiletten', 'Afval', 'Veiligheid', 'Beveiliging', 'Personeel']],
   ['Logistiek', ['Vervoer', 'Machines']],
@@ -32,20 +32,23 @@ export const sorteerCategorieen = (lijst) => [...lijst].sort(vergelijkCategorie)
 // Rubrieken in de bibliotheek van het plan: één rubriek per categorie, dezelfde indeling als bij de leveranciers
 // (de standaardleverancier van een plan geldt ook per categorie). Materiaal van de locatie zelf staat samen.
 export const LOCATIE = 'Locatie';
+// Branding komt van verschillende leveranciers (drukker, vlaggen, frames): drie categorieën, één rubriek.
+export const BRANDING = ['Doeken en drukwerk', 'Vlaggen', 'Totems en frames'];
 export const rubriekVan = (categorie) => {
   const c = categorie || 'Andere';
   if (c === 'Binnenruimte' || c === 'Huismateriaal') return LOCATIE;
   if (c === 'Tenten') return 'Tenten en vloeren';
+  if (BRANDING.includes(c)) return 'Branding';
   return c;
 };
 // Rubrieken per sectie, in vaste volgorde; onbekende categorieën onder Overig.
 export function rubriekSecties(rubrieken) {
   const alle = new Set(rubrieken); const uit = [];
   for (const [naam, l] of SECTIES) {
-    const r = l.filter((c) => alle.has(c));
-    if (naam === 'Overig') { r.unshift(...[...alle].filter((c) => !CATEGORIEEN.includes(c) && c !== 'Andere').sort((x, y) => (x === LOCATIE ? -1 : y === LOCATIE ? 1 : x.localeCompare(y, 'nl')))); }
+    const r = [...new Set(l.map(rubriekVan))].filter((c) => alle.has(c));
+    if (naam === 'Overig') { r.unshift(...[...alle].filter((c) => !CATEGORIEEN.includes(c) && c !== 'Andere' && c !== 'Branding').sort((x, y) => (x === LOCATIE ? -1 : y === LOCATIE ? 1 : x.localeCompare(y, 'nl')))); }
     if (r.length) uit.push([naam, r]);
   }
   return uit;
 }
-export const rubriekNaam = (r) => (r === 'Tenten en vloeren' ? 'Tenten' : r === 'Doeken en drukwerk' ? 'Branding' : r === LOCATIE ? 'Locatie (binnenruimte, huismateriaal)' : r);
+export const rubriekNaam = (r) => (r === 'Tenten en vloeren' ? 'Tenten' : r === LOCATIE ? 'Locatie (binnenruimte, huismateriaal)' : r);

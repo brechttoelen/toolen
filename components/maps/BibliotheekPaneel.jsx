@@ -132,7 +132,7 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
   useEffect(() => {
     const e = startCat && elementen.find((x) => x.categorie === startCat);
     if (!e) return;
-    const f = famVan.get(e.id); onthoud.fam = f; setFamS(f); onthoud.cat = startCat; setCatS(startCat);
+    const f = famVan.get(e.id); const c = f === startCat ? startCat : ''; onthoud.fam = f; setFamS(f); onthoud.cat = c; setCatS(c);
   }, [startCat]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const sc = scrollerVan(wortel.current);

@@ -34,7 +34,7 @@ export function familieUitCategorie(categorie = '', el = null) {
   if (/elektric|verlichting|licht en geluid|verwarming|stroom/.test(c)) return 'stroom';
   if (/grondbescherming|vloer|podium/.test(c)) return 'vloeren';
   if (/scherm|^led/.test(c)) return 'schermen';
-  if (/doek|drukwerk|communicatie|branding|signal|wegmarkering/.test(c)) return 'branding';
+  if (/doek|drukwerk|vlag|totem|frames|communicatie|branding|signal|wegmarkering/.test(c)) return 'branding';
   if (/meubilair|meubel|binnenruimte|huismateriaal|interieur/.test(c)) return 'meubilair';
   if (/veiligheid|beveiliging|ehbo|brand/.test(c)) return 'veiligheid';
   if (/tv-compound|telecom|data|omroep/.test(c)) return 'tv';

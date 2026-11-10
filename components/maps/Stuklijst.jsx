@@ -53,11 +53,11 @@ export function berekenStuklijst(items, elementen, lagen, actieveFase = null, st
         for (const id of ids) {
           const d = elementen.get(id);
           const sl = `paneel:${id}`;
-          const r = perElement.get(sl) || { naam: `Vlagdoek · ${d ? d.naam : '?'}${d?.eigenschappen?.afmeting ? ` (${d.eigenschappen.afmeting})` : ''}`, categorie: 'Doeken en drukwerk', leverancier: '', artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
+          const r = perElement.get(sl) || { naam: `Vlagdoek · ${d ? d.naam : '?'}${d?.eigenschappen?.afmeting ? ` (${d.eigenschappen.afmeting})` : ''}`, categorie: 'Vlaggen', leverancier: '', artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
           r.aantal += 1; perElement.set(sl, r);
         }
         if (ids.length) {
-          const r = perElement.get('vlagmast-heras') || { naam: 'Beachvlag-mast met Heras-klemmen', categorie: 'Doeken en drukwerk', leverancier: '', artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
+          const r = perElement.get('vlagmast-heras') || { naam: 'Beachvlag-mast met Heras-klemmen', categorie: 'Vlaggen', leverancier: '', artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
           r.aantal += ids.length; perElement.set('vlagmast-heras', r);
         }
       }

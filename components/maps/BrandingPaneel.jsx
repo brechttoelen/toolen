@@ -52,7 +52,7 @@ export default function BrandingPaneel({ plan, items, doeken, elementenMap, schr
       const b = await sb().storage.from(BUCKET).upload(beeld, nieuw.voorbeeld.blob, { contentType: 'image/jpeg' });
       if (b.error) throw b.error;
       const rij = {
-        naam: nieuw.naam.trim(), categorie: 'Doeken en drukwerk', tekenwijze: 'doek', stijl: {}, actief: true, plan_id: plan.id,
+        naam: nieuw.naam.trim(), categorie: soort === 'vlag' ? 'Vlaggen' : 'Doeken en drukwerk', tekenwijze: 'doek', stijl: {}, actief: true, plan_id: plan.id,
         eigenschappen: { kleur: nieuw.kleur, afmeting: nieuw.afmeting || dr.afmeting, beeld, bestand: origineel, bestandsnaam: nieuw.bestand.name, ...(soort !== 'hek' ? { drager: soort } : {}) },
       };
       const { data, error } = await maps().from('bibliotheek').insert(rij).select().single();

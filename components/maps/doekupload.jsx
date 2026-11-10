@@ -33,7 +33,7 @@ function DoekUploadKnop({ planId, drager = 'hek', onNieuw, klein = false }) {
       const origineel = pad(map, ext); const beeld = pad(map, 'jpg');
       const a = await sb().storage.from(BUCKET).upload(origineel, nieuw.bestand, { contentType: nieuw.bestand.type || undefined }); if (a.error) throw a.error;
       const b = await sb().storage.from(BUCKET).upload(beeld, nieuw.voorbeeld.blob, { contentType: 'image/jpeg' }); if (b.error) throw b.error;
-      const rij = { naam: nieuw.naam.trim(), categorie: 'Doeken en drukwerk', tekenwijze: 'doek', stijl: {}, actief: true, plan_id: alle ? null : planId,
+      const rij = { naam: nieuw.naam.trim(), categorie: drager === 'vlag' ? 'Vlaggen' : 'Doeken en drukwerk', tekenwijze: 'doek', stijl: {}, actief: true, plan_id: alle ? null : planId,
         eigenschappen: { kleur: nieuw.kleur, afmeting: nieuw.afmeting || dr.afmeting, beeld, bestand: origineel, bestandsnaam: nieuw.bestand.name, ...(drager !== 'hek' ? { drager } : {}) } };
       const { data, error } = await maps().from('bibliotheek').insert(rij).select().single(); if (error) throw error;
       window.dispatchEvent(new CustomEvent(NIEUW_ONTWERP, { detail: data }));
