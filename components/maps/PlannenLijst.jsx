@@ -243,13 +243,19 @@ export default function PlannenLijst() {
   const [nieuw, setNieuw] = useState(null);
   const [aanwezig, setAanwezig] = useState(new Map());
   const [ev, setEv] = useState({ events: [], ok: false });
-  const [kaartAan, setKaartAan] = useState(true);
+  const [kaartAan, setKaartAan] = useState(false);
+  // Werklijst: snelle filters en groeperen (per event of één lijst op laatst bewerkt).
+  const [snel, setSnel] = useState('');
+  const [perEvent, setPerEvent] = useState(true);
+  const [menuVan, setMenuVan] = useState(null);
+  useEffect(() => { if (!menuVan) return undefined; const f = (e) => { if (!e.target.closest?.('.t-plmenu')) setMenuVan(null); }; document.addEventListener('mousedown', f); return () => document.removeEventListener('mousedown', f); }, [menuVan]);
   useEffect(() => { laadEvents().then(setEv); }, []);
   useEffect(() => { const l = startLobby({ client: sb(), onState: (st) => setAanwezig(wieIn(st)) }); return () => l.stop(); }, []);
 
   useEffect(() => {
     (async () => {
-      const [wie, r] = await Promise.all([wieBenIk(), maps().from('plannen').select('*, items(count)').order('updated_at', { ascending: false })]);
+      const [wie, r0] = await Promise.all([wieBenIk(), maps().from('plannen').select('*, items(count), deel_links(count)').order('updated_at', { ascending: false })]);
+      const r = r0.error ? await maps().from('plannen').select('*, items(count)').order('updated_at', { ascending: false }) : r0;
       setProfiel(wie);
       if (r.error) setFout(foutTekst(r.error)); else setPlannen(r.data || []);
       setLaden(false);
@@ -283,93 +289,158 @@ export default function PlannenLijst() {
   const schrijven = magSchrijven(profiel);
   const weg = plannen.filter((p) => p.verwijderd_op);
   const q = zoek.trim().toLowerCase();
-  const lijst = plannen.filter((p) => !!p.verwijderd_op === prullenbak)
-    .filter((p) => !q || [p.naam, p.editie_naam, p.locatie].join(' ').toLowerCase().includes(q))
+  const evNaam = useMemo(() => new Map(ev.events.map((e) => [e.id, e.naam])), [ev]);
+  const actief = plannen.filter((p) => !!p.verwijderd_op === prullenbak)
+    .filter((p) => !q || [p.naam, p.editie_naam, p.locatie, evNaam.get(p.event_id)].join(' ').toLowerCase().includes(q))
     .filter((p) => !filter || (filter === 'geen' ? !p.event_id : p.event_id === filter));
+  const mijn = (p) => !!profiel?.id && (p.aangemaakt_door === profiel.id || p.bewerkt_door === profiel.id);
+  const SNEL = [['', 'Alle', () => true], ['concept', 'Concept', (p) => p.status !== 'definitief'], ['definitief', 'Definitief', (p) => p.status === 'definitief'], ['mijn', 'Mijn plannen', mijn]];
+  const lijst = actief.filter(SNEL.find((x) => x[0] === snel)?.[2] || (() => true));
   const groepen = useMemo(() => {
+    if (!perEvent || prullenbak) return [{ id: 'alles', naam: null, plannen: lijst }];
     const g = groepeer(lijst, ev.events, ev.ok).filter((x) => x.plannen.length);
     const vandaag = new Date().toISOString().slice(0, 10);
     g.sort((a, b) => (!a.datum) - (!b.datum) || ((a.datum < vandaag) - (b.datum < vandaag)) || String(a.datum || a.naam).localeCompare(String(b.datum || b.naam)));
     const los = lijst.filter((p) => !g.some((x) => x.plannen.includes(p)));
     if (los.length) g.push({ id: 'geen', naam: 'Zonder event', kleur: '#CFD7E3', datum: null, plannen: los, los: true });
     return g;
-  }, [lijst, ev]);
-  const kleurVan = useMemo(() => { const m = new Map(groepen.flatMap((g) => g.plannen.map((p) => [p.id, g.kleur]))); return (p) => m.get(p.id) || '#8492A8'; }, [groepen]);
+  }, [lijst, ev, perEvent, prullenbak]); // eslint-disable-line react-hooks/exhaustive-deps
+  const kleurVan = useMemo(() => { const m = new Map(groepeer(lijst, ev.events, ev.ok).flatMap((g) => g.plannen.map((p) => [p.id, g.kleur]))); return (p) => m.get(p.id) || '#8492A8'; }, [lijst, ev]);
+  const bewerkt = (t) => { const d = new Date(t); const nu = new Date(); const dag = (x) => x.toISOString().slice(0, 10); if (dag(d) === dag(nu)) return `Vandaag ${d.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' })}`; const g = new Date(nu); g.setDate(g.getDate() - 1); if (dag(d) === dag(g)) return 'Gisteren'; return datumKort(t); };
+  const gedeeld = (p) => { const n = p.deel_links?.[0]?.count; return n == null ? '' : n ? `${n} ${n === 1 ? 'link' : 'links'}` : 'Niet gedeeld'; };
 
   const pil = (d) => <span className={`t-pil ${d ? 'ok' : 'let-op'}`}>{d ? 'Definitief' : 'Concept'}</span>;
 
   return (
-    <div className="fm" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--t-vlak)', fontFamily: 'var(--font-sans)' }}>
+    <div className="fm t-plannen" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--t-vlak)', fontFamily: 'var(--font-sans)' }}>
       <AppDialogen />
-      <header style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', padding: '24px 28px 16px', background: '#fff', borderBottom: '1px solid var(--t-rand)' }}>
-        <h1 className="t-titel" style={{ flex: '1 1 200px' }}>{prullenbak ? 'Prullenbak' : 'Plannen'}</h1>
-        <label style={{ display: 'flex', alignItems: 'center', height: 40, padding: '0 12px', border: '1px solid var(--t-rand-2)', borderRadius: 8, flex: '0 1 300px', background: '#fff' }}>
-          <span style={{ position: 'absolute', left: -9999 }}>Zoek een plan</span>
-          <input type="search" value={zoek} onChange={(e) => setZoek(e.target.value)} placeholder="Zoek op naam, event of plaats" style={{ all: 'unset', flex: 1, fontSize: 14 }} />
-        </label>
-        {ev.ok && !prullenbak && (
-          <label><span style={{ position: 'absolute', left: -9999 }}>Event</span>
-            <select className="t-veld" style={{ height: 40, width: 'auto' }} value={filter} onChange={(e) => setFilter(e.target.value)}>
-              <option value="">Alle events</option>
-              {ev.events.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}
-              <option value="geen">Zonder event</option>
-            </select>
-          </label>
-        )}
-        {!prullenbak && <button className="t-knop" style={{ height: 40 }} aria-pressed={kaartAan} onClick={() => setKaartAan(!kaartAan)}>{kaartAan ? 'Kaart verbergen' : 'Kaart tonen'}</button>}
-        {(weg.length > 0 || prullenbak) && <button className="t-knop" style={{ height: 40 }} onClick={() => setPrullenbak((x) => !x)}>{prullenbak ? 'Terug naar de plannen' : `Prullenbak · ${weg.length}`}</button>}
-        {schrijven && !prullenbak && <button className="t-knop hoofd" style={{ height: 40, padding: '0 16px', fontSize: 14 }} onClick={() => setNieuw('')}>Nieuw plan</button>}
+      <header className="t-plkop">
+        <h1 className="t-titel">{prullenbak ? 'Prullenbak' : 'Plannen'}</h1>
+        {(weg.length > 0 || prullenbak) && <button className="t-knop" onClick={() => setPrullenbak((x) => !x)}>{prullenbak ? 'Terug naar de plannen' : `Prullenbak · ${weg.length}`}</button>}
+        {schrijven && !prullenbak && <button className="t-knop hoofd" onClick={() => setNieuw('')}>Nieuw plan</button>}
       </header>
 
       <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', minHeight: 0 }}>
-        <section aria-label="Lijst van plannen" style={{ flex: '1 1 520px', minWidth: 0, padding: '18px 24px 40px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <section aria-label="Lijst van plannen" className="t-plromp">
+          <div className="t-plfilters">
+            <label className="t-plzoek">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.8" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M10.6 10.6L14 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+              <span style={{ position: 'absolute', left: -9999 }}>Zoek een plan</span>
+              <input type="search" value={zoek} onChange={(e) => setZoek(e.target.value)} placeholder="Zoek op plan, event of plaats" />
+            </label>
+            {!prullenbak && SNEL.filter(([k]) => k !== 'mijn' || profiel?.id).map(([k, n, f]) => (
+              <button key={k || 'alle'} type="button" className={`t-plchip${snel === k ? ' aan' : ''}`} aria-pressed={snel === k} onClick={() => setSnel(k)}>{n}<small>{actief.filter(f).length}</small></button>
+            ))}
+            <span className="t-plrechts">
+              {ev.ok && (
+                <label><span style={{ position: 'absolute', left: -9999 }}>Event</span>
+                  <select className="t-veld" value={filter} onChange={(e) => setFilter(e.target.value)}>
+                    <option value="">Alle events</option>
+                    {ev.events.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}
+                    <option value="geen">Zonder event</option>
+                  </select>
+                </label>
+              )}
+              {!prullenbak && (
+                <span className="fm-segment t-plseg" role="group" aria-label="Groeperen">
+                  <button type="button" className={perEvent ? 'aan' : ''} aria-pressed={perEvent} onClick={() => setPerEvent(true)}>Per event</button>
+                  <button type="button" className={!perEvent ? 'aan' : ''} aria-pressed={!perEvent} onClick={() => setPerEvent(false)}>Recent</button>
+                </span>
+              )}
+              {!prullenbak && <button className="t-knop" aria-pressed={kaartAan} onClick={() => setKaartAan(!kaartAan)}>{kaartAan ? 'Kaart verbergen' : 'Kaart'}</button>}
+            </span>
+          </div>
+
           {fout && <div className="t-melding fout">{fout}</div>}
           {laden && <p className="t-stil">Laden…</p>}
           {!laden && !fout && !lijst.length && <p className="t-sub">{prullenbak ? 'De prullenbak is leeg.' : plannen.length ? 'Geen plannen gevonden.' : 'Nog geen plannen. Maak het eerste aan met "Nieuw plan".'}</p>}
           {prullenbak && lijst.length > 0 && <p className="t-sub" style={{ margin: 0 }}>Plannen in de prullenbak blijven {BEWAAR} dagen bewaard voor je ze definitief kan verwijderen. Terugzetten kan altijd.</p>}
-          {groepen.map((g) => (
-            <div key={g.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0, background: g.los ? 'transparent' : g.kleur, color: g.los ? 'var(--t-tekst-2)' : '#fff', fontFamily: 'var(--font-titel)', fontStretch: '112%', fontWeight: 700, fontSize: 15, padding: g.los ? 0 : '5px 11px', borderRadius: 6 }}>{g.naam}</h2>
-                {g.datum && <span className="t-sub" style={{ margin: 0 }}>{eventDatum(g.datum)}</span>}
-                <span className="t-stil" style={{ fontSize: 12.5 }}>{g.plannen.length} {g.plannen.length === 1 ? 'plan' : 'plannen'}</span>
-                {schrijven && !prullenbak && !g.los && ev.ok && <button className="t-knop klein stil" style={{ marginLeft: 'auto' }} onClick={() => setNieuw(g.id)}>Plan toevoegen</button>}
-              </div>
-              <div style={{ background: '#fff', border: '1px solid var(--t-rand)', borderRadius: 10, overflow: 'hidden' }}>
-                {g.plannen.map((p, k) => {
-                  const wie = aanwezig.get(p.id) || [];
-                  const vanaf = p.verwijderd_op ? new Date(new Date(p.verwijderd_op).getTime() + BEWAAR * 864e5) : null;
-                  return (
-                    <div key={p.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: k ? '1px solid #EEF1F5' : 0 }}>
-                      <span aria-hidden="true" style={{ width: 4, alignSelf: 'stretch', borderRadius: 2, background: g.kleur }} />
-                      <a href={p.verwijderd_op ? undefined : `/maps/${p.id}`} style={{ flex: '1 1 220px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2, color: 'var(--t-tekst)', textDecoration: 'none' }}>
-                        <span style={{ fontSize: 15, fontWeight: 600 }}>{p.naam}</span>
-                        <span className="t-stil" style={{ fontSize: 12.5 }}>{[p.locatie, `${p.items?.[0]?.count ?? 0} items`, `Versie ${p.versie}`, `Bewerkt ${datumKort(p.updated_at)}`].filter(Boolean).join(' · ')}</span>
-                      </a>
-                      {wie.length > 0 && <span style={{ display: 'flex', gap: 4 }} title={`${wie.map((x) => x.naam).join(', ')} ${wie.length === 1 ? 'werkt' : 'werken'} hierin`}>{wie.slice(0, 4).map((x) => <Avatar key={x.uid} p={x} maat={24} />)}</span>}
-                      {!p.verwijderd_op && pil(p.status === 'definitief')}
-                      {schrijven && !p.verwijderd_op && ev.ok && (
-                        <label><span style={{ position: 'absolute', left: -9999 }}>Event van {p.naam}</span>
-                          <select className="t-veld" style={{ height: 30, width: 'auto', fontSize: 12.5 }} value={p.event_id || ''} onChange={(e) => koppel(p, e.target.value)}>
-                            <option value="">Zonder event</option>
-                            {ev.events.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}
-                          </select>
-                        </label>
-                      )}
-                      {schrijven && !p.verwijderd_op && <button className="t-knop klein stil gevaar" onClick={() => verwijder(p)}>Naar de prullenbak</button>}
-                      {schrijven && p.verwijderd_op && (
-                        <span className="t-rij" style={{ gap: 6 }}>
-                          <span className="t-stil" style={{ fontSize: 12.5 }}>In de prullenbak sinds {datumKort(p.verwijderd_op)}</span>
-                          <button className="t-knop klein" onClick={() => terugzetten(p)}>Terugzetten</button>
-                          <button className="t-knop klein gevaar" disabled={Date.now() < vanaf.getTime()} title={Date.now() >= vanaf.getTime() ? 'Plan en alles erin definitief verwijderen' : `Kan vanaf ${vanaf.toLocaleDateString('nl-BE')}`} onClick={() => wis(p)}>{Date.now() >= vanaf.getTime() ? 'Definitief verwijderen' : `Wissen vanaf ${datumKort(vanaf)}`}</button>
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+
+          {lijst.length > 0 && (
+            <div className="t-pltabel-vak">
+              <table className="t-pltabel">
+                <thead>
+                  <tr>
+                    <th>Plan</th>
+                    {!perEvent && <th>Event</th>}
+                    <th>Status</th>
+                    <th className="getal">Items</th>
+                    <th>Versie</th>
+                    <th>Gedeeld</th>
+                    <th>Bewerkt</th>
+                    <th><span style={{ position: 'absolute', left: -9999 }}>Acties</span></th>
+                  </tr>
+                </thead>
+                {groepen.map((g) => (
+                  <tbody key={g.id}>
+                    {g.naam && (
+                      <tr className="t-plgroep">
+                        <td colSpan={perEvent ? 7 : 8}>
+                          <span className="stip" style={{ background: g.kleur }} aria-hidden="true" />
+                          <b>{g.naam}</b>
+                          <span>{[g.datum ? eventDatum(g.datum) : null, `${g.plannen.length} ${g.plannen.length === 1 ? 'plan' : 'plannen'}`].filter(Boolean).join(' · ')}</span>
+                          {schrijven && !prullenbak && !g.los && ev.ok && <button className="t-pllink" onClick={() => setNieuw(g.id)}>Plan toevoegen</button>}
+                        </td>
+                      </tr>
+                    )}
+                    {g.plannen.map((p) => {
+                      const wie = aanwezig.get(p.id) || [];
+                      const vanaf = p.verwijderd_op ? new Date(new Date(p.verwijderd_op).getTime() + BEWAAR * 864e5) : null;
+                      return (
+                        <tr key={p.id} className="t-plrij">
+                          <td>
+                            {p.verwijderd_op ? <b>{p.naam}</b> : <a href={`/maps/${p.id}`}>{p.naam}</a>}
+                            <small>{p.locatie || '\u00a0'}</small>
+                          </td>
+                          {!perEvent && <td className="stil">{evNaam.get(p.event_id) || p.editie_naam || 'Zonder event'}</td>}
+                          <td>{p.verwijderd_op ? <span className="t-stil">Sinds {datumKort(p.verwijderd_op)}</span> : pil(p.status === 'definitief')}</td>
+                          <td className="getal">{p.items?.[0]?.count ?? 0}</td>
+                          <td>v{p.versie}</td>
+                          <td className="stil">{gedeeld(p)}</td>
+                          <td className="stil">
+                            <span className="t-plwie">
+                              {wie.slice(0, 3).map((x) => <Avatar key={x.uid} p={x} maat={22} />)}
+                              <span title={wie.length ? `${wie.map((x) => x.naam).join(', ')} ${wie.length === 1 ? 'werkt' : 'werken'} hierin` : undefined}>{bewerkt(p.updated_at)}</span>
+                            </span>
+                          </td>
+                          <td className="acties">
+                            {schrijven && p.verwijderd_op && (
+                              <span className="t-rij" style={{ gap: 6, justifyContent: 'flex-end' }}>
+                                <button className="t-knop klein" onClick={() => terugzetten(p)}>Terugzetten</button>
+                                <button className="t-knop klein gevaar" disabled={Date.now() < vanaf.getTime()} title={Date.now() >= vanaf.getTime() ? 'Plan en alles erin definitief verwijderen' : `Kan vanaf ${vanaf.toLocaleDateString('nl-BE')}`} onClick={() => wis(p)}>{Date.now() >= vanaf.getTime() ? 'Definitief verwijderen' : `Wissen vanaf ${datumKort(vanaf)}`}</button>
+                              </span>
+                            )}
+                            {schrijven && !p.verwijderd_op && (
+                              <span className="t-plmenu">
+                                <button type="button" className="t-plmeer" aria-label={`Meer voor ${p.naam}`} aria-expanded={menuVan === p.id} onClick={() => setMenuVan(menuVan === p.id ? null : p.id)}>
+                                  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" /></svg>
+                                </button>
+                                {menuVan === p.id && (
+                                  <div className="t-menu" style={{ right: 0, left: 'auto', top: 'calc(100% + 4px)', minWidth: 240 }}>
+                                    <a href={`/maps/${p.id}`}>Openen</a>
+                                    {ev.ok && (
+                                      <label className="t-plmenu-veld">Event
+                                        <select className="t-veld" value={p.event_id || ''} onChange={(e) => { koppel(p, e.target.value); setMenuVan(null); }}>
+                                          <option value="">Zonder event</option>
+                                          {ev.events.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}
+                                        </select>
+                                      </label>
+                                    )}
+                                    <hr />
+                                    <button className="gevaar" onClick={() => { setMenuVan(null); verwijder(p); }}>Naar de prullenbak</button>
+                                  </div>
+                                )}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                ))}
+              </table>
             </div>
-          ))}
+          )}
         </section>
         {kaartAan && !prullenbak && (
           <section style={{ flex: '1 1 420px', minHeight: 480, position: 'relative', borderLeft: '1px solid var(--t-rand)', background: '#EDF0F4' }}>
