@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './maps.css';
-import { maps, sb, BUCKET, foutTekst, wieBenIk, magSchrijven as kanSchrijven, namenVan } from './db';
+import { maps, sb, BUCKET, foutTekst, wieBenIk, magSchrijven as kanSchrijven, namenVan, publiekeUrl } from './db';
 import { maakBewaarder, verschil as itemVerschil, pasPatchToe, gelijk, instellingenOpdrachten } from './bewaren';
 import Botsingen from './Botsingen';
 import { startLive, startLobby } from './live';
@@ -57,6 +57,7 @@ import SignalisatiePaneel from './SignalisatiePaneel';
 import CommandoPalet from './CommandoPalet';
 import { IcoonKiezer, IcoonBol, icoonNaam } from './kaarticonen';
 import Uitvoer from './Uitvoer';
+import ExportVoortgang from './ExportVoortgang';
 import { startExport } from './planLaden';
 import CadImport from './CadImport';
 import ControlePaneel, { DefinitiefDialoog } from './ControlePaneel';
@@ -3234,7 +3235,7 @@ export default function Editor({ planId }) {
     setFotos([]);
     if (!geselecteerd) return;
     maps().from('bestanden').select('pad').eq('item_id', geselecteerd).eq('soort', 'foto').then(({ data }) => {
-      setFotos((data || []).map((f) => ({ pad: f.pad, url: sb().storage.from(BUCKET).getPublicUrl(f.pad).data.publicUrl })));
+      setFotos((data || []).map((f) => ({ pad: f.pad, url: publiekeUrl(f.pad) })));
     });
   }, [geselecteerd]);
 
@@ -4261,7 +4262,7 @@ export default function Editor({ planId }) {
     setFout('');
     // Kaart-PDF's in een eigen tabblad, met voortgang; hier kan je verder werken.
     if (['stroomplan', 'veiligheidsplan', 'brandingplan'].includes(id)) {
-      if (startExport(s0.plan.id, { soort: 'werkruimte', id, faseId: fase?.id || null })) { return 'De PDF wordt gemaakt in een nieuw tabblad. Je kan hier verder werken.'; }
+      if (startExport(s0.plan.id, { soort: 'werkruimte', id, faseId: fase?.id || null }, { stroomplan: 'Stroomdossier', veiligheidsplan: 'Veiligheidsplan', brandingplan: 'Brandingplan' }[id])) { return 'De PDF wordt gemaakt in een eigen tabblad. Je ziet de voortgang rechtsonder en kan intussen verder werken.'; }
     }
     try {
       if (id === 'drukbestand') {
@@ -5416,6 +5417,7 @@ export default function Editor({ planId }) {
       {popupDiv && item && createPortal(
         <PopupInhoud item={item} laag={lagenMap.get(item.laag_id)} element={elementenMap.get(item.element_id)} profiel={profiel} />, popupDiv,
       )}
+      <ExportVoortgang />
       {uitvoer && (() => {
         const hosts = !heeftModule('binnen') ? [] : [...new Set(items.map((x) => x.velden?.binnen?.host).filter(Boolean))].map((id) => items.find((x) => x.id === id)).filter(Boolean)
           .flatMap((h) => { const vs = verdiepingenVan(h); return vs.map((v) => ({ host: h.id, verd: v.id, naam: `${h.naam || elementenMap.get(h.element_id)?.naam || ''}${vs.length > 1 ? ` · ${v.naam}` : ''}` })); });

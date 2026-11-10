@@ -11,7 +11,7 @@ import { SUPABASE_URL, SUPABASE_KEY, supabaseIngesteld } from "@/lib/supabase/en
 // Lokaal en op Vercel-previews: ?org=<slug> (onthouden in de cookie toolen_org) of TOOLEN_STANDAARD_ORG.
 
 const ORG_COOKIE = "toolen_org";
-const ZONDER_ORG = ["/login", "/auth", "/kies", "/beheer", "/uitnodiging"]; // centraal, nooit onder een organisatie
+const ZONDER_ORG = ["/login", "/auth", "/kies", "/beheer", "/uitnodiging", "/b/"]; // centraal, nooit onder een organisatie
 
 export async function middleware(req: NextRequest) {
   // Een fout hier mag nooit de hele site laten vallen: dan gewoon zonder herschrijving verder.

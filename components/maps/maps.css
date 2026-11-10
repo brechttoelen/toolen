@@ -2052,3 +2052,17 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-uitvoer .t-knop.stil { height: 36px; }
 .fm-uitvoer .fm-uitvoer-hoofd { min-width: 180px; }
 .fm-uitvoer select.t-veld { height: 40px; }
+
+/* ---------- Voortgang van exports (ExportVoortgang.jsx) ---------- */
+.fm-exportlade { position: fixed; right: 60px; bottom: 44px; z-index: 65; width: 300px; display: flex; flex-direction: column; gap: 8px; font-family: var(--font-sans, 'IBM Plex Sans'), sans-serif; }
+.fm-exportlade-rij { background: #fff; border-radius: 10px; box-shadow: 0 6px 24px rgba(2,32,86,.18); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; border-left: 0; }
+.fm-exportlade-kop { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
+.fm-exportlade-kop strong { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fm-exportlade-kop span { font-variant-numeric: tabular-nums; color: var(--t-tekst-2, #4A5A75); font-size: 12.5px; }
+.fm-exportlade-kop button { border: 0; background: none; font-size: 18px; line-height: 1; cursor: pointer; color: var(--t-tekst-2, #4A5A75); padding: 0 2px; }
+.fm-exportlade-rij.klaar .fm-exportlade-kop span { color: #17663F; font-weight: 600; }
+.fm-exportlade-rij.fout .fm-exportlade-kop span { color: var(--t-fout, #D93A3A); font-weight: 600; }
+.fm-exportlade-balk { height: 6px; border-radius: 3px; background: #E3E8EF; overflow: hidden; }
+.fm-exportlade-balk i { display: block; height: 100%; background: var(--t-blauw, #108AED); border-radius: 3px; transition: width .4s; }
+.fm-exportlade-tekst { font-size: 12.5px; color: var(--t-tekst-2, #4A5A75); line-height: 1.4; }
+.fm-exportlade-link { align-self: flex-start; border: 0; background: none; padding: 0; color: var(--t-blauw-donker, #0B6FC2); font: inherit; font-size: 12.5px; cursor: pointer; }

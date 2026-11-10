@@ -27,9 +27,15 @@ export async function laadPlanData(planId) {
 }
 
 // Export in een nieuw tabblad starten: de opdracht gaat via localStorage mee (sleutel in de url).
-export function startExport(planId, opdracht) {
+// Het tabblad meldt zijn voortgang via een BroadcastChannel; de editor toont die (ExportVoortgang).
+export const EXPORT_KANAAL = 'toolen-export';
+export const exportVensters = new Map(); // sleutel → venster (om er naartoe te springen)
+export function startExport(planId, opdracht, naam = '') {
   const k = Math.random().toString(36).slice(2, 10);
-  try { localStorage.setItem(`fm-export-${k}`, JSON.stringify({ ...opdracht, op: Date.now() })); } catch { return false; }
+  try { localStorage.setItem(`fm-export-${k}`, JSON.stringify({ ...opdracht, naam, op: Date.now() })); } catch { return false; }
   const w = window.open(`/maps/${planId}/export?k=${k}`, '_blank');
-  return !!w;
+  if (!w) return false;
+  exportVensters.set(k, w);
+  try { const c = new BroadcastChannel(EXPORT_KANAAL); c.postMessage({ k, naam: naam || 'PDF', pct: 0, tekst: 'Starten…' }); c.close(); } catch {}
+  return true;
 }

@@ -8,7 +8,7 @@
 // Bewaard in plannen.instellingen.onderleggers als
 // { id, naam, url, pad, verhouding (hoogte/breedte), midden, breedte, rot, dekking, zichtbaar }.
 
-import { maps, sb, BUCKET, foutTekst } from './db';
+import { maps, sb, BUCKET, foutTekst, publiekeUrl } from './db';
 
 const MPG = 111320; // meter per graad breedte
 
@@ -206,7 +206,7 @@ export async function bewaarVectorOnderlegger(planId, naam, ol, midden) {
   const pad = `${planId}/onderlegger/${id}.json`;
   const { error } = await sb().storage.from(BUCKET).upload(pad, new Blob([JSON.stringify(ol)], { type: 'application/json' }), { contentType: 'application/json' });
   if (error) throw new Error(foutTekst(error));
-  const url = sb().storage.from(BUCKET).getPublicUrl(pad).data.publicUrl;
+  const url = publiekeUrl(pad);
   await maps().from('bestanden').insert({ plan_id: planId, soort: 'onderlegger', pad, meta: { naam, lijnen: ol.lijnen.length, pdf: true } });
   return { id, soort: 'dxf', stelsel: 'lokaal', naam: naam.replace(/\.[^.]+$/, ''), url, pad, verhouding: (ol.hoogte / ol.breedte) || 1, midden, breedte: ol.breedte, rot: 0, dekking: 0.8, zichtbaar: true, kleur: '#1d1d1b', vast: false };
 }
@@ -227,7 +227,7 @@ export async function nieuweOnderlegger(planId, bestand, midden, breedteM, voort
     const pad = `${planId}/onderlegger/${id}.json`;
     const { error } = await sb().storage.from(BUCKET).upload(pad, new Blob([JSON.stringify(ol)], { type: 'application/json' }), { contentType: 'application/json' });
     if (error) throw new Error(foutTekst(error));
-    const url = sb().storage.from(BUCKET).getPublicUrl(pad).data.publicUrl;
+    const url = publiekeUrl(pad);
     await maps().from('bestanden').insert({ plan_id: planId, soort: 'onderlegger', pad, meta: { naam: bestand.name, stelsel, lijnen: d.lijnen.length } });
     const k = ol.vast ? null : ol;
     return {
@@ -250,7 +250,7 @@ export async function nieuweOnderlegger(planId, bestand, midden, breedteM, voort
   const pad = `${planId}/onderlegger/${id}.${ext}`;
   const { error } = await sb().storage.from(BUCKET).upload(pad, blob, { contentType: ext === 'png' ? 'image/png' : blob.type || 'image/jpeg', upsert: false });
   if (error) throw new Error(foutTekst(error));
-  const url = sb().storage.from(BUCKET).getPublicUrl(pad).data.publicUrl;
+  const url = publiekeUrl(pad);
   await maps().from('bestanden').insert({ plan_id: planId, soort: 'onderlegger', pad, meta: { naam: bestand.name, w, h } });
   return { id, naam: bestand.name.replace(/\.[^.]+$/, ''), url, pad, verhouding: h / w, midden, breedte: breedteM, rot: 0, dekking: 0.7, zichtbaar: true };
 }

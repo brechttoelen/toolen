@@ -5,7 +5,7 @@
 // tegels (service worker), zodat een tweede export veel sneller gaat.
 import { useEffect, useRef, useState } from 'react';
 import { heeftModule } from './merk';
-import { laadPlanData } from './planLaden';
+import { laadPlanData, EXPORT_KANAAL } from './planLaden';
 import { maps } from './db';
 import { berekenStroom } from './stroom';
 import './maps.css';
@@ -79,10 +79,18 @@ export default function ExportScherm({ planId }) {
     })();
   }, [planId]);
 
-  const naam = opdracht ? NAMEN[opdracht.soort === 'werkruimte' ? opdracht.id : opdracht.soort] || 'Export' : 'Export';
+  const naam = opdracht ? opdracht.naam || NAMEN[opdracht.soort === 'werkruimte' ? opdracht.id : opdracht.soort] || 'Export' : 'Export';
   const tegelDeel = tegels && tegels.gevraagd ? Math.min(1, (tegels.binnen + tegels.fout) / tegels.gevraagd) : 0;
   const pct = klaar ? 100 : Math.round(((stap.nu + tegelDeel * 0.9) / Math.max(1, stap.totaal)) * 100);
   const sec = Math.round((nu - start) / 1000);
+  // Voortgang naar de editor, zodat je daar verder werkt en toch ziet hoe ver de PDF staat.
+  const kanaal = useRef(null);
+  useEffect(() => { try { kanaal.current = new BroadcastChannel(EXPORT_KANAAL); } catch {} return () => kanaal.current?.close(); }, []);
+  useEffect(() => {
+    const k = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('k') : null;
+    if (!k || !kanaal.current) return;
+    try { kanaal.current.postMessage({ k, naam, pct, tekst: fout ? '' : klaar ? 'Klaar' : `${stap.totaal > 1 ? `Blad ${Math.min(stap.nu + 1, stap.totaal)} van ${stap.totaal} · ` : ''}${stap.tekst}`, klaar, fout, meldingen }); } catch {}
+  }, [pct, klaar, fout, stap.tekst, naam]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="fm fm-export">
       <div className="fm-export-kaart">

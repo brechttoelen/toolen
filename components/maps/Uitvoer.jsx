@@ -71,8 +71,8 @@ export default function Uitvoer({
     const inst = { papier: 'A3', orientatie: 'liggend', ondergrond: plan.basiskaart === 'stratenkaart' ? 'lijntekening' : (plan.basiskaart || 'luchtfoto'), dimmen: 0, dpi: 200, legende: true, stuklijst: true, titelblok: true, raster: { aan: false, kolommen: 12, index: true },
       ...(plan.instellingen?.pdf || {}), ...(p.inst || {}), papier: p.papier || 'A3', orientatie: p.orientatie || 'liggend', vrijB: p.vrijB, vrijH: p.vrijH, schaal: p.schaal || null, centrum: p.centrum };
     const f = p.fase !== undefined ? fasen.find((x) => x.id === p.fase) : fase;
-    const ok = startExport(plan.id, { soort: 'pdf', faseId: f?.id || null, inst, bestandsnaam: bestandsnaam(plan, p.naam, f?.naam) });
-    setMelding(ok ? { soort: 'ok', tekst: 'De PDF wordt gemaakt in een nieuw tabblad. Je kan hier verder werken.' } : { soort: 'fout', tekst: 'Je browser blokkeerde het nieuwe tabblad. Sta pop-ups toe voor deze site en probeer opnieuw.' });
+    const ok = startExport(plan.id, { soort: 'pdf', faseId: f?.id || null, inst, bestandsnaam: bestandsnaam(plan, p.naam, f?.naam) }, p.naam);
+    setMelding(ok ? { soort: 'ok', tekst: 'De PDF wordt gemaakt in een eigen tabblad. Je ziet de voortgang rechtsonder en kan intussen verder werken.' } : { soort: 'fout', tekst: 'Je browser blokkeerde het nieuwe tabblad. Sta pop-ups toe voor deze site en probeer opnieuw.' });
   };
   const wisProfiel = async (p) => {
     if (!await bevestig(`Profiel "${p.naam}" verwijderen?`, { ok: 'Verwijderen', gevaar: true })) return;

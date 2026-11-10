@@ -232,7 +232,7 @@ export default function PdfDialoog({ nieuwTab = false, plan, lagen, fasen, items
   // In een eigen tabblad (met voortgang), zodat je hier verder kan werken.
   const inTab = async (opdracht) => {
     const { lagen: _l, revisie: _r, revisies: _rs, onTegels: _o, ...rest } = inst;
-    const ok = startExport(plan.id, { ...opdracht, faseId: fase || null, revisieVan: revisieVan || null, revisies: inst.revisietabel !== false ? versies : [], inst: { ...rest, lagen: inst.lagen, centrum } });
+    const ok = startExport(plan.id, { ...opdracht, faseId: fase || null, revisieVan: revisieVan || null, revisies: inst.revisietabel !== false ? versies : [], inst: { ...rest, lagen: inst.lagen, centrum } }, opdracht.soort === 'uitsneden' ? `${opdracht.lijst?.length || ''} profielen` : (actieveU && !gewijzigdeU ? actieveU.naam : 'PDF op schaal'));
     if (ok) { bewaarInstellingen(); onSluit(); }
     return ok;
   };
