@@ -226,8 +226,7 @@ export default function Overzicht() {
                       {d != null && <span className="tm-ev-teller" aria-label={`Nog ${d} ${d === 1 ? 'dag' : 'dagen'}`}><b>{d}</b><small>{d === 1 ? 'Dag' : 'Dagen'}</small></span>}
                     </div>
                     <a className="tm-ev-plan" href={eerste ? `/maps/${eerste.id}` : '/maps/plannen'} aria-label={eerste ? `${g.naam}: ${eerste.naam} openen` : g.naam}>
-                      <PlanVoorbeeld items={(eerste && voorbeelden[eerste.id]) || []} kleur={g.kleur} hoogte={150} label={eerste ? `Voorbeeld van ${eerste.naam}` : 'Nog geen plan'} />
-                      {eerste && <span className="tm-ev-planNaam">{eerste.naam}{g.plannen.length > 1 ? ` + ${g.plannen.length - 1}` : ''}</span>}
+                      <PlanVoorbeeld items={(eerste && voorbeelden[eerste.id]) || []} hoogte={150} label={eerste ? `Voorbeeld van ${eerste.naam}` : 'Nog geen plan'} />
                     </a>
                     <div className="tm-ev-voet">
                       {g.plannen.length > 0 && <div className="tm-ev-balk" aria-label={`${def} van ${g.plannen.length} plannen definitief`}>{g.plannen.map((p, i) => <span key={p.id} className={i < def ? 'aan' : ''} />)}</div>}

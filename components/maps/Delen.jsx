@@ -201,7 +201,7 @@ export default function Delen({
                       return (
                         <div key={d.id} className="fm-dl-deel">
                           <div className={`fm-dl-beeld ${d.soort}`}>
-                            {d.soort === 'plan' ? <PlanVoorbeeld items={itemsVanOnderdeel(d, zonderBinnen, lagen)} kleur={eventKleur} hoogte={252} label={`Voorbeeld van ${d.naam}`} /> : <span>{SOORT_NAAM[d.soort]}</span>}
+                            {d.soort === 'plan' ? <PlanVoorbeeld items={itemsVanOnderdeel(d, zonderBinnen, lagen)} kaart={false} hoogte={252} label={`Voorbeeld van ${d.naam}`} /> : <span>{SOORT_NAAM[d.soort]}</span>}
                           </div>
                           <div className="fm-dl-deeltekst">
                             <small>{SOORT_NAAM[d.soort]}</small>
