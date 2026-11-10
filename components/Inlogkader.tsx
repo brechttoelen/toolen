@@ -2,9 +2,9 @@ import { ToolenWoordmerk } from "./ToolenLogo";
 
 // Momenten uit een eventweek, wisselend onder de titel.
 const MOMENTEN = [
-  ["Woensdag 06:00", "De hekken staan waar het plan zegt."],
   ["Vrijdag 14:10", "De tentenbouwer opent zijn link."],
-  ["Zaterdag 09:30", "Elke kast stroom, elke kabel op maat."],
+  ["Vrijdag 15:32", "De elektricien controleert zijn stroomplan."],
+  ["Zaterdag 07:45", "De eerste ploeg bouwt volgens plan."],
   ["Zondag 15:42", "De renners komen binnen."],
 ];
 
@@ -43,7 +43,8 @@ export default function Inlogkader({ titel, children }: { titel?: string; childr
       <section className="t-inlog-merk" aria-label="Toolen Maps">
         <ToolenWoordmerk op="navy" product="maps" />
         <PlanScene />
-        <h1 className="t-titel t-inlog-titel">{titel || <>Van lege weide<br />tot finish.</>}</h1>
+        <h1 className="t-titel t-inlog-titel">{titel || "Uitgetekend."}</h1>
+        {!titel && <p className="t-inlog-onder">Van eerste lijn tot laatste stroomkabel.</p>}
         <div className="t-momenten" aria-live="off">
           {MOMENTEN.map(([wanneer, wat], i) => (
             <p key={wanneer} className="t-moment" style={{ animationDelay: `${i * 4}s` }}><b>{wanneer}</b>{wat}</p>
