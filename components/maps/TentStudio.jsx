@@ -258,7 +258,9 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
         const boven = vrij && panelen.length === 1 ? [...tops].reverse() : [Q(1, zh), Q(0, zh)];
         // PVC hangt als één doek per travee: geen naden per meter. Modules (glas, ABS, hout) wel met hun rand.
         const module = pw.glas || pw.paneel || pw.hout || pw.raster || pw.vakken || pw.deur;
-        vast = null; vlak([Q(0, 0), Q(1, 0), ...boven], kl, paan ? '#2563EB' : module ? '#B6BCC4' : 'vul', { fillOpacity: pw.dekking, strokeWidth: paan ? 2.5 : 0.7, ...pd });
+        // Steigerhout met glas: het paneel zelf is glas (doorzichtig); hout en kaders komen er als latten op.
+        const glasHout = pw.raster && !mini;
+        vast = null; vlak([Q(0, 0), Q(1, 0), ...boven], glasHout ? '#C3D3DE' : kl, paan ? '#2563EB' : module ? '#B6BCC4' : 'vul', { fillOpacity: glasHout ? 0.16 : pw.dekking, strokeWidth: paan ? 2.5 : 0.7, ...pd });
         vast = lagen[lagen.length - 1].d;
         if (mini && !pw.deur && !pw.raster) continue;
         // Details net buiten het wandvlak (in 3D zichtbaar, geen z-gevecht): latten, kaders, stijlen en panelen.
@@ -284,7 +286,6 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
         if (pw.raster && !mini) {
           const zo = 0.55; const zt = zh - 0.22; const r = bu(0.07);
           const nb = Math.max(2, Math.round(pl / 0.2)); for (let k2 = 0; k2 < nb; k2++) strip(k2 / nb + bu(0.006), 0.02, (k2 + 1) / nb - bu(0.006), zo, HOUTK[(k2 * 5 + sg.i) % 4]);
-          strip(r, zo + 0.07, 1 - r, zt - 0.07, '#24313D', 0.5, 0.008);
           for (const [z0, z1] of [[zo, zo + 0.07], [zt - 0.07, zt], [(zo + zt) * 0.62, (zo + zt) * 0.62 + 0.06]]) strip(0, z0, 1, z1, '#5E554B');
           for (const u of [0, 1 - r]) strip(u, zo, u + r, zh, '#5E554B'); strip(0, zt, 1, zh - 0.02, '#7E7366');
         }

@@ -2309,3 +2309,6 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-sb-stappen button { position: relative; }
 .fm-sb-stappen .fm-badge { position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; border-radius: 8px; background: #DC2626; color: #fff; font-size: 10px; font-style: normal; display: grid; place-items: center; padding: 0 4px; }
 .fm-melding.ok { background: #E3F5EC; color: #0E6B48; }
+
+/* 3D over het hele scherm: de 3D blijft in zijn vak (de kop met de terugknop blijft bovenaan zichtbaar). */
+.fm-3d-zicht { position: relative; }
