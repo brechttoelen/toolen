@@ -42,6 +42,24 @@ export async function pdfVectoren(page, pdfjs) {
     }
     if (sub && sub.pts.length > 1) huidig.push(sub);
   };
+  // pdf.js 5 en later: één constructPath met de verfbewerking en een vlakke lijst (DrawOPS:
+  // 0 moveTo x y, 1 lineTo x y, 2 curveTo x1 y1 x2 y2 x y, 3 quadraticCurveTo x1 y1 x y, 4 closePath).
+  const bouwVlak = (d) => {
+    let sub = null; let start = null;
+    const p0 = () => sub?.pts[sub.pts.length - 1] || start || [0, 0];
+    const bocht = (a0, c1, c2, p3) => { for (let t = 0.25; t <= 1.001; t += 0.25) { const u = 1 - t; sub.pts.push([u * u * u * a0[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * p3[0], u * u * u * a0[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * p3[1]]); } };
+    for (let i = 0; i < (d?.length || 0);) {
+      const op = d[i++];
+      if (op === 0) { if (sub && sub.pts.length > 1) huidig.push(sub); const p = pt(m, d[i], d[i + 1]); i += 2; sub = { pts: [p], dicht: false }; start = p; }
+      else if (op === 1) { const p = pt(m, d[i], d[i + 1]); i += 2; (sub ||= { pts: [start || p], dicht: false }).pts.push(p); }
+      else if (op === 2) { const a0 = p0(); const c1 = pt(m, d[i], d[i + 1]); const c2 = pt(m, d[i + 2], d[i + 3]); const p3 = pt(m, d[i + 4], d[i + 5]); i += 6; sub ||= { pts: [a0], dicht: false }; bocht(a0, c1, c2, p3); }
+      else if (op === 3) { const a0 = p0(); const q = pt(m, d[i], d[i + 1]); const p3 = pt(m, d[i + 2], d[i + 3]); i += 4; sub ||= { pts: [a0], dicht: false };
+        bocht(a0, [a0[0] + (2 / 3) * (q[0] - a0[0]), a0[1] + (2 / 3) * (q[1] - a0[1])], [p3[0] + (2 / 3) * (q[0] - p3[0]), p3[1] + (2 / 3) * (q[1] - p3[1])], p3); }
+      else if (op === 4) { if (sub) { sub.dicht = true; huidig.push(sub); start = sub.pts[0]; sub = null; } }
+      else break;
+    }
+    if (sub && sub.pts.length > 1) huidig.push(sub);
+  };
   const schaal = () => Math.sqrt(Math.abs(m[0] * m[3] - m[1] * m[2])) || 1;
   const verf = (streep, vullen) => {
     for (const s of huidig) uit.push({ pts: s.pts, dicht: s.dicht || vullen, k: streep ? lijn : vul, vul: vullen ? vul : null, d: streep ? breedte * schaal() : 0 });
@@ -58,7 +76,17 @@ export async function pdfVectoren(page, pdfjs) {
       case OPS.setLineWidth: breedte = Number(a[0]) || 0; break;
       case OPS.setStrokeRGBColor: case OPS.setStrokeColor: case OPS.setStrokeGray: case OPS.setStrokeCMYKColor: lijn = hex(a); break;
       case OPS.setFillRGBColor: case OPS.setFillColor: case OPS.setFillGray: case OPS.setFillCMYKColor: vul = hex(a); break;
-      case OPS.constructPath: bouw(a[0], a[1]); break;
+      case OPS.constructPath:
+        if (typeof a?.[0] === 'number') { // pdf.js 5+: [verfbewerking, [pad], grenzen]
+          const pad = a[1]?.[0];
+          bouwVlak(pad ? Array.from(pad) : []);
+          const v = a[0];
+          if (v === OPS.stroke || v === OPS.closeStroke) verf(true, false);
+          else if (v === OPS.fill || v === OPS.eoFill) verf(false, true);
+          else if (v === OPS.fillStroke || v === OPS.eoFillStroke || v === OPS.closeFillStroke || v === OPS.closeEOFillStroke) verf(true, true);
+          else if (v === OPS.endPath) huidig = [];
+        } else bouw(a[0], a[1]);
+        break;
       case OPS.stroke: case OPS.closeStroke: verf(true, false); break;
       case OPS.fill: case OPS.eoFill: verf(false, true); break;
       case OPS.fillStroke: case OPS.eoFillStroke: case OPS.closeFillStroke: case OPS.closeEOFillStroke: verf(true, true); break;
