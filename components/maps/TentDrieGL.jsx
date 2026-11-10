@@ -105,7 +105,8 @@ export async function tentGroep(T, prims) {
 
 // Een licht overlay over de meshes van één doel (gekozen of onder de muis).
 function gloed(T, meshes, kleur, op) {
-  const g = new T.Group(); const m = new T.MeshBasicMaterial({ color: kleur, transparent: true, opacity: op, depthTest: false, side: T.DoubleSide });
+  const g = new T.Group(); // Met dieptetest (en net vóór het vlak): zo licht enkel het zichtbare deel op, niet ook de achterkant van het dak erdoor.
+  const m = new T.MeshBasicMaterial({ color: kleur, transparent: true, opacity: op, depthTest: true, depthWrite: false, side: T.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
   for (const x of meshes) { const c = new T.Mesh(x.geometry, m); c.position.copy(x.position); c.quaternion.copy(x.quaternion); c.scale.copy(x.scale).multiplyScalar(x.userData.staaf ? 1.6 : 1); c.renderOrder = 10; g.add(c); }
   return g;
 }
