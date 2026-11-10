@@ -50,75 +50,96 @@ export async function verstuur(m: Mail): Promise<void> {
 import { leesbaar, type Huisstijl } from "./huisstijl";
 
 // ---------- Sjablonen ----------
+// Mails in gewone taal, zoals een collega ze zou schrijven, in de stijl van het platform:
+// woordmerk of logo, één witte kaart met korte alinea's en één knop, een kleine voetnoot.
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const NAVY = "#022056";
+const TEKST = "#1F2328";
+const STIL = "#6A717D";
+const voornaam = (n?: string | null) => (n || "").trim().split(/\s+/)[0] || "";
 
-// Eén kader voor alle mails: woordmerk, titel, tekst, één knop, de link als tekst, voetnoot.
-function kader({ titel, alineas, knop, link, voet, huisstijl = null }: { titel: string; alineas: string[]; knop?: string; link?: string; voet: string; huisstijl?: Huisstijl }) {
-  const knopKleur = leesbaar(huisstijl?.accent || huisstijl?.primair || NAVY);
-  const titelKleur = huisstijl?.primair ? leesbaar(huisstijl.primair) : NAVY;
+type Blok = { tekst: string } | { knop: string; link: string };
+
+function mail({ blokken, voet, huisstijl = null }: { blokken: Blok[]; voet: string[]; huisstijl?: Huisstijl }) {
+  const kleur = leesbaar(huisstijl?.accent || huisstijl?.primair || NAVY);
   const logo = huisstijl?.logo_licht || huisstijl?.logo_donker;
-  const kop = logo
-    ? `<img src="${esc(logo)}" alt="${esc(huisstijl?.naam || "")}" height="36" style="display:block;height:36px;width:auto;max-width:220px;border:0">`
-    : `toolen maps`;
-  const toolen = !huisstijl ? "" : huisstijl.toolen_verbergen ? "" : `<br>Verstuurd via <strong style="color:${NAVY}">toolen maps</strong>.`;
-  const p = (t: string) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#22262E">${t}</p>`;
-  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(titel)}</title></head>
-<body style="margin:0;padding:0;background:#F3F5F8;font-family:'IBM Plex Sans',Segoe UI,Helvetica,Arial,sans-serif">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F5F8;padding:32px 12px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px">
-<tr><td style="padding:0 4px 18px;font-size:21px;font-weight:700;letter-spacing:-.01em;color:${NAVY}">${kop}</td></tr>
-<tr><td style="background:#FFFFFF;border:1px solid #E3E7ED;border-radius:10px;padding:30px 28px">
-<h1 style="margin:0 0 16px;font-size:22px;line-height:1.25;color:${titelKleur};font-weight:700">${esc(titel)}</h1>
-${alineas.map(p).join("\n")}
-${knop && link ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 18px"><tr><td style="background:${knopKleur};border-radius:8px">
-<a href="${esc(link)}" style="display:inline-block;padding:13px 22px;font-size:15px;font-weight:600;color:#FFFFFF;text-decoration:none">${esc(knop)}</a></td></tr></table>
-<p style="margin:0;font-size:12.5px;line-height:1.5;color:#6B7380">Werkt de knop niet? Kopieer deze link in je browser:<br><a href="${esc(link)}" style="color:${titelKleur};word-break:break-all">${esc(link)}</a></p>` : ""}
+  const merk = logo
+    ? `<img src="${esc(logo)}" alt="${esc(huisstijl?.naam || "")}" height="28" style="display:block;height:28px;width:auto;max-width:200px;border:0;margin:0 0 18px">`
+    : `<div style="margin:0 0 18px;font-size:19px;font-weight:700;color:${NAVY};letter-spacing:-.01em">toolen maps</div>`;
+  const toolen = huisstijl && !huisstijl.toolen_verbergen ? "Verstuurd via Toolen Maps." : !huisstijl ? "Toolen Maps · toolen.be" : "";
+  const regel = (t: string) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${TEKST}">${t}</p>`;
+  const knop = (k: string, l: string) => `<p style="margin:24px 0 24px"><a href="${esc(l)}" style="display:inline-block;background:${kleur};color:#FFFFFF;text-decoration:none;font-size:15px;font-weight:600;padding:11px 18px;border-radius:6px">${esc(k)}</a></p>`;
+  const link = blokken.find((b): b is { knop: string; link: string } => "knop" in b)?.link;
+  // Wel het gevoel van het platform: lichtgrijs vlak, witte kaart, woordmerk of logo erboven. Geen grote titel.
+  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F3F5F8">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F5F8"><tr><td align="center" style="padding:32px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;font-family:'IBM Plex Sans',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<tr><td style="padding:0 4px">${merk}</td></tr>
+<tr><td style="background:#FFFFFF;border:1px solid #E3E7ED;border-radius:10px;padding:28px 28px 12px">
+${blokken.map((b) => ("knop" in b ? knop(b.knop, b.link) : regel(b.tekst))).join("\n")}
 </td></tr>
-<tr><td style="padding:16px 6px 0;font-size:12px;line-height:1.5;color:#7A828F">${voet}${toolen}</td></tr>
-</table></td></tr></table></body></html>`;
+<tr><td style="padding:16px 6px 0;font-size:12.5px;line-height:1.55;color:${STIL}">
+${voet.map((v) => `<p style="margin:0 0 6px">${v}</p>`).join("")}
+${link ? `<p style="margin:0 0 6px">Werkt de knop niet? Plak deze link in je browser: <a href="${esc(link)}" style="color:${STIL};word-break:break-all">${esc(link)}</a></p>` : ""}
+${toolen ? `<p style="margin:12px 0 0">${toolen}</p>` : ""}
+</td></tr></table></td></tr></table></body></html>`;
 }
 
-const tekstVan = (titel: string, alineas: string[], link?: string, voet?: string) =>
-  [titel, "", ...alineas.map((a) => a.replace(/<[^>]+>/g, "")), ...(link ? ["", link] : []), "", (voet || "").replace(/<[^>]+>/g, ""), "", "Toolen Maps"].join("\n");
+function tekstVan(blokken: Blok[], voet: string[]) {
+  const kaal = (t: string) => t.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
+  return `${blokken.map((b) => ("knop" in b ? `${b.knop}: ${b.link}` : kaal(b.tekst))).join("\n\n")}\n\n-- \n${voet.map(kaal).join("\n")}\n`;
+}
 
-const ROL: Record<string, string> = { eigenaar: "eigenaar", beheerder: "beheerder", bewerker: "bewerker", lezer: "lezer" };
-const dag = (d: string | Date) => new Date(d).toLocaleDateString("nl-BE", { day: "numeric", month: "long" });
-
+const DOEN: Record<string, string> = { eigenaar: "mee te beheren", beheerder: "mee te beheren", bewerker: "mee te werken aan", lezer: "mee te kijken naar" };
 const WP: Record<string, string> = { sign: "Signalisatie", stroom: "Stroom", veiligheid: "Veiligheid", branding: "Branding", tv: "TV" };
+const dag = (d: string | Date) => new Date(d).toLocaleDateString("nl-BE", { day: "numeric", month: "long" });
+const lijst = (l: string[]) => (l.length <= 1 ? l.join("") : `${l.slice(0, -1).join(", ")} en ${l[l.length - 1]}`);
 
 export function uitnodigingMail(g: { naam?: string | null; door?: string | null; organisatie: string; code: string; rol: string; evenementen?: string[]; werkplekken?: string[] | null; geldig_tot: string; link: string; huisstijl?: Huisstijl }) {
-  const titel = `Je bent uitgenodigd voor ${g.organisatie}`;
-  const wie = g.door ? `<strong>${esc(g.door)}</strong> nodigt je uit` : "Je bent uitgenodigd";
-  const ev = g.evenementen?.length ? ` voor ${g.evenementen.map(esc).join(", ")}` : "";
-  const wp = g.werkplekken?.length ? ` Je werkt in ${g.werkplekken.map((w) => WP[w] || esc(w)).join(" en ")}.` : "";
-  const alineas = [
-    `${g.naam ? `Dag ${esc(g.naam.split(" ")[0])},` : "Dag,"}`,
-    `${wie} om als ${ROL[g.rol] || esc(g.rol)} mee te werken aan de plannen van <strong>${esc(g.organisatie)}</strong>${ev}${g.huisstijl?.toolen_verbergen ? "" : " in Toolen Maps"}.${wp}`,
-    `Maak je account aan met een eigen wachtwoord. Daarna stel je een code in op je gsm (tweestapsverificatie): zo kan niemand anders met je wachtwoord binnen.`,
-    `Je bedrijfscode is <strong>${esc(g.code.toUpperCase())}</strong>. Die heb je later nodig om in te loggen.`,
+  const wie = g.door ? esc(g.door) : "Een collega";
+  const wat = g.rol === "eigenaar" || g.rol === "beheerder"
+    ? `om ${esc(g.organisatie)} mee te beheren in Toolen Maps`
+    : `om ${DOEN[g.rol] || "mee te werken aan"} de plannen van ${esc(g.organisatie)}${g.huisstijl?.toolen_verbergen ? "" : " in Toolen Maps"}`;
+  const ev = g.evenementen?.length ? `toegang tot ${lijst(g.evenementen.map(esc))}` : "";
+  const wp = g.werkplekken?.length ? `werkt in ${lijst(g.werkplekken.map((w) => WP[w] || esc(w)))}` : "";
+  const waar = ev && wp ? `Je hebt ${ev} en ${wp}.` : ev ? `Je hebt ${ev}.` : wp ? `Je ${wp}.` : "";
+  const blokken: Blok[] = [
+    { tekst: voornaam(g.naam) ? `Dag ${esc(voornaam(g.naam))},` : "Dag," },
+    { tekst: `${wie} nodigt je uit ${wat}.${waar ? ` ${waar}` : ""}` },
+    { knop: "Account aanmaken", link: g.link },
+    { tekst: "Je kiest zelf een wachtwoord. Daarna stel je een code in met een app op je gsm, zoals Microsoft Authenticator of Google Authenticator. Hou je gsm dus even bij de hand." },
+    { tekst: `Om later in te loggen gebruik je de bedrijfscode <strong>${esc(g.code.toUpperCase())}</strong>, samen met dit e-mailadres.` },
   ];
-  const voet = `Deze uitnodiging is geldig tot ${dag(g.geldig_tot)} en werkt één keer. Verwachtte je deze mail niet? Dan mag je ze negeren.`;
-  return { onderwerp: `${g.door || "Je collega"} nodigt je uit voor ${g.organisatie}${g.huisstijl?.toolen_verbergen ? "" : " in Toolen Maps"}`, html: kader({ titel, alineas, knop: "Account aanmaken", link: g.link, voet, huisstijl: g.huisstijl }), tekst: tekstVan(titel, alineas, g.link, voet) };
+  const voet = [`De link werkt tot ${dag(g.geldig_tot)} en maar één keer. Verwachtte je deze uitnodiging niet? Dan mag je deze mail negeren.`];
+  const onderwerp = `${g.door ? voornaam(g.door) : "Je collega"} nodigt je uit voor ${g.organisatie}`;
+  return { onderwerp, html: mail({ blokken, voet, huisstijl: g.huisstijl }), tekst: tekstVan(blokken, voet) };
 }
 
 export function wachtwoordMail(g: { naam?: string | null; link: string; nieuw?: boolean }) {
-  const titel = g.nieuw ? "Stel je wachtwoord in" : "Nieuw wachtwoord kiezen";
-  const alineas = g.nieuw
-    ? [`${g.naam ? `Dag ${esc(g.naam.split(" ")[0])},` : "Dag,"}`, "Inloggen in Toolen Maps gebeurt voortaan met je bedrijfscode, je e-mailadres en een eigen wachtwoord, telkens met een code uit een app op je gsm.", "Kies hieronder je wachtwoord. Daarna stel je de code op je gsm in."]
-    : [`${g.naam ? `Dag ${esc(g.naam.split(" ")[0])},` : "Dag,"}`, "Je vroeg om een nieuw wachtwoord voor Toolen Maps. Kies het via de knop hieronder.", "Na het nieuwe wachtwoord vraagt Toolen nog altijd de code uit je app."];
-  const voet = "Deze link is 1 uur geldig en werkt één keer. Vroeg je dit niet aan? Dan mag je deze mail negeren: je wachtwoord blijft hetzelfde.";
-  return { onderwerp: titel, html: kader({ titel, alineas, knop: g.nieuw ? "Wachtwoord instellen" : "Nieuw wachtwoord kiezen", link: g.link, voet }), tekst: tekstVan(titel, alineas, g.link, voet) };
+  const aanhef = { tekst: voornaam(g.naam) ? `Dag ${esc(voornaam(g.naam))},` : "Dag," };
+  const blokken: Blok[] = g.nieuw
+    ? [aanhef,
+       { tekst: "Inloggen in Toolen Maps gaat voortaan met je bedrijfscode, je e-mailadres en een eigen wachtwoord, en daarbij een code uit een app op je gsm." },
+       { tekst: "Kies je wachtwoord via deze knop. Daarna stel je meteen de code op je gsm in." },
+       { knop: "Wachtwoord instellen", link: g.link }]
+    : [aanhef,
+       { tekst: "Je vroeg een nieuw wachtwoord aan voor Toolen Maps. Kies het via deze knop." },
+       { knop: "Nieuw wachtwoord kiezen", link: g.link },
+       { tekst: "Daarna geef je zoals altijd de code uit de app op je gsm." }];
+  const voet = [g.nieuw ? "De link werkt een uur en maar één keer. Is hij verlopen? Kies dan op het inlogscherm voor Wachtwoord vergeten." : "De link werkt een uur. Vroeg je niets aan? Dan hoef je niets te doen: je wachtwoord blijft hetzelfde."];
+  return { onderwerp: g.nieuw ? "Stel je wachtwoord in voor Toolen Maps" : "Je nieuwe wachtwoord voor Toolen Maps", html: mail({ blokken, voet }), tekst: tekstVan(blokken, voet) };
 }
 
 export function mfaResetMail(g: { naam?: string | null; door?: string | null; organisatie: string; link: string }) {
-  const titel = "Je tweestapsverificatie werd gewist";
-  const alineas = [
-    `${g.naam ? `Dag ${esc(g.naam.split(" ")[0])},` : "Dag,"}`,
-    `${g.door ? esc(g.door) : "Een beheerder"} van <strong>${esc(g.organisatie)}</strong> heeft de code op je gsm voor Toolen Maps gewist.`,
-    "Bij je volgende aanmelding stel je ze opnieuw in met een app zoals Microsoft Authenticator of Google Authenticator.",
+  const wie = g.door ? esc(g.door) : "Een beheerder";
+  const blokken: Blok[] = [
+    { tekst: voornaam(g.naam) ? `Dag ${esc(voornaam(g.naam))},` : "Dag," },
+    { tekst: `${wie} heeft de code op je gsm voor Toolen Maps gewist, bij ${esc(g.organisatie)}. Dat gebeurt meestal als je een nieuwe gsm hebt of de app kwijt bent.` },
+    { tekst: "De volgende keer dat je inlogt, stel je de code opnieuw in." },
+    { knop: "Inloggen", link: g.link },
   ];
-  const voet = "Vroeg je dit niet? Neem dan meteen contact op met je beheerder, en verander je wachtwoord.";
-  return { onderwerp: "Je tweestapsverificatie voor Toolen Maps werd gewist", html: kader({ titel, alineas, knop: "Inloggen", link: g.link, voet }), tekst: tekstVan(titel, alineas, g.link, voet) };
+  const voet = [`Vroeg je dit niet? Laat het ${g.door ? esc(voornaam(g.door)) : "je beheerder"} dan meteen weten en kies een nieuw wachtwoord.`];
+  return { onderwerp: "De code op je gsm voor Toolen Maps is gewist", html: mail({ blokken, voet }), tekst: tekstVan(blokken, voet) };
 }
