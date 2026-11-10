@@ -11,6 +11,7 @@ export default function PlatformZij({ blad, gebruiker }: { blad: "organisaties" 
         <a href="/beheer?blad=systeem" className={blad === "systeem" ? "aan" : ""} aria-current={blad === "systeem" ? "page" : undefined}>Systeem</a>
       </div>
       <div className="t-zij-voet">
+        <a href="/account?verder=/beheer" style={{ color: "#DCE6F5", fontSize: 13.5, padding: "6px 10px" }}>Mijn account</a>
         <a href="/mfa" style={{ color: "#DCE6F5", fontSize: 13.5, padding: "6px 10px" }}>Tweestapsverificatie</a>
         <a href="/kies" style={{ color: "#DCE6F5", fontSize: 13.5, padding: "6px 10px" }}>Naar je organisaties</a>
         <span style={{ fontSize: 12.5, opacity: 0.7, padding: "0 10px" }}>{gebruiker}</span>

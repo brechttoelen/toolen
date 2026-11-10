@@ -130,6 +130,7 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
           {ikOpen && (
             <div className="t-menu" style={{ left: 0, right: "auto", top: "auto", bottom: "calc(100% + 6px)" }}>
               <div className="kop">{gebruiker.email}</div>
+              <a href={centraalAdres(`/account?verder=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`)}>Mijn account</a>
               <a href={centraalAdres("/wachtwoord")}>Wachtwoord wijzigen</a>
               <a href={centraalAdres("/mfa")}>Tweestapsverificatie</a>
               <hr />
