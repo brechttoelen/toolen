@@ -221,9 +221,8 @@ section.t-kaart:has(> .t-sys-kop), section.t-kaart:has(> .t-rij .t-sys-kop) { pa
 .tm-ev { background: #fff; border: 1px solid var(--t-rand); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
 .tm-ev-kop { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px 12px; }
 .tm-ev-naam { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.tm-ev-naam b { display: flex; align-items: center; gap: 8px; font-family: var(--font-titel); font-weight: 700; font-size: 19px; line-height: 1.15; color: var(--t-tekst); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tm-ev-naam i { width: 9px; height: 9px; border-radius: 3px; background: var(--ev); flex: none; }
-.tm-ev-naam small { font-size: 13px; color: var(--t-tekst-2); padding-left: 17px; }
+.tm-ev-naam b { display: block; font-family: var(--font-titel); font-weight: 700; font-size: 19px; line-height: 1.15; color: var(--t-tekst); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-ev-naam small { font-size: 13px; color: var(--t-tekst-2); }
 .tm-ev-teller { display: flex; flex-direction: column; align-items: flex-end; line-height: 1; }
 .tm-ev-teller b { font-family: var(--font-titel); font-weight: 700; font-size: 28px; color: var(--t-tekst); }
 .tm-ev-teller small { font-size: 11.5px; color: var(--t-tekst-2); margin-top: 3px; }
@@ -234,5 +233,5 @@ section.t-kaart:has(> .t-sys-kop), section.t-kaart:has(> .t-rij .t-sys-kop) { pa
 .tm-ev-voet { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
 .tm-ev-balk { display: flex; gap: 3px; }
 .tm-ev-balk span { flex: 1; height: 4px; border-radius: 2px; background: var(--t-rand); }
-.tm-ev-balk span.aan { background: var(--ev); }
+.tm-ev-balk span.aan { background: var(--t-groen); }
 .tm-ev-rij { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--t-tekst-2); }

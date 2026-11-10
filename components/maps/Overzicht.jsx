@@ -217,10 +217,10 @@ export default function Overzicht() {
                 const def = g.plannen.filter((p) => p.status === 'definitief').length;
                 const eerste = g.plannen[0];
                 return (
-                  <article key={g.id} className="tm-ev" style={{ '--ev': g.kleur }}>
+                  <article key={g.id} className="tm-ev">
                     <div className="tm-ev-kop">
                       <span className="tm-ev-naam">
-                        <b><i aria-hidden="true" />{g.naam}</b>
+                        <b>{g.naam}</b>
                         <small>{[eventDatum(g.datum), g.plek || eerste?.locatie].filter(Boolean).join(' · ')}</small>
                       </span>
                       {d != null && <span className="tm-ev-teller" aria-label={`Nog ${d} ${d === 1 ? 'dag' : 'dagen'}`}><b>{d}</b><small>{d === 1 ? 'Dag' : 'Dagen'}</small></span>}
