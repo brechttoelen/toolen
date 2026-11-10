@@ -42,9 +42,9 @@ export const elKraan = (el) => !!el.eigenschappen?.kraan || /crane|kraan|jib/i.t
 export const elCompound = (el) => el.categorie === 'TV-compound' && !elTvCamera(el) && !isKabelcam(el) && !el.eigenschappen?.kraan;
 
 export const WERKRUIMTES = [
-  { id: 'plan', icoon: 'kaart', naam: 'Plan', kleur: '#022056', toets: '1', tab: null, tools: null, exports: [] },
+  { id: 'plan', accent: '#108AED', icoon: 'kaart', naam: 'Plan', kleur: '#022056', toets: '1', tab: null, tools: null, exports: [] },
   {
-    id: 'sign', icoon: 'bord', naam: 'Signalisatie', beta: true, kleur: '#2563EB', toets: '2', tab: 'sign',
+    id: 'sign', accent: '#D97706', icoon: 'bord', naam: 'Signalisatie', beta: true, kleur: '#2563EB', toets: '2', tab: 'sign',
     // Twee modi: wegwijzers (parkings, bestemmingen) en verkeer (C3, E1, afsluitingen, omleidingen met F41).
     modi: [['wegwijzers', 'Wegwijzers'], ['verkeer', 'Verkeer']],
     toolsVerkeer: [
@@ -66,7 +66,7 @@ export const WERKRUIMTES = [
     exports: [{ id: 'drukbestand', naam: 'Drukbestand borden', primair: true }, { id: 'bestellijst', naam: 'Bestellijst CSV' }],
   },
   {
-    id: 'stroom', icoon: 'bliksem', naam: 'Stroom', kleur: '#7C3AED', toets: '3', tab: 'stroom',
+    id: 'stroom', accent: '#7C3AED', icoon: 'bliksem', naam: 'Stroom', kleur: '#7C3AED', toets: '3', tab: 'stroom',
     tools: [
       { id: 'selecteer' },
       { id: 'bron', naam: 'Bron', icoon: 'bliksem', element: elStroomBron },
@@ -81,7 +81,7 @@ export const WERKRUIMTES = [
     exports: [{ id: 'stroomplan', naam: 'Stroomdossier PDF', primair: true }, { id: 'kabellijst', naam: 'Kabellijst' }],
   },
   {
-    id: 'veiligheid', icoon: 'schild', naam: 'Veiligheid', beta: true, kleur: '#DC2626', toets: '4', tab: 'veiligheid',
+    id: 'veiligheid', accent: '#DC2626', icoon: 'schild', naam: 'Veiligheid', beta: true, kleur: '#DC2626', toets: '4', tab: 'veiligheid',
     tools: [
       { id: 'selecteer' },
       { id: 'uitgang', naam: 'Uitgang', icoon: 'lijn', element: elVeilig('uitgang'), uitleg: 'Trek een lijn over de opening in de tentwand' },
@@ -95,7 +95,7 @@ export const WERKRUIMTES = [
     exports: [{ id: 'veiligheidsplan', naam: 'Veiligheidsplan PDF', primair: true }, { id: 'checklist', naam: 'Checklist brandweer' }],
   },
   {
-    id: 'branding', icoon: 'vlag', naam: 'Branding', beta: true, kleur: '#EA580C', toets: '5', tab: 'branding',
+    id: 'branding', accent: '#DB2777', icoon: 'vlag', naam: 'Branding', beta: true, kleur: '#EA580C', toets: '5', tab: 'branding',
     tools: [
       { id: 'selecteer' },
       { id: 'heras', naam: 'Heras + doek', icoon: 'lijn', element: (el) => dragerVan(el) === 'hek', uitleg: 'Teken de hekkenlijn · daarna met het penseel de doeken per hek' },
@@ -111,7 +111,7 @@ export const WERKRUIMTES = [
   },
   {
     // TV: camerastellingen, camera's, kranen, kabelwegen en de compound (wagens, studio's, zones).
-    id: 'tv', icoon: 'camera', naam: 'TV', beta: true, kleur: '#0F766E', toets: '6', tab: 'bibliotheek', bibCat: 'TV-compound',
+    id: 'tv', accent: '#0F766E', icoon: 'camera', naam: 'TV', beta: true, kleur: '#0F766E', toets: '6', tab: 'bibliotheek', bibCat: 'TV-compound',
     tools: [
       { id: 'selecteer' },
       { id: 'camerastelling', naam: 'Camerastelling', icoon: 'rechthoek', element: elCameraStelling, perFamilie: true, uitleg: 'Kies een camerastelling en klik waar ze staat · de variant (leuning, trapblok, wielen) kies je daarna rechts · open de stellingbouwer om aan te passen' },

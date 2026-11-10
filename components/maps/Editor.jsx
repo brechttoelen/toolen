@@ -4507,7 +4507,7 @@ export default function Editor({ planId }) {
 
   return (
     <div className="fm fm-editor" onClick={() => { if (menu) setMenu(null); if (uitklap) setUitklap(null); }}>
-      <header className={`fm-topbalk fm-wr-${werkruimte}`} style={{ '--fm-wr': wr.kleur }}>
+      <header className={`fm-topbalk fm-wr-${werkruimte}`}>
         <a className="fm-terug" href="/maps/plannen" aria-label="Terug naar de plannen"><Icoon naam="terug" /></a>
         <div className="fm-titel">
           <small style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{planEvent && <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: planEvent.kleur, flex: 'none' }} />}{planEvent?.naam || plan.editie_naam || 'Eventplan'}{plan.locatie ? ` · ${plan.locatie}` : ''}</small>
@@ -4595,12 +4595,13 @@ export default function Editor({ planId }) {
       </header>
 
       <div className="fm-romp">
-        <nav className="fm-gereedschap" aria-label="Gereedschap" style={{ position: 'relative' }}>
+        <nav className="fm-gereedschap" aria-label="Gereedschap" style={{ position: 'relative', '--wr-accent': wr.accent || '#108AED' }}>
           {werkruimte !== 'plan' && !alleTools && wrTools && (
             <>
               {wrTools.map((t0) => {
                 const basis = gTool(t0.id);
                 const t = { naam: basis?.naam, icoon: basis?.icoon, ...t0 };
+                if (t.id === 'selecteer') t.naam = 'Selectie'; // zelfde naam als in Plan
                 const aan = wrToolActief(t);
                 const uit = !schrijven && !['selecteer', 'meten'].includes(t.id);
                 return (
@@ -4909,13 +4910,13 @@ export default function Editor({ planId }) {
             </div>
           )}
           {herkomstFilter && !focusLijst && !iso && (
-            <div className="fm-wr-chip" style={{ '--fm-wr': '#1d1d1b' }}>
+            <div className="fm-wr-chip">
               <span>Enkel geleverd door <b>{herkomstFilter}</b> · {hkFocus?.size || 0} items</span>
               <button onClick={() => setHerkomstFilter(null)}>Alles tonen</button>
             </div>
           )}
           {werkruimte !== 'plan' && !iso && !herkomstFilter && !focusLijst && (gedimd > 0 || toonAlles) && (
-            <div className="fm-wr-chip" style={{ '--fm-wr': wr.kleur }}>
+            <div className="fm-wr-chip">
               <span>{toonAlles ? 'Alles zichtbaar' : `${gedimd} gedimd`}</span>
               <button onClick={() => setToonAlles((v) => !v)}>{toonAlles ? `Enkel ${wr.naam.toLowerCase()}` : 'Toon alles'}</button>
             </div>
@@ -5352,7 +5353,7 @@ export default function Editor({ planId }) {
         )}
         {eigenschappenOpen && !veelSel && werkruimte !== 'plan' && wrDetail && (
           <aside className="fm-eigenschappen">
-            <div className="fm-paneelkop" style={{ boxShadow: `inset 0 -2px 0 ${wr.kleur}` }}><span className="fm-paneelnaam fm-familienaam">{isSign(item) ? `Bordpunt ${item.velden.sign.nr}` : FAMILIE_NAAM[familieVan(item, elementenMap.get(item.element_id))]}</span><button className="fm-sluit" aria-label="Selectie opheffen" onClick={() => { try { tdRef.current?.deselectFeature(item.id); } catch {} setGeselecteerd(null); setExtra([]); }}>×</button></div>
+            <div className="fm-paneelkop"><span className="fm-paneelnaam fm-familienaam">{isSign(item) ? `Bordpunt ${item.velden.sign.nr}` : FAMILIE_NAAM[familieVan(item, elementenMap.get(item.element_id))]}</span><button className="fm-sluit" aria-label="Selectie opheffen" onClick={() => { try { tdRef.current?.deselectFeature(item.id); } catch {} setGeselecteerd(null); setExtra([]); }}>×</button></div>
             <SlotBanner slot={slotInfo.current.slot} kijkers={slotInfo.current.kijkers} onToch={() => setOvername((o) => new Set([...o, item.id]))} />
             <ItemGeschiedenis item={item} />
             {wrDetail}
@@ -5397,7 +5398,7 @@ export default function Editor({ planId }) {
       </div>
 
       <footer className="fm-statusbalk">
-        {werkruimte !== 'plan' && <div className="vak fm-wr-cijfers" style={{ borderLeft: 0 }}><strong style={{ color: wr.kleur }}>{wr.naam}</strong><span>{cijfers}</span></div>}
+        {werkruimte !== 'plan' && <div className="vak fm-wr-cijfers" style={{ borderLeft: 0 }}><strong>{wr.naam}</strong><span>{cijfers}</span></div>}
         <div className="uitleg"><strong>{typeof signZet === 'string' ? `Bord ${signZet}` : signZet ? 'Bordpunt' : (gTool(gereedschap)?.naam || (gereedschap === 'bouwer' ? 'Bouwer plaatsen' : ''))}</strong><span className="fm-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{typeof signZet === 'string' ? 'Klik op de kaart, aan de kant van de weg waar het bord staat' : signZet ? wrTool('bordpunt')?.uitleg : (wrTools?.find((t) => gereedschap === t.id || (t.element && gereedschap === 'element' && gekozenElement && t.element(gekozenElement)))?.uitleg) || UITLEG[gereedschap]}</span></div>
         <div className="vak" ref={posRef} />
         <button className={`fm-optiesknop${uitgebreid ? ' aan' : ''}`} aria-pressed={uitgebreid} title="Eenvoudig toont enkel wat je meestal nodig hebt. Alle opties toont ook de zeldzame." onClick={() => setUitgebreid(!uitgebreid)}>{uitgebreid ? 'Alle opties' : 'Eenvoudig'}</button>

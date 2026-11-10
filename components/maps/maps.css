@@ -566,7 +566,7 @@ button.fm-uitsnede { flex-direction: column; align-items: flex-start; gap: 1px; 
 .fm-wr-export { display: flex; gap: 6px; }
 .fm-knop.fm-wr-primair { color: #fff; font-weight: 600; }
 .fm-wr-chip { position: absolute; left: calc(var(--fm-l, 0px) + 12px); bottom: 72px; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: #fff; border: 1px solid var(--fm-rand2); font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
-.fm-wr-chip button { border: 0; background: none; padding: 0; color: var(--fm-wr, #2563EB); font-weight: 600; cursor: pointer; font-size: 12px; }
+.fm-wr-chip button { border: 0; background: none; padding: 0; color: var(--t-blauw-donker, #0B6FC2); font-weight: 600; cursor: pointer; font-size: 12px; }
 .fm-wr-cijfers { gap: 10px; }
 .fm-wr-cijfers span { color: #444; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48vw; }
 .fm-wr-alles { margin-top: 8px; border-top: 1px solid var(--fm-rand); }
@@ -1998,7 +1998,7 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-gereedschap button { width: 48px; height: 46px; border-radius: 8px; background: transparent; color: #C9D6EA; }
 .fm-gereedschap button span { opacity: 1; }
 .fm-gereedschap button:hover:not(:disabled) { background: rgba(255,255,255,.08); color: #fff; }
-.fm-gereedschap button.aan, .fm-gereedschap button.aan:hover { background: var(--t-blauw, #108AED); color: #fff; }
+.fm-gereedschap button.aan, .fm-gereedschap button.aan:hover { background: var(--wr-accent, var(--t-blauw, #108AED)); color: #fff; }
 .fm-gereedschap .paneelknop.aan, .fm-gereedschap .paneelknop.aan:hover { background: rgba(255,255,255,.14); color: #fff; box-shadow: none; }
 .fm-gereedschap button:disabled { opacity: .35; }
 .fm-gereedschap button:focus-visible { outline: 2px solid #9CCBF5; outline-offset: -2px; }
