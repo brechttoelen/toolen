@@ -7,6 +7,10 @@ import TerugKnop from './TerugKnop';
 import { useBouwerSchild, schildProps } from './bouwerschild';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import dynamic from 'next/dynamic';
+import { webglKan } from './StellingStudio';
+import { TentFotoBeeld } from './TentDrieGL';
+const TentDrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () => <div className="fm-wz fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div> });
 import { TENTTYPES, WANDEN, wandSoort, DAKEN, dakSoort, ALU, tentMaten, tentSegmenten, dakHoogte, tentTelling, ZIJDEN, segGroep, TERRAS_H, isTentBouw, tentTypeVan, tentGroep, stukKleur, intergevels, binnenOpeningen, wandPanelen, standaardWandVan, isVrijeTent, doekHoogte, stretchMasten, stretchPalen, sailPieken, sailOmtrek, RAND_H, frameRuns, frameLeden, runVan, runBuren, bannerMaat, FRAME_Z0, FRAME_Z1, FRAME_RAND, FRAME_UIT } from './tentbouw';
 import { publiekeUrl } from './db';
 import { DoekUpload } from './doekupload';
@@ -35,11 +39,42 @@ export const MELDING_TENT = 'Indicatieve weergave. Enkel de plannen van de tentb
 // Alles op de grond (vloer, terras, vloerlijnen) ligt onder wanden en dak: altijd eerst tekenen. Anders kwam
 // een grote vloer met zijn gemiddelde diepte vóór de verre dakvlakken (gaten in het dak bij het draaien).
 const GROND_Z = 0.12; const GROND_D = 1e6;
-export const TentDrie = memo(TentDrie0);
-function TentDrie0({ it, el, tent, groep = null, items = null, doekMap = new Map(), vloer = false, mini = false, interactief = !mini, kies, dakKies, drop, gekozen = null, gekozenPan = null, kiesLid = null }) {
-  const ref = useRef(null); const [maat, setMaat] = useState({ w: 600, h: 400 });
-  const [stand, setStand] = useState([32, 24]); const [zoom, setZoom] = useState(1); const [schuif, setSchuif] = useState([0, 0]); const sleep = useRef(null);
-  useEffect(() => { const e = ref.current; if (!e) return undefined; const ro = new ResizeObserver(() => setMaat({ w: e.clientWidth || 600, h: e.clientHeight || 400 })); ro.observe(e); return () => ro.disconnect(); }, []);
+const TentDrieSvg = memo(TentDrie0);
+// Groot beeld: echte 3D (three.js) zoals de stellingbouwer. Klein voorbeeld: een foto van die 3D. Zonder WebGL: de 2D-tekening.
+function TentDrie1(props) {
+  const [gl, setGl] = useState(false);
+  useEffect(() => { setGl(webglKan()); }, []);
+  const { it, el, tent, groep, items, doekMap, vloer, mini, kies, dakKies, drop, gekozen, gekozenPan, gekozenDak = null, kiesLid, sleepInter, zicht = null } = props;
+  const interactief = props.interactief ?? !mini;
+  const prims = useMemo(() => (gl ? tentTeken({ it, el, tent, groep, items, doekMap, vloer, mini: false, kies, dakKies, drop, gekozen, gekozenPan, kiesLid }).prims : null), [gl, it, el, tent, groep, items, doekMap, vloer, gekozen, gekozenPan]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [over, setOver] = useState(null);
+  if (!gl || !prims) return <TentDrieSvg {...props} />;
+  if (mini || !interactief) {
+    const sleutel = JSON.stringify([tent || it?.velden?.tent || {}, el?.id, it?.parameters, (groep || []).map((g) => g.it?.id), vloer ? 1 : 0]);
+    return <TentFotoBeeld prims={prims} sleutel={sleutel} terugval={<TentDrieSvg {...props} />} />;
+  }
+  const m = tentMaten({ ...it, velden: { ...(it?.velden || {}), tent: tent || it?.velden?.tent || {} } }, el);
+  const kiesGl = (d) => { if (!d) { kies?.(null); return; } if (d.lid != null && kiesLid) { kiesLid(Number(d.lid)); return; } if (d.seg && kies) { kies(d.seg, d.pan != null ? Number(d.pan) : null); return; } if (d.dak != null && dakKies) { dakKies(Number(d.dak)); return; } kies?.(null); };
+  const label = !over ? null : over.inter != null ? `Intergevel naar spant ${Math.max(1, Math.min(m.n - 1, Math.round(over.inter / m.travee)))}` : over.frame && over.seg ? `Banner op het signing frame (${segNaam(over.seg, m)})` : over.seg ? `Op ${segNaam(over.seg, m)}${over.pan != null ? ` · paneel ${Number(over.pan) + 1}` : ''}` : over.dak != null ? `Dak travee ${Number(over.dak) + 1}` : null;
+  const kz = gekozenDak != null ? { dak: String(gekozenDak) } : gekozen ? { seg: gekozen, pan: gekozenPan != null ? String(gekozenPan) : null } : null;
+  return (
+    <div style={{ position: 'absolute', inset: 0 }}>
+      <TentDrieGL prims={prims} kies={kies || dakKies || kiesLid ? kiesGl : null} drop={drop || null} sleepInter={sleepInter || null} gekozen={kz} onOver={setOver} hoek={zicht?.[0] ?? 32} kantel={zicht?.[1] ?? 24} />
+      {label && <span className="fm-tb-over">{label}</span>}
+    </div>
+  );
+}
+export const TentDrie = memo(TentDrie1);
+// Duimnagel voor de bibliotheek: een tent van één travee (of de standaardmaat) in 3D.
+export function TentDuim({ el, maat = 40, terugval = null }) {
+  const [gl, setGl] = useState(false);
+  useEffect(() => { setGl(webglKan()); }, []);
+  const prims = useMemo(() => (gl ? tentTeken({ it: { parameters: {}, velden: { tent: {} } }, el, mini: true }).prims : null), [gl, el]);
+  if (!prims) return terugval;
+  return <TentFotoBeeld prims={prims} sleutel={`duim|${el.id}|${el.updated_at || ''}`} maat={maat} terugval={terugval} />;
+}
+// De tent als lijst van tekenstukken: SVG-lagen (2D-weergave) en dezelfde stukken in wereldcoördinaten (3D).
+export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = new Map(), vloer = false, mini = false, kies, dakKies, drop, gekozen = null, gekozenPan = null, kiesLid = null }, { stand = [32, 24], zoom = 1, schuif = [0, 0], maat = { w: 600, h: 400 }, clipPre = 'tg', over = null } = {}) {
   const t0 = tent || it?.velden?.tent || {};
   // De groep: deze tent (met de tent uit de bouwer) en de tenten die er op het plan aan gekoppeld zijn.
   const leden = (groep || [{ it, el, T: (q) => q, open: new Set() }]).map((g, k) => {
@@ -64,17 +99,18 @@ function TentDrie0({ it, el, tent, groep = null, items = null, doekMap = new Map
   let Tf = (q) => q; // omzetting van de tent die nu getekend wordt naar de eerste tent
   const W3 = (q) => { const [x, y] = Tf([q[0], q[1]]); return [x, y, q[2]]; };
   const S = (q) => { const p = proj(W3(q)); return [p[0] * s + ox, p[1] * s + oy, p[2]]; };
-  const lagen = [];
+  const lagen = []; const prims = [];
+  const dataVan = (x = {}) => { const d = {}; for (const k of ['data-seg', 'data-pan', 'data-dak', 'data-lid', 'data-frame']) if (x[k] != null) d[k.slice(5)] = String(x[k]); return d; };
   let bias = 0; // dieptecorrectie (wanden onder een stretchdoek)
   let vast = null; // diepte van de wand waar details (deur, raam, lijnen) op liggen: altijd vóór die wand getekend
-  const vlak = (pts, vul, rnd, extra = {}, dd = 0) => { const lid = lidNu; if (lid != null && kiesLid) extra = { ...extra, 'data-lid': lid, style: { cursor: 'pointer' } }; const q = pts.map(S); const w = pts.map(W3); const z = rnd === 'vul'; lagen.push({ d: w.every((p) => p[2] <= GROND_Z) ? GROND_D + q.reduce((a, p) => a + p[2], 0) / q.length - (Number(dd) || 0) : dd === 'min' ? Math.min(...q.map((p) => p[2])) - 0.02 - bias : vast != null && dd > 0 ? vast - dd : q.reduce((a, p) => a + p[2], 0) / q.length - dd - bias, el: (k) => <polygon key={k} points={P2(q)} fill={vul ? tint(vul, w, z) : 'none'} stroke={z ? tint(vul, w, z) : rnd || 'none'} strokeWidth={0.8} strokeLinejoin="round" {...extra} /> }); };
-  const lijn = (a, b, kl, w = 1, dd = 0, extra = {}) => { const p = S(a); const q = S(b); lagen.push({ d: a[2] <= GROND_Z && b[2] <= GROND_Z ? GROND_D + (p[2] + q[2]) / 2 - (Number(dd) || 0) - 0.01 : dd === 'min' ? Math.min(p[2], q[2]) - 0.05 - bias : vast != null && dd > 0 ? vast - dd : (p[2] + q[2]) / 2 - dd - bias, el: (k) => <line key={k} x1={p[0]} y1={p[1]} x2={q[0]} y2={q[1]} stroke={kl} strokeWidth={w} strokeLinecap="round" {...extra} /> }); };
+  const vlak = (pts, vul, rnd, extra = {}, dd = 0) => { const lid = lidNu; if (lid != null && kiesLid) extra = { ...extra, 'data-lid': lid, style: { cursor: 'pointer' } }; const q = pts.map(S); const w = pts.map(W3); prims.push({ k: 'vlak', w, vul, rand: rnd, op: extra.fillOpacity ?? 1, data: dataVan(extra) }); const z = rnd === 'vul'; lagen.push({ d: w.every((p) => p[2] <= GROND_Z) ? GROND_D + q.reduce((a, p) => a + p[2], 0) / q.length - (Number(dd) || 0) : dd === 'min' ? Math.min(...q.map((p) => p[2])) - 0.02 - bias : vast != null && dd > 0 ? vast - dd : q.reduce((a, p) => a + p[2], 0) / q.length - dd - bias, el: (k) => <polygon key={k} points={P2(q)} fill={vul ? tint(vul, w, z) : 'none'} stroke={z ? tint(vul, w, z) : rnd || 'none'} strokeWidth={0.8} strokeLinejoin="round" {...extra} /> }); };
+  const lijn = (a, b, kl, w = 1, dd = 0, extra = {}) => { const p = S(a); const q = S(b); prims.push({ k: 'lijn', a: W3(a), b: W3(b), kl, w, data: dataVan(extra) }); lagen.push({ d: a[2] <= GROND_Z && b[2] <= GROND_Z ? GROND_D + (p[2] + q[2]) / 2 - (Number(dd) || 0) - 0.01 : dd === 'min' ? Math.min(p[2], q[2]) - 0.05 - bias : vast != null && dd > 0 ? vast - dd : (p[2] + q[2]) / 2 - dd - bias, el: (k) => <line key={k} x1={p[0]} y1={p[1]} x2={q[0]} y2={q[1]} stroke={kl} strokeWidth={w} strokeLinecap="round" {...extra} /> }); };
   // Beeld op een rechthoek (affiene projectie: een rechthoek wordt een parallellogram).
-  const beeld = (lb, rb, lo, href, dd = 0) => { const A = S(lb); const B = S(rb); const C = S(lo); const d = dd === 'min' ? Math.min(A[2], B[2], C[2], B[2] + C[2] - A[2]) - 0.03 - bias : (A[2] + B[2] + C[2]) / 3 - dd;
+  const beeld = (lb, rb, lo, href, dd = 0) => { const A = S(lb); const B = S(rb); const C = S(lo); prims.push({ k: 'beeld', A: W3(lb), B: W3(rb), C: W3(lo), href }); const d = dd === 'min' ? Math.min(A[2], B[2], C[2], B[2] + C[2] - A[2]) - 0.03 - bias : (A[2] + B[2] + C[2]) / 3 - dd;
     lagen.push({ d, el: (k) => <image key={k} href={href} x={0} y={0} width={1} height={1} preserveAspectRatio="none" transform={`matrix(${B[0] - A[0]} ${B[1] - A[1]} ${C[0] - A[0]} ${C[1] - A[1]} ${A[0]} ${A[1]})`} style={{ pointerEvents: 'none' }} /> }); };
   // Beeld over een vlak met een eigen omtrek (bv. een doek over de hele gevel, met de spits).
-  let clipN = 0; const clipPre = useMemo(() => `tg${Math.random().toString(36).slice(2, 8)}`, []);
-  const beeldVorm = (lb, rb, lo, omtrek, href, dd = 0) => { const A = S(lb); const B = S(rb); const C = S(lo); const q = omtrek.map(S); const d = Math.min(...q.map((p) => p[2])) - dd; const id = `${clipPre}-${clipN++}`;
+  let clipN = 0;
+  const beeldVorm = (lb, rb, lo, omtrek, href, dd = 0) => { const A = S(lb); const B = S(rb); const C = S(lo); const q = omtrek.map(S); prims.push({ k: 'beeld', A: W3(lb), B: W3(rb), C: W3(lo), omtrek: omtrek.map(W3), href }); const d = Math.min(...q.map((p) => p[2])) - dd; const id = `${clipPre}-${clipN++}`;
     lagen.push({ d, el: (k) => <g key={k} style={{ pointerEvents: 'none' }}><clipPath id={id}><polygon points={P2(q)} /></clipPath><g clipPath={`url(#${id})`}><image href={href} x={0} y={0} width={1} height={1} preserveAspectRatio="none" transform={`matrix(${B[0] - A[0]} ${B[1] - A[1]} ${C[0] - A[0]} ${C[1] - A[1]} ${A[0]} ${A[1]})`} /></g></g> }); };
   const lw = mini ? 0.6 : 1; const kolom = mini ? 1.4 : 2.6; const geen = { style: { pointerEvents: 'none' } };
   // Trap naar buiten: p0 → p1 is de voorkant van het bordes, n = naar buiten, h = hoogte.
@@ -311,7 +347,7 @@ function TentDrie0({ it, el, tent, groep = null, items = null, doekMap = new Map
       const x0 = i * m.travee; const x1 = x0 + m.travee; const tp = [(x0 + x1) / 2, m.B / 2, m.nok]; const nb = m.type === 'pagode' ? 6 : 1;
       for (const [x, y] of [[x0, 0], [x1, 0], [x1, m.B], [x0, m.B]]) for (let b = 0; b < nb; b++) { const P = (f) => [x + (tp[0] - x) * f, y + (tp[1] - y) * f, m.zijH + (m.nok - m.zijH) * (m.type === 'pagode' ? f ** 1.7 : f)]; lijn(P(b / nb), P((b + 1) / nb), alu, kolom * 0.5, 0.02); }
     }
-    if (!mini) for (const x of spanten) for (const y of [0, m.B]) { const v = S([x, y, 0]); lagen.push({ d: v[2] + 0.05, el: (k) => <rect key={k} x={v[0] - 5} y={v[1] - 2.5} width={10} height={5} fill="#6B7280" /> }); }
+    if (!mini) for (const x of spanten) for (const y of [0, m.B]) { const v = S([x, y, 0]); prims.push({ k: 'voet', p: W3([x, y, 0]) }); lagen.push({ d: v[2] + 0.05, el: (k) => <rect key={k} x={v[0] - 5} y={v[1] - 2.5} width={10} height={5} fill="#6B7280" /> }); }
 
     }
     // Luifel aan een gevel
@@ -354,6 +390,16 @@ function TentDrie0({ it, el, tent, groep = null, items = null, doekMap = new Map
   lagen.sort((a, b) => b.d - a.d);
   const grond = [[Math.min(...gx) - 2, Math.min(...gy) - 2], [Math.max(...gx) + 2, Math.min(...gy) - 2], [Math.max(...gx) + 2, Math.max(...gy) + 2], [Math.min(...gx) - 2, Math.max(...gy) + 2]].map(([x, y]) => S([x, y, 0]));
   const m = leden[0].m;
+  return { lagen, prims, grond, m, leden };
+}
+
+function TentDrie0({ it, el, tent, groep = null, items = null, doekMap = new Map(), vloer = false, mini = false, interactief = !mini, kies, dakKies, drop, gekozen = null, gekozenPan = null, kiesLid = null }) {
+  const ref = useRef(null); const [maat, setMaat] = useState({ w: 600, h: 400 });
+  const [stand, setStand] = useState([32, 24]); const [zoom, setZoom] = useState(1); const [schuif, setSchuif] = useState([0, 0]); const sleep = useRef(null);
+  useEffect(() => { const e = ref.current; if (!e) return undefined; const ro = new ResizeObserver(() => setMaat({ w: e.clientWidth || 600, h: e.clientHeight || 400 })); ro.observe(e); return () => ro.disconnect(); }, []);
+  const [over, setOver] = useState(null);
+  const clipPre = useMemo(() => `tg${Math.random().toString(36).slice(2, 8)}`, []);
+  const { lagen, grond, m } = tentTeken({ it, el, tent, groep, items, doekMap, vloer, mini, kies, dakKies, drop, gekozen, gekozenPan, kiesLid }, { stand, zoom, schuif, maat, clipPre, over });
 
   // Draaien, zoomen, verschuiven (zoals de stellingbouwer).
   const vingers = useRef(new Map()); const [schuifModus, setSchuifModus] = useState(false);
@@ -387,7 +433,6 @@ function TentDrie0({ it, el, tent, groep = null, items = null, doekMap = new Map
   };
   const wiel = (e) => { if (!interactief) return; const [px, py] = lokaal(e); zoomOm(e.ctrlKey ? Math.exp(-e.deltaY * 0.01) : e.deltaY < 0 ? 1.15 : 1 / 1.15, px, py); };
   useEffect(() => { const n = ref.current; if (!n || !interactief) return undefined; const stop = (e) => e.preventDefault(); n.addEventListener('wheel', stop, { passive: false }); return () => n.removeEventListener('wheel', stop); }, [interactief]);
-  const [over, setOver] = useState(null);
   return (
     <div ref={ref} className={`fm-wz${mini ? ' mini' : ''}`} style={interactief ? { touchAction: 'none' } : undefined} onPointerDown={neer} onPointerMove={beweeg} onPointerUp={los} onPointerCancel={los} onWheel={wiel} onContextMenu={(e) => e.preventDefault()}
       onDragOver={drop ? (e) => { e.preventDefault(); const o = onder(e); setOver(o.seg ? `${o.frame ? 'frame' : 'seg'}:${o.seg}${o.pan != null ? `:${o.pan}` : ''}` : o.dak != null ? `dak:${o.dak}` : null); } : undefined}
@@ -480,7 +525,10 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
   const opnieuw = () => { const p = vooruitL.current.pop(); if (!p) return; terugL.current.push(t); setT(p); onZet?.(p); };
   const m = tentMaten({ ...it, velden: { ...(it.velden || {}), tent: t } }, el);
   const [wand, setWand] = useState(null); /* null = kiezen */ const [bereik, setBereik] = useState('paneel'); const heleZijde = bereik === 'zijde'; const [gekozenPan, setGekozenPan] = useState(null); const [ontwerp, setOntwerp] = useState('');
-  const [gekozen, setGekozen] = useState(null);
+  const [gekozen, setGekozen0] = useState(null);
+  // Gekozen dakvlak (travee); een wand kiezen wist het dak en omgekeerd.
+  const [gekozenDak, setGekozenDak] = useState(null);
+  const setGekozen = (k) => { setGekozen0(k); if (k != null) setGekozenDak(null); };
   const [kiesStuk, setKiesStuk] = useState(null); const [hNieuw, setHNieuw] = useState(0);
   const [tentKies, setTentKies] = useState(null); const [tentLengte, setTentLengte] = useState(10); const [dwars, setDwars] = useState(false);
   const doekMap = useMemo(() => new Map(ontwerpen.map((d) => [d.id, d])), [ontwerpen]);
@@ -489,6 +537,16 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
   const segs = tentSegmenten(m, t);
   const modulair = m.type === 'kader' || m.type === 'boog'; const vrij = isVrijeTent(m);
   const zetMastH = (k, v) => { const hs = [...(t.mastHs || [])]; hs[k] = Number(v) > 0 ? Number(v) : undefined; zet({ ...t, mastHs: hs }); };
+  // Intergevel naar een ander spant slepen: wand, doek en panelen gaan mee.
+  const verplaatsInter = (seg, x) => {
+    if (!schrijven || !seg?.startsWith('I-') || !(m.n > 1)) return;
+    const sp = Number(seg.split('-')[1]); const nsp = Math.max(1, Math.min(m.n - 1, Math.round(x / m.travee)));
+    if (nsp === sp || t.inter?.[nsp]) return;
+    const inter = { ...(t.inter || {}) }; delete inter[sp]; inter[nsp] = true;
+    const her = (o) => { if (!o) return o; const n = {}; for (const [k, v] of Object.entries(o)) { const d = k.split('-'); n[d[0] === 'I' && Number(d[1]) === sp ? `I-${nsp}-${d[2]}` : k] = v; } return n; };
+    zet({ ...t, inter, wanden: her(t.wanden), doeken: her(t.doeken), panelen: her(t.panelen), frames: her(t.frames) });
+    if (gekozen?.startsWith(`I-${sp}-`)) setGekozen(`I-${nsp}-${gekozen.split('-')[2]}`);
+  };
   const zetInter = (sp) => { if (!schrijven) return; const inter = { ...(t.inter || {}) }; if (inter[sp]) delete inter[sp]; else inter[sp] = true; zet({ ...t, inter }); };
   // Signing frames: t.frames per tent; frames met dezelfde t.frameKoppel-id die op één lijn aansluiten zijn één kader met
   // één banner, ook over de gekoppelde tenten van de groep heen (runs). Een wijziging aan een andere tent gaat via het plan.
@@ -551,6 +609,19 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
   };
   const klik = (key, pan = null) => { if (!key) { setGekozen(null); setGekozenPan(null); return; } if (schrijven && wand === 'frame') zetFrame(key, null); else if (schrijven && wand) zetWandOfPaneel(key, pan, wand === 'doek' ? 'doek' : wand, wand === 'doek' ? ontwerp || null : null); else { setGekozen(key); setGekozenPan(pan); } };
 
+  const [pdfBezig, setPdfBezig] = useState(false);
+  const maakPdf = async () => {
+    if (pdfBezig) return; setPdfBezig(true);
+    try {
+      const [{ bouwerPdf }, { tentGroep }] = await Promise.all([import('./bouwerPdf'), import('./TentDrieGL')]);
+      const { prims } = tentTeken({ it, el, tent: t, groep, items, doekMap, vloer });
+      const naam = String(it.velden?.naam || it.naam || el?.naam || 'Tent');
+      const tp = TENTTYPES.find((x) => x.k === m.type)?.naam || 'Tent';
+      await bouwerPdf({ soort: 'tent', titel: naam, sub: [el?.naam, el?.leverancier].filter(Boolean).join(' · '), maakGroep: (T) => tentGroep(T, prims), hoogtes: [m.zijH, m.nok], snede: Math.min(1.2, m.zijH * 0.5),
+        namen: { voor: 'Linkerzijde', achter: 'Rechterzijde', links: 'Voorgevel', rechts: 'Achtergevel' },
+        kenmerken: [['Type', tp], ['Afmeting', `${getal(m.L)} × ${getal(m.B)} m`], ['Oppervlakte', `${getal(m.L * m.B, 1)} m²`], ['Zijwand', `${getal(m.zijH)} m`], ['Nok', `${getal(m.nok)} m`], ...(m.n > 1 ? [['Traveeën', `${m.n} × ${getal(m.travee)} m`]] : []), ...(el?.leverancier ? [['Leverancier', el.leverancier]] : [])] });
+    } catch (e) { window.alert(`De PDF lukte niet: ${e?.message || e}`); } finally { setPdfBezig(false); }
+  };
   useEffect(() => {
     const kb = (e) => {
       if (e.target?.tagName === 'INPUT' || e.target?.tagName === 'SELECT') return;
@@ -572,6 +643,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
         <span style={{ flex: 1 }} />
         {leden.length > 1 && <div className="fm-segment fm-tb-leden" title="Gekoppelde tenten: kies welke je bewerkt (of klik erop in 3D)">{leden.map((l) => <button key={l.id} type="button" className={actiefLid === l.id ? 'aan' : ''} onClick={() => kiesLid?.(l.id)}>{l.naam}</button>)}</div>}
         <div className="fm-segment">{[['3d', '3D'], ['vloer', 'Grondplan']].map(([k, n]) => <button key={k} type="button" className={zicht === k ? 'aan' : ''} title={k === 'vloer' ? 'Terras, podium of rijplaten met losse elementen leggen: slepen en plaatsen' : undefined} onClick={() => setZicht(k)}>{n}</button>)}</div>
+        <button className="fm-knop klein" disabled={pdfBezig} title="Eén PDF met de 3D-weergave, het grondplan en de vier aanzichten met maatlijnen" onClick={maakPdf}>{pdfBezig ? 'PDF maken…' : 'PDF'}</button>
         {schrijven && <button className="fm-knop klein" disabled={!terugL.current.length} title="Terug (Ctrl + Z)" onClick={terug}>↶</button>}
         {schrijven && <button className="fm-knop klein" disabled={!vooruitL.current.length} title="Opnieuw (Ctrl + Shift + Z)" onClick={opnieuw}>↷</button>}
       </div>
@@ -667,7 +739,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
             onZet={(l) => zet({ ...t, stukken: l.length ? l : undefined })} />}
           <div className={`fm-sb-drie fm-tb-drie${zicht === 'vloer' ? ' klein' : ''}`}>
             <span className="fm-sb-drie-melding">{MELDING_TENT}</span>
-            <TentDrie it={it} el={el} tent={t} groep={groep} items={items} doekMap={doekMap} vloer={vloer} gekozen={gekozen} gekozenPan={gekozenPan} kies={klik} dakKies={() => setGekozen(null)} drop={schrijven ? drop : undefined} kiesLid={kiesLid ? (k) => kiesLid(groep?.[k]?.it?.id) : null} />
+            <TentDrie it={it} el={el} tent={t} groep={groep} items={items} doekMap={doekMap} vloer={vloer} gekozen={gekozen} gekozenPan={gekozenPan} kies={klik} dakKies={(i) => { setGekozen(null); setGekozenPan(null); setGekozenDak(i); }} gekozenDak={gekozenDak} sleepInter={schrijven && m.n > 1 && modulair ? verplaatsInter : null} drop={schrijven ? drop : undefined} kiesLid={kiesLid ? (k) => kiesLid(groep?.[k]?.it?.id) : null} />
           </div>
         </div>
         <aside className="fm-ws-rechts">
@@ -713,6 +785,18 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
                 </>;
               })()}
               {gw.doek && <label className="fm-veld">Ontwerp<select disabled={!schrijven} value={t.doeken?.[gekozen] || ''} onChange={(e) => zet({ ...t, doeken: { ...(t.doeken || {}), [gekozen]: e.target.value || undefined } })}><option value="">Nog geen ontwerp</option>{ontwerpen.map((d) => <option key={d.id} value={d.id}>{d.naam}</option>)}</select></label>}
+            </div>
+          )}
+          {gekozenDak != null && (
+            <div className="fm-sectie fm-tb-dakkaart">
+              <div className="fm-kop">Dak{modulair && m.n > 1 ? ` · travee ${gekozenDak + 1}` : ''}<button type="button" className="fm-x" aria-label="Dak loslaten" onClick={() => setGekozenDak(null)}>×</button></div>
+              <div className="fm-tb-daken">
+                {DAKEN.map((d) => { const nu = (modulair && m.n > 1 ? t.dakPer?.[gekozenDak] : null) || t.dak || (m.type === 'sail' ? 'zeildoek' : 'wit'); return (
+                  <button key={d.k} type="button" disabled={!schrijven} className={nu === d.k ? 'aan' : ''} onClick={() => (modulair && m.n > 1 ? zetDak(gekozenDak, d.k) : zet({ ...t, dak: d.k, dakPer: {} }))}>
+                    <span className="fm-tb-staal" style={{ background: d.kleur, opacity: Math.max(0.35, d.dekking ?? 1) }} />{d.naam}
+                  </button>); })}
+              </div>
+              {modulair && m.n > 1 && schrijven && <button type="button" className="fm-knop klein" onClick={() => zet({ ...t, dak: t.dakPer?.[gekozenDak] || t.dak, dakPer: {} })}>Dit dak voor alle traveeën</button>}
             </div>
           )}
           {modulair && m.n > 1 && <>

@@ -322,14 +322,20 @@ function bouw(T, sc) {
 }
 
 // Gedeeld door de bewegende weergave en de foto: scène met licht en grond, en het standpunt rond de stelling.
-function wereld(T) {
+// De stelling als three-groep met de doeken geladen (voor de PDF).
+export async function stellingGroep(T, st, doekMap = new Map()) {
+  const g = bouw(T, verzamel(st, doekMap));
+  await Promise.race([Promise.all(g.userData.laadt || []), new Promise((r) => setTimeout(r, 5000))]);
+  return g;
+}
+export function wereld(T) {
   const scene = new T.Scene(); scene.background = new T.Color('#EEF1F4');
   scene.add(new T.HemisphereLight('#ffffff', '#8B9096', 1.25));
   const zon = new T.DirectionalLight('#ffffff', 1.5); zon.castShadow = true; zon.shadow.mapSize.set(2048, 2048); zon.shadow.bias = -0.0008; zon.shadow.normalBias = 0.04; scene.add(zon); scene.add(zon.target);
   const grond = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshStandardMaterial({ color: '#C9CDD2', roughness: 1 })); grond.rotation.x = -Math.PI / 2; grond.receiveShadow = true; scene.add(grond);
   return { scene, zon, grond };
 }
-function omkader(T, w, g) {
+export function omkader(T, w, g) {
   const box = new T.Box3().setFromObject(g); if (box.isEmpty()) box.set(new T.Vector3(0, 0, -6), new T.Vector3(8, 2, 0));
   const c = box.getCenter(new T.Vector3()); const r = Math.max(4, box.getSize(new T.Vector3()).length() / 2);
   w.grond.scale.set(r * 4, r * 4, 1); w.grond.position.set(c.x, 0, c.z);
@@ -337,7 +343,7 @@ function omkader(T, w, g) {
   const sh = w.zon.shadow.camera; sh.left = -r * 1.4; sh.right = r * 1.4; sh.top = r * 1.4; sh.bottom = -r * 1.4; sh.near = 0.5; sh.far = r * 6; sh.updateProjectionMatrix();
   return { c, r };
 }
-function standpunt(cam, c, r, hoek, kantel, f = 0.72) {
+export function standpunt(cam, c, r, hoek, kantel, f = 0.72) {
   const t = (hoek * Math.PI) / 180; const k = (kantel * Math.PI) / 180; const as = cam.aspect || 1; const d = (r / (Math.tan((cam.fov * Math.PI) / 360) * Math.min(1, as))) * (as < 1.2 ? Math.max(f, 0.95) : f);
   cam.position.set(c.x + d * Math.cos(k) * Math.sin(t), c.y + d * Math.sin(k), c.z + d * Math.cos(k) * Math.cos(t)); cam.near = d / 100; cam.far = d * 20; cam.lookAt(c); cam.updateProjectionMatrix();
 }

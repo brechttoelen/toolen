@@ -1,5 +1,7 @@
 'use client';
 import { StellingDrie, StellingDuim } from './StellingStudio';
+import { TentDuim } from './TentStudio';
+import { isTentBouw } from './tentbouw';
 import { elementMag, elementModule, nietInPakket } from './modules';
 import { publiekeUrl } from './db';
 
@@ -178,7 +180,7 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
     <button className={`fm-ster${fav.includes(el.id) ? ' aan' : ''}`} title={fav.includes(el.id) ? 'Uit favorieten' : 'Bij favorieten'} aria-label="Favoriet"
       onClick={(e) => { e.stopPropagation(); wisselFav(el.id); }}>{fav.includes(el.id) ? '★' : '☆'}</button>
   );
-  const icoon = (el) => <span className="ic">{el.eigenschappen?.fotos?.[0] ? <img src={publiekeUrl(el.eigenschappen.fotos[0])} alt="" loading="lazy" style={{ width: 40, height: 40, objectFit: 'cover' }} /> : el.eigenschappen?.stelling3d ? <StellingDuim st={el.eigenschappen.stelling3d} /> : <ElementIcoon el={el} maat={30} />}</span>;
+  const icoon = (el) => <span className="ic">{el.eigenschappen?.fotos?.[0] ? <img src={publiekeUrl(el.eigenschappen.fotos[0])} alt="" loading="lazy" style={{ width: 40, height: 40, objectFit: 'cover' }} /> : el.eigenschappen?.stelling3d ? <StellingDuim st={el.eigenschappen.stelling3d} /> : isTentBouw(el) ? <TentDuim el={el} terugval={<ElementIcoon el={el} maat={30} />} /> : <ElementIcoon el={el} maat={30} />}</span>;
   const rij = (el, key, extra = null, titel = null) => { const mag = elementMag(el); const kan = schrijven && mag; return (
     <div key={key} className={`fm-element${gekozen?.id === el.id ? ' aan' : ''}${mag ? '' : ' fm-uitpakket'}`} role="button" tabIndex={0} aria-disabled={!kan}
       title={mag ? undefined : nietInPakket(elementModule(el))}

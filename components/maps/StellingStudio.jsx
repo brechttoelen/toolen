@@ -804,6 +804,18 @@ export default function StellingStudio({ it, el, schrijven, onZet, onSluit, doek
     const id = nieuwId(); setSelDoek(id); zet({ ...st, doeken: [...doekLijst, { id, soort: 'dak', voor: doekT.voor || null, randen: [], vakken: [d.s] }] });
   };
   // Maattekening van de gekozen zijde afdrukken (in een eigen venster, met de stijl van de tekening).
+  const [pdfBezig, setPdfBezig] = useState(false);
+  const maakPdf = async () => {
+    if (pdfBezig) return; setPdfBezig(true);
+    try {
+      const [{ bouwerPdf }, { stellingGroep }] = await Promise.all([import('./bouwerPdf'), import('./StellingDrieGL')]);
+      const naam = String(it.velden?.naam || it.naam || el?.naam || 'Stelling');
+      const opp = af.lijst.reduce((a, v) => a + Mst.bx(v.i) * Mst.by(v.j), 0); const hMax = Math.max(0, ...af.lijst.map((v) => v.h));
+      await bouwerPdf({ soort: 'stelling', titel: naam, sub: [el?.naam, el?.leverancier].filter(Boolean).join(' · '), maakGroep: (T) => stellingGroep(T, stAll, doekMap),
+        hoogtes: [...new Set(af.lijst.map((v) => Math.round(v.h * 100) / 100))],
+        kenmerken: [['Afmeting', `${getal(mmTotaal, 2)} × ${getal(Mst.y(K.j1) - Mst.y(K.j0), 2)} m`], ['Vakken', af.lijst.length], ['Oppervlakte', `${getal(opp, 1)} m²`], ['Dek tot', `${getal(hMax)} m`], ...(el?.leverancier ? [['Leverancier', el.leverancier]] : [])] });
+    } catch (e) { window.alert(`De PDF lukte niet: ${e?.message || e}`); } finally { setPdfBezig(false); }
+  };
   const drukZij = () => {
     const svg = zijSvg.current; if (!svg) return; const w = window.open('', '_blank'); if (!w) return;
     const naam = { voor: 'voorkant', achter: 'achterkant', links: 'linkerzijde', rechts: 'rechterzijde' }[zijdeN];
@@ -951,6 +963,7 @@ export default function StellingStudio({ it, el, schrijven, onZet, onSluit, doek
           <button type="button" className={stand === 'grond' ? 'aan' : ''} title="Grond: gemeten hoogtes op het raster (G)" onClick={() => { setStand('grond'); setSel(null); if (indeling === '3d') setIndeling('naast'); }}>Grond</button>
         </div>}
         <span style={{ flex: 1 }} />
+        <button className="fm-knop klein" disabled={pdfBezig || K.leeg} title="Eén PDF met de 3D-weergave, het grondplan en de vier aanzichten met maatlijnen" onClick={maakPdf}>{pdfBezig ? 'PDF maken…' : 'PDF'}</button>
         {schrijven && <button className="fm-knop klein" disabled={!terugL.current.length} title="Ongedaan (Ctrl + Z)" onClick={terug}>↶ Ongedaan</button>}
         {schrijven && <button className="fm-knop klein" disabled={!vooruitL.current.length} title="Opnieuw (Ctrl + Shift + Z)" onClick={opnieuw}>↷ Opnieuw</button>}
       </div>
