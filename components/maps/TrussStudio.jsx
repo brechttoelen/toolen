@@ -139,7 +139,7 @@ function draaiGroep(groep, graden) {
   return groep.map((m) => { const d = [m.a[0] - c[0], m.a[1] - c[1]]; return { ...m, a: [c[0] + d[0] * co - d[1] * si, c[1] + d[0] * si + d[1] * co, m.a[2]], r: m.r + dr }; });
 }
 
-function Zicht({ stukken, doeken = [], doekMap = new Map(), selDoek = null, zwart, hoek, kantel, sel = [], spook = null, zoom = 1, mini = false, vast, onKlik, onDraai, onSleep, onZoom, onDoekKlik, tekenDoek = false, onTeken , passTik = 0, onDoekWijzig = null, maatK = null, onKader = null }) {
+function Zicht({ stukken, doeken = [], doekMap = new Map(), selDoek = null, zwart, hoek, kantel, sel = [], spook = null, zoom = 1, mini = false, vast, onKlik, onDraai, onSleep, onZoom, onDoekKlik, tekenDoek = false, onTeken , passTik = 0, onDoekWijzig = null, maatK = null, onKader = null, plaatsen = false }) {
   const ref = useRef(null); const [maat, setMaat] = useState({ w: 600, h: 400 }); const sleep = useRef(null);
   // Verschuiven (rechts of middelste muisknop slepen, twee vingers op de trackpad); Passend zet het terug.
   const [schuif, setSchuif] = useState([0, 0]); const schuifRef = useRef(schuif); schuifRef.current = schuif;
@@ -296,16 +296,18 @@ function Zicht({ stukken, doeken = [], doekMap = new Map(), selDoek = null, zwar
       const id = e.target.dataset.doekid || e.target.dataset.doek; const dk = doeken.find((x) => x.id === id); const V = dk && doekVlak(dk, stukken);
       if (V) { const g = e.target.dataset.doekgreep ? e.target.dataset.doekgreep.split(',').map(Number) : null; sleep.current = { doek: { id, V, g, start: hulp.opWand(...lok(e), V.o, V.u) } }; e.currentTarget.setPointerCapture?.(e.pointerId); return; }
     }
-    if (e.target?.dataset?.doek && onDoekKlik) { onDoekKlik(e.target.dataset.doek, e.target.dataset.kant); return; } const i = e.target?.dataset?.stuk; sleep.current = { x: e.clientX, y: e.clientY, h: hoek, k: kantel, weg: false, stuk: i != null ? Number(i) : null, meer: e.shiftKey || e.ctrlKey || e.metaKey }; e.currentTarget.setPointerCapture?.(e.pointerId); };
+    if (e.target?.dataset?.doek && onDoekKlik) { onDoekKlik(e.target.dataset.doek, e.target.dataset.kant); return; } const i = plaatsen ? null : e.target?.dataset?.stuk; sleep.current = { x: e.clientX, y: e.clientY, h: hoek, k: kantel, weg: false, stuk: i != null ? Number(i) : null, meer: e.shiftKey || e.ctrlKey || e.metaKey }; e.currentTarget.setPointerCapture?.(e.pointerId); };
   const beweeg = (e) => {
     const g = sleep.current; if (g?.pan) { setSchuif([g.s0[0] + e.clientX - g.x, g.s0[1] + e.clientY - g.y]); return; }
     if (g?.maat) { onKader?.(g.maat.as, maatUitSleep(g.maat, lok(e)), false); return; }
     if (g?.doek) { const r2 = doekSleep(g.doek, lok(e)); if (r2) setDoekVb({ id: g.doek.id, r: r2 }); return; } if (g?.teken) { onTeken?.('trek', lok(e), hulp); return; } if (!g) { onSleep?.('zweef', null, lok(e), hulp); return; }
-    const dx = e.clientX - g.x; const dy = e.clientY - g.y; if (Math.abs(dx) + Math.abs(dy) > 4) g.weg = true; if (!g.weg) return;
+    const dx = e.clientX - g.x; const dy = e.clientY - g.y; if (Math.abs(dx) + Math.abs(dy) > 6) g.weg = true; if (!g.weg) return;
     if (g.stuk != null && onSleep) { onSleep('sleep', g.stuk, lok(e), hulp); return; }
+    // Tijdens het plaatsen draait het beeld niet mee met een klik die een beetje verschuift.
+    if (plaatsen) { onSleep?.('zweef', null, lok(e), hulp); return; }
     onDraai?.(g.h - dx * 0.4, Math.max(5, Math.min(80, g.k + dy * 0.25)));
   };
-  const los = (e) => { const g = sleep.current; sleep.current = null; if (g?.maat) { onKader?.(g.maat.as, maatUitSleep(g.maat, lok(e)), true); return; } if (g?.doek) { const r2 = doekSleep(g.doek, lok(e)); setDoekVb(null); if (r2) onDoekWijzig?.(g.doek.id, { ...r2, stuk: g.doek.V.fid }); return; } if (!g || g.pan) return; if (g.teken) { onTeken?.('los', lok(e), hulp); return; } if (g.weg && g.stuk != null && onSleep) { onSleep('los', g.stuk, lok(e), hulp); return; } if (!g.weg) onKlik?.(g.stuk, lok(e), hulp, g.meer); };
+  const los = (e) => { const g = sleep.current; sleep.current = null; if (g?.maat) { onKader?.(g.maat.as, maatUitSleep(g.maat, lok(e)), true); return; } if (g?.doek) { const r2 = doekSleep(g.doek, lok(e)); setDoekVb(null); if (r2) onDoekWijzig?.(g.doek.id, { ...r2, stuk: g.doek.V.fid }); return; } if (!g || g.pan) return; if (g.teken) { onTeken?.('los', lok(e), hulp); return; } if (g.weg && g.stuk != null && onSleep) { onSleep('los', g.stuk, lok(e), hulp); return; } if (!g.weg || plaatsen) onKlik?.(g.stuk, lok(e), hulp, g.meer); };
 
   // Maatkader: de hele constructie (of de selectie) in een kader met grepen voor lengte, breedte en hoogte.
   const KP = maatK ? (sv, wv, zv) => [maatK.K.u[0] * sv + maatK.K.v[0] * wv, maatK.K.u[1] * sv + maatK.K.v[1] * wv, zv] : null;
@@ -520,50 +522,64 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
   const telling = trussTelling(stukken.map((x) => ({ ...x, e: eindVan(x) })), TY);
   const analyse = useMemo(() => trussAnalyse(stukken.map((x) => ({ ...x, e: eindVan(x) })), TY), [it, TY]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Plek voor het anker (lengte L, staand of liggend) onder de muis. Verder in dezelfde richting = gewone koppeling;
-  // in een hoek, omhoog of omlaag komt er een hoekblok tussen (het nieuwe stuk begint aan de overkant van het blok).
-  // Bij een uiteinde krijgen de uiteinden voorrang; halverwege een stuk (T-blok) enkel als je er niet vlakbij bent.
+  // Plek voor een nieuw of versleept stuk. Regels:
+  // - Legger blijft liggend, staander blijft staand (de knop Legger/Staander of de toets S bepaalt het).
+  // - Elk uiteinde en elk hoekblok is een aanknopingspunt; per punt de mogelijke richtingen (koppeling, hoek, T-blok).
+  // - Het stuk waarvan de as op het scherm het dichtst bij de muis ligt wint; de vorige keuze blijft staan zolang
+  //   een ander niet duidelijk beter is, zodat het stuk niet heen en weer springt.
+  // - Niets in de buurt: los op de vloer, met de draaiing van R.
+  const vorigePlek = useRef(null);
   const zoekPlek = (L, op, rVrij, muis, hulp, zonder) => {
     const ander = stukken.filter((x) => !zonder.has(x.id));
-    const bezet = (c) => ander.some((x) => Math.hypot(x.a[0] - c.a[0], x.a[1] - c.a[1], x.a[2] - c.a[2]) < 0.03 && x.op === c.op && (c.op || Math.cos(x.r - c.r) > 0.99));
-    let beste = null; let bijEind = false;
-    const kandidaat = (c, extra = 0) => {
-      if (bezet(c)) return; if (c.op && c.a[2] < -B2 - 0.001) return;
-      const e = c.op ? [c.a[0], c.a[1], c.a[2] + L] : [c.a[0] + Math.cos(c.r) * L, c.a[1] + Math.sin(c.r) * L, c.a[2]];
-      const m = [(c.a[0] + e[0]) / 2, (c.a[1] + e[1]) / 2, (c.a[2] + e[2]) / 2];
-      const p = hulp.S(m); const dd = Math.hypot(p[0] - muis[0], p[1] - muis[1]);
-      const lp = Math.hypot(hulp.S(c.a)[0] - hulp.S(e)[0], hulp.S(c.a)[1] - hulp.S(e)[1]);
-      if (dd < Math.max(60, lp * 0.6) && (!beste || dd + extra < beste.dd)) beste = { ...c, z: c.a[2], dd: dd + extra };
+    const dirVan = (x) => (x.op ? [0, 0, 1] : [Math.cos(x.r), Math.sin(x.r), 0]);
+    const segAfst = (p, a2, b2) => { const ab = [b2[0] - a2[0], b2[1] - a2[1], b2[2] - a2[2]]; const l2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2 || 1e-9; const t = Math.max(0, Math.min(1, ((p[0] - a2[0]) * ab[0] + (p[1] - a2[1]) * ab[1] + (p[2] - a2[2]) * ab[2]) / l2)); return Math.hypot(p[0] - a2[0] - ab[0] * t, p[1] - a2[1] - ab[1] * t, p[2] - a2[2] - ab[2] * t); };
+    const scherm = (pnt, a2, b2) => { const A = hulp.S(a2); const Bq = hulp.S(b2); const dx = Bq[0] - A[0]; const dy = Bq[1] - A[1]; const l2 = dx * dx + dy * dy || 1e-9; const t = Math.max(0, Math.min(1, ((pnt[0] - A[0]) * dx + (pnt[1] - A[1]) * dy) / l2)); return Math.hypot(pnt[0] - A[0] - dx * t, pnt[1] - A[1] - dy * t); };
+    // Overlapt het nieuwe stuk een bestaand stuk (of loopt het erin)?
+    const bezet = (a2, e2) => ander.some((x) => { const ex = eindVan(x); return [0.2, 0.5, 0.8].some((f) => segAfst([a2[0] + (e2[0] - a2[0]) * f, a2[1] + (e2[1] - a2[1]) * f, a2[2] + (e2[2] - a2[2]) * f], x.a, ex) < B2 * 1.5); });
+    const kand = [];
+    const voeg = (c) => {
+      if (c.op !== op) return;
+      if (c.op && c.a[2] < -B2 - 0.001) return; if (!c.op && c.a[2] < -0.001) return;
+      const e2 = c.op ? [c.a[0], c.a[1], c.a[2] + L] : [c.a[0] + Math.cos(c.r) * L, c.a[1] + Math.sin(c.r) * L, c.a[2]];
+      if (bezet(c.a, e2)) return;
+      kand.push({ ...c, z: c.a[2], dd: scherm(muis, c.a, e2) + (c.extra || 0) });
     };
+    const rond = (q) => q.map((v) => Math.round(v * 100) / 100).join(',');
+    const eindPunten = new Map(); for (const x of ander) for (const q of [x.a, eindVan(x)]) { const k = rond(q); eindPunten.set(k, (eindPunten.get(k) || 0) + 1); }
     for (const F of ander) for (const [E, isEind] of [[eindVan(F), true], [F.a, false]]) {
-      const dF = F.op ? [0, 0, 1] : [Math.cos(F.r), Math.sin(F.r), 0]; const uit = isEind ? dF : dF.map((v) => -v);
-      const K = E.map((v, k) => v + uit[k] * B2); const pe = hulp.S(E); if (Math.hypot(pe[0] - muis[0], pe[1] - muis[1]) < 50) bijEind = true;
-      if (F.op) { if (isEind) kandidaat({ a: E, r: F.r, op: true, soort: 'omhoog' }); else kandidaat({ a: [E[0], E[1], E[2] - L], r: F.r, op: true, soort: 'omlaag' }); }
-      else kandidaat({ a: E, r: isEind ? F.r : F.r + Math.PI, op: false, soort: 'liggend' }, isEind ? 0 : 4);
+      if ((eindPunten.get(rond(E)) || 0) > 1) continue; // al gekoppeld aan een ander stuk: geen vrij uiteinde
+      const dF = dirVan(F); const uit = isEind ? dF : dF.map((v) => -v);
+      const K = E.map((v, k) => v + uit[k] * B2);
+      const sleutel = `${F.id}${isEind ? 'e' : 'b'}`;
+      // Koppeling: verder in dezelfde richting, zonder blok.
+      if (!F.op) voeg({ a: E, r: isEind ? F.r : F.r + Math.PI, op: false, soort: 'liggend', s: `${sleutel}k` });
+      else if (isEind) voeg({ a: E, r: F.r, op: true, soort: 'omhoog', s: `${sleutel}k` });
+      else voeg({ a: [E[0], E[1], E[2] - L], r: F.r, op: true, soort: 'omlaag', s: `${sleutel}k` });
+      // Via een hoekblok: de vier horizontale richtingen en omhoog/omlaag, behalve terug in het stuk zelf.
       for (let k = 0; k < 4; k++) {
         const r = F.r + (k * Math.PI) / 2; const d = [Math.cos(r), Math.sin(r)];
         if (!F.op && Math.abs(d[0] * uit[0] + d[1] * uit[1]) > 0.99) continue;
-        kandidaat({ a: [K[0] + d[0] * B2, K[1] + d[1] * B2, K[2]], r, op: false, soort: 'hoek', knoop: K });
+        voeg({ a: [K[0] + d[0] * B2, K[1] + d[1] * B2, K[2]], r, op: false, soort: 'hoek', knoop: K, s: `${sleutel}h${k}` });
       }
-      if (!(F.op && isEind)) kandidaat({ a: [K[0], K[1], K[2] + B2], r: F.r, op: true, soort: 'omhoog', knoop: K });
-      if (!(F.op && !isEind)) kandidaat({ a: [K[0], K[1], K[2] - B2 - L], r: F.r, op: true, soort: 'omlaag', knoop: K });
+      if (!F.op) { voeg({ a: [K[0], K[1], K[2] + B2], r: F.r, op: true, soort: 'omhoog', knoop: K, s: `${sleutel}u` }); voeg({ a: [K[0], K[1], K[2] - B2 - L], r: F.r, op: true, soort: 'omlaag', knoop: K, s: `${sleutel}d` }); }
     }
-    // Halverwege een stuk (per 0,5 m): een T-blok; het stuk wordt daar opgedeeld.
-    if (!bijEind) for (const F of ander) {
-      const d = F.op ? [0, 0, 1] : [Math.cos(F.r), Math.sin(F.r), 0];
+    // Halverwege een stuk (per 0,5 m): een T-blok; het stuk wordt daar opgedeeld. Iets minder voorrang dan een uiteinde.
+    for (const F of ander) {
+      const d = dirVan(F);
       for (let t = 0.5; t < F.L - 0.25; t += 0.5) {
         const K = [F.a[0] + d[0] * (t + B2), F.a[1] + d[1] * (t + B2), F.a[2] + d[2] * (t + B2)];
-        const opties = [];
-        if (F.op) { for (let k = 0; k < 4; k++) { const r = F.r + (k * Math.PI) / 2; opties.push({ a: [K[0] + Math.cos(r) * B2, K[1] + Math.sin(r) * B2, K[2]], r, op: false }); } }
-        else {
-          for (const k of [1, 3]) { const r = F.r + (k * Math.PI) / 2; opties.push({ a: [K[0] + Math.cos(r) * B2, K[1] + Math.sin(r) * B2, K[2]], r, op: false }); }
-          opties.push({ a: [K[0], K[1], K[2] + B2], r: F.r, op: true, soort: 'omhoog' });
-          opties.push({ a: [K[0], K[1], K[2] - B2 - L], r: F.r, op: true, soort: 'omlaag' });
-        }
         const delen = [...opdelen(t), ...opdelen(F.L - t)];
-        for (const c of opties) { const vb = beste; kandidaat({ ...c, soort: c.soort || 'dwars', knoop: K }, 18); if (beste !== vb) beste = { ...beste, deel: { id: F.id, t, ...F }, tip: `T-blok op ${getal(t)} m van het ${F.op ? 'onderste' : 'begin'} van het stuk van ${getal(F.L)} m: ${delen.map(getal).join(' m + ')} m, de rest schuift ${Math.round(B2 * 200)} cm op` }; }
+        const deel = { id: F.id, t, ...F }; const tip = `T-blok op ${getal(t)} m van het ${F.op ? 'onderste' : 'begin'} van het stuk van ${getal(F.L)} m: ${delen.map(getal).join(' m + ')} m, de rest schuift ${Math.round(B2 * 200)} cm op`;
+        const ks = F.op ? [0, 1, 2, 3] : [1, 3];
+        for (const k of ks) { const r = F.r + (k * Math.PI) / 2; voeg({ a: [K[0] + Math.cos(r) * B2, K[1] + Math.sin(r) * B2, K[2]], r, op: false, soort: 'dwars', knoop: K, deel, tip, extra: 10, s: `${F.id}t${t}h${k}` }); }
+        if (!F.op) { voeg({ a: [K[0], K[1], K[2] + B2], r: F.r, op: true, soort: 'omhoog', knoop: K, deel, tip, extra: 10, s: `${F.id}t${t}u` }); voeg({ a: [K[0], K[1], K[2] - B2 - L], r: F.r, op: true, soort: 'omlaag', knoop: K, deel, tip, extra: 10, s: `${F.id}t${t}d` }); }
       }
     }
+    let beste = null; for (const c of kand) if (c.dd < 45 && (!beste || c.dd < beste.dd)) beste = c;
+    // Stabiel: de vorige keuze houden zolang ze nog geldig is en niet duidelijk slechter (12 px).
+    const vorig = vorigePlek.current && kand.find((c) => c.s === vorigePlek.current);
+    if (vorig && vorig.dd < 60 && (!beste || vorig.dd <= beste.dd + 12)) beste = vorig;
+    vorigePlek.current = beste ? beste.s : null;
     if (beste) return beste;
     const v = hulp.opVlak(muis[0], muis[1], 0); const sn = (x) => Math.round(x * 10) / 10;
     if (op) return { a: [sn(v[0]), sn(v[1]), -B2], z: -B2, r: rVrij, op: true, soort: 'vrij' };
@@ -571,25 +587,27 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
   };
   const TIP = { liggend: 'Verder in dezelfde richting (koppeling)', hoek: 'In een hoek, met een hoekblok', omhoog: 'Omhoog', omlaag: 'Omlaag naar de vloer', vrij: 'Los op de vloer', dwars: 'Dwars, met een T-blok' };
   const stop = () => { setPlaats(null); setSpook(null); setTip(''); };
-  const begin = (groep) => { setPlaats({ groep, rVrij: groep[0].r }); setSpook(null); setSel([]); };
+  // Legger of staander: geldt ook voor het stuk dat je op dat moment aan het plaatsen bent.
+  const zetStaand = (v) => { setStaand(v); vorigePlek.current = null; setPlaats((p) => (p && p.groep.length === 1 ? { ...p, groep: [{ ...p.groep[0], op: v }] } : p)); setSpook(null); };
+  const begin = (groep) => { vorigePlek.current = null; setPlaats({ groep, rVrij: groep[0].r }); setSpook(null); setSel([]); };
   const nieuwStuk = (L) => begin([{ id: '__n0', L, a: [0, 0, 0], r: basisR, op: staand }]);
   const nieuweVorm = (lijst) => begin(lijst.map((x, k) => ({ ...x, a: [x.a[0], x.a[1], x.a[2]], id: `__n${k}` })));
-  const plaatsing = (groep, p) => { const A = groep[0]; const g2 = A.op === p.op ? groep : groep.map((x, k) => (k === 0 ? { ...x, op: p.op } : x)); return verplaats(g2, p); };
+  const plaatsing = (groep, p) => verplaats(groep, p);
 
   const onSleep = (fase, i, muis, hulp) => {
-    if (fase === 'zweef') { if (!plaats) return; const g = plaats.groep; const p = zoekPlek(g[0].L, g[0].op, plaats.rVrij, muis, hulp, new Set()); setSpook(plaatsing(g, g.length > 1 ? { ...p, op: g[0].op } : p)); setTip(p.tip || TIP[p.soort]); return; }
+    if (fase === 'zweef') { if (!plaats) return; const g = plaats.groep; const p = zoekPlek(g[0].L, g[0].op, plaats.rVrij, muis, hulp, new Set()); setSpook(plaatsing(g, p)); setTip(p.tip || TIP[p.soort]); return; }
     if (!schrijven || plaats) return;
     const F = stukken[i]; if (!F) return;
     const groep = sel.includes(i) ? [F, ...gekozen.filter((x) => x.i !== i)] : [F];
     const p = zoekPlek(F.L, F.op, F.r, muis, hulp, new Set(groep.map((x) => x.id)));
-    const nieuw = plaatsing(groep, groep.length > 1 ? { ...p, op: F.op } : p);
+    const nieuw = plaatsing(groep, p);
     if (fase === 'sleep') { setSpook(nieuw); setTip(p.tip || TIP[p.soort]); return; }
     setSpook(null); setTip(''); const m = new Map(nieuw.map((x) => [x.id, x])); const od = metOpdeling(stukken.map((x) => m.get(x.id) || x), p); bewaar(od.lijst, od.erbij); if (!sel.includes(i) && !p.deel) setSel([i]); else if (p.deel) setSel([]);
   };
   const onKlik = (i, muis, hulp, meer) => {
     if (plaats && schrijven) {
       const g = plaats.groep; const p = zoekPlek(g[0].L, g[0].op, plaats.rVrij, muis, hulp, new Set());
-      const nieuw = plaatsing(g, g.length > 1 ? { ...p, op: g[0].op } : p).map((x) => ({ ...x, id: nieuwId(), spook: false }));
+      const nieuw = plaatsing(g, p).map((x) => ({ ...x, id: nieuwId(), spook: false }));
       const od = metOpdeling([...stukken, ...nieuw], p); bewaar(od.lijst, od.erbij); setSpook(null);
       if (g.length > 1) { stop(); setSel(nieuw.map((_, j) => stukken.length + j)); }
       return;
@@ -611,6 +629,7 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) opnieuw(); else terug(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); opnieuw(); return; }
       if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'd' || e.key.toLowerCase() === 'c')) { e.preventDefault(); kopieer(); return; }
+      if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey) { zetStaand(!staand); return; }
       if (e.key === 'r' || e.key === 'R') { const g = e.shiftKey ? -90 : 90; if (plaats) setPlaats((p) => ({ ...p, groep: draaiGroep(p.groep, g), rVrij: p.rVrij + rad(g) })); else wijzigSel((l) => draaiGroep(l, g)); }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selDoek && !plaats) { e.preventDefault(); zetDoeken(doekLijst.filter((d) => d.id !== selDoek)); setSelDoek(null); return; }
       if ((e.key === 'Delete' || e.key === 'Backspace') && gekozen.length && !plaats) { e.preventDefault(); weg(); }
@@ -639,8 +658,8 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
         <aside className="fm-ws-doeken">
           <div className="fm-kop">Stukken</div>
           <div className="fm-segment fm-ws-tabs" role="group" aria-label="Richting">
-            <button className={!staand ? 'aan' : ''} onClick={() => setStaand(false)}>Liggend</button>
-            <button className={staand ? 'aan' : ''} onClick={() => setStaand(true)}>Staand</button>
+            <button className={!staand ? 'aan' : ''} title="Liggend stuk (S wisselt)" onClick={() => zetStaand(false)}>Legger</button>
+            <button className={staand ? 'aan' : ''} title="Staand stuk (S wisselt)" onClick={() => zetStaand(true)}>Staander</button>
           </div>
           <div className="fm-ws-bib">
             {lengtes.map((L) => {
@@ -664,12 +683,12 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
             <button className="fm-knop klein" disabled={!schrijven} title="Vier poten, liggers boven en onder" onClick={() => nieuweVorm(kubus(maatP.W, maatP.H, basisR, lengtes, TY.B))}>Kubus</button>
             <button className="fm-knop klein" disabled={!schrijven} title="Een toren" onClick={() => nieuweVorm(toren(maatP.H, basisR, lengtes, TY.B))}>Toren</button>
           </div>
-          <div className="fm-sub">{plaats ? 'Klik om te plaatsen · R = draaien · Enter of Esc = stoppen' : 'Bij het uiteinde van een stuk bepaalt de muis de richting: verder, een hoek, omhoog of omlaag. Hoekstukken en baseplates komen er vanzelf bij.'}</div>
+          <div className="fm-sub">{plaats ? 'Klik om te plaatsen · S = legger of staander · R = draaien · Enter of Esc = stoppen' : 'Kies Legger of Staander en een lengte. Wijs langs een uiteinde in de richting die je wil: verder, een hoek, omhoog of omlaag. Hoekblokken en baseplates komen er vanzelf bij.'}</div>
         </aside>
         <div className="fm-ws-zicht">
           {beeld && drieP && <div style={{ position: 'absolute', inset: 0, zIndex: 5, background: '#EEF1F4' }}><DrieGL prims={drieP} /></div>}
           <Zicht maatK={schrijven && maatKader && !plaats && !tekenD ? { K: maatKader, vb: maatVb } : null} onKader={(as, w, klaar) => { if (!klaar) { setMaatVb({ as, waarde: w }); return; } setMaatVb(null); if (Math.abs(w - kaderMaat(maatKader, as)) > 0.01) pasMaat(as, w); }} stukken={stukken} doeken={voorlopigDoek ? [...doekLijst, voorlopigDoek] : doekLijst} doekMap={doekMap} onDoekWijzig={schrijven ? (id, r) => { zetDoeken(doekLijst.map((d) => { if (d.id !== id) return d; const { van, tot, h, ...rest } = d; return { ...rest, ...r, wijze: d.wijze === 'op' ? 'op' : 'in' }; })); setSelDoek(id); } : null} selDoek={trek ? '__trek' : selDoek} tekenDoek={tekenD && schrijven} onTeken={onTeken} onDoekKlik={(id, k) => { if (plaats) return; setSel([]); setSelDoek(id); setDoekKant(k || 'voor'); }} zwart={zwart} hoek={hoek} kantel={kantel} sel={sel} spook={spook} zoom={zoom} vast={!!spook}
-            onKlik={onKlik} onSleep={onSleep} onDraai={(a, b) => { setHoek(a); setKantel(b); }} onZoom={(k) => setZoom((z) => Math.max(0.2, Math.min(8, z * k)))} passTik={passTik} />
+            plaatsen={!!plaats && schrijven} onKlik={onKlik} onSleep={onSleep} onDraai={(a, b) => { setHoek(a); setKantel(b); }} onZoom={(k) => setZoom((z) => Math.max(0.2, Math.min(8, z * k)))} passTik={passTik} />
           <div className="fm-ws-hoeken" role="group" aria-label="Kijkhoek">
             <button onClick={() => { setHoek(0); setKantel(8); }}>Voor</button>
             <button onClick={() => { setHoek(35); setKantel(22); }}>Hoek</button>
