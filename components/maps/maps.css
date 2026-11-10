@@ -1973,22 +1973,28 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-editor .fm-topbalk .fm-terug:hover { background: var(--t-navy-2, #0B2C6B); }
 .fm-editor .fm-topbalk > .fm-titel { flex: 0 1 220px; min-width: 130px; }
 .fm-editor .fm-topbalk > .fm-zoek { min-width: 110px; }
-.fm-editor .fm-topbalk { overflow: hidden; }
+.fm-editor .fm-topbalk { overflow: visible; } /* niet hidden: dan vallen de uitklapmenu's weg */
 .fm-editor .fm-topbalk > .fm-titel strong { font-size: 16px; }
 .fm-editor .fm-topbalk .fm-knop { height: 36px; border-radius: 8px; }
 .fm-editor .fm-topbalk > .fm-zoek input, .fm-editor .fm-topbalk > .fm-zoek:focus-within input { height: 36px; border-radius: 8px; background-color: #EEF1F5; }
 .fm-titel small { font-size: 11.5px; color: var(--t-tekst-2, #4A5A75); }
 .fm-titel strong { font-family: var(--font-titel, sans-serif); font-stretch: 112%; font-weight: 700; letter-spacing: -0.01em; color: var(--t-tekst, #0E1A33); }
-.fm-wr-tabs { display: flex; gap: 2px; padding: 3px; background: #EEF1F5; border-radius: 9px; flex: none; overflow-x: auto; max-width: 100%; }
-.fm-wr-tabs button { height: 34px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: #33445C; font: inherit; font-size: 12.5px; font-weight: 500;
-  cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
-.fm-wr-tabs button:hover:not(:disabled) { background: rgba(255,255,255,.6); }
-.fm-wr-tabs button.aan { background: #fff; color: var(--t-navy, #022056); font-weight: 600; box-shadow: 0 1px 2px rgba(2,32,86,.15); }
-.fm-wr-tabs button:disabled { opacity: .45; cursor: not-allowed; }
-.fm-wr-tabs .bol { width: 8px; height: 8px; border-radius: 50%; background: var(--wr); display: inline-block; }
-.fm-wr-kies { display: none; }
-@media (max-width: 1680px) { .fm-wr-tabs button:not(.aan) .naam { display: none; } .fm-wr-tabs button:not(.aan) { padding: 0 9px; } }
-@media (max-width: 900px) { .fm-wr-tabs { display: none; } .fm-wr-kies { display: block; } }
+.fm-wr-houder { position: relative; height: 40px; flex: none; z-index: 30; }
+.fm-wr-schuif { position: absolute; left: 0; top: 0; display: flex; gap: 2px; padding: 3px; background: #EEF1F5; border-radius: 10px; white-space: nowrap;
+  transition: box-shadow .2s ease, background-color .2s ease; }
+.fm-wr-schuif.open { background: #fff; box-shadow: 0 0 0 1px var(--t-rand, #E3E8EF), 0 10px 28px rgba(2,32,86,.16); }
+.fm-wr-schuif button { height: 34px; padding: 0 9px; border: 0; border-radius: 7px; background: transparent; color: #4A5A75; font: inherit; font-size: 12.5px; font-weight: 500;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 0; transition: background-color .15s ease, color .15s ease, padding .25s ease; }
+.fm-wr-schuif button .naam { display: inline-block; max-width: 0; opacity: 0; overflow: hidden; transition: max-width .28s cubic-bezier(.2,.7,.2,1), opacity .2s ease, margin .28s ease; }
+.fm-wr-schuif button.aan .naam, .fm-wr-schuif.open button .naam { max-width: 130px; opacity: 1; margin-left: 7px; }
+.fm-wr-schuif button:hover:not(:disabled) { background: rgba(255,255,255,.7); color: var(--t-navy, #022056); }
+.fm-wr-schuif.open button:hover:not(:disabled) { background: #EEF1F5; }
+.fm-wr-schuif button.aan { background: #fff; color: var(--t-navy, #022056); font-weight: 600; box-shadow: 0 1px 2px rgba(2,32,86,.15); }
+.fm-wr-schuif.open button.aan { background: var(--t-blauw-zacht, #E8F3FD); box-shadow: none; }
+.fm-wr-schuif button:disabled { opacity: .4; cursor: not-allowed; }
+.fm-wr-schuif .fm-wr-badge { margin-left: 6px; }
+.fm-wr-schuif button:focus-visible { outline: 2px solid var(--t-blauw, #108AED); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) { .fm-wr-schuif button .naam, .fm-wr-schuif button { transition: none; } }
 .fm-gereedschap { width: 56px; padding: 8px 0; gap: 2px; align-items: center; }
 .fm-gereedschap button { width: 44px; height: 44px; border-radius: 8px; }
 .fm-gereedschap button:hover { background: #EEF1F5; }
@@ -2187,3 +2193,15 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-deelbalk button.aan small { color: #0B6FC2; }
 .fm-deelbalk .pdf { background: #108AED; margin-left: 4px; }
 .fm-deelbalk button:focus-visible, .fm-deelbalk a:focus-visible { outline: 2px solid #9CCBF5; outline-offset: 1px; }
+
+/* Topbalk boven de kaart: anders vallen de uitklapmenu's (Weergave, Versie) achter de kaart weg. */
+.fm-editor > .fm-topbalk, .fm-topbalk { position: relative; z-index: 45; }
+.fm-topbalk .fm-kort { display: none; }
+@media (max-width: 900px) {
+  .fm-editor .fm-topbalk { gap: 6px; padding-right: 8px; }
+  .fm-editor .fm-topbalk > .fm-titel { flex-basis: 120px; min-width: 80px; }
+  .fm-wr-schuif:not(.open) button.aan .naam { max-width: 0; opacity: 0; margin-left: 0; }
+  .fm-topbalk .fm-lang { display: none; }
+  .fm-topbalk .fm-kort { display: inline; }
+}
+@media (max-width: 760px) { .fm-editor .fm-topbalk .fm-feedbackknop { display: none; } }

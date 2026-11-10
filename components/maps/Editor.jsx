@@ -4591,7 +4591,7 @@ export default function Editor({ planId }) {
         <FeedbackKnop />
         <button className="fm-knop fm-ikoon" title="Volledig scherm: panelen verbergen" aria-label="Volledig scherm" aria-pressed={volScherm} onClick={() => setVolScherm((v) => !v)}><Icoon naam="scherm" maat={16} /></button>
         <span className="fm-scheiding" aria-hidden />
-        <button className="fm-knop rood" title="Deellinks en PDF's per ontvanger, en snel exporteren" onClick={() => setDialoog('delen')}>{exportBezig || 'Delen en exporteren'}</button>
+        <button className="fm-knop rood" title="Deellinks en PDF's per ontvanger, en snel exporteren" onClick={() => setDialoog('delen')}>{exportBezig || <><span className="fm-lang">Delen en exporteren</span><span className="fm-kort">Delen</span></>}</button>
       </header>
 
       <div className="fm-romp">

@@ -54,6 +54,9 @@ const PADEN = {
   kopie: <><rect x="8" y="8" width="12" height="12" /><path d="M4 16V4h12" /></>,
   voor: <><rect x="9" y="9" width="11" height="11" /><path d="M4 15V4h11" strokeDasharray="2 2" /></>,
   achter: <><rect x="4" y="4" width="11" height="11" /><path d="M9 20h11V9" strokeDasharray="2 2" /></>,
+  kaart: <><path d="M3 6.5l6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z" /><path d="M9 4v13.5M15 6.5V20" /></>,
+  schild: <><path d="M12 3l7 3v5.5c0 4.5-3 7.8-7 9.5-4-1.7-7-5-7-9.5V6z" /><path d="M12 8.5v6M9 11.5h6" /></>,
+  camera: <><rect x="3" y="7" width="13" height="10" rx="2" /><path d="M16 11l5-3v8l-5-3" /></>,
 };
 
 export function Icoon({ naam, maat = 20 }) {
