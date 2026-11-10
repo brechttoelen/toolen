@@ -21,8 +21,8 @@ export function ToolenWoordmerk({ op = "navy", product }: { op?: "navy" | "licht
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 10, color: kleur }}>
       <ToolenTeken op={op} />
-      <span className="t-merknaam" style={{ fontSize: 17 }}>
-        Toolen{product && <span style={{ fontWeight: 500, opacity: 0.75 }}> {product.charAt(0).toUpperCase() + product.slice(1)}</span>}
+      <span style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em" }}>
+        toolen{product && <span style={{ fontWeight: 400, opacity: 0.75 }}> {product}</span>}
       </span>
     </span>
   );

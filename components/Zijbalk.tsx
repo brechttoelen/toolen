@@ -72,7 +72,7 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
       <nav className="t-zij" aria-label="Hoofdmenu">
         <Link href="/maps" className="t-zij-merk">
           <ToolenTeken grootte={24} />
-          <span>Toolen<small>Maps</small></span>
+          <span>toolen<small>maps</small></span>
         </Link>
 
         <div ref={orgRef} style={{ position: "relative" }}>

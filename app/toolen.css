@@ -42,7 +42,7 @@
 
   /* letter */
   --font-sans: "IBM Plex Sans";
-  --font-titel: "Archivo Variable", "IBM Plex Sans", sans-serif;
+  --font-titel: "IBM Plex Sans", sans-serif;
   --t-gewicht-titel: 600;
 
   /* hoogtes */
@@ -54,7 +54,7 @@
 /* ----- Basisonderdelen buiten de editor ----- */
 .t-pagina { min-height: 100vh; background: var(--t-vlak); color: var(--t-tekst); }
 .t-inhoud { max-width: 1120px; margin: 0 auto; padding: 32px 24px 64px; }
-.t-titel { font-family: var(--font-titel); font-stretch: 125%; font-size: 30px; font-weight: 800; line-height: 1.1; margin: 0; letter-spacing: -0.02em; color: var(--t-tekst); }
+.t-titel { font-family: var(--font-titel); font-size: 30px; font-weight: 600; line-height: 1.15; margin: 0; letter-spacing: -0.015em; color: var(--t-tekst); }
 .t-kopje { font-family: var(--font-titel); font-stretch: 112%; font-size: 19px; font-weight: 700; margin: 0; letter-spacing: -0.01em; color: var(--t-tekst); }
 .t-merknaam { font-family: var(--font-titel); font-stretch: 125%; font-weight: 800; letter-spacing: -0.01em; }
 .t-sub { font-size: 14px; color: var(--t-tekst-2); margin: 4px 0 0; }
@@ -136,9 +136,9 @@ select.t-veld { padding-right: 6px; }
   display: flex; flex-direction: column; gap: 20px; }
 .t-werk { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; }
 .t-zij a { text-decoration: none; }
-.t-zij-merk { display: flex; align-items: center; gap: 10px; padding: 0 8px; color: var(--t-wit); font-family: var(--font-titel); font-stretch: 125%;
-  font-weight: 800; font-size: 20px; letter-spacing: -0.01em; }
-.t-zij-merk small { font-size: 14px; font-weight: 600; opacity: .7; margin-left: 6px; }
+.t-zij-merk { display: flex; align-items: center; gap: 10px; padding: 0 8px; color: var(--t-wit); font-family: var(--font-sans);
+  font-weight: 600; font-size: 17px; letter-spacing: -0.01em; }
+.t-zij-merk small { font-size: 17px; font-weight: 400; opacity: .75; margin-left: 5px; }
 .t-zij-org, .t-zij-ik { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px;
   border-radius: 8px; min-height: 44px; color: var(--t-wit); }
 .t-zij-org { background: rgba(255,255,255,.08); }
