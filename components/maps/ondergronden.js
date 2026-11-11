@@ -128,9 +128,13 @@ export const BRONNEN = {
 
 // Luchtfoto Vlaanderen: de wintervlucht is het recentst maar heeft lange schaduwen (lage zon);
 // de zomervlucht is een jaar ouder maar met korte schaduwen. Keuze per plan (instellingen.fotoVl).
+const OMW = (j) => ({ naam: `Winter ${j}`, groep: 'Winter', tegel: KVP('OMW', `omwrgb${String(j).slice(2)}vl`) });
+const OMZ = (j) => ({ naam: `Zomer ${j}`, groep: 'Zomer', tegel: KVP('OMZ', `omzrgb${String(j).slice(2)}vl`) });
 export const FOTO_VL = {
-  winter: { naam: 'Recent (winter)', tegel: KVP('OMWRGBMRVL', 'omwrgbmrvl') },
-  zomer: { naam: 'Zomer 2024 · korte schaduw', tegel: KVP('OMZ', 'omzrgb24vl') },
+  winter: { naam: 'Winter · meest recent', groep: 'Winter', tegel: KVP('OMWRGBMRVL', 'omwrgbmrvl') },
+  ...Object.fromEntries([2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018].map((j) => [`w${j}`, OMW(j)])),
+  zomer: OMZ(2024),
+  ...Object.fromEntries([2021, 2018, 2015].map((j) => [`z${j}`, OMZ(j)])),
 };
 let fotoVl = 'winter';
 export const fotoVlTegel = (z, x, y) => FOTO_VL[fotoVl].tegel.replace('{z}', z).replace('{y}', y).replace('{x}', x);

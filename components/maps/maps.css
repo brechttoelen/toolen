@@ -2367,3 +2367,5 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-gevel-rijen { display: grid; grid-template-columns: minmax(70px, 1fr) minmax(90px, 1.3fr) 50px 50px 28px; gap: 4px; align-items: center; margin-bottom: 6px; }
 .fm-gevel-rijen select, .fm-gevel-rijen input { width: 100%; min-width: 0; height: 30px; box-sizing: border-box; font: inherit; font-size: 12.5px; }
 .fm-gevel-rijen .fm-knop { width: 28px; padding: 0; justify-content: center; }
+.fm-weergavemenu .fm-fotojaar { display: grid; grid-template-columns: 34px minmax(0, 1fr) 34px; gap: 6px; align-items: center; }
+.fm-weergavemenu .fm-fotojaar .fm-knop { height: 34px; width: 34px; padding: 0; justify-content: center; font-size: 18px; line-height: 1; }

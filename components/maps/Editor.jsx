@@ -4611,13 +4611,21 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                 <div className="fm-menu fm-weergavemenu" style={{ right: 0, top: 34 }} onClick={(e) => e.stopPropagation()}>
                   <div className="fm-ctxkop">Ondergrond</div>
                   {Object.entries(ONDERGRONDEN).map(([k, v]) => <button key={k} role="menuitemradio" aria-checked={plan.basiskaart === k} className={plan.basiskaart === k ? 'aan' : ''} onClick={() => wijzigPlan({ basiskaart: k })}><span style={{ flex: 1 }}>{v.naam}</span>{plan.basiskaart === k && <Icoon naam="vink" maat={14} />}</button>)}
-                  {String(plan.basiskaart || 'luchtfoto').startsWith('luchtfoto') && (
-                    <label className="fm-veld">Luchtfoto Vlaanderen
-                      <select aria-label="Luchtfoto Vlaanderen" value={FOTO_VL[plan.instellingen?.fotoVl] ? plan.instellingen.fotoVl : 'winter'} onChange={(e) => wijzigPlan({ instellingen: { ...(st.current.plan?.instellingen || {}), fotoVl: e.target.value } })}>
-                        {Object.entries(FOTO_VL).map(([k, v]) => <option key={k} value={k}>{v.naam}</option>)}
-                      </select>
-                    </label>
-                  )}
+                  {String(plan.basiskaart || 'luchtfoto').startsWith('luchtfoto') && (() => {
+                    const keys = Object.keys(FOTO_VL); const nu = FOTO_VL[plan.instellingen?.fotoVl] ? plan.instellingen.fotoVl : 'winter'; const i = keys.indexOf(nu);
+                    const kies = (k) => wijzigPlan({ instellingen: { ...(st.current.plan?.instellingen || {}), fotoVl: k } });
+                    return (
+                      <div className="fm-veld">Luchtfoto Vlaanderen
+                        <div className="fm-fotojaar">
+                          <button type="button" className="fm-knop klein" disabled={i <= 0} aria-label="Vorige opname" onClick={() => kies(keys[i - 1])}>‹</button>
+                          <select aria-label="Luchtfoto Vlaanderen" value={nu} onChange={(e) => kies(e.target.value)}>
+                            {['Winter', 'Zomer'].map((gr) => <optgroup key={gr} label={gr}>{Object.entries(FOTO_VL).filter(([, v]) => v.groep === gr).map(([k, v]) => <option key={k} value={k}>{v.naam}</option>)}</optgroup>)}
+                          </select>
+                          <button type="button" className="fm-knop klein" disabled={i >= keys.length - 1} aria-label="Volgende opname" onClick={() => kies(keys[i + 1])}>›</button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {fasen.length > 0 && (
                     <label className="fm-veld">Fase
                       <select aria-label="Fase" value={actieveFase || ''} onChange={(e) => setActieveFase(e.target.value || null)}>
