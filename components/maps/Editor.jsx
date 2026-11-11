@@ -3105,6 +3105,7 @@ export default function Editor({ planId }) {
         break;
       }
       case 'unit-weg': { verwijderItems([it.id]); break; }
+      case 'unit-gevel': { wijzigItem(it.id, { velden: { ...(it.velden || {}), gevel: arg?.gevel?.length ? arg.gevel : undefined } }); break; }
       case 'tent-lid': {
         // Tentbouwer: een gekoppelde tent aangepast in dezelfde bouwer.
         if (arg?.tent) wijzigItem(it.id, { velden: { ...(it.velden || {}), tent: arg.tent } });

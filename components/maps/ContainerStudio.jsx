@@ -8,6 +8,8 @@ import TerugKnop from './TerugKnop';
 import { useBouwerSchild, schildProps } from './bouwerschild';
 import { webglKan } from './StellingStudio';
 import { StellingPlannen } from './stellingplannen';
+import GevelBeheer from './GevelBeheer';
+import { schakelGedraaid } from './containerbouw';
 import { unitGroep, unitAssen, isUnitEl, isTrapEl, schakelPlan, schakelElement, containerMeldingen, plekNaast, plekTrap, containerTelling, containerPrims, stapelMax, plekBijSlepen, unitStijl, openZijden, schakelVan, gevelLijn } from './containerbouw';
 
 const DrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () => <div className="fm-wz fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div> });
@@ -56,7 +58,12 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   const plan = useMemo(() => schakelPlan(groep), [groep]);
   useEffect(() => {
     if (!schrijven || !onActie) return;
-    for (const p of plan) { const e2 = schakelElement(elementen, p.fam, p.rol); if (e2) onActie('unit-wijzig', { _it: p.id, el: e2.id }); }
+    for (const p of plan) {
+      const e2 = schakelElement(elementen, p.fam, p.rol); if (e2) { onActie('unit-wijzig', { _it: p.id, el: e2.id }); continue; }
+      // Geen eigen type voor die kant: dezelfde eindunit, een halve draai.
+      const e3 = schakelGedraaid(elementen, p.fam, p.rol); const o = groep.find((x) => x.it.id === p.id);
+      if (e3 && o) onActie('unit-wijzig', { _it: p.id, el: e3.id, rot: ((Number(o.it.parameters?.rot) || 0) + 180) % 360 });
+    }
   }, [JSON.stringify(plan)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Na het plaatsen: de nieuwe unit kiezen, zodat je meteen verder bouwt.
@@ -163,6 +170,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
               {[['V', 'Voor'], ['A', 'Achter']].map(([z, n]) => <button key={z} type="button" className={`fm-knop klein${trapZijde === z ? ' zwart' : ''}`} onClick={() => setTrapZijde(z)}>Trap {n.toLowerCase()}</button>)}
               {[['L', 'links'], ['R', 'rechts']].map(([k, n]) => { const p = plekTrap(g, trap, trapZijde, k); return <button key={k} type="button" className="fm-knop klein" disabled={!vrij(p)} onClick={() => plaats(trap, p)}>Trap {n}</button>; })}
             </div>}
+            {g.el?.eigenschappen?.gevelVrij && !g.trap && <GevelBeheer L={Number(g.el.breedte_m) || 6} B={Number(g.el.diepte_m) || 3} gevel={g.it.velden?.gevel || g.el.eigenschappen?.gevel || []} schrijven onZet={(gevel) => onActie('unit-gevel', { _it: g.it.id, gevel })} />}
             <div className="fm-cb-zijden" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
               <button type="button" className="fm-knop klein" title="Een kwartslag (R)" onClick={() => onActie('unit-wijzig', { _it: g.it.id, rot: ((Number(g.it.parameters?.rot) || 0) + 90) % 360 })}>Draaien</button>
               <button type="button" className="fm-knop klein" disabled={g.it.id === it.id} onClick={() => { onActie('unit-weg', { _it: g.it.id }); setSel(it.id); }}>Weghalen</button>

@@ -21,6 +21,8 @@ export function schakelVan(el) {
   const r = /(BU-\d+-C)([DEF])\b/.exec(n); if (r) return { fam: `${el.leverancier || ''}|${r[1]}`, rol: r[2] };
   // Rob Units: 6500 (eind, open rechts) · 6600 (midden) · 6550 (eind, open links).
   const rob = /\(Rob (6500|6600|6550)\)/.exec(n); if (rob) return { fam: 'Rob Units|65', rol: { 6500: 'D', 6600: 'E', 6550: 'F' }[rob[1]] };
+  // Algeco Advance: 3 buitenwanden = eindunit (open rechts; de andere eindunit is dezelfde, gedraaid), 2 buitenwanden = midden.
+  if (/algeco/i.test(el?.leverancier || '') && /advance/i.test(n)) { if (/3 buitenwanden/.test(n)) return { fam: 'Algeco|Advance', rol: 'D', draaibaar: true }; if (/2 buitenwanden/.test(n)) return { fam: 'Algeco|Advance', rol: 'E' }; }
   // Rob 6650 + 6700: koppel met gang (6 × 6 m), zonder middenstuk.
   const paar = /\(Rob (6650|6700)\)/.exec(n); if (paar) return { fam: 'Rob Units|66', rol: paar[1] === '6650' ? 'D' : 'F' };
   return null;
@@ -108,7 +110,14 @@ export function schakelPlan(groep) {
   return uit;
 }
 export function schakelElement(elementen, fam, rol) {
-  return (elementen || []).find((e) => e.actief !== false && !e.plan_id && schakelVan(e)?.fam === fam && schakelVan(e)?.rol === rol) || null;
+  const l = (elementen || []).filter((e) => e.actief !== false && !e.plan_id && schakelVan(e)?.fam === fam);
+  return l.find((e) => schakelVan(e).rol === rol) || null;
+}
+// Geen aparte eindunit voor de andere kant (Algeco): dezelfde eindunit, 180° gedraaid.
+export function schakelGedraaid(elementen, fam, rol) {
+  if (rol !== 'D' && rol !== 'F') return null;
+  const ander = schakelElement(elementen, fam, rol === 'D' ? 'F' : 'D');
+  return ander && schakelVan(ander).draaibaar ? ander : null;
 }
 
 // Open zijden van een lid in het kader van de groep (L = −x, R = +x).
@@ -192,6 +201,7 @@ export function containerTelling(groep) {
 // 3D: elke unit een doos met hoekstijlen en een dak; open zijden van schakelunits zonder wand; trappen met bordes.
 // Uitzicht per leverancier: Rob Units = blauw kader en crème golfplaat, Warsco = antraciet kader en lichte sandwichpanelen.
 export function unitStijl(el) {
+  if (/algeco/i.test(el?.leverancier || '')) return { kader: '#AEB3B8', boven: '#C8102E', paneel: '#F0F1EF', naad: '#D3D6D9', naadAf: 1.0 };
   if (/rob/i.test(el?.leverancier || '')) return { kader: '#1F5FB8', paneel: '#ECE6D3', naad: '#D6CFB9', naadAf: 0.12 };
   return { kader: '#3A4046', paneel: '#E4E3DD', naad: '#C9C8C1', naadAf: 1.1 };
 }
@@ -230,7 +240,7 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
     for (const [x, y] of [[x0 + h, y0 + h], [x1 - h, y0 + h], [x1 - h, y1 - h], [x0 + h, y1 - h]]) balk([x, y, z0], [x, y, z1], [P, P], KADER2);
     // Onder- en bovenframe rondom (bij een open schakelzijde ook: het frame blijft).
     const rand = [[[x0, y0 + h], [x1, y0 + h], 'V'], [[x1 - h, y0], [x1 - h, y1], 'R'], [[x1, y1 - h], [x0, y1 - h], 'A'], [[x0 + h, y1], [x0 + h, y0], 'L']];
-    for (const [a, b] of rand) { balk([a[0], a[1], z0 + ONDER / 2], [b[0], b[1], z0 + ONDER / 2], [P, ONDER], KADER2); balk([a[0], a[1], z1 - BOVEN / 2], [b[0], b[1], z1 - BOVEN / 2], [P, BOVEN], KADER2); }
+    for (const [a, b] of rand) { balk([a[0], a[1], z0 + ONDER / 2], [b[0], b[1], z0 + ONDER / 2], [P, ONDER], KADER2); balk([a[0], a[1], z1 - BOVEN / 2], [b[0], b[1], z1 - BOVEN / 2], [P, BOVEN], st.boven || KADER2); }
     // Dak: iets onder de bovenrand, met een lichte goot.
     vlak([[x0 + P, y0 + P, z1 - 0.06], [x1 - P, y0 + P, z1 - 0.06], [x1 - P, y1 - P, z1 - 0.06], [x0 + P, y1 - P, z1 - 0.06]], DAK, 1, dataDak);
     // Vloer binnen (zichtbaar bij open zijden).
@@ -246,7 +256,7 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
       for (let k = 1; k < nr; k++) { const f = k / nr; const q = [a[0] + (b[0] - a[0]) * f + n[0] * 0.005, a[1] + (b[1] - a[1]) * f + n[1] * 0.005]; balk([q[0], q[1], za], [q[0], q[1], zb], [st.naadAf < 0.5 ? 0.035 : 0.02, st.naadAf < 0.5 ? 0.02 : 0.012], st.naad, { mat: 'mat' }); }
     }
     // Deuren en ramen (vast per unit, zoals de leverancier ze levert).
-    if (g.T) for (const o of g.el?.eigenschappen?.gevel || []) {
+    if (g.T) for (const o of g.it?.velden?.gevel || g.el?.eigenschappen?.gevel || []) {
       const { a, e, n } = gevelLijn(o, g.Lu, g.Bu); const [onder, hoog] = gevelHoogte(o);
       const zo = za + (o.soort === 'raam' ? onder - VLOER : 0); const zt = Math.min(zb - 0.02, zo + hoog);
       const Q = (q, d) => g.T([q[0] + n[0] * d, q[1] + n[1] * d]);
