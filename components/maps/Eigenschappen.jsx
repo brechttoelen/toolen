@@ -13,7 +13,7 @@ import { vraagTekst } from './dialoog';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { parcoursKant, andereKant, pootjesKant } from './hekzijde';
 import { isDeurElement, isPoortElement, deurLijnId, deurBreedte, schuifOpening, deurPlaats } from './deur';
-import { effectieveStijl, tekeningZijdig, maten, matenTekst, modules, KLEUREN, VULLINGEN, toebehorenTelling, toebehorenVan, toebehorenInst, driehoekPlekken, nadenVan, doekRuns, overlapVan, overlapKanten, overlapLangs, padMaat, isRijpad, verspringVan, heeftFracties, fractiesVan, toegelatenFracties, fractieVan, rijenVan, isTotem, isPaneel, isVlag, isVlagHek, isFrame, isDrape, totemPanelen, TOTEM_ZIJDEN, herkomstVan, trussDoek, zijdenVan, moduleMaat, hellingVan, inBanen, tentVloerItem, hulpKleur, toebehorenNaam } from './stijl';
+import { effectieveStijl, tekeningZijdig, maten, matenTekst, modules, KLEUREN, VULLINGEN, toebehorenTelling, toebehorenVan, toebehorenInst, driehoekPlekken, nadenVan, doekRuns, overlapVan, overlapKanten, overlapLangs, padMaat, isRijpad, verspringVan, heeftFracties, fractiesVan, toegelatenFracties, fractieVan, rijenVan, isTotem, isPaneel, isVlag, isVlagHek, isFrame, isDrape, totemPanelen, TOTEM_ZIJDEN, herkomstVan, trussDoek, zijdenVan, moduleMaat, hellingVan, inBanen, tentVloerItem, hulpKleur, toebehorenNaam, VOERTUIGKLEUREN } from './stijl';
 import { KAARTICONEN, IcoonSvg, IcoonKiezer, icoonNaam } from './kaarticonen';
 import { Snelstijlen, StijlVisueel } from './LijnStijl';
 import * as geo from './geo';
@@ -355,6 +355,17 @@ export default function Eigenschappen(props) {
               Helling {geo.getal(m.graden, 1)}° · {Math.round(m.procent)} % (stijgt {geo.getal(m.stijg, 2)} m over {geo.getal(m.Lh, 2)} m){m.procent > 25 ? ' · steil: neem een vak meer' : ''}
             </div>
             <div className="fm-sub">Totaal {geo.getal(m.L, 2)} m lang (met aanloop van 1,76 m aan elke kant) · {st.vloer} vloerelementen · {st.helling} hellingelementen</div>
+          </div>
+        );
+      })(),
+      item.soort === 'element' && el?.eigenschappen?.kleurbaar && (() => {
+        const k = (velden.kleur || '#FFFFFF').toUpperCase();
+        return (
+          <div className="fm-veld">Kleur
+            <div className="fm-kleuren">
+              {VOERTUIGKLEUREN.map((c) => <button key={c} className={k === c ? 'aan' : ''} style={{ background: c }} aria-label={c} disabled={ro} onClick={() => zetVeld('kleur', c === '#FFFFFF' ? undefined : c)} />)}
+              <input type="color" value={k.toLowerCase()} disabled={ro} onChange={(e) => zetVeld('kleur', e.target.value.toUpperCase())} aria-label="Eigen kleur" title="Eigen kleur" style={{ padding: 0, border: '1px solid #DADDE3' }} />
+            </div>
           </div>
         );
       })(),

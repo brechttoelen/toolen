@@ -261,6 +261,7 @@ export function pasTekeningAan(tek, item, el, i = null) {
   if (e.inzet === 'poort' && p.dubbel) tek = dubbelePoort(tek);
   if (!tek) return tek;
   let t = heeftFracties(el) ? metFracties(tek, i == null ? fractiesVan(item, el) : [fractiesVan(item, el)[i]]) : tek;
+  if (e.kleurbaar && v.kleur) t = metCarrosserie(t, v.kleur);
   const montage = v.montage || e.montages?.[0]?.[0] || null;
   const rijen = rijenVan(item, el);
   const kop = e.kop_draaibaar ? Number(p.kop_rot) || 0 : 0;
@@ -279,6 +280,22 @@ export function pasTekeningAan(tek, item, el, i = null) {
     }),
   };
 }
+// Voertuigen: de witte carrosserie in een eigen kleur, het dak een tikje lichter.
+const WIT = new Set(['#ffffff', '#fff']); const DAK = new Set(['#f4f5f7', '#f1f2f4']);
+const lichter = (hex, f) => { const n = parseInt(hex.slice(1), 16); const c = [n >> 16, (n >> 8) & 255, n & 255].map((x) => Math.round(x + (255 - x) * f)); return `#${c.map((x) => x.toString(16).padStart(2, '0')).join('')}`; };
+const kleurCache = new WeakMap();
+export function metCarrosserie(tek, kleur) {
+  if (!/^#[0-9a-f]{6}$/i.test(kleur || '')) return tek;
+  const sleutel = kleurCache.get(tek) || new Map(); kleurCache.set(tek, sleutel);
+  if (sleutel.has(kleur)) return sleutel.get(kleur);
+  const dak = lichter(kleur, 0.18);
+  const uit = { ...tek, vlakken: (tek.vlakken || []).map((x) => { const k = String(x.vul || '').toLowerCase(); return WIT.has(k) ? { ...x, vul: kleur } : DAK.has(k) ? { ...x, vul: dak } : x; }) };
+  if (sleutel.size > 30) sleutel.clear();
+  sleutel.set(kleur, uit);
+  return uit;
+}
+export const VOERTUIGKLEUREN = ['#FFFFFF', '#C9CDD2', '#6B7280', '#1F2937', '#111111', '#C8102E', '#1F5FB8', '#0B2A5B', '#0B7A3E', '#F2C200', '#EA580C'];
+
 // Twee vleugels van een poort naast elkaar: de tekening (één vleugel, scharnier links) links,
 // en gespiegeld rechts. Breedte verdubbelt.
 const dubbelCache = new WeakMap();
