@@ -3098,7 +3098,9 @@ export default function Editor({ planId }) {
         // Ander type (schakelunit eind/midden) of 180° gedraaid: zelfde midden.
         const e2 = arg?.el ? st.current.elementen.find((x) => x.id === arg.el) : null;
         const p0 = it.parameters || {}; const b = e2 ? Number(e2.breedte_m) || p0.breedte : p0.breedte; const d = e2 ? Number(e2.diepte_m) || p0.diepte : p0.diepte; const rot = arg?.rot != null ? arg.rot : Number(p0.rot) || 0;
-        wijzigItem(it.id, { ...(e2 ? { element_id: e2.id } : {}), geometrie: geo.elementVeelhoek(p0.midden, b, d, rot), parameters: { ...p0, breedte: b, diepte: d, rot } });
+        const mid = arg?.midden || p0.midden;
+        const velden = arg?.verdieping != null ? (() => { const { verdieping: _v, ...r } = it.velden || {}; return arg.verdieping ? { ...r, verdieping: arg.verdieping } : r; })() : it.velden;
+        wijzigItem(it.id, { ...(e2 ? { element_id: e2.id } : {}), geometrie: geo.elementVeelhoek(mid, b, d, rot), parameters: { ...p0, midden: mid, breedte: b, diepte: d, rot }, velden });
         setTimeout(syncTd, 0);
         break;
       }

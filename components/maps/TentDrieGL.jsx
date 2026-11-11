@@ -27,7 +27,7 @@ export async function sfeer(T, rend, w, { grond = '#8E9A7C' } = {}) {
 }
 const PX = 0.016; // lijndikte (px in de 2D-tekening) → straal in meter
 const leeg = (d) => !d || !Object.keys(d).length;
-const zelfde = (a, b) => !!a && !!b && a.seg === b.seg && a.dak === b.dak && a.lid === b.lid && a.frame === b.frame && (a.pan == null || b.pan == null || a.pan === b.pan);
+const zelfde = (a, b) => !!a && !!b && a.seg === b.seg && a.dak === b.dak && a.lid === b.lid && a.frame === b.frame && a.unit === b.unit && (a.pan == null || b.pan == null || a.pan === b.pan);
 
 // Alle stukken als meshes. Geeft de groep en de klikbare doelen (mesh → data).
 function bouw(T, prims, laad) {
@@ -141,7 +141,10 @@ export function tentFoto(prims, sleutel, { b = 640, h = 360, hoek = 32, kantel =
 
 // kies(data) = klik op een wand, paneel, frame, dakvlak of gekoppelde tent (null = ernaast).
 // drop(data, sleepdata) = iets uit het palet erop gesleept. sleepInter(seg, x) = intergevel naar positie x (m) gesleept.
-export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter = null, gekozen = null, hoek = 32, kantel = 24, onOver = null }) {
+// sleepVrij(fase, data, grond, hit) = een stuk met data.sleep vrij verslepen over de grond (containerbouwer):
+//   fase 'beweeg' | 'los'; grond = [x, y] in meters (zelfde assen als de prims); hit = data onder de muis (zonder het versleepte stuk).
+// dropVrij(fase, grond, hit) = iets uit het palet over de grond slepen ('over') of loslaten ('los'). bevries = standpunt niet aanpassen.
+export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter = null, gekozen = null, hoek = 32, kantel = 24, onOver = null, sleepVrij = null, dropVrij = null, bevries = false }) {
   const ref = useRef(null); const api = useRef(null); const [klaar, setKlaar] = useState(false); const [fout, setFout] = useState('');
   useEffect(() => {
     let weg = false; let rend = null; let ro = null; let ctl = null;
@@ -176,7 +179,7 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
     a.thuis = () => { standpunt(a.cam, c, r, hoek, kantel); a.ctl.target.copy(c); a.ctl.update(); a.teken(); };
     // Opnieuw in beeld brengen als het geheel duidelijk groter of kleiner wordt, of verschuift (bv. een unit erbij).
     const weg = a.vorigeC ? c.distanceTo(a.vorigeC) : 0;
-    if (eerste.current || (a.vorigeR && (r > a.vorigeR * 1.2 || r < a.vorigeR / 1.6 || weg > a.vorigeR * 0.35))) { eerste.current = false; a.thuis(); a.vorigeR = r; a.vorigeC = c.clone(); }
+    if (eerste.current || (!bevries && a.vorigeR && (r > a.vorigeR * 1.2 || r < a.vorigeR / 1.6 || weg > a.vorigeR * 0.35))) { eerste.current = false; a.thuis(); a.vorigeR = r; a.vorigeC = c.clone(); }
     a.teken();
   }, [klaar, prims]); // eslint-disable-line react-hooks/exhaustive-deps
   const vorigStand = useRef(`${hoek}|${kantel}`);
@@ -186,6 +189,15 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
   const dropRef = useRef(drop); dropRef.current = drop;
   const interRef = useRef(sleepInter); interRef.current = sleepInter;
   const overRef = useRef(onOver); overRef.current = onOver;
+  const vrijRef = useRef(sleepVrij); vrijRef.current = sleepVrij;
+  const sleepToestand = useRef({ neer: null, sleep: null });
+  const dropVrijRef = useRef(dropVrij); dropVrijRef.current = dropVrij;
+  // Punt op de grond (z = 0) onder de muis, in prim-coördinaten [x, y].
+  const grond = (e) => {
+    const a = api.current; if (!a) return null; const r = a.rend.domElement.getBoundingClientRect(); const ray = new a.T.Raycaster();
+    ray.setFromCamera(new a.T.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), a.cam);
+    const pt = new a.T.Vector3(); return ray.ray.intersectPlane(new a.T.Plane(new a.T.Vector3(0, 1, 0), 0), pt) ? [pt.x, -pt.z] : null;
+  };
   // Wat ligt er onder de muis: het dichtste klikbare stuk (constructie zonder doel houdt de klik niet tegen).
   const pick = (e) => {
     const a = api.current; if (!a) return null; const r = a.rend.domElement.getBoundingClientRect();
@@ -199,7 +211,7 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
   };
   useEffect(() => {
     const a = api.current; if (!klaar || !a) return undefined;
-    const el = a.rend.domElement; let neer = null; let hover = null; let sleep = null; let raf = 0;
+    const el = a.rend.domElement; let hover = null; let raf = 0; const D = sleepToestand.current; // D.neer en D.sleep blijven bewaard als de prims tijdens het slepen opnieuw opgebouwd worden
     const toon = (d) => {
       if (zelfde(d, hover) || (!d && !hover)) return; hover = d;
       if (a.gloed) { a.scene.remove(a.gloed); a.gloed = null; }
@@ -207,17 +219,20 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
       el.style.cursor = !d ? '' : d.seg?.startsWith('I-') && interRef.current ? 'ew-resize' : 'pointer'; a.teken();
     };
     const opNeer = (e) => {
-      if (e.button !== 0) return; neer = [e.clientX, e.clientY];
-      const h = pick(e); if (h?.data?.seg?.startsWith('I-') && interRef.current) { sleep = { seg: h.data.seg, bezig: false }; a.ctl.enabled = false; }
+      if (e.button !== 0) return; D.neer = [e.clientX, e.clientY];
+      const h = pick(e); if (h?.data?.seg?.startsWith('I-') && interRef.current) { D.sleep = { seg: h.data.seg, bezig: false }; a.ctl.enabled = false; }
+      else if (h?.data?.sleep && vrijRef.current) { D.sleep = { vrij: h.data, bezig: false }; a.ctl.enabled = false; }
     };
     const opBeweeg = (e) => {
-      if (sleep) { if (!sleep.bezig && neer && Math.hypot(e.clientX - neer[0], e.clientY - neer[1]) > 4) sleep.bezig = true; if (sleep.bezig) { const x = grondX(e); if (x != null) overRef.current?.({ inter: x }); } return; }
+      if (D.sleep?.vrij) { if (!D.sleep.bezig && D.neer && Math.hypot(e.clientX - D.neer[0], e.clientY - D.neer[1]) > 5) D.sleep.bezig = true; if (D.sleep.bezig) { const g = grond(e); const ev = { clientX: e.clientX, clientY: e.clientY }; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { const h = pick(ev); vrijRef.current?.('beweeg', D.sleep?.vrij, g, h?.data && !zelfde(h.data, D.sleep?.vrij) ? h.data : null); }); } return; }
+      if (D.sleep) { if (!D.sleep.bezig && D.neer && Math.hypot(e.clientX - D.neer[0], e.clientY - D.neer[1]) > 4) D.sleep.bezig = true; if (D.sleep.bezig) { const x = grondX(e); if (x != null) overRef.current?.({ inter: x }); } return; }
       if (e.buttons || !kiesRef.current) return;
       cancelAnimationFrame(raf); const ev = { clientX: e.clientX, clientY: e.clientY }; raf = requestAnimationFrame(() => toon(pick(ev)?.data || null));
     };
     const opLos = (e) => {
-      if (sleep) { const s = sleep; sleep = null; a.ctl.enabled = true; overRef.current?.(null); if (s.bezig) { neer = null; const x = grondX(e); if (x != null) interRef.current?.(s.seg, x); return; } }
-      if (!neer || !kiesRef.current) return; const d = Math.hypot(e.clientX - neer[0], e.clientY - neer[1]); neer = null; if (d > 5) return;
+      if (D.sleep?.vrij) { const s = D.sleep; D.sleep = null; a.ctl.enabled = true; cancelAnimationFrame(raf); if (s.bezig) { D.neer = null; const h = pick(e); vrijRef.current?.('los', s.vrij, grond(e), h?.data && !zelfde(h.data, s.vrij) ? h.data : null); return; } }
+      if (D.sleep) { const s = D.sleep; D.sleep = null; a.ctl.enabled = true; overRef.current?.(null); if (s.bezig) { D.neer = null; const x = grondX(e); if (x != null) interRef.current?.(s.seg, x); return; } }
+      if (!D.neer || !kiesRef.current) return; const d = Math.hypot(e.clientX - D.neer[0], e.clientY - D.neer[1]); D.neer = null; if (d > 5) return;
       kiesRef.current(pick(e)?.data || null);
     };
     const opWeg = () => { cancelAnimationFrame(raf); toon(null); };
@@ -235,9 +250,9 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
   const zoom = (f) => { const a = api.current; if (!a) return; const d = a.cam.position.clone().sub(a.ctl.target).multiplyScalar(f); a.cam.position.copy(a.ctl.target).add(d); a.ctl.update(); a.teken(); };
   return (
     <div ref={ref} className="fm-wz fm-wz-gl" data-klaar={klaar ? '1' : '0'}
-      onDragOver={drop ? (e) => { e.preventDefault(); const h = pick(e); overRef.current?.(h?.data || null); } : undefined}
-      onDragLeave={drop ? () => overRef.current?.(null) : undefined}
-      onDrop={drop ? (e) => { e.preventDefault(); overRef.current?.(null); const h = pick(e); if (h?.data) dropRef.current?.({ seg: h.data.seg || null, pan: h.data.pan != null ? Number(h.data.pan) : null, dak: h.data.dak ?? null, frame: !!h.data.frame }, e.dataTransfer.getData('text/fm-tent')); } : undefined}>
+      onDragOver={drop || dropVrij ? (e) => { e.preventDefault(); const h = pick(e); if (dropVrij) dropVrijRef.current?.('over', grond(e), h?.data || null); else overRef.current?.(h?.data || null); } : undefined}
+      onDragLeave={drop || dropVrij ? () => { if (dropVrij) dropVrijRef.current?.('weg', null, null); else overRef.current?.(null); } : undefined}
+      onDrop={dropVrij ? (e) => { e.preventDefault(); const h = pick(e); dropVrijRef.current?.('los', grond(e), h?.data || null); } : drop ? (e) => { e.preventDefault(); overRef.current?.(null); const h = pick(e); if (h?.data) dropRef.current?.({ seg: h.data.seg || null, pan: h.data.pan != null ? Number(h.data.pan) : null, dak: h.data.dak ?? null, frame: !!h.data.frame }, e.dataTransfer.getData('text/fm-tent')); } : undefined}>
       {fout && <div className="fm-sub" style={{ padding: 12 }}>3D kon niet starten: {fout}</div>}
       <div className="fm-wz-zoom" onPointerDown={(e) => e.stopPropagation()}>
         <button type="button" aria-label="Inzoomen" onClick={() => zoom(0.75)}>+</button>
