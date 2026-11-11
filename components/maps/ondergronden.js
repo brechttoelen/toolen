@@ -140,12 +140,17 @@ export const FOTO_VL = {
   ...Object.fromEntries([2021, 2018, 2015].map((j) => [`z${j}`, OMZ(j)])),
 };
 let fotoVl = 'winter';
+let schaduw = 0;
+// Schaduw ophelderen: 0 = uit, 0.6 = lichter, 1 = sterk.
+export const SCHADUW = [[0, 'Uit'], [0.6, 'Lichter'], [1, 'Sterk']];
 export const fotoVlTegel = (z, x, y) => FOTO_VL[fotoVl].tegel.replace('{z}', z).replace('{y}', y).replace('{x}', x);
-export function kiesFotoVl(soort, map = null) {
-  const k = FOTO_VL[soort] ? soort : 'winter';
-  fotoVl = k;
+const vlTegel = () => (schaduw ? `fmschaduw://${schaduw}/${FOTO_VL[fotoVl].tegel}` : FOTO_VL[fotoVl].tegel);
+// Kies opname en schaduwcorrectie (uit plan.instellingen); met een kaart erbij meteen toepassen.
+export function kiesFotoVl(inst, map = null) {
+  fotoVl = FOTO_VL[inst?.fotoVl] ? inst.fotoVl : 'winter';
+  schaduw = SCHADUW.some(([k]) => k === Number(inst?.schaduw)) ? Number(inst.schaduw) : 0;
   const bron = map?.getSource?.('vl-ortho');
-  if (!bron || (bron.tiles?.[0] === FOTO_VL[k].tegel && bron.maxzoom === FOTO_VL[k].max)) return;
+  if (!bron || (bron.tiles?.[0] === vlTegel() && bron.maxzoom === FOTO_VL[fotoVl].max)) return;
   // Maxzoom van een bron is vast: laag en bron opnieuw toevoegen op dezelfde plek.
   const lagen = map.getStyle()?.layers || [];
   const i = lagen.findIndex((l) => l.id === 'og-vl-ortho');
@@ -155,7 +160,66 @@ export function kiesFotoVl(soort, map = null) {
   map.addSource('vl-ortho', vlBron());
   map.addLayer(laag, voor);
 }
-const vlBron = () => ({ ...BRONNEN['vl-ortho'], tiles: [FOTO_VL[fotoVl].tegel], maxzoom: FOTO_VL[fotoVl].max });
+const vlBron = () => ({ ...BRONNEN['vl-ortho'], tiles: [vlTegel()], maxzoom: FOTO_VL[fotoVl].max });
+export const inVlaanderen = (c) => Array.isArray(c) && c[0] >= GEBIED.vl[0] && c[0] <= GEBIED.vl[2] && c[1] >= GEBIED.vl[1] && c[1] <= GEBIED.vl[3];
+
+// Schaduw ophelderen. Een schaduw is donker én blauw (enkel licht van de hemel). Op een vervaagde
+// versie van de tegel (zodat auto's en strepen in de schaduw hun contrast houden) wordt per plek
+// bepaald hoeveel schaduw er is; daar gaat de blauwe zweem eruit en wordt het beeld versterkt tot
+// een gewone helderheid. Zonnige delen blijven ongemoeid. Een echte schaduw wegrekenen kan niet:
+// wat eronder ligt, wordt enkel weer zichtbaar.
+function vervaag(v, w, h, r = 4) {
+  const t = new Float32Array(v.length);
+  const pas = (bron, doel, hor) => {
+    const len = hor ? w : h; const rijen = hor ? h : w;
+    for (let a = 0; a < rijen; a++) {
+      const at = hor ? (b) => a * w + b : (b) => b * w + a;
+      let som = 0; let cnt = 0;
+      for (let b = 0; b <= r && b < len; b++) { som += bron[at(b)]; cnt++; }
+      for (let b = 0; b < len; b++) {
+        doel[at(b)] = som / cnt;
+        if (b + r + 1 < len) { som += bron[at(b + r + 1)]; cnt++; }
+        if (b - r >= 0) { som -= bron[at(b - r)]; cnt--; }
+      }
+    }
+  };
+  pas(v, t, true); pas(t, v, false); pas(v, t, true); pas(t, v, false);
+  return v;
+}
+function helderSchaduw(img, k) {
+  const { width: w, height: h, data: d } = img; const n = w * h;
+  const Y = new Float32Array(n); const cR = new Float32Array(n); const cG = new Float32Array(n); const cB = new Float32Array(n);
+  for (let i = 0, j = 0; i < n; i++, j += 4) {
+    const r = d[j] / 255; const g = d[j + 1] / 255; const b = d[j + 2] / 255;
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    Y[i] = y; cR[i] = r - y; cG[i] = g - y; cB[i] = b - y;
+  }
+  vervaag(Y, w, h); vervaag(cR, w, h); vervaag(cG, w, h); vervaag(cB, w, h);
+  const glad = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+  for (let i = 0, j = 0; i < n; i++, j += 4) {
+    const lb = Y[i];
+    const md = (0.38 - lb) / 0.22;
+    const mb = Math.min(1, Math.max(0, (cB[i] - cR[i] - 0.04) / 0.1)) * Math.min(1, Math.max(0, (0.8 - lb) / 0.2));
+    const m = glad(Math.max(md, mb)) * k;
+    if (m <= 0) continue;
+    const g = 1 + (Math.min(2.4, Math.max(1, (0.42 + 0.25 * mb) / Math.max(lb, 0.08))) - 1) * m;
+    const R = (d[j] / 255 - cR[i] * m) * g * 255; const G = (d[j + 1] / 255 - cG[i] * m) * g * 255; const B = (d[j + 2] / 255 - cB[i] * m) * g * 255;
+    d[j] = R < 0 ? 0 : R > 255 ? 255 : R; d[j + 1] = G < 0 ? 0 : G > 255 ? 255 : G; d[j + 2] = B < 0 ? 0 : B > 255 ? 255 : B;
+  }
+  return img;
+}
+async function schaduwTegel(url, k, abort) {
+  const res = await fetch(url, { signal: abort.signal });
+  if (res.status === 404 || res.status === 204) return leegPng();
+  if (!res.ok) throw new Error(`Tegel ${res.status}`);
+  const blob = await res.blob();
+  if (typeof OffscreenCanvas === 'undefined') return blob.arrayBuffer();
+  const bm = await createImageBitmap(blob);
+  const c = new OffscreenCanvas(bm.width, bm.height); const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(bm, 0, 0);
+  ctx.putImageData(helderSchaduw(ctx.getImageData(0, 0, c.width, c.height), k), 0, 0);
+  return (await c.convertToBlob({ type: 'image/png' })).arrayBuffer();
+}
 
 const FOTO_BASIS = ESRI ? ['s2', 'esri'] : ['s2'];
 
@@ -180,6 +244,10 @@ export function registreerProtocollen() {
   });
   // Tegels die buiten hun gebied wit zijn: wit doorzichtig maken.
   maplibregl.addProtocol('wit', async (params, abort) => ({ data: await witWeg(params.url.slice(6), abort) }));
+  maplibregl.addProtocol('fmschaduw', async (params, abort) => {
+    const [, k, url] = params.url.match(/^fmschaduw:\/\/([\d.]+)\/(.*)$/) || [];
+    return { data: await schaduwTegel(url, Number(k) || 1, abort) };
+  });
 }
 
 async function leegPng() {

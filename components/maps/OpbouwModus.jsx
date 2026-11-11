@@ -157,7 +157,7 @@ export default function OpbouwModus({ planId }) {
   useEffect(() => {
     if (!plan || !kaartRef.current || mapRef.current) return;
     registreerProtocollen();
-    const map = new maplibregl.Map({ container: kaartRef.current, style: (kiesFotoVl(plan.instellingen?.fotoVl), basisStijl(plan.basiskaart || 'luchtfoto')), center: plan.centrum || [4.4, 50.9], zoom: Number(plan.zoom) || 17, maxZoom: 21, dragRotate: false, attributionControl: { compact: true } });
+    const map = new maplibregl.Map({ container: kaartRef.current, style: (kiesFotoVl(plan.instellingen), basisStijl(plan.basiskaart || 'luchtfoto')), center: plan.centrum || [4.4, 50.9], zoom: Number(plan.zoom) || 17, maxZoom: 21, dragRotate: false, attributionControl: { compact: true } });
     klapBronvermeldingIn(map);
     map.touchZoomRotate.disableRotation();
     const geo = new maplibregl.GeolocateControl({ trackUserLocation: true, positionOptions: { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 } });

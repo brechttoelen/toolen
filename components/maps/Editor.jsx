@@ -16,7 +16,7 @@ import Botsingen from './Botsingen';
 import { startLive, startLobby } from './live';
 import Aanwezigen, { anderenUit, kleurVoor, SlotBanner } from './Aanwezigheid';
 import { ClaimKnop, geldigeClaim, nieuweClaim, ItemGeschiedenis, sindsVorigBezoek, Aankondiging } from './Werkverdeling';
-import { basisStijl, zetOndergrond, registreerProtocollen, ONDERGRONDEN, klapBronvermeldingIn, FOTO_VL, kiesFotoVl } from './ondergronden';
+import { basisStijl, zetOndergrond, registreerProtocollen, ONDERGRONDEN, klapBronvermeldingIn, FOTO_VL, kiesFotoVl, SCHADUW, inVlaanderen } from './ondergronden';
 import { metTekeningen } from './tekeningen';
 import { stellingPunten, kaartLagen, naarGeojson, zorgVoorPatronen, effectieveStijl, tekeningZijdig, maten, matenTekst, nadenVan, heeftFracties, toegelatenFracties, herkomstVan, paalVerdeling, paalPerPunt, hulplijnenVan, herschikKoord, koordVan, hekStuk, isHekElement } from './stijl';
 import { bronBijwerken, bronVerberg, bronHerstel } from './kaartbron';
@@ -1285,7 +1285,7 @@ export default function Editor({ planId }) {
     const centrum = Array.isArray(plan.centrum) ? plan.centrum : [3.6031, 50.8456];
     const map = new maplibregl.Map({
       container: kaartRef.current,
-      style: (kiesFotoVl(plan.instellingen?.fotoVl), basisStijl(plan.basiskaart || 'luchtfoto')),
+      style: (kiesFotoVl(plan.instellingen), basisStijl(plan.basiskaart || 'luchtfoto')),
       center: centrum, zoom: Number(plan.zoom) || 17, maxZoom: 22,
       attributionControl: { compact: true }, preserveDrawingBuffer: false, dragRotate: false,
     });
@@ -2234,8 +2234,8 @@ export default function Editor({ planId }) {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (map && kaartKlaar && plan) { kiesFotoVl(plan.instellingen?.fotoVl, map); zetOndergrond(map, plan.basiskaart); }
-  }, [plan?.basiskaart, plan?.instellingen?.fotoVl, kaartKlaar]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (map && kaartKlaar && plan) { kiesFotoVl(plan.instellingen, map); zetOndergrond(map, plan.basiskaart); }
+  }, [plan?.basiskaart, plan?.instellingen?.fotoVl, plan?.instellingen?.schaduw, kaartKlaar]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Onderleggers ----------
   useEffect(() => {
@@ -4611,9 +4611,11 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                 <div className="fm-menu fm-weergavemenu" style={{ right: 0, top: 34 }} onClick={(e) => e.stopPropagation()}>
                   <div className="fm-ctxkop">Ondergrond</div>
                   {Object.entries(ONDERGRONDEN).map(([k, v]) => <button key={k} role="menuitemradio" aria-checked={plan.basiskaart === k} className={plan.basiskaart === k ? 'aan' : ''} onClick={() => wijzigPlan({ basiskaart: k })}><span style={{ flex: 1 }}>{v.naam}</span>{plan.basiskaart === k && <Icoon naam="vink" maat={14} />}</button>)}
-                  {String(plan.basiskaart || 'luchtfoto').startsWith('luchtfoto') && (() => {
+                  {String(plan.basiskaart || 'luchtfoto').startsWith('luchtfoto') && inVlaanderen(mapRef.current ? mapRef.current.getCenter().toArray() : plan.centrum) && (() => {
                     const keys = Object.keys(FOTO_VL); const nu = FOTO_VL[plan.instellingen?.fotoVl] ? plan.instellingen.fotoVl : 'winter'; const i = keys.indexOf(nu);
-                    const kies = (k) => wijzigPlan({ instellingen: { ...(st.current.plan?.instellingen || {}), fotoVl: k } });
+                    const zetInst = (patch) => wijzigPlan({ instellingen: { ...(st.current.plan?.instellingen || {}), ...patch } });
+                    const kies = (k) => zetInst({ fotoVl: k });
+                    const sch = Number(plan.instellingen?.schaduw) || 0;
                     return (
                       <div className="fm-veld">Luchtfoto Vlaanderen
                         <div className="fm-fotojaar">
@@ -4623,6 +4625,8 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                           </select>
                           <button type="button" className="fm-knop klein" disabled={i >= keys.length - 1} aria-label="Volgende opname" onClick={() => kies(keys[i + 1])}>›</button>
                         </div>
+                        <span className="fm-sub">Schaduw ophelderen</span>
+                        <div className="fm-segment">{SCHADUW.map(([k, n]) => <button key={k} type="button" className={sch === k ? 'aan' : ''} onClick={() => zetInst({ schaduw: k || undefined })}>{n}</button>)}</div>
                       </div>
                     );
                   })()}

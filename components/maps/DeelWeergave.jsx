@@ -138,7 +138,7 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
     const b = bbox(items.filter((i) => !i.velden?.binnen).map((i) => i.geometrie));
     const centrum = Array.isArray(data.plan.centrum) ? data.plan.centrum : [4.4, 50.9];
     const map = new maplibregl.Map({
-      container: kaartRef.current, style: (kiesFotoVl(data.plan.instellingen?.fotoVl), basisStijl(data.plan.basiskaart || 'luchtfoto')),
+      container: kaartRef.current, style: (kiesFotoVl(data.plan.instellingen), basisStijl(data.plan.basiskaart || 'luchtfoto')),
       center: centrum, zoom: Number(data.plan.zoom) || 16, maxZoom: 22, dragRotate: false,
       attributionControl: { compact: true },
     });
