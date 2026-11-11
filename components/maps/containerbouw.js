@@ -21,6 +21,8 @@ export function schakelVan(el) {
   const r = /(BU-\d+-C)([DEF])\b/.exec(n); if (r) return { fam: `${el.leverancier || ''}|${r[1]}`, rol: r[2] };
   // Rob Units: 6500 (eind, open rechts) · 6600 (midden) · 6550 (eind, open links).
   const rob = /\(Rob (6500|6600|6550)\)/.exec(n); if (rob) return { fam: 'Rob Units|65', rol: { 6500: 'D', 6600: 'E', 6550: 'F' }[rob[1]] };
+  // Rob 6650 + 6700: koppel met gang (6 × 6 m), zonder middenstuk.
+  const paar = /\(Rob (6650|6700)\)/.exec(n); if (paar) return { fam: 'Rob Units|66', rol: paar[1] === '6650' ? 'D' : 'F' };
   return null;
 }
 export const openZijden = (rol) => (rol === 'D' ? ['R'] : rol === 'F' ? ['L'] : rol === 'E' ? ['L', 'R'] : []);
