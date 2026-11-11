@@ -128,10 +128,13 @@ export const BRONNEN = {
 
 // Luchtfoto Vlaanderen: de wintervlucht is het recentst maar heeft lange schaduwen (lage zon);
 // de zomervlucht is een jaar ouder maar met korte schaduwen. Keuze per plan (instellingen.fotoVl).
-const OMW = (j) => ({ naam: `Winter ${j}`, groep: 'Winter', tegel: KVP('OMW', `omwrgb${String(j).slice(2)}vl`) });
-const OMZ = (j) => ({ naam: `Zomer ${j}`, groep: 'Zomer', tegel: KVP('OMZ', `omzrgb${String(j).slice(2)}vl`) });
+// De server (GeoWebCache) heeft de oudere jaren enkel tot zoom 19 klaarstaan; dieper wordt elke tegel
+// op aanvraag gerenderd (± 1,5 s per tegel). Ook zit er geen extra detail meer in (25 cm). Daarom
+// stopt de bron op zoom 19 en vergroot MapLibre zelf. De meest recente opname staat tot zoom 20 klaar.
+const OMW = (j) => ({ naam: `Winter ${j}`, groep: 'Winter', max: 19, tegel: KVP('OMW', `omwrgb${String(j).slice(2)}vl`) });
+const OMZ = (j) => ({ naam: `Zomer ${j}`, groep: 'Zomer', max: 19, tegel: KVP('OMZ', `omzrgb${String(j).slice(2)}vl`) });
 export const FOTO_VL = {
-  winter: { naam: 'Winter · meest recent', groep: 'Winter', tegel: KVP('OMWRGBMRVL', 'omwrgbmrvl') },
+  winter: { naam: 'Winter · meest recent', groep: 'Winter', max: 20, tegel: KVP('OMWRGBMRVL', 'omwrgbmrvl') },
   ...Object.fromEntries([2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018].map((j) => [`w${j}`, OMW(j)])),
   zomer: OMZ(2024),
   ...Object.fromEntries([2021, 2018, 2015].map((j) => [`z${j}`, OMZ(j)])),
@@ -142,8 +145,17 @@ export function kiesFotoVl(soort, map = null) {
   const k = FOTO_VL[soort] ? soort : 'winter';
   fotoVl = k;
   const bron = map?.getSource?.('vl-ortho');
-  if (bron?.setTiles && bron.tiles?.[0] !== FOTO_VL[k].tegel) bron.setTiles([FOTO_VL[k].tegel]);
+  if (!bron || (bron.tiles?.[0] === FOTO_VL[k].tegel && bron.maxzoom === FOTO_VL[k].max)) return;
+  // Maxzoom van een bron is vast: laag en bron opnieuw toevoegen op dezelfde plek.
+  const lagen = map.getStyle()?.layers || [];
+  const i = lagen.findIndex((l) => l.id === 'og-vl-ortho');
+  if (i < 0) return;
+  const laag = lagen[i]; const voor = lagen[i + 1]?.id;
+  map.removeLayer('og-vl-ortho'); map.removeSource('vl-ortho');
+  map.addSource('vl-ortho', vlBron());
+  map.addLayer(laag, voor);
 }
+const vlBron = () => ({ ...BRONNEN['vl-ortho'], tiles: [FOTO_VL[fotoVl].tegel], maxzoom: FOTO_VL[fotoVl].max });
 
 const FOTO_BASIS = ESRI ? ['s2', 'esri'] : ['s2'];
 
@@ -217,7 +229,7 @@ export function basisStijl(ondergrond = 'luchtfoto', centrum = null) {
   return {
     version: 8,
     glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
-    sources: { ...Object.fromEntries(Object.entries(BRONNEN).map(([k, v]) => [k, k === 'vl-ortho' ? { ...v, tiles: [FOTO_VL[fotoVl].tegel] } : { ...v }])), ...(zicht.has('straten') || zicht.has('namen') ? { ofm: OFM } : {}) },
+    sources: { ...Object.fromEntries(Object.entries(BRONNEN).map(([k, v]) => [k, k === 'vl-ortho' ? vlBron() : { ...v }])), ...(zicht.has('straten') || zicht.has('namen') ? { ofm: OFM } : {}) },
     layers: [
       { id: 'og-achtergrond', type: 'background', paint: { 'background-color': '#f4f4f2' } },
       // Straten en straatnamen over de luchtfoto (OpenStreetMap-data via OpenFreeMap, vrij te gebruiken).
