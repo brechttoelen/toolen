@@ -77,6 +77,15 @@ function bouw(T, prims, laad) {
         m.castShadow = true; m.receiveShadow = true; groep.add(m);
         if (!leeg(p.data)) { m.userData.data = p.data; doelen.push(m); }
       } else groep.add(new T.Line(new T.BufferGeometry().setFromPoints([a, b]), lijnMat(p.kl)));
+    } else if (p.k === 'balk') {
+      // Rechthoekig profiel van a naar b (staal, hout …): d = [breedte, hoogte] van de doorsnede; de hoogte staat zo veel mogelijk verticaal.
+      const a = V(T, p.a); const b = V(T, p.b); const dir = b.clone().sub(a); const L = dir.length(); if (L < 0.002) continue; dir.normalize();
+      let zij = new T.Vector3().crossVectors(dir, Y); if (zij.lengthSq() < 1e-6) zij = new T.Vector3(1, 0, 0); zij.normalize();
+      const op = new T.Vector3().crossVectors(zij, dir).normalize();
+      const m = new T.Mesh(doos, mat(p.kl || '#6B7280', p.op ?? 1, { metaal: p.mat !== 'hout' && p.mat !== 'mat', hout: p.mat === 'hout' }));
+      m.matrixAutoUpdate = false; const M = new T.Matrix4().makeBasis(zij, dir, op); M.scale(new T.Vector3(p.d?.[0] || 0.05, L, p.d?.[1] || p.d?.[0] || 0.05)); M.setPosition(a.clone().add(b).multiplyScalar(0.5)); m.matrix.copy(M);
+      m.castShadow = true; m.receiveShadow = true; groep.add(m);
+      if (!leeg(p.data)) { m.userData.data = p.data; doelen.push(m); }
     } else if (p.k === 'doos') {
       const m = new T.Mesh(new T.BoxGeometry(p.s[0], p.s[2], p.s[1]), mat(p.kl || '#6B7280', 1, { metaal: true })); m.position.copy(V(T, p.p)); m.castShadow = true; m.receiveShadow = true; groep.add(m);
     } else if (p.k === 'voet') {

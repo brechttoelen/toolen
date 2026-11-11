@@ -6,6 +6,8 @@
 // Ramen en deuren liggen vast per unit (zoals de leverancier ze levert): de bouwer verandert er niets aan.
 const M_LAT = 110574; const mLng = (lat) => 111320 * Math.cos((lat * Math.PI) / 180);
 const rad = (g) => (g * Math.PI) / 180;
+// Units staan op houten blokken (± 15 cm); de vloer ligt ± 20 cm boven de onderkant van de unit.
+const OPLEG = 0.15; const VLOER = 0.2;
 
 export const isTrapEl = (el) => !!el && /trap/i.test(el.naam || '') && el.categorie === 'Units en containers';
 export const isUnitEl = (el) => !!el && !isTrapEl(el) && (el.categorie === 'Units en containers' || (el.categorie === 'Catering' && /container/i.test(`${el.naam} ${el.eigenschappen?.subgroep || ''}`)) || (el.categorie === 'Toiletten' && /container|unit/i.test(el.naam || '')))
@@ -62,9 +64,14 @@ export function unitGroep(it, el, items = [], elementenMap = new Map()) {
   // Hoogte van elk lid: bovenop de hoogste unit eronder.
   const perV = [...groep].sort((a, b) => a.v - b.v);
   for (const g of perV) {
-    if (!g.v) { g.z0 = 0; continue; }
+    if (!g.v) { g.z0 = g.trap ? 0 : OPLEG; continue; }
     const onder = perV.filter((o) => o.v === g.v - 1 && !o.trap && Math.min(o.x1, g.x1) - Math.max(o.x0, g.x0) > 0.3 && Math.min(o.y1, g.y1) - Math.max(o.y0, g.y0) > 0.3);
     g.z0 = onder.length ? Math.max(...onder.map((o) => o.z0 + o.H)) : g.v * 2.8;
+  }
+  // Trap: het bordes ligt op vloerhoogte van de unit(s) erboven die ertegen staan.
+  for (const t of groep.filter((x) => x.trap)) {
+    const boven = groep.filter((o) => !o.trap && o.v === t.v + 1 && Math.min(o.x1, t.x1) - Math.max(o.x0, t.x0) > 0.3 && Math.min(o.y1 + 0.3, t.y1) - Math.max(o.y0 - 0.3, t.y0) > 0);
+    t.H = (boven.length ? Math.min(...boven.map((o) => o.z0)) : t.z0 + OPLEG + 3) + VLOER - t.z0;
   }
   for (const g of groep) { if (leden.length < 40) leden.push(g); }
   return leden;
@@ -179,51 +186,101 @@ export function containerTelling(groep) {
 
 // 3D: elke unit een doos met hoekstijlen en een dak; open zijden van schakelunits zonder wand; trappen met bordes.
 export function containerPrims(groep, gekozen = null) {
-  const prims = []; const vlak = (w, vul, op = 1, data = null) => prims.push({ k: 'vlak', w, vul, op, rand: '#6B7280', data });
-  const lijn = (a, b, kl, r) => prims.push({ k: 'lijn', a, b, kl, r });
+  const prims = [];
+  const vlak = (w, vul, op = 1, data = null, rand = 'vul') => prims.push({ k: 'vlak', w, vul, op, rand, data });
+  const balk = (a, b, d, kl, extra = {}) => prims.push({ k: 'balk', a, b, d, kl, ...extra });
+  const KADER = '#3A4046'; const PANEEL = '#E4E3DD'; const NAAD = '#C9C8C1'; const DAK = '#8E9399'; const WIT = '#F4F5F3'; const GALVA = '#A9AEB2'; const ROOSTER = '#8D9398';
   for (const g of groep) {
     const { x0, y0, x1, y1 } = g; const z0 = g.z0 || 0; const data = { unit: g.it.id };
-    if (g.trap) {
-      // Trap langs x: van x0 (grond) naar x1 − bordes (boven), met een bordes van ± 1,4 m aan het einde.
-      const H = g.H; const lang = x1 - x0; const bord = Math.min(1.4, lang * 0.3); const xs = x1 - bord;
-      const n = Math.max(6, Math.round(H / 0.18));
-      for (let k = 0; k < n; k++) { const xa = x0 + ((xs - x0) * k) / n; const xb = x0 + ((xs - x0) * (k + 1)) / n; const z = z0 + (H * (k + 1)) / n; vlak([[xa, y0 + 0.05, z], [xb, y0 + 0.05, z], [xb, y1 - 0.05, z], [xa, y1 - 0.05, z]], '#9CA3AF', 1, data); }
-      vlak([[xs, y0, z0 + H], [x1, y0, z0 + H], [x1, y1, z0 + H], [xs, y1, z0 + H]], '#9CA3AF', 1, data);
-      for (const y of [y0 + 0.03, y1 - 0.03]) { lijn([x0, y, z0], [xs, y, z0 + H], '#6B7280', 0.03); lijn([x0, y, z0 + 1], [xs, y, z0 + H + 1], '#A3A9B0', 0.02); lijn([xs, y, z0 + H + 1], [x1, y, z0 + H + 1], '#A3A9B0', 0.02); }
-      for (const [x, y] of [[xs, y0], [x1, y0], [xs, y1], [x1, y1]]) lijn([x, y, z0], [x, y, z0 + H + 1], '#6B7280', 0.035);
-      continue;
-    }
+    if (g.trap) { trapPrims(g, { vlak, balk, GALVA, ROOSTER, data, groep }); continue; }
     const H = g.H; const z1 = z0 + H; const aan = gekozen === g.it.id;
-    const wand = aan ? '#BFDBFE' : '#E9ECEF'; const dak = aan ? '#93C5FD' : '#D1D5DB';
+    const pan = aan ? '#D3E2F5' : PANEEL;
     const open = new Set(openInGroep(g));
-    // Vloer en dak.
-    vlak([[x0, y0, z0 + 0.02], [x1, y0, z0 + 0.02], [x1, y1, z0 + 0.02], [x0, y1, z0 + 0.02]], '#B8BDC3', 1, data);
-    vlak([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], dak, 1, data);
-    // Wanden (L = −x, R = +x, V = −y, A = +y).
-    const W = { V: [[x0, y0], [x1, y0]], R: [[x1, y0], [x1, y1]], A: [[x1, y1], [x0, y1]], L: [[x0, y1], [x0, y0]] };
-    for (const [z, [a, b]] of Object.entries(W)) {
+    const P = 0.16; const h = P / 2; // hoekstijl 16 × 16 cm
+    const ONDER = 0.2; const BOVEN = 0.24; // onder- en bovenframe
+    // Houten blokken onder de hoeken en in het midden van de lange zijden (enkel op de grond).
+    if (!g.v) for (const [x, y] of [[x0 + 0.2, y0 + 0.2], [x1 - 0.2, y0 + 0.2], [x1 - 0.2, y1 - 0.2], [x0 + 0.2, y1 - 0.2], [(x0 + x1) / 2, y0 + 0.2], [(x0 + x1) / 2, y1 - 0.2]]) balk([x, y, 0], [x, y, z0], [0.3, 0.3], '#8B6E4E', { mat: 'hout' });
+    // Hoekstijlen.
+    for (const [x, y] of [[x0 + h, y0 + h], [x1 - h, y0 + h], [x1 - h, y1 - h], [x0 + h, y1 - h]]) balk([x, y, z0], [x, y, z1], [P, P], KADER);
+    // Onder- en bovenframe rondom (bij een open schakelzijde ook: het frame blijft).
+    const rand = [[[x0, y0 + h], [x1, y0 + h], 'V'], [[x1 - h, y0], [x1 - h, y1], 'R'], [[x1, y1 - h], [x0, y1 - h], 'A'], [[x0 + h, y1], [x0 + h, y0], 'L']];
+    for (const [a, b] of rand) { balk([a[0], a[1], z0 + ONDER / 2], [b[0], b[1], z0 + ONDER / 2], [P, ONDER], KADER); balk([a[0], a[1], z1 - BOVEN / 2], [b[0], b[1], z1 - BOVEN / 2], [P, BOVEN], KADER); }
+    // Dak: iets onder de bovenrand, met een lichte goot.
+    vlak([[x0 + P, y0 + P, z1 - 0.06], [x1 - P, y0 + P, z1 - 0.06], [x1 - P, y1 - P, z1 - 0.06], [x0 + P, y1 - P, z1 - 0.06]], DAK, 1, data);
+    // Vloer binnen (zichtbaar bij open zijden).
+    vlak([[x0 + P, y0 + P, z0 + ONDER], [x1 - P, y0 + P, z0 + ONDER], [x1 - P, y1 - P, z0 + ONDER], [x0 + P, y1 - P, z0 + ONDER]], '#7C7A73', 1, data);
+    // Wandpanelen tussen de frames, met de verticale naden van de sandwichpanelen (± 1,1 m).
+    const W = { V: [[x0 + P, y0], [x1 - P, y0], [0, -1]], R: [[x1, y0 + P], [x1, y1 - P], [1, 0]], A: [[x1 - P, y1], [x0 + P, y1], [0, 1]], L: [[x0, y1 - P], [x0, y0 + P], [-1, 0]] };
+    const za = z0 + ONDER; const zb = z1 - BOVEN;
+    for (const [z, [a0, b0, n]] of Object.entries(W)) {
       if (open.has(z)) continue;
-      vlak([[a[0], a[1], z0], [b[0], b[1], z0], [b[0], b[1], z1], [a[0], a[1], z1]], wand, 1, data);
-      // Golfplaat: een paar verticale ribben.
-      const l = Math.hypot(b[0] - a[0], b[1] - a[1]); const nr = Math.floor(l / 0.6);
-      for (let k = 1; k < nr; k++) { const f = k / nr; const p = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; lijn([p[0], p[1], z0 + 0.15], [p[0], p[1], z1 - 0.15], '#CBD0D5'); }
+      const a = [a0[0] - n[0] * 0.03, a0[1] - n[1] * 0.03]; const b = [b0[0] - n[0] * 0.03, b0[1] - n[1] * 0.03];
+      vlak([[a[0], a[1], za], [b[0], b[1], za], [b[0], b[1], zb], [a[0], a[1], zb]], pan, 1, data);
+      const l = Math.hypot(b[0] - a[0], b[1] - a[1]); const nr = Math.max(1, Math.round(l / 1.1));
+      for (let k = 1; k < nr; k++) { const f = k / nr; const q = [a[0] + (b[0] - a[0]) * f + n[0] * 0.005, a[1] + (b[1] - a[1]) * f + n[1] * 0.005]; balk([q[0], q[1], za], [q[0], q[1], zb], [0.02, 0.012], NAAD, { mat: 'mat' }); }
     }
-    // Kader: hoekstijlen, onder- en bovenregels.
-    const hk = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
-    for (const [x, y] of hk) lijn([x, y, z0], [x, y, z1], '#4B5563', 0.06);
-    for (let k = 0; k < 4; k++) { const a = hk[k]; const b = hk[(k + 1) % 4]; lijn([a[0], a[1], z0 + 0.05], [b[0], b[1], z0 + 0.05], '#4B5563', 0.05); lijn([a[0], a[1], z1 - 0.05], [b[0], b[1], z1 - 0.05], '#4B5563', 0.05); }
-    // Deuren en ramen (vast per unit), net voor de wand.
-    if (g.T) for (const op of g.el?.eigenschappen?.gevel || []) {
-      const { a, e, n } = gevelLijn(op, g.Lu, g.Bu); const [onder, hoog] = gevelHoogte(op); const za = z0 + onder; const zb = Math.min(z1 - 0.08, za + hoog);
-      const P = (q, d = 0.03) => { const r = g.T([q[0] + n[0] * d, q[1] + n[1] * d]); return r; };
-      const A2 = P(a); const E2 = P(e); const deur = op.soort !== 'raam';
-      vlak([[A2[0], A2[1], za], [E2[0], E2[1], za], [E2[0], E2[1], zb], [A2[0], A2[1], zb]], deur ? '#5B6470' : '#9DB8CC', deur ? 1 : 0.85, data);
-      const K = (p1, p2) => lijn([p1[0], p1[1], p1[2]], [p2[0], p2[1], p2[2]], '#2F363E', 0.025);
-      const A3 = P(a, 0.05); const E3 = P(e, 0.05);
-      K([A3[0], A3[1], za], [A3[0], A3[1], zb]); K([E3[0], E3[1], za], [E3[0], E3[1], zb]); K([A3[0], A3[1], zb], [E3[0], E3[1], zb]); if (!deur) K([A3[0], A3[1], za], [E3[0], E3[1], za]);
-      if (op.soort === 'deur2') { const M = P([(a[0] + e[0]) / 2, (a[1] + e[1]) / 2], 0.05); K([M[0], M[1], za], [M[0], M[1], zb]); }
-      if (!deur) { const M = P([(a[0] + e[0]) / 2, (a[1] + e[1]) / 2], 0.05); K([M[0], M[1], za], [M[0], M[1], zb]); }
+    // Deuren en ramen (vast per unit, zoals de leverancier ze levert).
+    if (g.T) for (const o of g.el?.eigenschappen?.gevel || []) {
+      const { a, e, n } = gevelLijn(o, g.Lu, g.Bu); const [onder, hoog] = gevelHoogte(o);
+      const zo = za + (o.soort === 'raam' ? onder - VLOER : 0); const zt = Math.min(zb - 0.02, zo + hoog);
+      const Q = (q, d) => g.T([q[0] + n[0] * d, q[1] + n[1] * d]);
+      const lang = [e[0] - a[0], e[1] - a[1]]; const ll = Math.hypot(...lang) || 1; const u = [lang[0] / ll, lang[1] / ll];
+      const L2 = (f, d) => Q([a[0] + u[0] * f, a[1] + u[1] * f], d);
+      const K = 0.06; // kaderbreedte
+      if (o.soort === 'raam') {
+        // PVC-raam: wit kader, glas, middenstijl en een rolluikkast erboven.
+        const g0 = L2(0, 0.0); const g1 = L2(ll, 0.0);
+        vlak([[g0[0], g0[1], zo], [g1[0], g1[1], zo], [g1[0], g1[1], zt], [g0[0], g0[1], zt]], '#7F97A8', 0.9, data);
+        const k0 = L2(0, 0.025); const k1 = L2(ll, 0.025); const m = L2(ll / 2, 0.025);
+        balk([k0[0], k0[1], zo], [k0[0], k0[1], zt], [K, 0.05], WIT, { mat: 'mat' }); balk([k1[0], k1[1], zo], [k1[0], k1[1], zt], [K, 0.05], WIT, { mat: 'mat' }); balk([m[0], m[1], zo], [m[0], m[1], zt], [0.05, 0.05], WIT, { mat: 'mat' });
+        balk([k0[0], k0[1], zo], [k1[0], k1[1], zo], [0.05, K], WIT, { mat: 'mat' }); balk([k0[0], k0[1], zt], [k1[0], k1[1], zt], [0.05, K], WIT, { mat: 'mat' });
+        const r0 = L2(-0.04, 0.07); const r1 = L2(ll + 0.04, 0.07); balk([r0[0], r0[1], zt + 0.1], [r1[0], r1[1], zt + 0.1], [0.14, 0.18], '#9CA1A6', { mat: 'mat' });
+        balk([L2(-0.03, 0.06)[0], L2(-0.03, 0.06)[1], zo - 0.02], [L2(ll + 0.03, 0.06)[0], L2(ll + 0.03, 0.06)[1], zo - 0.02], [0.1, 0.03], '#B9BDC1'); // vensterbank
+      } else {
+        // Stalen deur in een kader, met klink; dubbele deur met een middenstijl.
+        const d0 = L2(0, 0.0); const d1 = L2(ll, 0.0);
+        vlak([[d0[0], d0[1], zo], [d1[0], d1[1], zo], [d1[0], d1[1], zt], [d0[0], d0[1], zt]], '#D5D7D8', 1, data);
+        const k0 = L2(0, 0.025); const k1 = L2(ll, 0.025);
+        balk([k0[0], k0[1], zo], [k0[0], k0[1], zt + K], [K, 0.05], KADER); balk([k1[0], k1[1], zo], [k1[0], k1[1], zt + K], [K, 0.05], KADER); balk([k0[0], k0[1], zt + K / 2], [k1[0], k1[1], zt + K / 2], [0.05, K], KADER);
+        const vl = o.soort === 'deur2' ? [ll / 2 - 0.12, ll / 2 + 0.12] : [ll - 0.12];
+        if (o.soort === 'deur2') { const m = L2(ll / 2, 0.02); balk([m[0], m[1], zo], [m[0], m[1], zt], [0.03, 0.03], '#9EA3A7'); }
+        for (const f of vl) { const h0 = L2(f - 0.06, 0.06); const h1 = L2(f + 0.06, 0.06); balk([h0[0], h0[1], zo + 1.05], [h1[0], h1[1], zo + 1.05], [0.025, 0.025], '#2B2F33'); }
+      }
     }
   }
   return prims;
+}
+
+// Buitentrap met bordes (gegalvaniseerd): trap langs x van x0 tot het bordes, bordes van 1,4 m tegen x1.
+function trapPrims(g, { vlak, balk, GALVA, ROOSTER, data, groep = [] }) {
+  const { x0, y0, x1, y1 } = g;
+  // De kant tegen de units krijgt geen leuning.
+  const tegen = (y, k) => groep.some((o) => !o.trap && Math.abs((k ? o.y0 : o.y1) - y) < 0.12 && Math.min(o.x1, x1) - Math.max(o.x0, x0) > 0.3); const z0 = g.z0 || 0; const H = Math.max(1, g.H || 3.2); const ztop = z0 + H;
+  const bord = Math.min(1.4, (x1 - x0) * 0.3); const xs = x1 - bord; const yw = 0.06;
+  const n = Math.max(8, Math.round(H / 0.18)); const run = xs - x0; const tr = run / n; const rise = H / n;
+  // Twee trapbomen (U-profiel) van de grond tot het bordes.
+  for (const y of [y0 + yw, y1 - yw]) balk([x0, y, z0 + 0.1], [xs, y, ztop - 0.1], [0.06, 0.2], GALVA);
+  // Treden: roosters met een donkere voorrand.
+  for (let k = 1; k < n; k++) {
+    const x = x0 + tr * (k - 0.5); const z = z0 + rise * k;
+    balk([x, y0 + 0.12, z], [x, y1 - 0.12, z], [Math.min(0.26, tr * 1.05), 0.035], ROOSTER, { data });
+    balk([x + tr / 2 - 0.01, y0 + 0.12, z + 0.005], [x + tr / 2 - 0.01, y1 - 0.12, z + 0.005], [0.02, 0.035], '#5E6368');
+  }
+  // Bordes: rooster op een frame, vier poten met kruisverbanden.
+  vlak([[xs, y0, ztop], [x1, y0, ztop], [x1, y1, ztop], [xs, y1, ztop]], ROOSTER, 1, data);
+  for (const [a, b] of [[[xs, y0 + 0.04], [x1, y0 + 0.04]], [[xs, y1 - 0.04], [x1, y1 - 0.04]], [[xs + 0.04, y0], [xs + 0.04, y1]], [[x1 - 0.04, y0], [x1 - 0.04, y1]]]) balk([a[0], a[1], ztop - 0.07], [b[0], b[1], ztop - 0.07], [0.06, 0.14], GALVA);
+  const poten = [[xs + 0.05, y0 + 0.05], [x1 - 0.05, y0 + 0.05], [x1 - 0.05, y1 - 0.05], [xs + 0.05, y1 - 0.05]];
+  for (const [x, y] of poten) { balk([x, y, z0], [x, y, ztop - 0.14], [0.08, 0.08], GALVA); balk([x, y, z0 + 0.005], [x, y, z0 + 0.015], [0.25, 0.25], GALVA); }
+  for (const [p1, p2] of [[poten[0], poten[1]], [poten[3], poten[2]], [poten[1], poten[2]]]) { balk([p1[0], p1[1], z0 + 0.3], [p2[0], p2[1], ztop - 0.3], [0.04, 0.04], GALVA); balk([p2[0], p2[1], z0 + 0.3], [p1[0], p1[1], ztop - 0.3], [0.04, 0.04], GALVA); }
+  // Leuningen: palen, handregel op 1,1 m en een tussenregel, ook langs het bordes (niet aan de kant van de unit).
+  const LH = 1.1;
+  for (const y of [...(tegen(y0, false) ? [] : [y0 + 0.03]), ...(tegen(y1, true) ? [] : [y1 - 0.03])]) {
+    const nP = Math.max(2, Math.round(run / 1.2));
+    for (let k = 0; k <= nP; k++) { const f = k / nP; const x = x0 + 0.15 + (xs - x0 - 0.15) * f; const z = z0 + H * ((x - x0) / run); balk([x, y, z], [x, y, z + LH], [0.04, 0.04], GALVA); }
+    balk([x0 + 0.15, y, z0 + (H * 0.15) / run + LH], [xs, y, ztop + LH], [0.045, 0.045], GALVA);
+    balk([x0 + 0.15, y, z0 + (H * 0.15) / run + LH * 0.5], [xs, y, ztop + LH * 0.5], [0.03, 0.03], GALVA);
+    balk([xs, y, ztop + LH], [x1, y, ztop + LH], [0.045, 0.045], GALVA); balk([xs, y, ztop + LH * 0.5], [x1, y, ztop + LH * 0.5], [0.03, 0.03], GALVA);
+    balk([x1 - 0.03, y, ztop], [x1 - 0.03, y, ztop + LH], [0.04, 0.04], GALVA);
+    balk([xs, y, ztop + 0.05], [x1, y, ztop + 0.05], [0.01, 0.1], GALVA); // schopplint
+  }
 }
