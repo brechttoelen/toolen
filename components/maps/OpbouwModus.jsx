@@ -8,7 +8,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import * as turf from '@turf/turf';
 import './maps.css';
 import { maps, sb, BUCKET, foutTekst, wieBenIk, magSchrijven, publiekeUrl as publiekeUrlOp } from './db';
-import { basisStijl, registreerProtocollen, WA_TEGEL, klapBronvermeldingIn } from './ondergronden';
+import { basisStijl, registreerProtocollen, WA_TEGEL, klapBronvermeldingIn, kiesFotoVl, fotoVlTegel } from './ondergronden';
 import { kaartLagen, naarGeojson, zorgVoorPatronen, maten, matenTekst, doekenPerHek, isTotem, isVlag, isVlagHek, totemPanelen, trussDoek } from './stijl';
 import { middelpunt, kader, getal } from './geo';
 import { navigatieUrl } from './PopupInhoud';
@@ -127,7 +127,7 @@ export default function OpbouwModus({ planId }) {
       const [x0, y0] = tegel(b.getWest(), b.getNorth(), z);
       const [x1, y1] = tegel(b.getEast(), b.getSouth(), z);
       for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
-        if (inVl) urls.push(`https://geo.api.vlaanderen.be/OMWRGBMRVL/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=omwrgbmrvl&STYLE=&FORMAT=image/png&TILEMATRIXSET=GoogleMapsVL&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}`);
+        if (inVl) urls.push(fotoVlTegel(z, x, y));
         if (inNl) urls.push(`https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_orthoHR/EPSG:3857/${String(z).padStart(2, '0')}/${x}/${y}.jpeg`);
         if (inWa) urls.push(WA_TEGEL(bboxTekst(x, y, z)));
       }
@@ -157,7 +157,7 @@ export default function OpbouwModus({ planId }) {
   useEffect(() => {
     if (!plan || !kaartRef.current || mapRef.current) return;
     registreerProtocollen();
-    const map = new maplibregl.Map({ container: kaartRef.current, style: basisStijl(plan.basiskaart || 'luchtfoto'), center: plan.centrum || [4.4, 50.9], zoom: Number(plan.zoom) || 17, maxZoom: 21, dragRotate: false, attributionControl: { compact: true } });
+    const map = new maplibregl.Map({ container: kaartRef.current, style: (kiesFotoVl(plan.instellingen?.fotoVl), basisStijl(plan.basiskaart || 'luchtfoto')), center: plan.centrum || [4.4, 50.9], zoom: Number(plan.zoom) || 17, maxZoom: 21, dragRotate: false, attributionControl: { compact: true } });
     klapBronvermeldingIn(map);
     map.touchZoomRotate.disableRotation();
     const geo = new maplibregl.GeolocateControl({ trackUserLocation: true, positionOptions: { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 } });

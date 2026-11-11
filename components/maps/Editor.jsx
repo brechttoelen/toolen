@@ -16,7 +16,7 @@ import Botsingen from './Botsingen';
 import { startLive, startLobby } from './live';
 import Aanwezigen, { anderenUit, kleurVoor, SlotBanner } from './Aanwezigheid';
 import { ClaimKnop, geldigeClaim, nieuweClaim, ItemGeschiedenis, sindsVorigBezoek, Aankondiging } from './Werkverdeling';
-import { basisStijl, zetOndergrond, registreerProtocollen, ONDERGRONDEN, klapBronvermeldingIn } from './ondergronden';
+import { basisStijl, zetOndergrond, registreerProtocollen, ONDERGRONDEN, klapBronvermeldingIn, FOTO_VL, kiesFotoVl } from './ondergronden';
 import { metTekeningen } from './tekeningen';
 import { stellingPunten, kaartLagen, naarGeojson, zorgVoorPatronen, effectieveStijl, tekeningZijdig, maten, matenTekst, nadenVan, heeftFracties, toegelatenFracties, herkomstVan, paalVerdeling, paalPerPunt, hulplijnenVan, herschikKoord, koordVan, hekStuk, isHekElement } from './stijl';
 import { bronBijwerken, bronVerberg, bronHerstel } from './kaartbron';
@@ -1285,7 +1285,7 @@ export default function Editor({ planId }) {
     const centrum = Array.isArray(plan.centrum) ? plan.centrum : [3.6031, 50.8456];
     const map = new maplibregl.Map({
       container: kaartRef.current,
-      style: basisStijl(plan.basiskaart || 'luchtfoto'),
+      style: (kiesFotoVl(plan.instellingen?.fotoVl), basisStijl(plan.basiskaart || 'luchtfoto')),
       center: centrum, zoom: Number(plan.zoom) || 17, maxZoom: 22,
       attributionControl: { compact: true }, preserveDrawingBuffer: false, dragRotate: false,
     });
@@ -2234,8 +2234,8 @@ export default function Editor({ planId }) {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (map && kaartKlaar && plan) zetOndergrond(map, plan.basiskaart);
-  }, [plan?.basiskaart, kaartKlaar]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (map && kaartKlaar && plan) { kiesFotoVl(plan.instellingen?.fotoVl, map); zetOndergrond(map, plan.basiskaart); }
+  }, [plan?.basiskaart, plan?.instellingen?.fotoVl, kaartKlaar]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Onderleggers ----------
   useEffect(() => {
@@ -4611,6 +4611,13 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                 <div className="fm-menu fm-weergavemenu" style={{ right: 0, top: 34 }} onClick={(e) => e.stopPropagation()}>
                   <div className="fm-ctxkop">Ondergrond</div>
                   {Object.entries(ONDERGRONDEN).map(([k, v]) => <button key={k} role="menuitemradio" aria-checked={plan.basiskaart === k} className={plan.basiskaart === k ? 'aan' : ''} onClick={() => wijzigPlan({ basiskaart: k })}><span style={{ flex: 1 }}>{v.naam}</span>{plan.basiskaart === k && <Icoon naam="vink" maat={14} />}</button>)}
+                  {String(plan.basiskaart || 'luchtfoto').startsWith('luchtfoto') && (
+                    <label className="fm-veld">Luchtfoto Vlaanderen
+                      <select aria-label="Luchtfoto Vlaanderen" value={FOTO_VL[plan.instellingen?.fotoVl] ? plan.instellingen.fotoVl : 'winter'} onChange={(e) => wijzigPlan({ instellingen: { ...(st.current.plan?.instellingen || {}), fotoVl: e.target.value } })}>
+                        {Object.entries(FOTO_VL).map(([k, v]) => <option key={k} value={k}>{v.naam}</option>)}
+                      </select>
+                    </label>
+                  )}
                   {fasen.length > 0 && (
                     <label className="fm-veld">Fase
                       <select aria-label="Fase" value={actieveFase || ''} onChange={(e) => setActieveFase(e.target.value || null)}>

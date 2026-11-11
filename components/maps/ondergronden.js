@@ -126,6 +126,21 @@ export const BRONNEN = {
   },
 };
 
+// Luchtfoto Vlaanderen: de wintervlucht is het recentst maar heeft lange schaduwen (lage zon);
+// de zomervlucht is een jaar ouder maar met korte schaduwen. Keuze per plan (instellingen.fotoVl).
+export const FOTO_VL = {
+  winter: { naam: 'Recent (winter)', tegel: KVP('OMWRGBMRVL', 'omwrgbmrvl') },
+  zomer: { naam: 'Zomer 2024 · korte schaduw', tegel: KVP('OMZ', 'omzrgb24vl') },
+};
+let fotoVl = 'winter';
+export const fotoVlTegel = (z, x, y) => FOTO_VL[fotoVl].tegel.replace('{z}', z).replace('{y}', y).replace('{x}', x);
+export function kiesFotoVl(soort, map = null) {
+  const k = FOTO_VL[soort] ? soort : 'winter';
+  fotoVl = k;
+  const bron = map?.getSource?.('vl-ortho');
+  if (bron?.setTiles && bron.tiles?.[0] !== FOTO_VL[k].tegel) bron.setTiles([FOTO_VL[k].tegel]);
+}
+
 const FOTO_BASIS = ESRI ? ['s2', 'esri'] : ['s2'];
 
 // Welke rasterlagen bij welke ondergrond horen (onder → boven).
@@ -198,7 +213,7 @@ export function basisStijl(ondergrond = 'luchtfoto', centrum = null) {
   return {
     version: 8,
     glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
-    sources: { ...Object.fromEntries(Object.entries(BRONNEN).map(([k, v]) => [k, { ...v }])), ...(zicht.has('straten') || zicht.has('namen') ? { ofm: OFM } : {}) },
+    sources: { ...Object.fromEntries(Object.entries(BRONNEN).map(([k, v]) => [k, k === 'vl-ortho' ? { ...v, tiles: [FOTO_VL[fotoVl].tegel] } : { ...v }])), ...(zicht.has('straten') || zicht.has('namen') ? { ofm: OFM } : {}) },
     layers: [
       { id: 'og-achtergrond', type: 'background', paint: { 'background-color': '#f4f4f2' } },
       // Straten en straatnamen over de luchtfoto (OpenStreetMap-data via OpenFreeMap, vrij te gebruiken).
