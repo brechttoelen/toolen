@@ -6,6 +6,7 @@ import { mailDienst } from "@/lib/mail";
 import WachtwoordMails from "./WachtwoordMails";
 import Vrijgave from "./Vrijgave";
 import Fouten, { type FoutGroep } from "./Fouten";
+import Backups, { type Backup } from "./Backups";
 import { REPO as REPO_NAAM } from "@/lib/vrijgave";
 import { HOOFDDOMEIN } from "@/lib/org";
 
@@ -40,7 +41,7 @@ const vol = (n: number, max: number | null) => max != null && n >= max * 0.9;
 // Systeempagina voor de platformbeheerder: versie, databank, gebruik per organisatie, signalen en updates.
 export default async function Systeem() {
   const supabase = await supabaseServer();
-  const [{ data, error }, lijst, { data: zonderWw }, { data: fouten }] = await Promise.all([supabase.rpc("platform_systeem"), updates(), supabase.rpc("platform_zonder_wachtwoord"), supabase.rpc("platform_fouten")]);
+  const [{ data, error }, lijst, { data: zonderWw }, { data: fouten }, { data: backups }] = await Promise.all([supabase.rpc("platform_systeem"), updates(), supabase.rpc("platform_zonder_wachtwoord"), supabase.rpc("platform_fouten"), supabase.rpc("platform_backups")]);
   const zonder = (zonderWw || []) as { user_id: string; email: string; organisatie: string }[];
   const sleutel = adminIngesteld(); const dienst = mailDienst(); const mail = !!dienst;
   const c = data as Cijfers | null;
@@ -58,6 +59,7 @@ export default async function Systeem() {
       <div className="t-sys-raster">
         <Vrijgave repo={REPO_NAAM} testAdres={process.env.NEXT_PUBLIC_TEST_ADRES || `https://login.test.${HOOFDDOMEIN.replace(/^test\./, "")}`} />
         <Fouten begin={(fouten as FoutGroep[] | null) || []} />
+        <Backups begin={(backups as Backup[] | null) || []} />
         <section className="t-kaart t-sys-vak">
           <h2>Versie</h2>
           <dl className="t-sys-feiten">
