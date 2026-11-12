@@ -336,7 +336,7 @@ function Zicht({ stukken, doeken = [], doekMap = new Map(), selDoek = null, zwar
           return (
             <g key={`kg${as}`}>
               <circle cx={q[0]} cy={q[1]} r={9} fill="#2563EB" stroke="#fff" strokeWidth={2} data-maatgreep={as} style={{ cursor: 'grab' }}><title>{`Sleep om de ${naam} te wijzigen`}</title></circle>
-              <text x={q[0] + 13} y={q[1] + 4} fontSize={12} fontWeight={700} fill="#1E3A8A" stroke="#fff" strokeWidth={3} paintOrder="stroke" pointerEvents="none">{`${String(E(as)).replace('.', ',')} m`}</text>
+              <text x={q[0] + 13} y={q[1] + 4} fontSize={12} fontWeight={700} fill="#1E3A8A" stroke="#fff" strokeWidth={3} paintOrder="stroke" pointerEvents="none">{`${getal(Math.round(E(as) * 100) / 100)} m`}</text>
             </g>
           );
         })}
