@@ -13,7 +13,12 @@ const basis = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Versie van de app voor de foutmonitoring.
-  env: { NEXT_PUBLIC_VERSIE: (process.env.VERCEL_GIT_COMMIT_SHA || "lokaal").slice(0, 7) },
+  env: {
+    NEXT_PUBLIC_VERSIE: (process.env.VERCEL_GIT_COMMIT_SHA || "lokaal").slice(0, 7),
+    // De browser heeft het adres van Supabase nodig; staat NEXT_PUBLIC_SUPABASE_URL niet in deze omgeving
+    // (bv. de testomgeving), dan het gewone SUPABASE_URL. Geen geheim: het staat ook in elke aanvraag.
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "",
+  },
   async headers() {
     return [
       { source: "/((?!d/).*)", headers: [...basis, { key: "X-Frame-Options", value: "SAMEORIGIN" }, { key: "Content-Security-Policy", value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" }] },
