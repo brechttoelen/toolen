@@ -10,6 +10,7 @@ export const MODULES: { id: string; naam: string; uitleg: string }[] = [
   { id: "terrein", naam: "Terrein", uitleg: "opbouwmodus offline, afvinken, foto's" },
   { id: "leveranciers", naam: "Leveranciers", uitleg: "links en lijsten per leverancier, taal" },
   { id: "huisstijl", naam: "Huisstijl", uitleg: "eigen logo en kleuren in de app, op deellinks, in PDF en mails" },
+  { id: "mobiel", naam: "Gsm-app", uitleg: "plannen bekijken, meten, foto's en meldingen ter plaatse" },
   { id: "feedback", naam: "Feedback", uitleg: "knop om problemen, ideeën en vragen te melden, met de plek in de app" },
   { id: "integraties", naam: "Integraties", uitleg: "API" },
 ];

@@ -6,6 +6,7 @@ import MfaScherm from "@/components/MfaScherm";
 import { mfaStap } from "@/lib/mfa";
 import { huisstijlVan } from "@/lib/huisstijlServer";
 import { leesbaar } from "@/lib/huisstijl";
+import NietInPakket from "@/components/mobiel/NietInPakket";
 
 // Toolen Maps op de gsm: eigen schil zonder zijbalk. Login en 2FA zoals de rest van de app.
 export const metadata: Metadata = {
@@ -28,5 +29,8 @@ export default async function MobielLayout({ children, params }: { children: Rea
   if (!auth.user) redirect(`/login?verder=${encodeURIComponent("/maps/mobiel")}`);
   const stap = await mfaStap(supabase);
   if (stap) return <Inlogkader huisstijl={await huisstijlVan(org)}><MfaScherm stap={stap} /></Inlogkader>;
+  // De gsm-app is een module van het pakket.
+  const { data: o } = await supabase.from("organisaties").select("naam, modules").eq("slug", org).maybeSingle();
+  if (o && !(o.modules || []).includes("mobiel")) return <Inlogkader huisstijl={await huisstijlVan(org)}><NietInPakket naam={o.naam} /></Inlogkader>;
   return <>{children}</>;
 }
