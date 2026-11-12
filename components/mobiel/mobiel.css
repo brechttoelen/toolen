@@ -157,3 +157,4 @@ html:has(.mb), html:has(.mb) body { background: var(--t-vlak); overscroll-behavi
 @media (display-mode: standalone) {
   .mb { top: 0; bottom: auto; height: 100vh; height: 100lvh; }
 }
+.mb .mb-knop.hoofd { flex: 0 0 auto; }
