@@ -154,7 +154,19 @@
 
 /* Op het beginscherm (iPhone): de app vult het hele scherm, ook onder de statusbalk, zonder grijze strook onderaan. */
 html:has(.mb), html:has(.mb) body { background: var(--t-vlak); overscroll-behavior: none; }
-@media (display-mode: standalone) {
-  .mb { top: 0; bottom: auto; height: 100vh; height: 100lvh; }
-}
+
 .mb .mb-knop.hoofd { flex: 0 0 auto; }
+
+/* Basis voor de gsm:
+   - de app is precies zo hoog als wat zichtbaar is (ook met de werkbalk van Safari en op het beginscherm);
+   - velden minstens 16 px, anders zoomt iOS in bij het aantikken en blijft de pagina te breed;
+   - knoppen minstens 44 px hoog; geen paginazoom (de kaart zoomt zelf). */
+html:has(.mb) { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
+.mb { inset: auto; top: 0; left: 0; right: 0; width: 100%; height: 100vh; height: 100dvh; overflow: hidden; }
+.mb input, .mb textarea, .mb select { font-size: 16px !important; }
+.mb-kopknop { height: 36px; max-width: 46vw; padding: 0 8px; }
+.mb-chips button { height: 40px; }
+.mb-knop { min-height: 44px; height: auto; }
+.mb-rij .mb-knop, .mb-opm .mb-knop { min-height: 40px; }
+.mb-segment button { height: 40px; }
+.mb-zoek { height: 48px; }

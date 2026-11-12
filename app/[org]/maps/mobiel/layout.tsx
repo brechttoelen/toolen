@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 export async function generateViewport({ params }: { params: Promise<{ org: string }> }): Promise<Viewport> {
   const { org } = await params;
   const h = await huisstijlVan(org);
-  return { themeColor: h?.primair ? leesbaar(h.primair) : "#022056", width: "device-width", initialScale: 1, viewportFit: "cover" };
+  return { themeColor: h?.primair ? leesbaar(h.primair) : "#022056", width: "device-width", initialScale: 1, maximumScale: 1, userScalable: false, viewportFit: "cover" };
 }
 
 export default async function MobielLayout({ children, params }: { children: React.ReactNode; params: Promise<{ org: string }> }) {

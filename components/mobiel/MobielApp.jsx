@@ -31,6 +31,16 @@ export default function MobielApp({ huisstijl = null }) {
   const [profiel, setProfiel] = useState(null);
   const [aantalOpen, setAantalOpen] = useState(0);
 
+  // Geen paginazoom zoals in Publitool: knijpen of dubbeltikken zoomt de kaart, nooit de app zelf.
+  useEffect(() => {
+    const stop = (e) => e.preventDefault();
+    const tweeVingers = (e) => { if (e.touches && e.touches.length > 1 && !e.target.closest?.('.maplibregl-canvas-container, .fm-deel-binnen, canvas')) e.preventDefault(); };
+    document.addEventListener('gesturestart', stop, { passive: false });
+    document.addEventListener('gesturechange', stop, { passive: false });
+    document.addEventListener('touchmove', tweeVingers, { passive: false });
+    return () => { document.removeEventListener('gesturestart', stop); document.removeEventListener('gesturechange', stop); document.removeEventListener('touchmove', tweeVingers); };
+  }, []);
+
   useEffect(() => {
     setPlanId(lees(PLAN_SLEUTEL));
     try { sessionStorage.removeItem('fm-volledig'); } catch { /* */ }
