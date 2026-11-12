@@ -183,3 +183,4 @@ html:has(.mb) { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-ac
 .mb-gereedschap.open .mb-menuknop svg { transform: rotate(45deg); }
 .mb-rond .lbl { right: 58px; top: 50%; transform: translateY(-50%); font-size: 13px; padding: 5px 10px; background: rgba(2, 32, 86, .78); -webkit-backdrop-filter: var(--mb-blur); backdrop-filter: var(--mb-blur); }
 @media (prefers-reduced-motion: reduce) { .mb-tools .mb-rond, .mb-tools .lbl, .mb-menuknop svg { transition: none; } }
+.mb .maplibregl-ctrl-bottom-left { left: var(--mb-rand); margin-bottom: 12px; }

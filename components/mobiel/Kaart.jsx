@@ -198,7 +198,9 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
     kiesFotoVl(data.plan.instellingen);
     const start = data.plan.basiskaart || 'luchtfoto';
     setOndergrond(start);
-    const map = new maplibregl.Map({ container: kaartRef.current, style: basisStijl(start, data.plan.centrum), center: data.plan.centrum || [4.4, 50.9], zoom: Number(data.plan.zoom) || 17, maxZoom: 21, dragRotate: false, pitchWithRotate: false, attributionControl: { compact: true } });
+    const map = new maplibregl.Map({ container: kaartRef.current, style: basisStijl(start, data.plan.centrum), center: data.plan.centrum || [4.4, 50.9], zoom: Number(data.plan.zoom) || 17, maxZoom: 21, dragRotate: false, pitchWithRotate: false, attributionControl: false });
+    // Bronvermelding linksonder: rechtsonder staat het gereedschap.
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     klapBronvermeldingIn(map);
     map.touchZoomRotate.disableRotation();
     map.on('load', () => {
