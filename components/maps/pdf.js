@@ -765,7 +765,7 @@ export async function maakPdf({ plan, lagen, items, elementenMap, fase, inst, vo
     doc.triangle(nx, ny, nx + 3 * groot, ny + 8 * groot, nx - 3 * groot, ny + 8 * groot, 'F');
     doc.setFontSize(7 * groot); doc.text('N', nx, ny + 12 * groot, { align: 'center' });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8 * groot); doc.setTextColor(104, 109, 118);
-    const bron = [bronvermelding(ondergrond, centrum), metToolen() ? 'Gemaakt met Toolen Maps' : null].filter(Boolean).join(' · ');
+    const bron = [bronvermelding(ondergrond, centrum), metToolen() ? 'Gemaakt met Toolen Maps' : null, 'Maten en berekeningen zijn indicatief en vervangen geen keuring, studie of vergunning'].filter(Boolean).join(' · ');
     doc.text(doc.splitTextToSize(bron, zb - 8), zx + 4, sy + sb - 7 * groot);
     }
 

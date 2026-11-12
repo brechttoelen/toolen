@@ -77,7 +77,7 @@ export function unitGroep(it, el, items = [], elementenMap = new Map()) {
   }
   // Trap: het bordes ligt op vloerhoogte van de unit(s) erboven die ertegen staan.
   for (const t of groep.filter((x) => x.trap)) {
-    const boven = groep.filter((o) => !o.trap && o.v === t.v + 1 && Math.min(o.x1, t.x1) - Math.max(o.x0, t.x0) > 0.3 && Math.min(o.y1 + 0.3, t.y1) - Math.max(o.y0 - 0.3, t.y0) > 0);
+    const boven = groep.filter((o) => { if (o.trap || o.v !== t.v + 1) return false; const ox = Math.min(o.x1, t.x1) - Math.max(o.x0, t.x0); const oy = Math.min(o.y1, t.y1) - Math.max(o.y0, t.y0); return (ox > 0.3 && oy > -0.3) || (oy > 0.3 && ox > -0.3); });
     t.H = (boven.length ? Math.min(...boven.map((o) => o.z0)) : t.z0 + OPLEG + 3) + VLOER - t.z0;
   }
   for (const g of groep) { if (leden.length < 40) leden.push(g); }
@@ -327,15 +327,48 @@ const overlapt = (a, b, m = 0.05) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)
 // Waar komt een unit (of trap) als je ze over de grond sleept: tegen een unit aan (kleeft), op een dak (erop), of vrij.
 // grond = [x, y] onder de muis, hit = data onder de muis (een dak = erop). Geeft { x0, y0, x1, y1, L, B, v, z0, H, ok, soort }.
 export function plekBijSlepen(groep, el, q, grond, hit, weg = null) {
-  // Een trap draait vanzelf mee: met de lange kant tegen de unit waar je hem bij sleept (draaien tijdens
-  // het slepen uit de lijst kan niet: de browser stuurt dan geen toetsen door).
-  if (isTrapEl(el) && grond) {
-    const a = plekBijSlepen1(groep, el, q, grond, hit, weg); const b2 = plekBijSlepen1(groep, el, (q + 90) % 360, grond, hit, weg);
-    const kies = (x) => (x ? (x.soort === 'tegen' ? 0 : 1) * 1000 + (x.d ?? 0) : Infinity);
-    const p = kies(b2) < kies(a) ? { ...b2, q: (q + 90) % 360 } : a ? { ...a, q } : null;
-    return p;
-  }
+  // Een trap zoekt zelf zijn plek: langs een zijde van een bovenste unit, met het bordes voor een deur
+  // (of aan een hoek), en draait daarbij mee. Draaien tijdens het slepen uit de lijst kan niet: de browser
+  // stuurt dan geen toetsen door.
+  if (isTrapEl(el) && grond) return plekTrapSlepen(groep, el, grond, weg) || { ...plekBijSlepen1(groep, el, q, grond, hit, weg), q };
   return plekBijSlepen1(groep, el, q, grond, hit, weg);
+}
+function plekTrapSlepen(groep, el, c, weg) {
+  const lang = Math.max(Number(el.breedte_m) || 5.6, Number(el.diepte_m) || 1.4); const kort = Math.min(Number(el.breedte_m) || 5.6, Number(el.diepte_m) || 1.4);
+  const bord = Math.min(1.4, lang * 0.3); const H = unitHoogte(el);
+  const rest = groep.filter((o) => o.it.id !== weg);
+  const boven = rest.filter((o) => !o.trap && o.v >= 1); if (!boven.length) return null;
+  const vrij = (r) => !rest.some((o) => (o.trap || o.v === 0) && overlapt(o, r, 0.02));
+  let best = null;
+  for (const u of boven) {
+    // Deuren van deze unit, in het kader van de groep, per zijde.
+    const gevel = (u.it.velden?.gevel || u.el?.eigenschappen?.gevel || []).filter((o) => /deur/.test(o.soort || ''));
+    const deuren = gevel.map((o) => { const { a, e } = gevelLijn(o, u.Lu, u.Bu); const A2 = u.T(a); const E2 = u.T(e); return [(A2[0] + E2[0]) / 2, (A2[1] + E2[1]) / 2]; });
+    const zijden = [
+      { k: 'V', langs: 'x', vast: u.y0 - kort, van: u.x0, tot: u.x1, raak: (d) => Math.abs(d[1] - u.y0) < 0.2 },
+      { k: 'A', langs: 'x', vast: u.y1, van: u.x0, tot: u.x1, raak: (d) => Math.abs(d[1] - u.y1) < 0.2 },
+      { k: 'L', langs: 'y', vast: u.x0 - kort, van: u.y0, tot: u.y1, raak: (d) => Math.abs(d[0] - u.x0) < 0.2 },
+      { k: 'R', langs: 'y', vast: u.x1, van: u.y0, tot: u.y1, raak: (d) => Math.abs(d[0] - u.x1) < 0.2 },
+    ];
+    for (const z of zijden) {
+      const doelen = deuren.filter(z.raak).map((d) => ({ t: z.langs === 'x' ? d[0] : d[1], deur: true }));
+      doelen.push({ t: z.van + bord / 2, deur: false }, { t: z.tot - bord / 2, deur: false });
+      for (const dl of doelen) {
+        for (const naarPlus of [true, false]) {
+          // Bordes rond t; de trap loopt van de andere kant naar het bordes.
+          const b1 = naarPlus ? dl.t + bord / 2 : dl.t - bord / 2 + lang; const b0 = b1 - lang;
+          const r = z.langs === 'x' ? { x0: b0, x1: b1, y0: z.vast, y1: z.vast + kort } : { x0: z.vast, x1: z.vast + kort, y0: b0, y1: b1 };
+          if (!vrij(r)) continue;
+          const d = Math.hypot((r.x0 + r.x1) / 2 - c[0], (r.y0 + r.y1) / 2 - c[1]) - (dl.deur ? 1.5 : 0);
+          const q = z.langs === 'x' ? (naarPlus ? 0 : 180) : (naarPlus ? 90 : 270);
+          if (!best || d < best.d) best = { ...r, d, q, v: 0 };
+        }
+      }
+    }
+  }
+  if (!best || best.d > lang * 1.2) return null;
+  const L = best.x1 - best.x0; const B = best.y1 - best.y0;
+  return { x0: best.x0, y0: best.y0, x1: best.x1, y1: best.y1, L, B, v: 0, H, z0: 0, soort: 'tegen', d: best.d, q: best.q, ok: true };
 }
 function plekBijSlepen1(groep, el, q, grond, hit, weg = null) {
   const [L, B] = maatBij(el, q); const H = unitHoogte(el); const trap = isTrapEl(el);
