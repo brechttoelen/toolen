@@ -167,14 +167,17 @@ function Zicht({ stukken, doeken = [], doekMap = new Map(), selDoek = null, zwar
     return [(x0 + x1) / 2, (y0 + y1) / 2, z1 / 2];
   }, [stukken]); // eslint-disable-line react-hooks/exhaustive-deps
   const fitRef = useRef(null); const [doel, setDoel] = useState(null);
-  if (!interactief || !fitRef.current || fitRef.current.tik !== passTik || (!stukken.length) !== fitRef.current.leeg) fitRef.current = { tik: passTik, k: kader, T: midden3, leeg: !stukken.length };
+  // Bij Passend: het midden van wat je ziet (het kader op het scherm) komt in het midden, niet het 3D-midden
+  // (dat ligt bij een hoge toren naast een lange ligger ver van het zichtbare midden).
+  if (!interactief || !fitRef.current || fitRef.current.tik !== passTik || (!stukken.length) !== fitRef.current.leeg) { const p0 = proj(midden3); fitRef.current = { tik: passTik, k: kader, T: midden3, leeg: !stukken.length, d: [(kader[0] + kader[2]) / 2 - p0[0], (kader[1] + kader[3]) / 2 - p0[1]] }; }
   useEffect(() => { setDoel(null); }, [passTik]);
   const vastRef = useRef(null); if (!vast) vastRef.current = kader;
   const k0 = interactief ? fitRef.current.k : (vast && vastRef.current) || kader;
   const pad = mini ? 8 : 70;
   const s = Math.min((maat.w - pad * 2) / Math.max(1, k0[2] - k0[0]), (maat.h - pad * 2) / Math.max(1, k0[3] - k0[1]), mini ? 300 : 200) * zoom;
   const T3 = doel || fitRef.current.T; const pT = proj(T3);
-  const ox = interactief ? maat.w / 2 - pT[0] * s + schuif[0] : maat.w / 2 - ((k0[0] + k0[2]) / 2) * s; const oy = interactief ? maat.h / 2 - pT[1] * s + schuif[1] : maat.h / 2 - ((k0[1] + k0[3]) / 2) * s;
+  const dF = doel ? [0, 0] : fitRef.current.d || [0, 0];
+  const ox = interactief ? maat.w / 2 - (pT[0] + dF[0]) * s + schuif[0] : maat.w / 2 - ((k0[0] + k0[2]) / 2) * s; const oy = interactief ? maat.h / 2 - (pT[1] + dF[1]) * s + schuif[1] : maat.h / 2 - ((k0[1] + k0[3]) / 2) * s;
   const S = (q) => { const p = proj(q); return [p[0] * s + ox, p[1] * s + oy, p[2]]; };
   const opVlak = (sx, sy, z0 = 0) => { const z = z0 + B2; const xr = (sx - ox) / s; const Y = (sy - oy) / s; const yr = (-Y - z * Math.cos(ph)) / Math.max(0.05, Math.sin(ph)); return [xr * Math.cos(t) + yr * Math.sin(t), -xr * Math.sin(t) + yr * Math.cos(t)]; };
   // Schermpunt → (s, z) in het verticale vlak door o met richting u.
@@ -644,12 +647,13 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
   });
   const totH = Math.max(0, ...stukken.map((x) => eindVan(x)[2]));
   // Groeit de constructie duidelijk (bv. een toren erop), dan opnieuw alles in beeld.
-  const vorigeMaat = useRef(0);
+  const vorigeMaat = useRef(null);
   useEffect(() => {
-    const ps = stukken.flatMap((x) => [x.a, eindVan(x)]); if (!ps.length) { vorigeMaat.current = 0; return; }
+    const ps = stukken.flatMap((x) => [x.a, eindVan(x)]); if (!ps.length) { vorigeMaat.current = null; return; }
     const m = Math.max(...[0, 1, 2].map((k) => Math.max(...ps.map((q) => q[k])) - Math.min(...ps.map((q) => q[k]))));
-    if (vorigeMaat.current && m > vorigeMaat.current * 1.25) setPassTik((x) => x + 1);
-    vorigeMaat.current = Math.max(vorigeMaat.current, m);
+    const v = vorigeMaat.current; const mx = [0, 1, 2].map((k) => Math.max(...ps.map((q) => q[k]))); const mn = [0, 1, 2].map((k) => Math.min(...ps.map((q) => q[k])));
+    if (v && [0, 1, 2].some((k) => mx[k] > v.mx[k] + 0.9 || mn[k] < v.mn[k] - 0.9)) setPassTik((x) => x + 1);
+    vorigeMaat.current = { mx, mn, m };
   }, [stukken.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const metr = stukken.reduce((a, x) => a + x.L, 0);
   const st1 = gekozen.length === 1 ? gekozen[0] : null;
