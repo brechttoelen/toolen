@@ -415,7 +415,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
   return (
     <>
       <header className="mb-kop terug">
-        <button type="button" className="mb-terug" aria-label="Terug naar de plannen" onClick={onKiesPlan}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg></button>
+        <button type="button" className="mb-terug" aria-label="Terug naar de plannen" onClick={onKiesPlan}><Ic.terug /></button>
         <h1>{plan?.naam || 'Plan laden…'}</h1>
         {fasen.length > 0 && (
           <select className="mb-kopknop" value={fase} onChange={(e) => setFase(e.target.value)} aria-label="Fase">
@@ -448,7 +448,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
         {paneel === 'melden' && <div className="mb-zweef mb-hint">Tik op de kaart om de plek te kiezen.</div>}
         {paneel === 'meten' && <div className="mb-zweef mb-hint">{meetSoort === 'mij' && !mijn ? 'Je locatie zoeken…' : 'Tik punten op de kaart. Ze klikken vast op hoeken van items.'}</div>}
         {melding && !paneel && (
-          <div className="mb-zweef" style={{ left: 12, right: 72, bottom: 16 }}>
+          <div className="mb-zweef" style={{ left: 12, right: 72, bottom: 'calc(var(--mb-tabh) + 16px)' }}>
             <div className="mb-melding" role="status" onClick={() => setMelding('')}>{melding}</div>
           </div>
         )}

@@ -113,3 +113,25 @@
 .mb-knop svg { width: 18px; height: 18px; flex: none; }
 .mb-paneel-in > * { flex-shrink: 0; }
 .mb-terug svg { width: 22px; height: 22px; }
+
+/* Glas: zwevende lagen boven de kaart laten de kaart doorschemeren. */
+.mb { --mb-glas: rgba(255, 255, 255, .7); --mb-glas-vol: rgba(255, 255, 255, .86); --mb-glas-rand: rgba(255, 255, 255, .65); --mb-blur: blur(20px) saturate(1.7); --mb-tabh: calc(60px + env(safe-area-inset-bottom)); }
+.mb-tab { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--mb-glas); -webkit-backdrop-filter: var(--mb-blur); backdrop-filter: var(--mb-blur); border-top: 1px solid var(--mb-glas-rand); box-shadow: 0 -1px 0 rgba(2, 32, 86, .06); }
+.mb-inhoud { padding-bottom: var(--mb-tabh); }
+.mb-kaart .mb-zoek, .mb-zoekres { background: var(--mb-glas-vol); -webkit-backdrop-filter: var(--mb-blur); backdrop-filter: var(--mb-blur); border: 1px solid var(--mb-glas-rand); }
+.mb-zoekres .mb-rij { background: transparent; border-bottom-color: rgba(2, 32, 86, .08); }
+.mb-rond { background: var(--mb-glas); -webkit-backdrop-filter: var(--mb-blur); backdrop-filter: var(--mb-blur); border: 1px solid var(--mb-glas-rand); }
+.mb-rond.aan { border-color: transparent; }
+.mb-gereedschap { bottom: calc(var(--mb-tabh) + 16px); }
+.mb-paneel { bottom: var(--mb-tabh); background: var(--mb-glas-vol); -webkit-backdrop-filter: var(--mb-blur); backdrop-filter: var(--mb-blur); border: 1px solid var(--mb-glas-rand); border-bottom: 0; max-height: calc(100% - var(--mb-tabh) - 72px); }
+.mb-paneel.groot { max-height: calc(100% - var(--mb-tabh) - 12px); }
+.mb-paneel .mb-lijst { background: rgba(255, 255, 255, .6); border-color: rgba(2, 32, 86, .08); }
+.mb-paneel .mb-rij { background: transparent; border-bottom-color: rgba(2, 32, 86, .08); }
+.mb-paneel .mb-rij.licht { background: var(--t-blauw-zacht); }
+.mb-paneel .mb-feiten div, .mb-paneel .mb-opm div { background: rgba(2, 32, 86, .05); }
+.mb-paneel .mb-segment { background: rgba(2, 32, 86, .07); }
+.mb-paneel .mb-knop:not(.hoofd):not(.ok) { background: rgba(255, 255, 255, .7); }
+.mb-hint { background: rgba(2, 32, 86, .62); -webkit-backdrop-filter: var(--mb-blur); backdrop-filter: var(--mb-blur); border: 1px solid rgba(255, 255, 255, .18); }
+.mb-zweef .mb-melding { -webkit-backdrop-filter: var(--mb-blur); backdrop-filter: var(--mb-blur); background: rgba(255, 244, 224, .88); }
+.mb .maplibregl-ctrl-bottom-left, .mb .maplibregl-ctrl-bottom-right { bottom: var(--mb-tabh); }
+.mb-tab svg { width: 22px; height: 22px; }
