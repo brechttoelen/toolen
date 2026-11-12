@@ -55,7 +55,7 @@ export default function Meer({ huisstijl, profiel, planId }) {
   if (uitleg) {
     return (
       <>
-        <header className="mb-kop terug"><button type="button" className="mb-terug" aria-label="Terug" onClick={() => setUitleg(false)}>‹</button><h1>Op je beginscherm</h1></header>
+        <header className="mb-kop terug"><button type="button" className="mb-terug" aria-label="Terug" onClick={() => setUitleg(false)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg></button><h1>Op je beginscherm</h1></header>
         <main className="mb-inhoud">
           <div className="mb-pad" style={{ paddingTop: 24 }}>
             <div className="mb-segment" role="group" aria-label="Toestel">

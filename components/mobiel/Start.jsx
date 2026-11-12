@@ -95,7 +95,7 @@ export default function Start({ huisstijl, profiel, planId, onPlan, onMeer }) {
                   <div className="mb-kaartje" role="group" aria-label={volgend.naam}>
                     <div className="tekst">
                       <strong>{volgend.naam}</strong>
-                      <span className="mb-sub">{[datum(volgend.datum), volgend.plek, `${perEvent.get(volgend.id)?.length || 0} plannen`].filter(Boolean).join(' · ')}</span>
+                      <span className="mb-sub">{[datum(volgend.datum), volgend.plek, ((n) => `${n} ${n === 1 ? 'plan' : 'plannen'}`)(perEvent.get(volgend.id)?.length || 0)].filter(Boolean).join(' · ')}</span>
                     </div>
                     <div className="mb-lijst" style={{ border: 0, borderTop: '1px solid var(--t-rand)', borderRadius: 0 }}>
                       {(perEvent.get(volgend.id) || []).map((p) => <Rij key={p.id} p={p} />)}

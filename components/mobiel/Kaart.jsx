@@ -415,7 +415,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
   return (
     <>
       <header className="mb-kop terug">
-        <button type="button" className="mb-terug" aria-label="Terug naar de plannen" onClick={onKiesPlan}>‹</button>
+        <button type="button" className="mb-terug" aria-label="Terug naar de plannen" onClick={onKiesPlan}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg></button>
         <h1>{plan?.naam || 'Plan laden…'}</h1>
         {fasen.length > 0 && (
           <select className="mb-kopknop" value={fase} onChange={(e) => setFase(e.target.value)} aria-label="Fase">
