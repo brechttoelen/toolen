@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { mailIngesteld, uitnodigingMail, verstuur } from "@/lib/mail";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { basisAdres, fout, foutTekst, json, ok } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,13 @@ export async function POST(req: NextRequest) {
   const { data: g } = await sb.rpc("uitnodiging_mailgegevens", { p_id: id });
   const gg = g as Gegevens | null;
   if (!gg) return ok({ id, link, verstuurd: false });
+  // Begrenzen tegen misbruik: hoogstens 30 uitnodigingsmails per uur per organisatie en 3 per uur naar hetzelfde adres.
+  try {
+    const admin = supabaseAdmin();
+    const { data: perOrg } = await admin.rpc("mail_toegestaan", { p_email: `organisatie:${gg.code}`, p_soort: "uitnodiging-org", p_max: 30 });
+    const { data: perAdres } = perOrg ? await admin.rpc("mail_toegestaan", { p_email: gg.email, p_soort: "uitnodiging", p_max: 3 }) : { data: false };
+    if (!perOrg || !perAdres) return ok({ id, link, verstuurd: false, melding: "Te veel uitnodigingen op korte tijd. Probeer het over een uur opnieuw of stuur de link zelf door." });
+  } catch (e) { console.error("uitnodigen limiet", e); }
   try {
     const m = uitnodigingMail({ ...gg, link });
     await verstuur({ aan: gg.email, naam: gg.naam, ...m, antwoordAan: gg.door_email ? { email: gg.door_email, naam: gg.door } : null });
