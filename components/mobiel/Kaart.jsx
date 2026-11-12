@@ -250,7 +250,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
     });
     mapRef.current = map;
     return () => { map.remove(); mapRef.current = null; setKlaar(false); };
-  }, [data]);
+  }, [data?.plan?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- enkel een nieuwe kaart bij een ander plan, niet bij elke wijziging
 
   useEffect(() => {
     const map = mapRef.current;
