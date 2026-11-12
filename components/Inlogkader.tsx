@@ -54,7 +54,7 @@ export default function Inlogkader({ titel, children, huisstijl = null }: { tite
         ) : <ToolenWoordmerk op="navy" product="maps" grootte={26} />}
         <PlanScene />
         <h1 className="t-titel t-inlog-titel">{titel || "Uitgetekend."}</h1>
-        {!titel && <p className="t-inlog-onder">Van eerste lijn tot laatste stroomkabel.</p>}
+        {!titel && <p className="t-inlog-onder">Van eerste lijn tot laatste spandoek.</p>}
         <div className="t-momenten" aria-live="off">
           {MOMENTEN.map(([wanneer, wat], i) => (
             <p key={wanneer} className="t-moment" style={{ animationDelay: `${i * 4}s` }}><b>{wanneer}</b>{wat}</p>
