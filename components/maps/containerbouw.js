@@ -327,10 +327,21 @@ const overlapt = (a, b, m = 0.05) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)
 // Waar komt een unit (of trap) als je ze over de grond sleept: tegen een unit aan (kleeft), op een dak (erop), of vrij.
 // grond = [x, y] onder de muis, hit = data onder de muis (een dak = erop). Geeft { x0, y0, x1, y1, L, B, v, z0, H, ok, soort }.
 export function plekBijSlepen(groep, el, q, grond, hit, weg = null) {
+  // Een trap draait vanzelf mee: met de lange kant tegen de unit waar je hem bij sleept (draaien tijdens
+  // het slepen uit de lijst kan niet: de browser stuurt dan geen toetsen door).
+  if (isTrapEl(el) && grond) {
+    const a = plekBijSlepen1(groep, el, q, grond, hit, weg); const b2 = plekBijSlepen1(groep, el, (q + 90) % 360, grond, hit, weg);
+    const kies = (x) => (x ? (x.soort === 'tegen' ? 0 : 1) * 1000 + (x.d ?? 0) : Infinity);
+    const p = kies(b2) < kies(a) ? { ...b2, q: (q + 90) % 360 } : a ? { ...a, q } : null;
+    return p;
+  }
+  return plekBijSlepen1(groep, el, q, grond, hit, weg);
+}
+function plekBijSlepen1(groep, el, q, grond, hit, weg = null) {
   const [L, B] = maatBij(el, q); const H = unitHoogte(el); const trap = isTrapEl(el);
   const rest = groep.filter((o) => o.it.id !== weg);
-  const uit = (x0, y0, v, soort, z0 = 0) => {
-    const p = { x0, y0, x1: x0 + L, y1: y0 + B, L, B, v, H, soort };
+  const uit = (x0, y0, v, soort, z0 = 0, d = 0) => {
+    const p = { x0, y0, x1: x0 + L, y1: y0 + B, L, B, v, H, soort, d };
     p.z0 = v ? Math.max(...rest.filter((o) => o.v === v - 1 && !o.trap && overlapt(o, p, 0.3)).map((o) => o.z0 + o.H), z0) : trap ? 0 : OPLEG;
     p.ok = !rest.some((o) => o.v === v && overlapt(o, p)) && (!v || rest.some((o) => o.v === v - 1 && !o.trap && overlapt(o, p, 0.3)));
     return p;
@@ -346,8 +357,19 @@ export function plekBijSlepen(groep, el, q, grond, hit, weg = null) {
   for (const o of rest.filter((x) => !x.trap)) {
     const v = trap ? Math.max(0, o.v) : o.v; if (o.v && !trap) continue; // op de grond: enkel tegen units op de grond
     const opties = [[o.x1, o.y0], [o.x1, o.y1 - B], [o.x0 - L, o.y0], [o.x0 - L, o.y1 - B], [o.x0, o.y1], [o.x1 - L, o.y1], [o.x0, o.y0 - B], [o.x1 - L, o.y0 - B]];
-    for (const [x0, y0] of opties) { const d = Math.hypot(x0 + L / 2 - c[0], y0 + B / 2 - c[1]); if (d < Math.max(L, B) * 0.55 && (!best || d < best.d)) best = { x0, y0, d, v: trap ? 0 : v }; }
+    // Een trap mag ook gecentreerd of op de plek van de muis langs de zijde schuiven.
+    if (trap) {
+      const xs = Math.min(Math.max(c[0] - L / 2, o.x0 - L + 0.5), o.x1 - 0.5); const ys = Math.min(Math.max(c[1] - B / 2, o.y0 - B + 0.5), o.y1 - 0.5);
+      opties.push([Math.round(xs * 20) / 20, o.y1], [Math.round(xs * 20) / 20, o.y0 - B], [o.x1, Math.round(ys * 20) / 20], [o.x0 - L, Math.round(ys * 20) / 20]);
+    }
+    for (const [x0, y0] of opties) {
+      const d = Math.hypot(x0 + L / 2 - c[0], y0 + B / 2 - c[1]);
+      if (d < Math.max(L, B) * 0.55 && (!best || d < best.d)) {
+        if (trap && rest.some((r) => !r.trap && r.v === 0 && overlapt(r, { x0, y0, x1: x0 + L, y1: y0 + B }))) continue;
+        best = { x0, y0, d, v: trap ? 0 : v };
+      }
+    }
   }
-  if (best) return uit(best.x0, best.y0, best.v, 'tegen');
-  return uit(Math.round((c[0] - L / 2) * 10) / 10, Math.round((c[1] - B / 2) * 10) / 10, 0, 'vrij');
+  if (best) return uit(best.x0, best.y0, best.v, 'tegen', 0, best.d);
+  return uit(Math.round((c[0] - L / 2) * 10) / 10, Math.round((c[1] - B / 2) * 10) / 10, 0, 'vrij', 0, 999);
 }

@@ -81,7 +81,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   const sleepRef = useRef(null); sleepRef.current = sleep;
   const lijstSleep = useRef(null); // element dat uit de lijst gesleept wordt
   const alleen = groep.filter((x) => !x.trap).length <= 1;
-  const met = (s0, grond, hit) => { const p = plekBijSlepen(groep, s0.el, s0.q, grond, hit, s0.id); if (p && p.soort === 'vrij' && !(alleen && s0.id)) p.ok = false; return { ...s0, p, grond, hit }; };
+  const met = (s0, grond, hit) => { const p = plekBijSlepen(groep, s0.el, s0.q, grond, hit, s0.id); if (p && p.soort === 'vrij' && !(alleen && s0.id)) p.ok = false; return { ...s0, q: p?.q ?? s0.q, p, grond, hit }; };
   // Weghalen, ook de unit waarop de bouwer geopend werd: de bouwer verhuist dan naar een andere unit; de laatste unit sluit de bouwer.
   const weg = (o) => {
     if (o.it.id !== it.id) { onActie('unit-weg', { _it: o.it.id }); setSel(it.id); return; }
@@ -118,6 +118,14 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
     window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
   });
 
+  // De opstelling als één geheel op het plan: alle aaneengesloten units in dezelfde groep.
+  const groepSleutel = groep.map((x) => `${x.it.id}:${x.it.groep_id || ''}`).sort().join('|');
+  useEffect(() => {
+    if (!schrijven || groep.length < 2) return;
+    const g0 = groep[0].it.groep_id;
+    if (g0 && groep.every((x) => x.it.groep_id === g0)) return;
+    onActie('unit-groep', { _it: it.id, ids: groep.map((x) => x.it.id) });
+  }, [groepSleutel]); // eslint-disable-line react-hooks/exhaustive-deps
   const meldingen = useMemo(() => containerMeldingen(groep), [groep]);
   const telling = useMemo(() => containerTelling(groep), [groep]);
   const prims = useMemo(() => (gl ? containerPrims(groep, g?.it.id, sleep?.p ? { weg: sleep.id || null, spook: sleep.p } : {}) : null), [gl, groep, g?.it.id, sleep]);

@@ -250,7 +250,7 @@ export default function PlannenLijst() {
   const [menuVan, setMenuVan] = useState(null);
   useEffect(() => { if (!menuVan) return undefined; const f = (e) => { if (!e.target.closest?.('.t-plmenu')) setMenuVan(null); }; document.addEventListener('mousedown', f); return () => document.removeEventListener('mousedown', f); }, [menuVan]);
   useEffect(() => { laadEvents().then(setEv); }, []);
-  useEffect(() => { const l = startLobby({ client: sb(), onState: (st) => setAanwezig(wieIn(st)) }); return () => l.stop(); }, []);
+  useEffect(() => { const l = startLobby({ client: sb(), orgId: profiel?.organisatie?.id, onState: (st) => setAanwezig(wieIn(st)) }); return () => l.stop(); }, [profiel?.organisatie?.id]);
 
   useEffect(() => {
     (async () => {

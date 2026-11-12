@@ -12,7 +12,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './maps.css';
 import FeedbackKnop, { zetFeedbackContext } from './Feedback';
-import { sb } from './db';
+import { sb, zetDeelToken } from './db';
 import { basisStijl, registreerProtocollen, zetOndergrond, klapBronvermeldingIn, kiesFotoVl } from './ondergronden';
 import { kaartLagen, naarGeojson, zorgVoorPatronen } from './stijl';
 import { berekenStuklijst } from './Stuklijst';
@@ -39,6 +39,7 @@ const T = {
 };
 
 export default function DeelWeergave({ token, deel = null, onData = null }) {
+  zetDeelToken(token);
   const [data, setData] = useState(undefined); // undefined = laden, null = ongeldig
   // Na vernieuwen terug waar je was: kaartbeeld, ondergrond, verborgen lagen en het gebouw waar je binnenkeek
   // (per link, in dit tabblad). Lukt het bewaren niet (privévenster), dan gewoon het startbeeld.

@@ -97,7 +97,7 @@ export default function Overzicht() {
     setLaden(false);
   };
   useEffect(() => { laad(); }, []);
-  useEffect(() => { const l = startLobby({ client: sb(), onState: (st) => setAanwezig(wieIn(st)) }); return () => l.stop(); }, []);
+  useEffect(() => { const l = startLobby({ client: sb(), orgId: profiel?.organisatie?.id, onState: (st) => setAanwezig(wieIn(st)) }); return () => l.stop(); }, [profiel?.organisatie?.id]);
 
   const schrijven = magSchrijven(profiel);
   const groepen = useMemo(() => groepeer(plannen, ev.events, ev.ok), [plannen, ev]);

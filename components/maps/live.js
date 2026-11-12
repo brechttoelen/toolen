@@ -17,7 +17,8 @@ export function startLive({ client, planId, sleutel, onItem, onWeg, onLaag, onPl
   const verbind = () => {
     if (gestopt) return;
     onStatus?.('verbinden');
-    kanaal = client.channel(`maps-plan-${planId}`, { config: { presence: { key: sleutel }, broadcast: { self: false } } });
+    // Privékanaal: de databank (realtime.messages, maps.kanaal_mag) laat enkel leden van de organisatie van het plan toe.
+    kanaal = client.channel(`maps-plan-${planId}`, { config: { private: true, presence: { key: sleutel }, broadcast: { self: false } } });
     // Elke melding enkel naar haar eigen tabel: na een herverbinding kon Realtime een
     // melding van items aan de verkeerde binding geven (items verschenen dan als lagen).
     kanaal
@@ -63,8 +64,10 @@ export function startLive({ client, planId, sleutel, onItem, onWeg, onLaag, onPl
 }
 
 // Lobby: wie zit in welk plan (voor de lijst met plannen). Elk geopend plan meldt zich hier.
-export function startLobby({ client, sleutel, onState }) {
-  const kanaal = client.channel('maps-aanwezig', { config: { presence: { key: sleutel || `kijker-${Math.random().toString(36).slice(2)}` } } });
+// Per organisatie (privékanaal): collega's van andere organisaties zien niet wie waar zit.
+export function startLobby({ client, sleutel, orgId, onState }) {
+  if (!orgId) return { meld() {}, stop() {} };
+  const kanaal = client.channel(`maps-aanwezig-${orgId}`, { config: { private: true, presence: { key: sleutel || `kijker-${Math.random().toString(36).slice(2)}` } } });
   let staat = null;
   kanaal.on('presence', { event: 'sync' }, () => onState?.(kanaal.presenceState()))
     .subscribe((s) => { if (s === 'SUBSCRIBED' && staat) kanaal.track(staat).catch(() => {}); });

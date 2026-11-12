@@ -14,7 +14,7 @@ export default function GevelBeheer({ L, B, gevel = [], schrijven, onZet }) {
   return (
     <div className="fm-sectie fm-gevel">
       <div className="fm-kop">Deuren en ramen</div>
-      <svg width={W} height={H} className="fm-gevel-plan" aria-label="Bovenaanzicht van de unit">
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="fm-gevel-plan" aria-label="Bovenaanzicht van de unit">
         <rect x={20} y={20} width={L * s} height={B * s} fill="#F3F4F6" stroke="#6B7280" strokeWidth={1.5} />
         <text x={20 + (L * s) / 2} y={H - 6} textAnchor="middle" fontSize={10} fill="#6B7280">Voor</text>
         <text x={20 + (L * s) / 2} y={13} textAnchor="middle" fontSize={10} fill="#6B7280">Achter</text>

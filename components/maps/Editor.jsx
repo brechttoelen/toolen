@@ -734,7 +734,7 @@ export default function Editor({ planId }) {
       onBericht: (m) => berichtRef.current?.(m),
     });
     liveRef.current = live;
-    const lobby = startLobby({ client: sb(), sleutel: `${profiel.id}:${tab}` });
+    const lobby = startLobby({ client: sb(), sleutel: `${profiel.id}:${tab}`, orgId: plan?.organisatie_id });
     lobbyRef.current = lobby;
     const los = () => {
       if (!slepenRef.current) return;
@@ -838,7 +838,9 @@ export default function Editor({ planId }) {
     if (m) { m.marker.setLngLat(pos); m.t = Date.now(); return; }
     const el = document.createElement('div');
     el.className = 'fm-muis';
-    el.innerHTML = `<svg width="16" height="18" viewBox="0 0 16 18" aria-hidden="true"><path d="M1 1l13 7-6 1.5L5.5 16z" fill="${wie.kleur}" stroke="#fff" stroke-width="1.5"/></svg><span style="background:${wie.kleur}"></span>`;
+    // Kleur komt van een collega (aanwezigheid): enkel een echte kleurcode in de HTML.
+    const kl = /^#[0-9a-fA-F]{3,8}$/.test(String(wie.kleur || '')) ? wie.kleur : '#108AED';
+    el.innerHTML = `<svg width="16" height="18" viewBox="0 0 16 18" aria-hidden="true"><path d="M1 1l13 7-6 1.5L5.5 16z" fill="${kl}" stroke="#fff" stroke-width="1.5"/></svg><span style="background:${kl}"></span>`;
     el.querySelector('span').textContent = wie.naam;
     const marker = new maplibregl.Marker({ element: el, anchor: 'top-left' }).setLngLat(pos).addTo(map);
     muizen.current.set(sleutel, { marker, t: Date.now() });
@@ -3090,8 +3092,19 @@ export default function Editor({ planId }) {
       case 'unit-plaats': {
         // Containerbouwer: een unit of trap erbij, in dezelfde laag als de unit waarmee je begon.
         const e2 = st.current.elementen.find((x) => x.id === arg?.el); if (!e2 || !arg?.midden) break;
-        const nieuw = maakItem({ laag_id: it.laag_id, soort: 'element', element_id: e2.id, geometrie: geo.elementVeelhoek(arg.midden, arg.breedte, arg.diepte, arg.rot), parameters: { midden: arg.midden, breedte: arg.breedte, diepte: arg.diepte, rot: arg.rot }, velden: arg.verdieping ? { verdieping: arg.verdieping } : {} });
+        // Alle units van de opstelling vormen één groep op het plan (samen verschuiven en draaien).
+        const gid = it.groep_id || nieuwId(); if (!it.groep_id) wijzigItem(it.id, { groep_id: gid });
+        const nieuw = maakItem({ laag_id: it.laag_id, groep_id: gid, soort: 'element', element_id: e2.id, geometrie: geo.elementVeelhoek(arg.midden, arg.breedte, arg.diepte, arg.rot), parameters: { midden: arg.midden, breedte: arg.breedte, diepte: arg.diepte, rot: arg.rot }, velden: arg.verdieping ? { verdieping: arg.verdieping } : {} });
         tdRef.current?.addFeatures([tdFeature(nieuw)]);
+        break;
+      }
+      case 'unit-groep': {
+        // Bestaande opstelling: alle aaneengesloten units in één groep zetten.
+        const ids = (arg?.ids || []).filter((id) => st.current.items.some((x) => x.id === id));
+        if (ids.length < 2) break;
+        const gid = st.current.items.find((x) => ids.includes(x.id) && x.groep_id)?.groep_id || nieuwId();
+        for (const id of ids) { const x = st.current.items.find((y) => y.id === id); if (x && (x.groep_id !== gid || x.laag_id !== it.laag_id)) wijzigItem(id, { groep_id: gid, laag_id: it.laag_id }); }
+        setTimeout(() => syncTdRef.current?.(), 0);
         break;
       }
       case 'unit-wijzig': {
@@ -3106,8 +3119,12 @@ export default function Editor({ planId }) {
       }
       case 'unit-weg': {
         // De unit waarop de bouwer open staat: de bouwer verhuist naar een andere unit van de groep.
-        if (arg?.anker && arg.anker !== it.id) { vraagBouwer(arg.anker); setGeselecteerd(arg.anker); try { tdRef.current?.selectFeature(arg.anker); } catch {} }
-        verwijderItems([it.id]); break;
+        verwijderItems([it.id]);
+        if (arg?.anker && arg.anker !== it.id) {
+          const a = arg.anker; vraagBouwer(a);
+          setTimeout(() => { setGeselecteerd(a); try { tdRef.current?.selectFeature(a); } catch {} }, 0);
+        }
+        break;
       }
       case 'unit-gevel': { wijzigItem(it.id, { velden: { ...(it.velden || {}), gevel: arg?.gevel?.length ? arg.gevel : undefined } }); break; }
       case 'tent-lid': {

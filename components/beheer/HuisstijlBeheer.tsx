@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { HOOFDDOMEIN } from "@/lib/org";
 import { contrast, huisstijlVars, leesbaar, type Huisstijl } from "@/lib/huisstijl";
 
 type H = { primair?: string; accent?: string; logo_licht?: string; logo_donker?: string; toolen_verbergen?: boolean };
@@ -48,7 +49,10 @@ function Logo({ label, uitleg, waarde, donker, org, soort, onWaarde }: { label: 
       const pad = `huisstijl/${org}/${soort}-${Date.now()}.png`;
       const { error } = await sb().storage.from(BUCKET).upload(pad, png, { contentType: "image/png", cacheControl: "31536000" });
       if (error) throw error;
-      onWaarde(sb().storage.from(BUCKET).getPublicUrl(pad).data.publicUrl);
+      // De opslag is privé: logo's gaan via /b op het eigen hoofddomein (ook bruikbaar in mails).
+      const h = window.location.hostname;
+      const basis = h === HOOFDDOMEIN || h.endsWith(`.${HOOFDDOMEIN}`) ? `https://login.${HOOFDDOMEIN}` : window.location.origin;
+      onWaarde(`${basis}/b/${pad}`);
     } catch (x) { setFout((x as Error).message); }
     setBezig(false);
   }

@@ -47,10 +47,13 @@ export const BUCKET = 'maps';
 // Bestanden uit de opslag via het eigen adres (/b/…), nooit via het adres van de databank.
 // Volledige adressen van de opslag (oudere gegevens) worden ook omgezet.
 const OPSLAG = `${(process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim()}/storage/v1/object/public/${BUCKET}/`;
+// In een deellink (zonder login) bewijst het token van de link dat de kijker het bestand mag zien.
+let deelToken = null;
+export function zetDeelToken(t) { deelToken = t && String(t).length >= 20 ? String(t) : null; }
 export function eigenAdres(pad) {
   const p = String(pad).split('/').map((d) => encodeURIComponent(decodeURIComponent(d))).join('/');
   const basis = typeof window !== 'undefined' ? window.location.origin : '';
-  return `${basis}/b/${p}`;
+  return `${basis}/b/${p}${deelToken ? `?t=${encodeURIComponent(deelToken)}` : ''}`;
 }
 export function publiekeUrl(pad) {
   if (!pad) return null;
