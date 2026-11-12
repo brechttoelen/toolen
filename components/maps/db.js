@@ -101,8 +101,11 @@ export async function namenVan(ids) {
 export const naamUitCache = (id) => (id && namenCache.get(id)) || 'een collega';
 
 // Gedeelde bibliotheek: enkel beheerders. Plan-objecten (CAD), sjablonen en snelstijlen ook editors (zie migratie 006).
+// Een element uit de centrale bibliotheek van Toolen (van een andere organisatie dan de eigen): enkel lezen.
+export const isCentraalElement = (profiel, el) => !!(el?.organisatie_id && profiel?.organisatie?.id && el.organisatie_id !== profiel.organisatie.id);
 export function magBibliotheek(profiel, el = null) {
   if (!magSchrijven(profiel)) return false;
+  if (isCentraalElement(profiel, el)) return false;
   if (profiel.role === 'admin') return true;
   return !!(el && (el.plan_id || ['Sjablonen', 'Snelstijlen'].includes(el.categorie)));
 }

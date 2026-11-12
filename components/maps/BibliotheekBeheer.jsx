@@ -7,7 +7,7 @@ import Info from './info';
 import { metTekeningen } from './tekeningen';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './maps.css';
-import { maps, sb, BUCKET, publiekeUrl, foutTekst, wieBenIk, magSchrijven, magBibliotheek } from './db';
+import { maps, sb, BUCKET, publiekeUrl, foutTekst, wieBenIk, magSchrijven, magBibliotheek, isCentraalElement } from './db';
 import { ElementIcoon, elementMaat } from './BibliotheekPaneel';
 import { KLEUREN, TOEBEHOREN, TB_SOORTEN } from './stijl';
 import { leesSvg, dxfTekening } from './tekening';
@@ -102,8 +102,11 @@ export default function BibliotheekBeheer({ soort = 'elementen' }) {
     } catch {}
   }, [weergave, cat, gekozen, bibTab]);
 
-  const schrijven = magBibliotheek(profiel);
-  const alleenLezen = magSchrijven(profiel) && !schrijven;
+  // Een element uit de centrale bibliotheek van Toolen kan een klant bekijken en kopiëren, niet wijzigen.
+  const magBib = magBibliotheek(profiel);
+  const centraalEl = isCentraalElement(profiel, vorm);
+  const schrijven = magBib && !centraalEl;
+  const alleenLezen = magSchrijven(profiel) && !magBib;
   const cats = useMemo(() => sorteerCategorieen(new Set([...CATEGORIEEN, ...lijst.map((e) => e.categorie)])), [lijst]);
   const levLijst = useLeveranciers();
   const kies = async (el) => {
@@ -114,8 +117,9 @@ export default function BibliotheekBeheer({ soort = 'elementen' }) {
 
   const verwijder = async () => {
     if (!gekozen || gekozen === 'nieuw') return;
-    const { count } = await maps().from('items').select('id', { count: 'exact', head: true }).eq('element_id', gekozen);
-    const n = Number(count) || 0;
+    // Over alle organisaties heen: een centraal element staat ook in plannen van klanten.
+    const { data: gebruik } = await maps().rpc('element_gebruik', { p_id: gekozen });
+    const n = Number(gebruik) || 0;
     const tekst = n
       ? `"${vorm.naam}" staat ${n === 1 ? '1 keer' : `${n} keer`} in plannen. Die blijven op de kaart staan als gewone vorm, maar verliezen de koppeling met dit element (tellingen, stroom, stock). Definitief verwijderen?`
       : `"${vorm.naam}" definitief verwijderen uit de bibliotheek?`;
@@ -267,7 +271,7 @@ export default function BibliotheekBeheer({ soort = 'elementen' }) {
 
       {weergave === 'doeken' && (heeftModule('branding') ? <DoekenBeheer doeken={doeken} setDoeken={setDoeken} schrijven={schrijven} /> : <div style={{ padding: 32 }} className="fm-sub">De module Branding staat niet aan voor deze organisatie.</div>)}
       <div style={{ display: weergave === 'doeken' ? 'none' : 'flex', flexWrap: 'wrap', gap: 24, padding: '16px 32px 32px' }}>
-        <Overzicht lijst={lijst} setLijst={setLijst} cats={cats} cat={cat} setCat={setCat} gekozen={gekozen} kies={kies} schrijven={schrijven} setMelding={setMelding} setFout={setFout} />
+        <Overzicht lijst={lijst} setLijst={setLijst} cats={cats} cat={cat} setCat={setCat} gekozen={gekozen} kies={kies} schrijven={magBib} profiel={profiel} setMelding={setMelding} setFout={setFout} />
 
         {gekozen && (
           <aside style={{ flex: '1 1 340px', maxWidth: 420, background: '#fff', border: '1px solid #e8e8e6', alignSelf: 'flex-start', position: 'sticky', top: 12, maxHeight: 'calc(100vh - 24px)', overflowY: 'auto' }}>
@@ -573,6 +577,12 @@ export default function BibliotheekBeheer({ soort = 'elementen' }) {
               </div>
             )}
             </>)}
+            {magBib && centraalEl && (
+              <div className="fm-sectie" style={{ borderBottom: 0, position: 'sticky', bottom: 0, background: '#fff', borderTop: '1px solid #e8e8e6', zIndex: 2 }}>
+                <div className="fm-sub">Dit element komt uit de bibliotheek van Toolen en wordt daar bijgehouden. Wil je het aanpassen, maak dan een eigen kopie.</div>
+                <button className="fm-knop" style={{ alignSelf: 'flex-start' }} onClick={() => kies({ ...vorm, id: undefined, organisatie_id: undefined, collectie_id: undefined, rev: undefined, naam: `${vorm.naam} (eigen)` })}>Eigen kopie maken</button>
+              </div>
+            )}
             {schrijven && (
               <div className="fm-sectie" style={{ flexDirection: 'row', flexWrap: 'wrap', borderBottom: 0, position: 'sticky', bottom: 0, background: '#fff', borderTop: '1px solid #e8e8e6', zIndex: 2 }}>
                 {bibGewijzigd
@@ -753,7 +763,7 @@ const maatVan = (e) => (e.tekenwijze === 'lijn' ? (Number(e.eenheid_m) || 0) : (
 // Bewaren zonder de opgezochte tekening (die komt uit tekening_ref).
 const zuiverEig = (eig) => { const { tekening, ...r } = eig || {}; return eig?.tekening_ref ? r : eig; };
 
-function Overzicht({ lijst, setLijst, cats, cat, setCat, gekozen, kies, schrijven, setMelding, setFout }) {
+function Overzicht({ lijst, setLijst, cats, cat, setCat, gekozen, kies, schrijven, profiel, setMelding, setFout }) {
   const [zoek, setZoek] = useState('');
   const [controle, setControle] = useState('');
   const [weergave, setWeergave] = useState(() => { try { return localStorage.getItem('fm-bib-weergave2') || 'tabel'; } catch { return 'tabel'; } });
@@ -779,7 +789,8 @@ function Overzicht({ lijst, setLijst, cats, cat, setCat, gekozen, kies, schrijve
     const waarde = (e) => ({ naam: e.naam, familie: `${FAMILIE_NAAM[famVan.get(e.id)]} ${e.categorie}`, categorie: `${e.categorie} ${e.eigenschappen?.subgroep || ''}`, leverancier: e.leverancier || '~', maat: maatVan(e), tags: (e.eigenschappen?.tags || []).length, foto: (e.eigenschappen?.fotos || []).length, voorraad: Number(e.eigenschappen?.voorraad) || 0 }[k]);
     rijen = [...rijen].sort((a, b) => { const x = waarde(a); const y = waarde(b); return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'nl', { numeric: true })) * r; });
   }
-  const allesGekozen = rijen.length > 0 && rijen.every((e) => sel.has(e.id));
+  const kiesbaar = rijen.filter((e) => !isCentraalElement(profiel, e));
+  const allesGekozen = kiesbaar.length > 0 && kiesbaar.every((e) => sel.has(e.id));
   const wissel = (id) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const kop = (k, t) => <th style={{ cursor: 'pointer', whiteSpace: 'nowrap' }} onClick={() => setSorteer(([a, r]) => [k, a === k ? -r : 1])}>{t}{sorteer[0] === k ? (sorteer[1] > 0 ? ' ▲' : ' ▼') : ''}</th>;
 
@@ -854,15 +865,15 @@ function Overzicht({ lijst, setLijst, cats, cat, setCat, gekozen, kies, schrijve
         <div style={{ overflowX: 'auto', background: '#fff', border: '1px solid #e8e8e6' }}>
           <table className="fm-tabel fm-bibtabel">
             <thead><tr>
-              {schrijven && <th><input type="checkbox" aria-label="Alles kiezen" checked={allesGekozen} onChange={() => setSel(allesGekozen ? new Set() : new Set(rijen.map((e) => e.id)))} /></th>}
+              {schrijven && <th><input type="checkbox" aria-label="Alles kiezen" checked={allesGekozen} onChange={() => setSel(allesGekozen ? new Set() : new Set(kiesbaar.map((e) => e.id)))} /></th>}
               <th aria-label="Voorbeeld" />{kop('naam', 'Naam')}{kop('familie', 'Soort')}{kop('categorie', 'Categorie · subgroep')}{kop('leverancier', 'Leverancier')}{kop('maat', 'Maat')}{kop('tags', 'Zoekwoorden')}{kop('foto', "Foto's")}{kop('voorraad', 'Ter plaatse')}
             </tr></thead>
             <tbody>
               {rijen.map((e) => (
                 <tr key={e.id} className={gekozen === e.id ? 'aan' : ''} onClick={() => kies(e)} style={{ cursor: 'pointer' }}>
-                  {schrijven && <td onClick={(x) => x.stopPropagation()}><input type="checkbox" aria-label={`${e.naam} kiezen`} checked={sel.has(e.id)} onChange={() => wissel(e.id)} /></td>}
+                  {schrijven && <td onClick={(x) => x.stopPropagation()}>{!isCentraalElement(profiel, e) && <input type="checkbox" aria-label={`${e.naam} kiezen`} checked={sel.has(e.id)} onChange={() => wissel(e.id)} />}</td>}
                   <td style={{ width: 36 }}><ElementIcoon el={e} maat={26} /></td>
-                  <td><strong>{e.naam}</strong>{e.eigenschappen?.familie && <div className="fm-sub">{e.eigenschappen.familie} · {e.eigenschappen.variant}</div>}{e.actief === false && <div className="fm-sub">niet actief</div>}</td>
+                  <td><strong>{e.naam}</strong>{isCentraalElement(profiel, e) && <span className="fm-tag" style={{ marginLeft: 6 }} title="Uit de bibliotheek van Toolen">Toolen</span>}{e.eigenschappen?.familie && <div className="fm-sub">{e.eigenschappen.familie} · {e.eigenschappen.variant}</div>}{e.actief === false && <div className="fm-sub">niet actief</div>}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>{FAMILIE_NAAM[famVan.get(e.id)]}{!e.familie && <div className="fm-sub">automatisch</div>}</td>
                   <td>{e.categorie}{e.eigenschappen?.subgroep ? <div className="fm-sub">{e.eigenschappen.subgroep}</div> : null}</td>
                   <td>{e.leverancier || <span className="fm-sub">—</span>}</td>

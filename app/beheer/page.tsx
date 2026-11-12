@@ -3,6 +3,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import PlatformZij from "@/components/beheer/PlatformZij";
 import PlatformBeheer from "@/components/beheer/PlatformBeheer";
 import Systeem from "@/components/beheer/Systeem";
+import Collecties from "@/components/beheer/Collecties";
 import Inlogkader from "@/components/Inlogkader";
 import MfaScherm from "@/components/MfaScherm";
 import { mfaStap } from "@/lib/mfa";
@@ -24,11 +25,11 @@ export default async function Beheer({ searchParams }: { searchParams: Promise<{
   // Platformbeheer vraagt altijd de tweede stap, ook na Microsoft, Google of een e-mailcode.
   const stap = await mfaStap(supabase, true);
   if (stap) return <Inlogkader titel="Platformbeheer"><MfaScherm stap={stap} reden={stap === "instellen" ? "Platformbeheer vraagt altijd een code uit een app op je gsm, ook als je via Microsoft, Google of een e-mailcode inlogt." : undefined} /></Inlogkader>;
-  const b = blad === "pakketten" || blad === "systeem" ? blad : "organisaties";
+  const b = blad === "pakketten" || blad === "systeem" || blad === "bibliotheek" ? blad : "organisaties";
   return (
     <div className="t-schil">
       <PlatformZij blad={b} gebruiker={profiel?.naam || auth.user.email || ""} />
-      <div className="t-werk">{b === "systeem" ? <Systeem /> : <PlatformBeheer blad={b} />}</div>
+      <div className="t-werk">{b === "systeem" ? <Systeem /> : b === "bibliotheek" ? <Collecties /> : <PlatformBeheer blad={b} />}</div>
     </div>
   );
 }
