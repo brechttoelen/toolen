@@ -571,7 +571,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
         {fout && <div className="mb-pad"><div className="mb-melding fout">{fout}</div><button type="button" className="mb-knop" onClick={onKiesPlan}>Ander plan kiezen</button></div>}
         <div ref={kaartRef} className="mb-map" />
         {!paneel && data && (
-          <div className="mb-zweef" style={{ left: 12, right: 12, top: 12 }}>
+          <div className="mb-zweef" style={{ left: 'var(--mb-rand)', right: 'var(--mb-rand)', top: 16 }}>
             <label className="mb-zoek"><Ic.zoek /><input type="search" placeholder="Zoek: kast, hek, tent…" value={zoek} onChange={(e) => setZoek(e.target.value)} aria-label="Zoek in het plan" /></label>
             {z && (
               <div className="mb-lijst mb-zoekres">
@@ -597,7 +597,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
         )}
         {paneel === 'meten' && <div className="mb-zweef mb-hint">{meetSoort === 'mij' && !mijn ? 'Je locatie zoeken…' : 'Tik punten op de kaart. Ze klikken vast op hoeken van items.'}</div>}
         {melding && !paneel && (
-          <div className="mb-zweef" style={{ left: 12, right: 72, bottom: 'calc(var(--mb-tabh) + 16px)' }}>
+          <div className="mb-zweef" style={{ left: 'var(--mb-rand)', right: 'calc(var(--mb-rand) + 64px)', bottom: 'calc(var(--mb-tabh) + 16px)' }}>
             <div className="mb-melding" role="status" onClick={() => setMelding('')}>{melding}</div>
           </div>
         )}

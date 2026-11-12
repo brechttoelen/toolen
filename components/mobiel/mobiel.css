@@ -141,3 +141,19 @@
 .mb-vizier::before, .mb-vizier::after { content: ""; position: absolute; background: #fff; box-shadow: 0 0 0 1.5px var(--t-navy); border-radius: 2px; }
 .mb-vizier::before { left: 27px; top: 0; width: 2px; height: 56px; }
 .mb-vizier::after { top: 27px; left: 0; height: 2px; width: 56px; }
+
+/* Marges: 16 px van elke rand (plus de veilige zone van iPhones met afgeronde hoeken). */
+.mb { --mb-rand: max(16px, env(safe-area-inset-left), env(safe-area-inset-right)); }
+.mb-kop { padding-left: var(--mb-rand); padding-right: var(--mb-rand); }
+.mb-kop.terug { padding-left: 0; }
+.mb-gereedschap { right: var(--mb-rand); }
+.mb-hint { left: var(--mb-rand); right: var(--mb-rand); top: 16px; }
+.mb-pad { padding-left: var(--mb-rand); padding-right: var(--mb-rand); }
+.mb-paneel-in { padding: 4px var(--mb-rand) 20px; }
+.mb-tab { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+/* Op het beginscherm (iPhone): de app vult het hele scherm, ook onder de statusbalk, zonder grijze strook onderaan. */
+html:has(.mb), html:has(.mb) body { background: var(--t-vlak); overscroll-behavior: none; }
+@media (display-mode: standalone) {
+  .mb { top: 0; bottom: auto; height: 100vh; height: 100lvh; }
+}
