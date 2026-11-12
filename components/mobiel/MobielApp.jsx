@@ -43,7 +43,11 @@ export default function MobielApp({ huisstijl = null }) {
       const el = schilRef.current; if (!el || !vv) return;
       el.style.left = `${vv.offsetLeft}px`; el.style.top = `${vv.offsetTop}px`;
       el.style.width = `${vv.width}px`; el.style.height = `${vv.height}px`; el.style.right = 'auto'; el.style.bottom = 'auto';
+      // Toetsenbord open (het zichtbare deel is veel lager dan normaal): de onderbalk verbergen, anders schuift ze mee omhoog.
+      const h = vv.height * vv.scale; hoogst = Math.max(hoogst, h);
+      el.classList.toggle('toets', h < hoogst - 140);
     };
+    let hoogst = 0;
     // Ingezoomd blijven hangen (bv. na een tik in een veld): de schaal terugzetten via de viewport-instelling.
     const herstel = () => {
       if (!ingezoomd() || document.activeElement?.matches?.('input, textarea, select')) return;

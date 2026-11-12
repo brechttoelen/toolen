@@ -184,3 +184,40 @@ html:has(.mb) { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-ac
 .mb-rond .lbl { right: 58px; top: 50%; transform: translateY(-50%); font-size: 13px; padding: 5px 10px; background: rgba(2, 32, 86, .78); -webkit-backdrop-filter: var(--mb-blur); backdrop-filter: var(--mb-blur); }
 @media (prefers-reduced-motion: reduce) { .mb-tools .mb-rond, .mb-tools .lbl, .mb-menuknop svg { transition: none; } }
 .mb .maplibregl-ctrl-bottom-left { left: var(--mb-rand); margin-bottom: 12px; }
+
+/* Toetsenbord open: geen onderbalk. */
+.mb.toets { --mb-tabh: 0px; }
+.mb.toets .mb-tab { display: none; }
+
+/* Compacter: knoppen en rijen kleiner (tikzone blijft minstens 40 px). */
+.mb { font-size: 14px; --mb-tabh: calc(52px + env(safe-area-inset-bottom)); }
+.mb-kop { min-height: calc(48px + env(safe-area-inset-top)); }
+.mb-kop h1 { font-size: 15px; }
+.mb-terug { width: 48px; }
+.mb-avatar { width: 30px; height: 30px; font-size: 11px; }
+.mb-kopknop { height: 32px; }
+.mb-tab button { height: 52px; font-size: 11px; gap: 2px; }
+.mb-tab svg { width: 20px; height: 20px; }
+.mb-knop { min-height: 40px; padding: 0 12px; font-size: 14px; gap: 6px; }
+.mb-knop svg { width: 16px; height: 16px; }
+.mb-rij .mb-knop, .mb-opm .mb-knop { min-height: 34px; font-size: 13px; }
+.mb-rij { min-height: 50px; padding: 8px 12px; gap: 10px; }
+.mb-rij small { font-size: 12px; }
+.mb-blok { width: 34px; height: 34px; }
+.mb-blok svg { width: 18px; height: 18px; }
+.mb-zoek { height: 42px; padding: 0 12px; }
+.mb-chips button { height: 34px; padding: 0 12px; font-size: 13px; }
+.mb-segment button { height: 34px; font-size: 13px; }
+.mb-rond { width: 42px; height: 42px; }
+.mb-rond svg { width: 20px; height: 20px; }
+.mb-rond .lbl { right: 50px; font-size: 12px; padding: 4px 8px; }
+.mb-gereedschap, .mb-tools { gap: 8px; }
+.mb-titel { font-size: 19px; }
+.mb-kaartje strong { font-size: 15px; }
+.mb-kaartje .tekst { padding: 10px 12px; }
+.mb-pad { gap: 12px; padding-top: 12px; }
+.mb-paneel-in { gap: 10px; }
+.mb-feiten div { padding: 8px 10px; }
+.mb-feiten b { font-size: 13px; }
+.mb-totaal strong { font-size: 20px; }
+.mb-persoon { width: 28px; height: 28px; font-size: 10px; }

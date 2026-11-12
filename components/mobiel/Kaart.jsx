@@ -643,7 +643,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
               ].filter(Boolean).reverse().map(([n, I, f, aan], i) => <Fragment key={n}>{tool(n, I, f, aan, i)}</Fragment>)}
             </div>
             <button type="button" className="mb-rond mb-menuknop" aria-expanded={menu} aria-controls="mb-tools" aria-label={menu ? 'Gereedschap sluiten' : 'Gereedschap'} onClick={() => setMenu((m) => !m)}>
-              <ToolenTeken op="licht" grootte={26} />
+              <ToolenTeken op="licht" grootte={22} />
             </button>
           </div>
         )}
@@ -662,7 +662,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
                 return (
                   <>
                     <div>
-                      <p className="mb-titel" style={{ fontSize: 20 }}>{naamItem(item)}</p>
+                      <p className="mb-titel" style={{ fontSize: 17 }}>{naamItem(item)}</p>
                       <p className="mb-sub">{[l?.naam, fn && `fase ${fn}`, mijn ? `${meters(afstand(mijn.punt, middelpunt(item.geometrie)))} van jou` : ''].filter(Boolean).join(' · ')}</p>
                     </div>
                     <div className="mb-feiten">
@@ -701,7 +701,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
 
               {paneel === 'punt' && punt && (
                 <>
-                  <div><p className="mb-titel" style={{ fontSize: 20 }}>Melding</p><p className="mb-sub">{punt.auteur_naam || 'Collega'}{punt.created_at ? ` · ${new Date(punt.created_at).toLocaleString('nl-BE', { dateStyle: 'short', timeStyle: 'short' })}` : ''}{mijn ? ` · ${meters(afstand(mijn.punt, punt.punt))} van jou` : ''}</p></div>
+                  <div><p className="mb-titel" style={{ fontSize: 17 }}>Melding</p><p className="mb-sub">{punt.auteur_naam || 'Collega'}{punt.created_at ? ` · ${new Date(punt.created_at).toLocaleString('nl-BE', { dateStyle: 'short', timeStyle: 'short' })}` : ''}{mijn ? ` · ${meters(afstand(mijn.punt, punt.punt))} van jou` : ''}</p></div>
                   <p style={{ margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{punt.tekst}</p>
                   <div className="mb-knoppen">
                     <a className="mb-knop" href={`https://www.google.com/maps/dir/?api=1&destination=${punt.punt[1].toFixed(6)},${punt.punt[0].toFixed(6)}`} target="_blank" rel="noreferrer"><Ic.route />Route</a>
@@ -715,7 +715,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
 
               {paneel === 'lagen' && (
                 <>
-                  <p className="mb-titel" style={{ fontSize: 20 }}>Lagen</p>
+                  <p className="mb-titel" style={{ fontSize: 17 }}>Lagen</p>
                   <div className="mb-segment" role="group" aria-label="Ondergrond">
                     {['luchtfoto', 'lijntekening', 'stratenkaart'].map((k) => <button key={k} type="button" className={ondergrond === k ? 'aan' : ''} onClick={() => setOndergrond(k)}>{ONDERGRONDEN[k]?.naam || k}</button>)}
                   </div>
@@ -753,7 +753,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
               {paneel === 'melden' && (
                 <>
                   <div>
-                    <p className="mb-titel" style={{ fontSize: 20 }}>Melding</p>
+                    <p className="mb-titel" style={{ fontSize: 17 }}>Melding</p>
                     <p className="mb-sub">{pinItem ? `Bij ${naamItem(items.find((x) => x.id === pinItem))}` : 'Op de gekozen plek'}{pin && mijn ? ` · ${meters(afstand(mijn.punt, pin))} van jou` : ''}</p>
                   </div>
                   <label className="mb-veld">Wat is er?
@@ -797,7 +797,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
 
               {paneel === 'verplaats' && verpl && (
                 <>
-                  <div><p className="mb-titel" style={{ fontSize: 20 }}>Verplaatsen</p><p className="mb-sub">{verpl.naam}{verpl.hoek ? ` · ${verpl.hoek}° gedraaid` : ''}</p></div>
+                  <div><p className="mb-titel" style={{ fontSize: 17 }}>Verplaatsen</p><p className="mb-sub">{verpl.naam}{verpl.hoek ? ` · ${verpl.hoek}° gedraaid` : ''}</p></div>
                   <div className="mb-knoppen drie">
                     <button type="button" className="mb-knop" onClick={() => draaiVerpl(-15)} aria-label="15 graden naar links draaien">↺ 15°</button>
                     <button type="button" className="mb-knop" onClick={() => draaiVerpl(90)} aria-label="Kwartslag draaien">90°</button>
@@ -813,7 +813,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
 
               {paneel === 'delen' && (
                 <>
-                  <div><p className="mb-titel" style={{ fontSize: 20 }}>Delen</p><p className="mb-sub">Een link per ontvanger. Wie de link heeft, ziet het plan zonder account.</p></div>
+                  <div><p className="mb-titel" style={{ fontSize: 17 }}>Delen</p><p className="mb-sub">Een link per ontvanger. Wie de link heeft, ziet het plan zonder account.</p></div>
                   {nieuweLink ? (
                     <>
                       <label className="mb-veld">Voor wie<input type="text" value={nieuweLink.naam} placeholder="Bv. tentenbouwer, politie" autoFocus onChange={(e) => setNieuweLink({ ...nieuweLink, naam: e.target.value })} /></label>
@@ -865,7 +865,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
               {paneel === 'wie' && (
                 <>
                   <div>
-                    <p className="mb-titel" style={{ fontSize: 20 }}>Wie is waar</p>
+                    <p className="mb-titel" style={{ fontSize: 17 }}>Wie is waar</p>
                     <p className="mb-sub">Enkel collega's van je eigen organisatie die zelf hun plek delen. Nooit via deellinks, geen geschiedenis.</p>
                   </div>
                   {deelt ? <span className="mb-deelt">Je deelt je plek tot vanavond{mijn ? ` (± ${mijn.acc} m)` : ''}</span> : null}
