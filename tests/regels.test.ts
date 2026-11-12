@@ -49,17 +49,17 @@ describe("deellinks: wat een ontvanger ziet", () => {
     expect(laagIdsVan({}, lagen)).toEqual(["a", "b"]);
   });
   it("Met gekozen lagen ziet de ontvanger enkel die lagen, nooit verborgen items", () => {
-    const zicht = itemsVanOnderdeel({ laag_ids: ["a"] }, items, lagen).map((i) => i.id);
+    const zicht = itemsVanOnderdeel({ laag_ids: ["a"] }, items, lagen).map((i: { id: string }) => i.id);
     expect(zicht).toEqual(["1", "5"]);
   });
   it("Een map neemt al haar lagen mee", () => {
     expect(laagIdsVan({ laag_ids: [], mappen: ["Stroom"] }, lagen)).toEqual(["b"]);
   });
   it("Een fase verbergt items van andere fasen", () => {
-    expect(itemsVanOnderdeel({ laag_ids: ["a"], fase: "f1" }, items, lagen).map((i) => i.id)).toEqual(["1"]);
+    expect(itemsVanOnderdeel({ laag_ids: ["a"], fase: "f1" }, items, lagen).map((i: { id: string }) => i.id)).toEqual(["1"]);
   });
   it("Verborgen elementen en items blijven weg", () => {
-    expect(itemsVanOnderdeel({ laag_ids: ["a", "b"], verberg_elementen: ["e1"], verberg_items: ["1"] }, items, lagen).map((i) => i.id)).toEqual(["5"]);
+    expect(itemsVanOnderdeel({ laag_ids: ["a", "b"], verberg_elementen: ["e1"], verberg_items: ["1"] }, items, lagen).map((i: { id: string }) => i.id)).toEqual(["5"]);
   });
   it("De rij voor de databank bevat enkel de lagen van de plannen", () => {
     const r = rijMetOnderdelen({ opties: { pdf: true, drie: "x" } }, [{ id: "p", soort: "plan", laag_ids: ["b"] }, { id: "d", soort: "drie", item: "9" }], lagen);
