@@ -331,7 +331,12 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
   // ---------- Melden ----------
   const startMelden = (it = null) => {
     setPaneel('melden'); setGroot(false); setTekst(''); setPinItem(it?.id || null);
-    if (it) setPin(middelpunt(it.geometrie));
+    if (it) {
+      // Bij een lange lijn (hekken, parcours): het punt van de lijn het dichtst bij het midden van het scherm.
+      const c = mapRef.current?.getCenter().toArray();
+      const g = it.geometrie;
+      setPin(g?.type === 'LineString' && c ? turf.nearestPointOnLine(g, c).geometry.coordinates : middelpunt(g));
+    }
     else if (mijn && Date.now() - mijn.t < 60000) setPin(mijn.punt);
     else { setPin(mapRef.current ? mapRef.current.getCenter().toArray() : null); setVolg(true); }
   };
