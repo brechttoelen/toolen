@@ -135,3 +135,9 @@
 .mb-zweef .mb-melding { -webkit-backdrop-filter: var(--mb-blur); backdrop-filter: var(--mb-blur); background: rgba(255, 244, 224, .88); }
 .mb .maplibregl-ctrl-bottom-left, .mb .maplibregl-ctrl-bottom-right { bottom: var(--mb-tabh); }
 .mb-tab svg { width: 22px; height: 22px; }
+
+/* Vizier bij verplaatsen: vast in het midden, de kaart schuift eronder. */
+.mb-vizier { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; z-index: 2; pointer-events: none; }
+.mb-vizier::before, .mb-vizier::after { content: ""; position: absolute; background: #fff; box-shadow: 0 0 0 1.5px var(--t-navy); border-radius: 2px; }
+.mb-vizier::before { left: 27px; top: 0; width: 2px; height: 56px; }
+.mb-vizier::after { top: 27px; left: 0; height: 2px; width: 56px; }

@@ -9,7 +9,9 @@ import * as turf from '@turf/turf';
 import { maps, sb, BUCKET, foutTekst, magSchrijven, publiekeUrl } from '../maps/db';
 import { basisStijl, registreerProtocollen, zetOndergrond, klapBronvermeldingIn, kiesFotoVl, ONDERGRONDEN } from '../maps/ondergronden';
 import { kaartLagen, naarGeojson, zorgVoorPatronen, maten, matenTekst } from '../maps/stijl';
-import { middelpunt, kader, getal, lengte, oppervlakte } from '../maps/geo';
+import { middelpunt, kader, getal, lengte, oppervlakte, verschuifGraden } from '../maps/geo';
+import { draaiRond } from '../maps/itemgeo';
+import { soortenVoorPakket, rijMetOnderdelen, nieuwId, linkAan } from '../maps/ontvangers';
 import { metTekeningen } from '../maps/tekeningen';
 import { navigatieUrl } from '../maps/PopupInhoud';
 import { isSign } from '../maps/signalisatie';
@@ -17,6 +19,8 @@ import { hitOp, ITEMLAGEN } from '../maps/hit';
 import { zorgVoorVeldpuntLagen, zetVeldpunten } from '../maps/veldpunten';
 import { zorgVoorMeetLagen, meetGeometrie } from '../maps/deelmeten';
 import { startLive } from '../maps/live';
+import { heeft3d, Knop3D, Groot3D } from '../maps/drie3d';
+import BinnenScherm from '../maps/BinnenScherm';
 import { kleurVoor } from '../maps/Aanwezigheid';
 import { Ic } from './iconen';
 import { initialen } from './MobielApp';
@@ -24,6 +28,7 @@ import { initialen } from './MobielApp';
 const leeg = { type: 'FeatureCollection', features: [] };
 const WACHTRIJ = 'fm-mob-wachtrij';
 const DEEL = 'fm-mob-deel';
+const VERPLAATS = 'fm-mob-verplaats';
 const leesJson = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? d; } catch { return d; } };
 const zetJson = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch { /* */ } };
 const afstand = (a, b) => turf.distance(a, b, { units: 'meters' });
@@ -43,6 +48,24 @@ async function verstuurWachtrij() {
   zetJson(WACHTRIJ, rest.length ? rest : null);
   return lijst.length - rest.length;
 }
+
+// Verplaatsingen zonder verbinding: per item de laatste stand, verstuurd zodra er netwerk is.
+async function verstuurVerplaatsingen() {
+  const w = leesJson(VERPLAATS, {});
+  const ids = Object.keys(w);
+  if (!ids.length) return 0;
+  let n = 0;
+  for (const id of ids) {
+    const { data, error } = await maps().rpc('item_wijzig', { p_id: id, p_rev: null, p_patch: w[id] });
+    if (!error && data?.status !== 'weg' && data?.status !== 'verwijderd') n++;
+    if (!error) delete w[id];
+  }
+  zetJson(VERPLAATS, Object.keys(w).length ? w : null);
+  return n;
+}
+
+// Verplaatsen kan voor alles behalve lijnen (hekken, kabels, parcours): die volgen de weg en verschuif je op een computer.
+export const magVerplaatsen = (it) => !!it?.geometrie && it.geometrie.type !== 'LineString' && !it.vergrendeld && !it.velden?.binnen;
 
 // Foto verkleinen tot max. 2000 px (JPEG), zo gaat een melding ook met weinig bereik door.
 async function verklein(bestand) {
@@ -87,6 +110,14 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
   const [foto, setFoto] = useState(null); // { blob, url, punt, acc, item, soort, notitie }
   const fotoInput = useRef(null);
   const fotoVoorItem = useRef(null);
+  // Verplaatsen (vizier in het midden, zoals in Publitool: de kaart schuift eronder)
+  const [verpl, setVerpl] = useState(null); // { ids, c0, hoek }
+  const verplRef = useRef(null); verplRef.current = verpl;
+  // Delen
+  const [links, setLinks] = useState(null);
+  const [groot3d, setGroot3d] = useState(null);
+  const [binnen, setBinnen] = useState(null); // { host, verd }
+  const [nieuweLink, setNieuweLink] = useState(null); // { naam, soort, lagen: 'alle'|'zicht' }
   // Item
   const [opm, setOpm] = useState([]);
   const [fotos, setFotos] = useState([]);
@@ -133,7 +164,10 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
   }, [planId]);
 
   useEffect(() => {
-    const stuur = () => verstuurWachtrij().then((n) => { if (n) setMelding(`${n} ${n === 1 ? 'melding' : 'meldingen'} van zonder bereik verstuurd.`); }).catch(() => {});
+    const stuur = () => {
+      verstuurWachtrij().then((n) => { if (n) setMelding(`${n} ${n === 1 ? 'melding' : 'meldingen'} van zonder bereik verstuurd.`); }).catch(() => {});
+      verstuurVerplaatsingen().then((n) => { if (n) setMelding(`${n} ${n === 1 ? 'verplaatsing' : 'verplaatsingen'} van zonder bereik bewaard.`); }).catch(() => {});
+    };
     stuur();
     window.addEventListener('online', stuur);
     return () => window.removeEventListener('online', stuur);
@@ -146,6 +180,13 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
   const zichtbaar = useMemo(() => items.filter((i) => !verborgen.has(i.laag_id) && (!fase || !i.fase_ids?.length || i.fase_ids.includes(fase))), [items, verborgen, fase]);
   const naamItem = useCallback((i) => i?.naam || elMap.get(i?.element_id)?.naam || ({ lijn: 'Lijn', vlak: 'Vlak', punt: 'Punt', tekst: 'Tekst' })[i?.soort] || 'Item', [elMap]);
   const item = gekozen ? items.find((x) => x.id === gekozen) : null;
+  // Gebouwen, tenten en containers met een binnenplan: daar kan je binnengaan (zoals in de deellink).
+  const binnenHosts = useMemo(() => {
+    const alle = data?.items || [];
+    const tel = new Set(alle.filter((i) => i.velden?.binnen?.host).map((i) => i.velden.binnen.host));
+    const ols = new Set((data?.plan?.instellingen?.onderleggers || []).map((o) => o.binnen?.host).filter(Boolean));
+    return new Set(alle.filter((i) => !i.velden?.binnen && i.geometrie && (tel.has(i.id) || ols.has(i.id))).map((i) => i.id));
+  }, [data]);
 
   // ---------- Kaart ----------
   useEffect(() => {
@@ -167,6 +208,10 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
       map.addLayer({ id: 'mb-keuze-p', type: 'circle', source: 'mb-keuze', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 12, 'circle-color': 'rgba(16,138,237,0.2)', 'circle-stroke-color': '#108AED', 'circle-stroke-width': 3 } });
       zorgVoorVeldpuntLagen(map);
       zorgVoorMeetLagen(map);
+      map.addSource('mb-voorbeeld', { type: 'geojson', data: leeg });
+      map.addLayer({ id: 'mb-voorbeeld-v', type: 'fill', source: 'mb-voorbeeld', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': '#108AED', 'fill-opacity': 0.28 } });
+      map.addLayer({ id: 'mb-voorbeeld-l', type: 'line', source: 'mb-voorbeeld', paint: { 'line-color': '#108AED', 'line-width': 3 } });
+      map.addLayer({ id: 'mb-voorbeeld-p', type: 'circle', source: 'mb-voorbeeld', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 9, 'circle-color': '#108AED', 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 } });
       map.addSource('mb-pin', { type: 'geojson', data: leeg });
       map.addLayer({ id: 'mb-pin', type: 'circle', source: 'mb-pin', paint: { 'circle-radius': 10, 'circle-color': '#C77700', 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 } });
       map.addSource('mb-ik', { type: 'geojson', data: leeg });
@@ -176,8 +221,10 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
       const k = kader(itemsRef.current.map((i) => i.geometrie));
       if (k && !data.plan.centrum) map.fitBounds(k, { padding: 40, maxZoom: 18, duration: 0 });
     });
+    map.on('move', () => { if (verplRef.current) toonVoorbeeldRef.current?.(); });
     map.on('click', (e) => {
       const m = paneelRef.current;
+      if (m === 'verplaats') return;
       if (m === 'meten') {
         // Vastklikken op de dichtste hoek van een item (binnen 18 px).
         let p = [e.lngLat.lng, e.lngLat.lat];
@@ -236,6 +283,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
     const map = mapRef.current;
     if (doel.item) { const it = itemsRef.current.find((x) => x.id === doel.item); if (it) { setGekozen(it.id); setPaneel('item'); map.easeTo({ center: middelpunt(it.geometrie), zoom: Math.max(map.getZoom(), 18.5) }); } }
     if (doel.punt) { map.easeTo({ center: doel.punt, zoom: Math.max(map.getZoom(), 18.5) }); if (doel.id) { setPuntKeuze(doel.id); setPaneel('punt'); } }
+    if (doel.paneel === 'delen' && magSchrijven(profiel)) openDelen();
   }, [klaar, doel]);
 
   // ---------- Gps ----------
@@ -384,6 +432,96 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
     } finally { setBezig(false); }
   };
 
+  // ---------- Verplaatsen ----------
+  // Een item van een groep (bv. units van een containerbouw) gaat samen met de rest van de groep.
+  const groepVan = useCallback((it) => (it?.groep_id ? items.filter((x) => x.groep_id === it.groep_id && magVerplaatsen(x)) : [it]), [items]);
+  const nieuweStand = useCallback((v, c1) => {
+    const dx = c1[0] - v.c0[0]; const dy = c1[1] - v.c0[1];
+    return v.ids.map((id) => items.find((x) => x.id === id)).filter(Boolean).map((it) => {
+      let n = { ...it, geometrie: verschuifGraden(it.geometrie, dx, dy), parameters: it.parameters?.midden ? { ...it.parameters, midden: [it.parameters.midden[0] + dx, it.parameters.midden[1] + dy] } : it.parameters };
+      if (v.hoek) n = draaiRond(n, v.hoek, c1, data?.elementen || []);
+      return n;
+    });
+  }, [items, data]);
+  const toonVoorbeeldRef = useRef(null);
+  toonVoorbeeldRef.current = () => {
+    const map = mapRef.current; const v = verplRef.current; if (!map || !v) return;
+    const st = nieuweStand(v, map.getCenter().toArray());
+    map.getSource('mb-voorbeeld')?.setData({ type: 'FeatureCollection', features: st.map((x) => ({ type: 'Feature', geometry: x.geometrie, properties: {} })) });
+  };
+  useEffect(() => { if (klaar) { if (verpl) toonVoorbeeldRef.current?.(); else mapRef.current?.getSource('mb-voorbeeld')?.setData(leeg); } }, [verpl, klaar]);
+  const startVerplaats = (it) => {
+    const groep = groepVan(it);
+    const k = kader(groep.map((x) => x.geometrie));
+    const c0 = k ? [(k[0] + k[2]) / 2, (k[1] + k[3]) / 2] : middelpunt(it.geometrie);
+    setVerpl({ ids: groep.map((x) => x.id), c0, hoek: 0, naam: groep.length > 1 ? `${groep.length} delen van de groep` : naamItem(it) });
+    setPaneel('verplaats'); setGroot(false);
+    mapRef.current?.easeTo({ center: c0, zoom: Math.max(mapRef.current.getZoom(), 18.5), duration: 300 });
+  };
+  const draaiVerpl = (d) => setVerpl((v) => ({ ...v, hoek: (((v.hoek + d) % 360) + 360) % 360 }));
+  const verplNaarMij = () => { if (mijn) mapRef.current?.easeTo({ center: mijn.punt }); else { setVolg(true); setMelding('Je locatie zoeken…'); } };
+  const bewaarVerplaats = async () => {
+    const v = verplRef.current; const map = mapRef.current; if (!v || !map) return;
+    const c1 = map.getCenter().toArray();
+    if (afstand(v.c0, c1) < 0.05 && !v.hoek) { setVerpl(null); setPaneel('item'); return; }
+    const st = nieuweStand(v, c1);
+    const oud = new Map(items.map((x) => [x.id, x]));
+    setData((d) => ({ ...d, items: d.items.map((x) => st.find((y) => y.id === x.id) || x) }));
+    setVerpl(null); setPaneel('item'); setBezig(true);
+    let botsing = null; let offline = false;
+    for (const n of st) {
+      const patch = { geometrie: n.geometrie, parameters: n.parameters };
+      let r;
+      try { r = await maps().rpc('item_wijzig', { p_id: n.id, p_rev: oud.get(n.id)?.rev ?? null, p_patch: patch }); } catch (e) { r = { error: { offline: true, message: String(e) } }; }
+      if (r.error && (r.error.offline || !navigator.onLine || /fetch/i.test(r.error.message || ''))) {
+        const w = leesJson(VERPLAATS, {}); w[n.id] = patch; zetJson(VERPLAATS, w); offline = true; continue;
+      }
+      if (r.error) { setMelding(foutTekst(r.error)); setData((d) => ({ ...d, items: d.items.map((x) => (x.id === n.id ? oud.get(n.id) : x)) })); continue; }
+      const sts = r.data?.status;
+      if (sts === 'ok' || sts === 'samengevoegd') setData((d) => ({ ...d, items: d.items.map((x) => (x.id === n.id ? r.data.item : x)) }));
+      else if (sts === 'botsing') { botsing = r.data.door || 'een collega'; setData((d) => ({ ...d, items: d.items.map((x) => (x.id === n.id ? r.data.item : x)) })); }
+      else if (sts === 'weg' || sts === 'verwijderd') setData((d) => ({ ...d, items: d.items.filter((x) => x.id !== n.id) }));
+    }
+    setBezig(false);
+    setMelding(botsing ? `Niet verplaatst: ${typeof botsing === 'string' ? botsing : 'een collega'} wijzigde dit item net. Bekijk de nieuwe plek en probeer opnieuw.` : offline ? 'Geen bereik: de nieuwe plek wordt bewaard zodra er netwerk is.' : 'Verplaatst.');
+  };
+  const annuleerVerplaats = () => { setVerpl(null); setPaneel(gekozen ? 'item' : null); };
+
+  // ---------- Delen ----------
+  const laadLinks = useCallback(() => {
+    maps().from('deel_links').select('id, naam, token, live, opties, ingetrokken_op, geldig_tot, created_at').eq('plan_id', planId).order('created_at', { ascending: false })
+      .then(({ data: d, error }) => { if (error) setMelding(foutTekst(error)); setLinks(d || []); });
+  }, [planId]);
+  const openDelen = () => { setPaneel('delen'); setGroot(true); setNieuweLink(null); setLinks(null); laadLinks(); };
+  const linkUrl = (t) => `${location.origin}/d/${t}`;
+  const deelLink = async (l) => {
+    const url = linkUrl(l.token);
+    try {
+      if (navigator.share) await navigator.share({ title: `${data?.plan?.naam || 'Plan'} · ${l.naam}`, url });
+      else { await navigator.clipboard.writeText(url); setMelding('Link gekopieerd.'); }
+    } catch { /* geannuleerd */ }
+  };
+  const trekIn = async (l) => {
+    const { data: d, error } = await maps().from('deel_links').update({ ingetrokken_op: l.ingetrokken_op ? null : new Date().toISOString() }).eq('id', l.id).select('id, naam, token, live, opties, ingetrokken_op, geldig_tot, created_at').single();
+    if (error) { setMelding(foutTekst(error)); return; }
+    setLinks((ls) => ls.map((x) => (x.id === l.id ? d : x)));
+  };
+  const maakLink = async () => {
+    const n = nieuweLink; if (!n?.naam.trim() || !data) return;
+    setBezig(true);
+    try {
+      const s = soortenVoorPakket().find((x) => x.id === n.soort) || soortenVoorPakket()[0];
+      const v = await maps().from('versies').insert({ plan_id: planId, versie: data.plan.versie || 1, opmerking: `Gedeeld met ${n.naam.trim()}`, momentopname: { items: data.items, lagen: data.lagen, fasen: data.fasen } }).select('id').single();
+      if (v.error) throw v.error;
+      const onderdeel = { id: nieuwId(), soort: 'plan', naam: data.plan.naam, ...(n.lagen === 'zicht' ? { laag_ids: data.lagen.filter((l) => !verborgen.has(l.id)).map((l) => l.id) } : {}), ...(fase ? { fase } : {}) };
+      const rij = { plan_id: planId, naam: n.naam.trim(), live: false, versie_id: v.data.id, ...rijMetOnderdelen({ opties: { ...s.opties, taal: 'nl', ontvanger: { soort: s.id } } }, [onderdeel], data.lagen) };
+      const r = await maps().from('deel_links').insert(rij).select('id, naam, token, live, opties, ingetrokken_op, geldig_tot, created_at').single();
+      if (r.error) throw r.error;
+      setLinks((ls) => [r.data, ...(ls || [])]); setNieuweLink(null);
+      deelLink(r.data);
+    } catch (err) { setMelding(foutTekst(err)); } finally { setBezig(false); }
+  };
+
   // ---------- Zoeken ----------
   const z = zoek.trim().toLowerCase();
   const zoekRes = useMemo(() => {
@@ -451,6 +589,12 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
           </div>
         )}
         {paneel === 'melden' && <div className="mb-zweef mb-hint">Tik op de kaart om de plek te kiezen.</div>}
+        {paneel === 'verplaats' && (
+          <>
+            <div className="mb-zweef mb-hint">Schuif de kaart tot het kruis op de juiste plek staat. Twee vingers om te zoomen.</div>
+            <div className="mb-vizier" aria-hidden="true" />
+          </>
+        )}
         {paneel === 'meten' && <div className="mb-zweef mb-hint">{meetSoort === 'mij' && !mijn ? 'Je locatie zoeken…' : 'Tik punten op de kaart. Ze klikken vast op hoeken van items.'}</div>}
         {melding && !paneel && (
           <div className="mb-zweef" style={{ left: 12, right: 72, bottom: 'calc(var(--mb-tabh) + 16px)' }}>
@@ -463,6 +607,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
             {tool('Meten', Ic.meten, () => { setPaneel('meten'); setMeetPunten([]); setMeetSoort('lijn'); setGekozen(null); })}
             {schrijven && tool('Foto op de plek', Ic.foto, () => kiesFoto())}
             {tool('Melden', Ic.melden, () => startMelden())}
+            {schrijven && tool('Delen', Ic.deel, openDelen)}
             {tool('Wie is waar', Ic.wie, () => setPaneel('wie'), deelt)}
             {tool('Waar ben ik', Ic.ik, waarBenIk, volg && !!mijn)}
           </div>
@@ -494,8 +639,10 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
                       <button type="button" className="mb-knop hoofd" onClick={() => startMelden(item)}><Ic.melden />Melden</button>
                       {nav ? <a className="mb-knop" href={nav} target="_blank" rel="noreferrer"><Ic.route />Route</a> : <span />}
                       {schrijven && <button type="button" className={`mb-knop${item.geplaatst_op ? ' ok' : ''}`} onClick={() => zetGeplaatst(item)}>{item.geplaatst_op ? 'Geplaatst' : 'Zet op geplaatst'}</button>}
-                      {schrijven && <button type="button" className="mb-knop" onClick={() => kiesFoto(item)}><Ic.foto />Foto</button>}
+                      {binnenHosts.has(item.id) && <button type="button" className="mb-knop" onClick={() => setBinnen({ host: item.id, verd: null })}><Ic.binnen />Binnengaan</button>}
+                      {schrijven && magVerplaatsen(item) && <button type="button" className="mb-knop" onClick={() => startVerplaats(item)}><Ic.verplaats />Verplaatsen</button>}
                     </div>
+                    {heeft3d(item, el) && <Knop3D it={item} el={el} elementenMap={elMap} onOpen={() => setGroot3d(item.id)} tekst="In 3D bekijken" />}
                     {(item.notitie || rijen.length > 0) && (
                       <dl className="mb-dl">
                         {item.notitie && <><dt>Notitie</dt><dd>{item.notitie}</dd></>}
@@ -613,6 +760,73 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
                 </>
               )}
 
+              {paneel === 'verplaats' && verpl && (
+                <>
+                  <div><p className="mb-titel" style={{ fontSize: 20 }}>Verplaatsen</p><p className="mb-sub">{verpl.naam}{verpl.hoek ? ` · ${verpl.hoek}° gedraaid` : ''}</p></div>
+                  <div className="mb-knoppen drie">
+                    <button type="button" className="mb-knop" onClick={() => draaiVerpl(-15)} aria-label="15 graden naar links draaien">↺ 15°</button>
+                    <button type="button" className="mb-knop" onClick={() => draaiVerpl(90)} aria-label="Kwartslag draaien">90°</button>
+                    <button type="button" className="mb-knop" onClick={() => draaiVerpl(15)} aria-label="15 graden naar rechts draaien">↻ 15°</button>
+                  </div>
+                  <button type="button" className="mb-knop vol" onClick={verplNaarMij}><Ic.ik maat={18} />Naar mijn plek</button>
+                  <div className="mb-knoppen">
+                    <button type="button" className="mb-knop" onClick={annuleerVerplaats}>Annuleren</button>
+                    <button type="button" className="mb-knop hoofd" onClick={bewaarVerplaats}>Bewaren</button>
+                  </div>
+                </>
+              )}
+
+              {paneel === 'delen' && (
+                <>
+                  <div><p className="mb-titel" style={{ fontSize: 20 }}>Delen</p><p className="mb-sub">Een link per ontvanger. Wie de link heeft, ziet het plan zonder account.</p></div>
+                  {nieuweLink ? (
+                    <>
+                      <label className="mb-veld">Voor wie<input type="text" value={nieuweLink.naam} placeholder="Bv. tentenbouwer, politie" autoFocus onChange={(e) => setNieuweLink({ ...nieuweLink, naam: e.target.value })} /></label>
+                      <div className="mb-chips" role="group" aria-label="Soort ontvanger">
+                        {soortenVoorPakket().map((x) => <button key={x.id} type="button" className={nieuweLink.soort === x.id ? 'aan' : ''} onClick={() => setNieuweLink({ ...nieuweLink, soort: x.id })}>{x.id}</button>)}
+                      </div>
+                      <p className="mb-sub">{soortenVoorPakket().find((x) => x.id === nieuweLink.soort)?.uitleg}</p>
+                      <div className="mb-segment" role="group" aria-label="Welke lagen">
+                        <button type="button" className={nieuweLink.lagen === 'alle' ? 'aan' : ''} onClick={() => setNieuweLink({ ...nieuweLink, lagen: 'alle' })}>Alle lagen</button>
+                        <button type="button" className={nieuweLink.lagen === 'zicht' ? 'aan' : ''} onClick={() => setNieuweLink({ ...nieuweLink, lagen: 'zicht' })}>Wat je nu ziet</button>
+                      </div>
+                      <p className="mb-sub">De link toont het plan zoals het nu is{fase ? `, fase ${fasen.find((f) => f.id === fase)?.naam || ''}` : ''}. Meer instellen kan op een computer.</p>
+                      <div className="mb-knoppen">
+                        <button type="button" className="mb-knop" onClick={() => setNieuweLink(null)}>Annuleren</button>
+                        <button type="button" className="mb-knop hoofd" disabled={!nieuweLink.naam.trim() || bezig} onClick={maakLink}>{bezig ? 'Maken…' : 'Maken en delen'}</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" className="mb-knop hoofd vol" onClick={() => setNieuweLink({ naam: '', soort: soortenVoorPakket()[0]?.id, lagen: 'alle' })}>Nieuwe deellink</button>
+                      {links === null && <p className="mb-sub">Laden…</p>}
+                      {links && !links.length && <p className="mb-sub">Nog geen deellinks voor dit plan.</p>}
+                      {links && links.length > 0 && (
+                        <div className="mb-lijst">
+                          {links.map((l) => {
+                            const aan = linkAan(l);
+                            return (
+                              <div key={l.id} className="mb-rij" style={{ alignItems: 'flex-start', cursor: 'default' }}>
+                                <span className="mb-blok" style={aan ? undefined : { opacity: 0.5 }}><Ic.deel /></span>
+                                <span>
+                                  <b>{l.naam}</b>
+                                  <small>{[l.opties?.ontvanger?.soort, l.live ? 'Live' : 'Vaste versie', aan ? null : l.ingetrokken_op ? 'Ingetrokken' : 'Verlopen'].filter(Boolean).join(' · ')}</small>
+                                  <span style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                                    {aan && <button type="button" className="mb-knop" style={{ height: 36 }} onClick={() => deelLink(l)}>Delen</button>}
+                                    <button type="button" className="mb-knop" style={{ height: 36 }} onClick={() => trekIn(l)}>{l.ingetrokken_op ? 'Terug aanzetten' : 'Intrekken'}</button>
+                                  </span>
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <button type="button" className="mb-knop vol" onClick={sluit}>Sluiten</button>
+                    </>
+                  )}
+                </>
+              )}
+
               {paneel === 'wie' && (
                 <>
                   <div>
@@ -642,6 +856,24 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
           </section>
         )}
       </div>
+      {groot3d && (() => { const gi = (data?.items || []).find((x) => x.id === groot3d); return gi ? <Groot3D it={gi} el={elMap.get(gi.element_id)} elementenMap={elMap} items={data.items} onSluit={() => setGroot3d(null)} /> : null; })()}
+      {binnen && (() => {
+        const alle = data?.items || [];
+        const host = alle.find((i) => i.id === binnen.host);
+        if (!host) return null;
+        const vs = Array.isArray(host.velden?.binnenplan?.verdiepingen) && host.velden.binnenplan.verdiepingen.length ? host.velden.binnenplan.verdiepingen : [{ id: 'g', naam: 'Gelijkvloers' }];
+        const verd = binnen.verd && vs.some((v) => v.id === binnen.verd) ? binnen.verd : vs[0].id;
+        const ol = (data.plan?.instellingen?.onderleggers || []).find((o) => o.binnen?.host === host.id && (o.binnen.verd || vs[0].id) === verd) || null;
+        const niets = () => null;
+        return (
+          <div className="fm-deel-binnen fm">
+            <BinnenScherm host={host} verdiepingen={vs} verd={verd} onVerd={(v) => setBinnen({ ...binnen, verd: v })} onderlegger={ol} items={alle} taal="nl" fotosVast={new Map()}
+              merk={<span className="fm-bs-merk"><i aria-hidden="true" />{data.plan.naam}</span>}
+              elementen={data.elementen || []} elementenMap={elMap} schrijven={false}
+              onMaak={niets} onWijzig={niets} onVerwijder={niets} onGrondplan={niets} onPassen={niets} onOnderlegger={niets} onNieuweVerdieping={niets} onSluit={() => setBinnen(null)} />
+          </div>
+        );
+      })()}
     </>
   );
 }

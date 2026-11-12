@@ -22,4 +22,6 @@ export const Ic = {
   deel: I('link'),
   route: I('navigeer'),
   terug: I('chevronlinks'),
+  verplaats: I('verplaats'),
+  binnen: I('gebouw'),
 };

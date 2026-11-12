@@ -57,7 +57,7 @@ export default function MobielApp({ huisstijl = null }) {
       {tab === 'plannen' && <Start huisstijl={huisstijl} profiel={profiel} planId={planId} onPlan={openPlan} onMeer={() => naar('meer')} />}
       {tab === 'kaart' && <Kaart planId={planId} profiel={profiel} doel={doel} onKiesPlan={() => naar('plannen')} />}
       {tab === 'meldingen' && <Meldingen profiel={profiel} onOpen={openPlan} onAantal={setAantalOpen} />}
-      {tab === 'meer' && <Meer huisstijl={huisstijl} profiel={profiel} planId={planId} />}
+      {tab === 'meer' && <Meer huisstijl={huisstijl} profiel={profiel} planId={planId} onDelen={() => openPlan(planId, { paneel: 'delen' })} />}
       <nav className="mb-tab" aria-label="Hoofdmenu">
         {TABS.map(([k, n]) => {
           const I = Ic[k];

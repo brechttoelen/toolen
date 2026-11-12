@@ -17,7 +17,7 @@ if (typeof window !== 'undefined') {
 const isIos = () => typeof navigator !== 'undefined' && (/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 const alGeinstalleerd = () => typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true);
 
-export default function Meer({ huisstijl, profiel, planId }) {
+export default function Meer({ huisstijl, profiel, planId, onDelen }) {
   const [uitleg, setUitleg] = useState(false);
   const [toestel, setToestel] = useState('iphone');
   const [geinstalleerd, setGeinstalleerd] = useState(true);
@@ -104,6 +104,13 @@ export default function Meer({ huisstijl, profiel, planId }) {
                 <span><b>Opbouwmodus</b><small>Afvinken per item en zone offline bewaren</small></span>
                 <span className="mb-pijl">›</span>
               </a>
+            )}
+            {planId && (profiel?.role === 'admin' || profiel?.role === 'editor') && (
+              <button type="button" className="mb-rij" onClick={onDelen}>
+                <span className="mb-blok"><Ic.deel /></span>
+                <span><b>Deellinks</b><small>Van het laatst geopende plan</small></span>
+                <span className="mb-pijl">›</span>
+              </button>
             )}
             <button type="button" className="mb-rij" onClick={naarComputer}>
               <span className="mb-blok"><Ic.scherm /></span>
