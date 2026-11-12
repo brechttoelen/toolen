@@ -244,6 +244,12 @@ export function registreerProtocollen() {
   });
   // Tegels die buiten hun gebied wit zijn: wit doorzichtig maken.
   maplibregl.addProtocol('wit', async (params, abort) => ({ data: await witWeg(params.url.slice(6), abort) }));
+  maplibregl.addProtocol('ofmjson', async (params, abort) => {
+    const r = await fetch('https://tiles.openfreemap.org/planet', { signal: abort.signal });
+    if (!r.ok) throw new Error(`TileJSON ${r.status}`);
+    const j = await r.json();
+    return { data: { ...j, attribution: OFM_TEKST } };
+  });
   maplibregl.addProtocol('fmschaduw', async (params, abort) => {
     const [, k, url] = params.url.match(/^fmschaduw:\/\/([\d.]+)\/(.*)$/) || [];
     return { data: await schaduwTegel(url, Number(k) || 1, abort) };
@@ -338,7 +344,10 @@ export function zetOndergrond(map, ondergrond) {
   for (const l of namenLagen(false)) if (map.getLayer(l.id)) map.setLayoutProperty(l.id, 'visibility', zicht.has('namen') ? 'visible' : 'none');
 }
 
-const OFM = { type: 'vector', url: 'https://tiles.openfreemap.org/planet', attribution: '© OpenStreetMap-bijdragers · OpenFreeMap' };
+// De TileJSON van OpenFreeMap via een eigen protocol: de bronvermelding uit die (externe) TileJSON wordt
+// vervangen door een vaste tekst. Zo komt er nooit HTML van een derde in de kaart (MapLibre 5: GHSA-jrc7-96c5-q579).
+const OFM_TEKST = '© OpenStreetMap-bijdragers · OpenFreeMap';
+const OFM = { type: 'vector', url: 'ofmjson://planet', attribution: OFM_TEKST };
 
 // Wegen als dunne witte lijnen en straatnamen langs de weg (OpenMapTiles-schema).
 function stratenLagen(zichtbaar) {
