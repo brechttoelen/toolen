@@ -2,7 +2,7 @@
 
 // Toolen Maps op de gsm: eerst kijken, een paar dingen doen ter plaatse.
 // Vier tabbladen: Plannen, Kaart, Meldingen, Meer. Het gekozen plan blijft bewaard op dit toestel.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import '../maps/maps.css';
 import './mobiel.css';
 import { wieBenIk, maps } from '../maps/db';
@@ -31,14 +31,39 @@ export default function MobielApp({ huisstijl = null }) {
   const [profiel, setProfiel] = useState(null);
   const [aantalOpen, setAantalOpen] = useState(0);
 
-  // Geen paginazoom zoals in Publitool: knijpen of dubbeltikken zoomt de kaart, nooit de app zelf.
+  // De app volgt altijd het zichtbare deel van het scherm (visualViewport): ook als Safari de pagina ingezoomd
+  // of verschoven heeft, als de werkbalk van Safari in beeld schuift of als het toetsenbord open staat.
+  // Zo valt er nooit iets buiten beeld. Knijpen zoomt de kaart, niet de app; staat de pagina toch ingezoomd,
+  // dan mag knijpen wel, zodat je weer kan uitzoomen.
+  const schilRef = useRef(null);
   useEffect(() => {
-    const stop = (e) => e.preventDefault();
-    const tweeVingers = (e) => { if (e.touches && e.touches.length > 1 && !e.target.closest?.('.maplibregl-canvas-container, .fm-deel-binnen, canvas')) e.preventDefault(); };
+    const vv = window.visualViewport;
+    const ingezoomd = () => !!vv && vv.scale > 1.02;
+    const pas = () => {
+      const el = schilRef.current; if (!el || !vv) return;
+      el.style.left = `${vv.offsetLeft}px`; el.style.top = `${vv.offsetTop}px`;
+      el.style.width = `${vv.width}px`; el.style.height = `${vv.height}px`; el.style.right = 'auto'; el.style.bottom = 'auto';
+    };
+    // Ingezoomd blijven hangen (bv. na een tik in een veld): de schaal terugzetten via de viewport-instelling.
+    const herstel = () => {
+      if (!ingezoomd() || document.activeElement?.matches?.('input, textarea, select')) return;
+      const meta = document.querySelector('meta[name="viewport"]'); if (!meta) return;
+      const c = 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+      meta.setAttribute('content', `${c}, shrink-to-fit=no`); requestAnimationFrame(() => meta.setAttribute('content', c));
+    };
+    const stop = (e) => { if (!ingezoomd()) e.preventDefault(); };
+    const tweeVingers = (e) => { if (!ingezoomd() && e.touches && e.touches.length > 1 && !e.target.closest?.('.maplibregl-canvas-container, .fm-deel-binnen, canvas')) e.preventDefault(); };
+    pas(); herstel();
+    vv?.addEventListener('resize', pas); vv?.addEventListener('scroll', pas);
+    document.addEventListener('focusout', herstel);
     document.addEventListener('gesturestart', stop, { passive: false });
     document.addEventListener('gesturechange', stop, { passive: false });
     document.addEventListener('touchmove', tweeVingers, { passive: false });
-    return () => { document.removeEventListener('gesturestart', stop); document.removeEventListener('gesturechange', stop); document.removeEventListener('touchmove', tweeVingers); };
+    return () => {
+      vv?.removeEventListener('resize', pas); vv?.removeEventListener('scroll', pas);
+      document.removeEventListener('focusout', herstel);
+      document.removeEventListener('gesturestart', stop); document.removeEventListener('gesturechange', stop); document.removeEventListener('touchmove', tweeVingers);
+    };
   }, []);
 
   useEffect(() => {
@@ -63,7 +88,7 @@ export default function MobielApp({ huisstijl = null }) {
   const openPlan = useCallback((id, d = null) => { setPlanId(id); zet(PLAN_SLEUTEL, id); setDoel(d); naar('kaart'); }, [naar]);
 
   return (
-    <div className="mb">
+    <div className="mb" ref={schilRef}>
       {tab === 'plannen' && <Start huisstijl={huisstijl} profiel={profiel} planId={planId} onPlan={openPlan} onMeer={() => naar('meer')} />}
       {tab === 'kaart' && <Kaart planId={planId} profiel={profiel} doel={doel} onKiesPlan={() => naar('plannen')} />}
       {tab === 'meldingen' && <Meldingen profiel={profiel} onOpen={openPlan} onAantal={setAantalOpen} />}
