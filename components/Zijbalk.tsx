@@ -96,7 +96,7 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
             <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 5.5l3 3 3-3" stroke="currentColor" strokeWidth="1.6" fill="none" /></svg>
           </button>
           {orgOpen && (
-            <div className="t-menu" style={{ left: 0, right: "auto", top: "calc(100% + 6px)" }}>
+            <div className="t-menu" style={{ left: 0, right: 0, minWidth: 0, top: "calc(100% + 6px)" }}>
               <div className="kop">Organisaties</div>
               {organisaties.map((o) => (
                 <a key={o.slug} href={orgAdres(o.slug)} style={o.slug === organisatie.slug ? { fontWeight: 600 } : undefined}>
@@ -130,7 +130,7 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
             <span className="t-zij-orgnaam"><b>{gebruiker.naam || gebruiker.email}</b><small>{ROL[rol || ""] || rol}</small></span>
           </button>
           {ikOpen && (
-            <div className="t-menu" style={{ left: 0, right: "auto", top: "auto", bottom: "calc(100% + 6px)" }}>
+            <div className="t-menu" style={{ left: 0, right: 0, minWidth: 0, top: "auto", bottom: "calc(100% + 6px)" }}>
               <div className="kop">{gebruiker.email}</div>
               <a href={centraalAdres(`/account?verder=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`)}>Mijn account</a>
               <a href={centraalAdres("/wachtwoord")}>Wachtwoord wijzigen</a>
