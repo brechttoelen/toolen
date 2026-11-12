@@ -551,8 +551,11 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
       const dF = dirVan(F); const uit = isEind ? dF : dF.map((v) => -v);
       const K = E.map((v, k) => v + uit[k] * B2);
       const sleutel = `${F.id}${isEind ? 'e' : 'b'}`;
+      // Zit er aan dit uiteinde al een hoekblok (een ander stuk begint of eindigt een halve blok verder)? Dan kan
+      // er niets rechtstreeks aan gekoppeld worden, enkel via de vrije kanten van dat blok (hieronder).
+      const opBlok = ander.some((x) => x.id !== F.id && [x.a, eindVan(x)].some((q) => Math.hypot(q[0] - K[0], q[1] - K[1], q[2] - K[2]) < B2 * 1.25));
       // Koppeling: verder in dezelfde richting, zonder blok.
-      if (!F.op) voeg({ a: E, r: isEind ? F.r : F.r + Math.PI, op: false, soort: 'liggend', s: `${sleutel}k` });
+      if (opBlok) { if (F.op && isEind) voeg({ a: [K[0], K[1], K[2] + B2], r: F.r, op: true, soort: 'omhoog', knoop: K, s: `${sleutel}bu` }); else if (F.op) voeg({ a: [K[0], K[1], K[2] - B2 - L], r: F.r, op: true, soort: 'omlaag', knoop: K, s: `${sleutel}bd` }); } else if (!F.op) voeg({ a: E, r: isEind ? F.r : F.r + Math.PI, op: false, soort: 'liggend', s: `${sleutel}k` });
       else if (isEind) voeg({ a: E, r: F.r, op: true, soort: 'omhoog', s: `${sleutel}k` });
       else voeg({ a: [E[0], E[1], E[2] - L], r: F.r, op: true, soort: 'omlaag', s: `${sleutel}k` });
       // Via een hoekblok: de vier horizontale richtingen en omhoog/omlaag, behalve terug in het stuk zelf.
@@ -575,10 +578,13 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
         if (!F.op) { voeg({ a: [K[0], K[1], K[2] + B2], r: F.r, op: true, soort: 'omhoog', knoop: K, deel, tip, extra: 10, s: `${F.id}t${t}u` }); voeg({ a: [K[0], K[1], K[2] - B2 - L], r: F.r, op: true, soort: 'omlaag', knoop: K, deel, tip, extra: 10, s: `${F.id}t${t}d` }); }
       }
     }
-    let beste = null; for (const c of kand) if (c.dd < 45 && (!beste || c.dd < beste.dd)) beste = c;
+    // Een uiteinde gaat altijd voor; een T-blok (een bestaand stuk opdelen) enkel als er geen uiteinde in de buurt is
+    // en de muis echt bij dat punt halverwege staat. Zo deelt de bouwer niet ongevraagd een stuk op.
+    let beste = null; for (const c of kand) if (!c.deel && c.dd < 45 && (!beste || c.dd < beste.dd)) beste = c;
+    if (!beste) for (const c of kand) if (c.deel && c.dd < 22 && (!beste || c.dd < beste.dd)) beste = c;
     // Stabiel: de vorige keuze houden zolang ze nog geldig is en niet duidelijk slechter (12 px).
     const vorig = vorigePlek.current && kand.find((c) => c.s === vorigePlek.current);
-    if (vorig && vorig.dd < 60 && (!beste || vorig.dd <= beste.dd + 12)) beste = vorig;
+    if (vorig && vorig.dd < (vorig.deel ? 30 : 60) && (!beste || (vorig.deel ? !!beste.deel : true) && vorig.dd <= beste.dd + 12)) beste = vorig;
     vorigePlek.current = beste ? beste.s : null;
     if (beste) return beste;
     const v = hulp.opVlak(muis[0], muis[1], 0); const sn = (x) => Math.round(x * 10) / 10;
@@ -589,9 +595,9 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
   const stop = () => { setPlaats(null); setSpook(null); setTip(''); };
   // Legger of staander: geldt ook voor het stuk dat je op dat moment aan het plaatsen bent.
   const zetStaand = (v) => { setStaand(v); vorigePlek.current = null; setPlaats((p) => (p && p.groep.length === 1 ? { ...p, groep: [{ ...p.groep[0], op: v }] } : p)); setSpook(null); };
-  const begin = (groep) => { vorigePlek.current = null; setPlaats({ groep, rVrij: groep[0].r }); setSpook(null); setSel([]); };
-  const nieuwStuk = (L) => begin([{ id: '__n0', L, a: [0, 0, 0], r: basisR, op: staand }]);
-  const nieuweVorm = (lijst) => begin(lijst.map((x, k) => ({ ...x, a: [x.a[0], x.a[1], x.a[2]], id: `__n${k}` })));
+  const begin = (groep, extra = {}) => { vorigePlek.current = null; setPlaats({ groep, rVrij: groep[0].r, ...extra }); setSpook(null); setSel([]); };
+  const nieuwStuk = (L) => begin([{ id: '__n0', L, a: [0, 0, 0], r: basisR, op: staand }], { knop: L });
+  const nieuweVorm = (lijst) => begin(lijst.map((x, k) => ({ ...x, a: [x.a[0], x.a[1], x.a[2]], id: `__n${k}` })), { vorm: true });
   const plaatsing = (groep, p) => verplaats(groep, p);
 
   const onSleep = (fase, i, muis, hulp) => {
@@ -609,7 +615,7 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
       const g = plaats.groep; const p = zoekPlek(g[0].L, g[0].op, plaats.rVrij, muis, hulp, new Set());
       const nieuw = plaatsing(g, p).map((x) => ({ ...x, id: nieuwId(), spook: false }));
       const od = metOpdeling([...stukken, ...nieuw], p); bewaar(od.lijst, od.erbij); setSpook(null);
-      if (g.length > 1) { stop(); setSel(nieuw.map((_, j) => stukken.length + j)); }
+      if (g.length > 1 || plaats.vorm) { stop(); setSel(nieuw.map((_, j) => stukken.length + j)); }
       return;
     }
     setSelDoek(null);
@@ -618,7 +624,7 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
   };
   const wijzigSel = (fn) => { if (!gekozen.length) return; const m = new Map(fn(gekozen).map((x) => [x.id, x])); bewaar(stukken.map((x) => m.get(x.id) || x)); };
   const weg = () => { if (!gekozen.length) return; const ids = new Set(sel); bewaar(stukken.filter((x) => !ids.has(x.i))); setSel([]); };
-  const kopieer = () => { if (gekozen.length) begin(gekozen.map((x, k) => ({ ...x, id: `__n${k}` }))); };
+  const kopieer = () => { if (gekozen.length) begin(gekozen.map((x, k) => ({ ...x, id: `__n${k}` })), { vorm: true }); };
 
   useEffect(() => {
     const h = (e) => {
@@ -637,6 +643,14 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
     window.addEventListener('keydown', h, true); return () => window.removeEventListener('keydown', h, true);
   });
   const totH = Math.max(0, ...stukken.map((x) => eindVan(x)[2]));
+  // Groeit de constructie duidelijk (bv. een toren erop), dan opnieuw alles in beeld.
+  const vorigeMaat = useRef(0);
+  useEffect(() => {
+    const ps = stukken.flatMap((x) => [x.a, eindVan(x)]); if (!ps.length) { vorigeMaat.current = 0; return; }
+    const m = Math.max(...[0, 1, 2].map((k) => Math.max(...ps.map((q) => q[k])) - Math.min(...ps.map((q) => q[k]))));
+    if (vorigeMaat.current && m > vorigeMaat.current * 1.25) setPassTik((x) => x + 1);
+    vorigeMaat.current = Math.max(vorigeMaat.current, m);
+  }, [stukken.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const metr = stukken.reduce((a, x) => a + x.L, 0);
   const st1 = gekozen.length === 1 ? gekozen[0] : null;
 
@@ -663,7 +677,7 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
           </div>
           <div className="fm-ws-bib">
             {lengtes.map((L) => {
-              const aan = plaats?.groep.length === 1 && plaats.groep[0].L === L; const n = telling.stukken[String(L)] || 0;
+              const aan = plaats?.knop === L; const n = telling.stukken[String(L)] || 0;
               return (
                 <button key={L} className={`fm-ws-blok${aan ? ' aan' : ''}`} disabled={!schrijven} title={`Recht stuk ${getal(L)} m`} onClick={() => (aan ? stop() : nieuwStuk(L))}>
                   <svg width="48" height="48" aria-hidden="true">{staand ? <g><line x1="20" y1={44} x2="20" y2={44 - (L / 4) * 40} stroke="#8A929B" strokeWidth="2" /><line x1="28" y1={44} x2="28" y2={44 - (L / 4) * 40} stroke="#8A929B" strokeWidth="2" /></g> : <g><line x1={24 - (L / 4) * 20} y1="20" x2={24 + (L / 4) * 20} y2="20" stroke="#8A929B" strokeWidth="2" /><line x1={24 - (L / 4) * 20} y1="28" x2={24 + (L / 4) * 20} y2="28" stroke="#8A929B" strokeWidth="2" /></g>}</svg>
