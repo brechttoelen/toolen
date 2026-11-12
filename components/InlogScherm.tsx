@@ -37,6 +37,8 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
   const [fout, setFout] = useState(zoek.get("fout") || "");
   const [melding, setMelding] = useState("");
   const emailRef = useRef<HTMLInputElement>(null);
+  // Platformbeheer (login.toolen.be/beheer): geen bedrijfscode nodig, wel lid van het platformbeheer.
+  const beheer = (() => { try { return new URL(verder, "https://x").pathname.startsWith("/beheer"); } catch { return false; } })();
 
   useEffect(() => {
     const uitAdres = codeUitAdres(zoek.get("code"), verder);
@@ -60,6 +62,16 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
   async function inloggen(e: React.FormEvent) {
     e.preventDefault();
     const c = code.trim().toLowerCase();
+    if (beheer) {
+      setBezig(true); setFout("");
+      const sb = supabaseBrowser();
+      const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password: wachtwoord });
+      if (error) { setFout(error.status === 429 ? "Te veel pogingen. Wacht een paar minuten en probeer opnieuw." : "E-mailadres of wachtwoord klopt niet."); setBezig(false); return; }
+      const { data: pb } = await sb.rpc("is_platformbeheerder_zonder_mfa");
+      if (!pb) { await sb.auth.signOut(); setFout("E-mailadres of wachtwoord klopt niet."); setBezig(false); return; }
+      window.location.href = verder;
+      return;
+    }
     if (!geldigeSlug(c)) { setFout("Vul je bedrijfscode in. Je vindt ze in je uitnodiging."); return; }
     setBezig(true); setFout("");
     const sb = supabaseBrowser();
@@ -119,9 +131,9 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
     <Inlogkader huisstijl={huisstijl}>
       <div>
         <h2 className="t-titel" style={{ fontSize: 28, marginBottom: 6 }}>Inloggen</h2>
-        <p className="t-sub" style={{ marginBottom: 22 }}>{vast && info?.naam ? <>Bij <strong>{info.naam}</strong></> : "Met de bedrijfscode uit je uitnodiging."}</p>
+        <p className="t-sub" style={{ marginBottom: 22 }}>{beheer ? "Platformbeheer van Toolen." : vast && info?.naam ? <>Bij <strong>{info.naam}</strong></> : "Met de bedrijfscode uit je uitnodiging."}</p>
         <form onSubmit={inloggen} className="t-stapel" style={{ gap: 12 }}>
-          {!vast && (
+          {!vast && !beheer && (
             <label><span className="t-label">Bedrijfscode</span>
               <input className="t-veld" style={{ height: 44, textTransform: "uppercase", letterSpacing: ".04em" }} required value={code} onChange={(e) => setCode(e.target.value.replace(/\s/g, ""))}
                 placeholder="Bv. MIJNBEDRIJF" autoComplete="organization" autoCapitalize="characters" spellCheck={false} autoFocus={!code} maxLength={30} />
@@ -144,7 +156,7 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
         </form>
         {fout && <p className="t-melding fout" style={{ marginTop: 16 }} role="alert">{fout}</p>}
 
-        {!!info?.sso?.length && (
+        {!beheer && !!info?.sso?.length && (
           <>
             <div className="t-stil" style={{ margin: "22px 0 12px", fontSize: 13, display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ flex: 1, height: 1, background: "var(--t-rand-2)" }} />Of met het account van je werk<span style={{ flex: 1, height: 1, background: "var(--t-rand-2)" }} />
@@ -157,7 +169,8 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
         )}
 
         <p className="t-stil" style={{ fontSize: 12.5, marginTop: 22, lineHeight: 1.5 }}>
-          {vast ? <>Ander bedrijf? <button type="button" style={{ ...link, fontSize: 12.5 }} onClick={() => { setVast(false); setCode(""); setInfo(null); }}>Andere bedrijfscode</button>. </> : null}
+          {beheer ? <>Inloggen bij een bedrijf? <a href="/login" style={{ ...link, fontSize: 12.5 }}>Met bedrijfscode</a>. </> : null}
+          {!beheer && vast ? <>Ander bedrijf? <button type="button" style={{ ...link, fontSize: 12.5 }} onClick={() => { setVast(false); setCode(""); setInfo(null); }}>Andere bedrijfscode</button>. </> : null}
           Nog geen account? Vraag de beheerder van je bedrijf om je uit te nodigen.
         </p>
       </div>
