@@ -47,7 +47,7 @@ async function route(req: NextRequest) {
     const gevraagd = url.searchParams.get("org");
     const org = (geldigeSlug(gevraagd) && gevraagd) || req.cookies.get(ORG_COOKIE)?.value || process.env.TOOLEN_STANDAARD_ORG || null;
     if (gevraagd && geldigeSlug(gevraagd)) zetOrg = gevraagd;
-    const orgPad = /^\/(maps|d|instellingen)(\/|$)/.test(pad) || (pad === "/" && !!org);
+    const orgPad = /^\/(maps|d|instellingen|pwa)(\/|$)/.test(pad) || (pad === "/" && !!org);
     if (org && geldigeSlug(org) && orgPad) { url.pathname = `/${org}${pad === "/" ? "" : pad}`; doel = url; }
   }
 
