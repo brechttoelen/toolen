@@ -456,8 +456,24 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
     const c0 = k ? [(k[0] + k[2]) / 2, (k[1] + k[3]) / 2] : middelpunt(it.geometrie);
     setVerpl({ ids: groep.map((x) => x.id), c0, hoek: 0, naam: groep.length > 1 ? `${groep.length} delen van de groep` : naamItem(it) });
     setPaneel('verplaats'); setGroot(false);
-    mapRef.current?.easeTo({ center: c0, zoom: Math.max(mapRef.current.getZoom(), 18.5), duration: 300 });
   };
+  // Het vizier staat in het midden van wat zichtbaar blijft tussen de uitleg bovenaan en het paneel onderaan.
+  const paneelEl = useRef(null);
+  const [vizierY, setVizierY] = useState(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return undefined;
+    if (paneel !== 'verplaats' || !verplRef.current) { map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 }); setVizierY(null); return undefined; }
+    const t = requestAnimationFrame(() => {
+      const tab = document.querySelector('.mb-tab')?.offsetHeight || 0;
+      const onder = (paneelEl.current?.offsetHeight || 0) + tab; const boven = 64;
+      const H = map.getContainer().clientHeight;
+      map.setPadding({ top: boven, bottom: onder, left: 0, right: 0 });
+      setVizierY(boven + (H - boven - onder) / 2);
+      map.easeTo({ center: verplRef.current.c0, zoom: Math.max(map.getZoom(), 18.5), duration: 300 });
+    });
+    return () => cancelAnimationFrame(t);
+  }, [paneel]); // eslint-disable-line react-hooks/exhaustive-deps
   const draaiVerpl = (d) => setVerpl((v) => ({ ...v, hoek: (((v.hoek + d) % 360) + 360) % 360 }));
   const verplNaarMij = () => { if (mijn) mapRef.current?.easeTo({ center: mijn.punt }); else { setVolg(true); setMelding('Je locatie zoeken…'); } };
   const bewaarVerplaats = async () => {
@@ -592,7 +608,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
         {paneel === 'verplaats' && (
           <>
             <div className="mb-zweef mb-hint">Schuif de kaart tot het kruis op de juiste plek staat. Twee vingers om te zoomen.</div>
-            <div className="mb-vizier" aria-hidden="true" />
+            {vizierY != null && <div className="mb-vizier" aria-hidden="true" style={{ top: vizierY }} />}
           </>
         )}
         {paneel === 'meten' && <div className="mb-zweef mb-hint">{meetSoort === 'mij' && !mijn ? 'Je locatie zoeken…' : 'Tik punten op de kaart. Ze klikken vast op hoeken van items.'}</div>}
@@ -615,7 +631,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
         <input ref={fotoInput} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { fotoGekozen(e.target.files?.[0]); e.target.value = ''; }} />
 
         {paneel && (
-          <section className={`mb-paneel${groot ? ' groot' : ''}`} aria-label="Paneel">
+          <section ref={paneelEl} className={`mb-paneel${groot ? ' groot' : ''}`} aria-label="Paneel">
             <button type="button" className="mb-greep" aria-label={groot ? 'Kleiner' : 'Groter'} onClick={() => setGroot((g) => !g)} />
             <div className="mb-paneel-in">
               {paneel === 'item' && item && (() => {
