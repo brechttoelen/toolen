@@ -175,7 +175,11 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
     const a = api.current; if (!klaar || !a) return;
     if (a.groep) { a.scene.remove(a.groep); a.groep.traverse((o) => { if (o.geometry?.type === 'BufferGeometry') o.geometry.dispose(); }); }
     const { groep, doelen } = bouw(a.T, prims, a.laad); a.scene.add(groep); a.groep = groep; a.doelen = doelen;
-    const { c, r } = omkader(a.T, a, groep); zonLaag(a, c, r);
+    // Tijdens het slepen (bevries) blijven grond, zon en standpunt staan; anders schuift de ondergrond mee met de unit.
+    const vast = bevries && a.grond && a.vasteGrond;
+    const { c, r } = omkader(a.T, a, groep);
+    if (vast) { a.grond.position.copy(a.vasteGrond.p); a.grond.scale.copy(a.vasteGrond.s); zonLaag(a, a.vasteGrond.c, a.vasteGrond.r); }
+    else { zonLaag(a, c, r); if (a.grond) a.vasteGrond = { p: a.grond.position.clone(), s: a.grond.scale.clone(), c: c.clone(), r }; }
     a.thuis = () => { standpunt(a.cam, c, r, hoek, kantel); a.ctl.target.copy(c); a.ctl.update(); a.teken(); };
     // Opnieuw in beeld brengen als het geheel duidelijk groter of kleiner wordt, of verschuift (bv. een unit erbij).
     const weg = a.vorigeC ? c.distanceTo(a.vorigeC) : 0;

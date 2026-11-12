@@ -82,6 +82,13 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   const lijstSleep = useRef(null); // element dat uit de lijst gesleept wordt
   const alleen = groep.filter((x) => !x.trap).length <= 1;
   const met = (s0, grond, hit) => { const p = plekBijSlepen(groep, s0.el, s0.q, grond, hit, s0.id); if (p && p.soort === 'vrij' && !(alleen && s0.id)) p.ok = false; return { ...s0, p, grond, hit }; };
+  // Weghalen, ook de unit waarop de bouwer geopend werd: de bouwer verhuist dan naar een andere unit; de laatste unit sluit de bouwer.
+  const weg = (o) => {
+    if (o.it.id !== it.id) { onActie('unit-weg', { _it: o.it.id }); setSel(it.id); return; }
+    const ander = groep.find((x) => x.it.id !== it.id && !x.trap) || groep.find((x) => x.it.id !== it.id);
+    if (!ander) { onSluit(); setTimeout(() => onActie('unit-weg', { _it: o.it.id }), 0); return; }
+    onActie('unit-weg', { _it: o.it.id, anker: ander.it.id });
+  };
   const sleepVrij = schrijven ? (fase, data, grond, hit) => {
     const o = groep.find((x) => x.it.id === data?.unit); if (!o) return;
     const s0 = sleepRef.current?.id === o.it.id ? sleepRef.current : { id: o.it.id, el: o.el, q: o.rot };
@@ -106,7 +113,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
         const s0 = sleepRef.current; if (s0) { setSleep(met({ ...s0, q: (s0.q + 90) % 360 }, s0.grond, s0.hit)); return; }
         if (g) onActie('unit-wijzig', { _it: g.it.id, rot: ((Number(g.it.parameters?.rot) || 0) + 90) % 360 });
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && schrijven && g && g.it.id !== it.id) { e.preventDefault(); onActie('unit-weg', { _it: g.it.id }); setSel(it.id); }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && schrijven && g) { e.preventDefault(); weg(g); }
     };
     window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
   });
@@ -173,7 +180,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
             {g.el?.eigenschappen?.gevelVrij && !g.trap && <GevelBeheer L={Number(g.el.breedte_m) || 6} B={Number(g.el.diepte_m) || 3} gevel={g.it.velden?.gevel || g.el.eigenschappen?.gevel || []} schrijven onZet={(gevel) => onActie('unit-gevel', { _it: g.it.id, gevel })} />}
             <div className="fm-cb-zijden" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
               <button type="button" className="fm-knop klein" title="Een kwartslag (R)" onClick={() => onActie('unit-wijzig', { _it: g.it.id, rot: ((Number(g.it.parameters?.rot) || 0) + 90) % 360 })}>Draaien</button>
-              <button type="button" className="fm-knop klein" disabled={g.it.id === it.id} onClick={() => { onActie('unit-weg', { _it: g.it.id }); setSel(it.id); }}>Weghalen</button>
+              <button type="button" className="fm-knop klein" onClick={() => weg(g)}>Weghalen</button>
             </div>
           </>}
           <div className="fm-kop" style={{ marginTop: 10 }}>Nakijken</div>

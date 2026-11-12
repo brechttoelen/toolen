@@ -3104,7 +3104,11 @@ export default function Editor({ planId }) {
         setTimeout(syncTd, 0);
         break;
       }
-      case 'unit-weg': { verwijderItems([it.id]); break; }
+      case 'unit-weg': {
+        // De unit waarop de bouwer open staat: de bouwer verhuist naar een andere unit van de groep.
+        if (arg?.anker && arg.anker !== it.id) { vraagBouwer(arg.anker); setGeselecteerd(arg.anker); try { tdRef.current?.selectFeature(arg.anker); } catch {} }
+        verwijderItems([it.id]); break;
+      }
       case 'unit-gevel': { wijzigItem(it.id, { velden: { ...(it.velden || {}), gevel: arg?.gevel?.length ? arg.gevel : undefined } }); break; }
       case 'tent-lid': {
         // Tentbouwer: een gekoppelde tent aangepast in dezelfde bouwer.
