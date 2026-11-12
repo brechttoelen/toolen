@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import "./lettertypes.css";
 import "./toolen.css";
 import "./globals.css";
+import FoutMelder from "@/components/FoutMelder";
 
 export const metadata: Metadata = {
   title: { default: "Toolen", template: "%s · Toolen" },
@@ -19,7 +20,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="nl" suppressHydrationWarning>
-      <body>{children}</body>
+      <body><FoutMelder />{children}</body>
     </html>
   );
 }

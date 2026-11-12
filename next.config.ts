@@ -12,6 +12,8 @@ const basis = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Versie van de app voor de foutmonitoring.
+  env: { NEXT_PUBLIC_VERSIE: (process.env.VERCEL_GIT_COMMIT_SHA || "lokaal").slice(0, 7) },
   async headers() {
     return [
       { source: "/((?!d/).*)", headers: [...basis, { key: "X-Frame-Options", value: "SAMEORIGIN" }, { key: "Content-Security-Policy", value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" }] },

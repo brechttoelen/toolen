@@ -4,6 +4,10 @@ import { MIGRATIES } from "@/lib/migraties";
 import { adminIngesteld } from "@/lib/supabase/admin";
 import { mailDienst } from "@/lib/mail";
 import WachtwoordMails from "./WachtwoordMails";
+import Vrijgave from "./Vrijgave";
+import Fouten, { type FoutGroep } from "./Fouten";
+import { REPO as REPO_NAAM } from "@/lib/vrijgave";
+import { HOOFDDOMEIN } from "@/lib/org";
 
 type Org = { id: string; naam: string; slug: string; pakket: string | null; status: string; plannen: number; items: number; leden: number; plaatsen: number;
   gebruik: { events_jaar: number; max_events_jaar: number | null; deellinks: number; max_deellinks: number | null; opslag_mb: number; max_opslag_mb: number | null } | null;
@@ -36,7 +40,7 @@ const vol = (n: number, max: number | null) => max != null && n >= max * 0.9;
 // Systeempagina voor de platformbeheerder: versie, databank, gebruik per organisatie, signalen en updates.
 export default async function Systeem() {
   const supabase = await supabaseServer();
-  const [{ data, error }, lijst, { data: zonderWw }] = await Promise.all([supabase.rpc("platform_systeem"), updates(), supabase.rpc("platform_zonder_wachtwoord")]);
+  const [{ data, error }, lijst, { data: zonderWw }, { data: fouten }] = await Promise.all([supabase.rpc("platform_systeem"), updates(), supabase.rpc("platform_zonder_wachtwoord"), supabase.rpc("platform_fouten")]);
   const zonder = (zonderWw || []) as { user_id: string; email: string; organisatie: string }[];
   const sleutel = adminIngesteld(); const dienst = mailDienst(); const mail = !!dienst;
   const c = data as Cijfers | null;
@@ -52,11 +56,13 @@ export default async function Systeem() {
       {error && <p className="t-melding fout">{error.message}</p>}
 
       <div className="t-sys-raster">
+        <Vrijgave repo={REPO_NAAM} testAdres={process.env.NEXT_PUBLIC_TEST_ADRES || `https://login.test.${HOOFDDOMEIN.replace(/^test\./, "")}`} />
+        <Fouten begin={(fouten as FoutGroep[] | null) || []} />
         <section className="t-kaart t-sys-vak">
           <h2>Versie</h2>
           <dl className="t-sys-feiten">
             <dt>App</dt><dd>{sha ? <a href={`${REPO}/commit/${sha}`} target="_blank" rel="noreferrer"><code>{sha.slice(0, 7)}</code></a> : "Lokaal"}{process.env.VERCEL_GIT_COMMIT_MESSAGE ? ` · ${process.env.VERCEL_GIT_COMMIT_MESSAGE.split("\n")[0].slice(0, 80)}` : ""}</dd>
-            <dt>Omgeving</dt><dd>{process.env.VERCEL_ENV === "production" ? "Productie" : process.env.VERCEL_ENV === "preview" ? "Preview" : "Ontwikkeling"}</dd>
+            <dt>Omgeving</dt><dd>{process.env.VERCEL_ENV === "production" ? "Productie (klanten)" : process.env.VERCEL_GIT_COMMIT_REF === "test" ? "Testomgeving" : process.env.VERCEL_ENV === "preview" ? "Preview" : "Ontwikkeling"}</dd>
             <dt>Migraties</dt><dd>{open.length ? <span className="t-pil let-op" style={{ whiteSpace: "normal", height: "auto", lineHeight: 1.4, padding: "3px 10px" }}>{open.length} nog te draaien: {open.map((m) => m.naam).join(", ")}</span> : <span className="t-pil ok">Alles gedraaid</span>}</dd>
           </dl>
           <div className="t-rij" style={{ gap: 8, flexWrap: "wrap" }}>
