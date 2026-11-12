@@ -170,3 +170,16 @@ html:has(.mb) { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-ac
 .mb-rij .mb-knop, .mb-opm .mb-knop { min-height: 40px; }
 .mb-segment button { height: 40px; }
 .mb-zoek { height: 48px; }
+
+/* Gereedschap: één knop met het Toolen-teken, de rest schuift erboven open. */
+.mb-gereedschap { gap: 10px; align-items: flex-end; }
+.mb-tools { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none; }
+.mb-tools .mb-rond { opacity: 0; transform: translateY(16px) scale(.9); transition: opacity .16s ease, transform .18s ease; }
+.mb-gereedschap.open .mb-tools { pointer-events: auto; }
+.mb-gereedschap.open .mb-tools .mb-rond { opacity: 1; transform: none; }
+.mb-tools .lbl { opacity: 0; transition: opacity .16s ease; }
+.mb-gereedschap.open .mb-tools .lbl { opacity: 1; }
+.mb-menuknop svg { transition: transform .22s ease; }
+.mb-gereedschap.open .mb-menuknop svg { transform: rotate(45deg); }
+.mb-rond .lbl { right: 58px; top: 50%; transform: translateY(-50%); font-size: 13px; padding: 5px 10px; background: rgba(2, 32, 86, .78); -webkit-backdrop-filter: var(--mb-blur); backdrop-filter: var(--mb-blur); }
+@media (prefers-reduced-motion: reduce) { .mb-tools .mb-rond, .mb-tools .lbl, .mb-menuknop svg { transition: none; } }

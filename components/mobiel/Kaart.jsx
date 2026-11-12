@@ -24,6 +24,7 @@ import BinnenScherm from '../maps/BinnenScherm';
 import { kleurVoor } from '../maps/Aanwezigheid';
 import { Ic } from './iconen';
 import { initialen } from './MobielApp';
+import { ToolenTeken } from '../ToolenLogo';
 
 const leeg = { type: 'FeatureCollection', features: [] };
 const WACHTRIJ = 'fm-mob-wachtrij';
@@ -91,6 +92,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
   const [gekozen, setGekozen] = useState(null);
   const [paneel, setPaneel] = useState(null); // item | lagen | meten | melden | foto | wie | punt
   const [groot, setGroot] = useState(false);
+  const [menu, setMenu] = useState(false);
   const [zoek, setZoek] = useState('');
   const [veldpunten, setVeldpunten] = useState([]);
   const [puntKeuze, setPuntKeuze] = useState(null);
@@ -124,6 +126,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
 
   const schrijven = magSchrijven(profiel);
   const paneelRef = useRef(null); paneelRef.current = paneel;
+  const menuRef = useRef(false); menuRef.current = menu;
   const itemsRef = useRef([]);
   const liveRef = useRef(null);
 
@@ -225,6 +228,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
     map.on('click', (e) => {
       const m = paneelRef.current;
       if (m === 'verplaats') return;
+      if (menuRef.current) { setMenu(false); return; }
       if (m === 'meten') {
         // Vastklikken op de dichtste hoek van een item (binnen 18 px).
         let p = [e.lngLat.lng, e.lngLat.lat];
@@ -569,8 +573,9 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
   const plan = data?.plan;
   const fasen = data?.fasen || [];
   const sluit = () => { setPaneel(null); setGekozen(null); setPuntKeuze(null); setMeetPunten([]); if (foto?.url) URL.revokeObjectURL(foto.url); setFoto(null); };
-  const tool = (naam, I, onClick, aan = false) => (
-    <button type="button" className={`mb-rond${aan ? ' aan' : ''}`} aria-label={naam} title={naam} aria-pressed={aan} onClick={onClick}><I /></button>
+  // Gereedschap achter één knop met het Toolen-teken; tikken schuift de rest open, met het label ernaast.
+  const tool = (naam, I, onClick, aan = false, i = 0) => (
+    <button type="button" className={`mb-rond${aan ? ' aan' : ''}`} style={{ transitionDelay: `${i * 25}ms` }} aria-label={naam} aria-pressed={aan} tabIndex={menu ? 0 : -1} onClick={() => { setMenu(false); onClick(); }}><I /><span className="lbl">{naam}</span></button>
   );
   const meetL = meetLijst.length >= 2 ? lengte({ type: 'LineString', coordinates: meetSoort === 'vlak' && meetLijst.length >= 3 ? [...meetLijst, meetLijst[0]] : meetLijst }) : 0;
   const meetA = meetSoort === 'vlak' && meetLijst.length >= 3 ? oppervlakte({ type: 'Polygon', coordinates: [[...meetLijst, meetLijst[0]]] }) : 0;
@@ -623,14 +628,21 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
           </div>
         )}
         {!paneel && data && (
-          <div className="mb-zweef mb-gereedschap">
-            {tool('Lagen en ondergrond', Ic.lagen, () => setPaneel('lagen'))}
-            {tool('Meten', Ic.meten, () => { setPaneel('meten'); setMeetPunten([]); setMeetSoort('lijn'); setGekozen(null); })}
-            {schrijven && tool('Foto op de plek', Ic.foto, () => kiesFoto())}
-            {tool('Melden', Ic.melden, () => startMelden())}
-            {schrijven && tool('Delen', Ic.deel, openDelen)}
-            {tool('Wie is waar', Ic.wie, () => setPaneel('wie'), deelt)}
-            {tool('Waar ben ik', Ic.ik, waarBenIk, volg && !!mijn)}
+          <div className={`mb-zweef mb-gereedschap${menu ? ' open' : ''}`}>
+            <div className="mb-tools" id="mb-tools" aria-hidden={!menu}>
+              {[
+                ['Lagen en ondergrond', Ic.lagen, () => setPaneel('lagen')],
+                ['Meten', Ic.meten, () => { setPaneel('meten'); setMeetPunten([]); setMeetSoort('lijn'); setGekozen(null); }],
+                schrijven && ['Foto op de plek', Ic.foto, () => kiesFoto()],
+                ['Melden', Ic.melden, () => startMelden()],
+                schrijven && ['Delen', Ic.deel, openDelen],
+                ['Wie is waar', Ic.wie, () => setPaneel('wie'), deelt],
+                ['Waar ben ik', Ic.ik, waarBenIk, volg && !!mijn],
+              ].filter(Boolean).reverse().map(([n, I, f, aan], i) => <Fragment key={n}>{tool(n, I, f, aan, i)}</Fragment>)}
+            </div>
+            <button type="button" className="mb-rond mb-menuknop" aria-expanded={menu} aria-controls="mb-tools" aria-label={menu ? 'Gereedschap sluiten' : 'Gereedschap'} onClick={() => setMenu((m) => !m)}>
+              <ToolenTeken op="licht" grootte={26} />
+            </button>
           </div>
         )}
         <input ref={fotoInput} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { fotoGekozen(e.target.files?.[0]); e.target.value = ''; }} />
