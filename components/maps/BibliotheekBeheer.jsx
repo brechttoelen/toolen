@@ -7,7 +7,7 @@ import Info from './info';
 import { metTekeningen } from './tekeningen';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './maps.css';
-import { maps, sb, BUCKET, publiekeUrl, foutTekst, wieBenIk, magSchrijven, magBibliotheek, isCentraalElement } from './db';
+import { maps, alles, sb, BUCKET, publiekeUrl, foutTekst, wieBenIk, magSchrijven, magBibliotheek, isCentraalElement } from './db';
 import { ElementIcoon, elementMaat } from './BibliotheekPaneel';
 import { KLEUREN, TOEBEHOREN, TB_SOORTEN } from './stijl';
 import { leesSvg, dxfTekening } from './tekening';
@@ -78,7 +78,7 @@ export default function BibliotheekBeheer({ soort = 'elementen' }) {
 
   useEffect(() => {
     (async () => {
-      const [wie, r] = await Promise.all([wieBenIk(), maps().from('bibliotheek').select('*').is('plan_id', null).order('categorie').order('naam')]);
+      const [wie, r] = await Promise.all([wieBenIk(), alles(() => maps().from('bibliotheek').select('*').is('plan_id', null).order('categorie').order('naam'))]);
       setProfiel(wie);
       if (!r.error) r.data = metTekeningen(r.data);
       if (r.error) setFout(foutTekst(r.error)); else { setLijst((r.data || []).filter((x) => x.tekenwijze !== 'stijl' && x.tekenwijze !== 'doek')); setDoeken((r.data || []).filter((x) => x.tekenwijze === 'doek')); }

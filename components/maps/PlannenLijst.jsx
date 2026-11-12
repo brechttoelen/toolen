@@ -3,7 +3,7 @@
 import { bevestig, AppDialogen } from './dialoog';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './maps.css';
-import { maps, sb, foutTekst, wieBenIk, magSchrijven } from './db';
+import { maps, alles, sb, foutTekst, wieBenIk, magSchrijven } from './db';
 import { startLobby } from './live';
 import { Avatar } from './Aanwezigheid';
 import { STANDAARD_LAGEN, STANDAARD_FASEN } from './stijl';
@@ -24,7 +24,7 @@ async function kopieerInhoud(bronId, doelId) {
   const [l, f, i] = await Promise.all([
     maps().from('lagen').select('*').eq('plan_id', bronId),
     maps().from('fasen').select('*').eq('plan_id', bronId),
-    maps().from('items').select('*').eq('plan_id', bronId),
+    alles(() => maps().from('items').select('*').eq('plan_id', bronId)),
   ]);
   const fout = [l, f, i].find((x) => x.error);
   if (fout) throw fout.error;

@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './maps.css';
-import { maps, sb, BUCKET, foutTekst, wieBenIk, magSchrijven as kanSchrijven, namenVan, publiekeUrl } from './db';
+import { maps, alles, sb, BUCKET, foutTekst, wieBenIk, magSchrijven as kanSchrijven, namenVan, publiekeUrl } from './db';
 import { maakBewaarder, verschil as itemVerschil, pasPatchToe, gelijk, instellingenOpdrachten } from './bewaren';
 import Botsingen from './Botsingen';
 import { startLive, startLobby } from './live';
@@ -359,8 +359,8 @@ export default function Editor({ planId }) {
           maps().from('plannen').select('*').eq('id', planId).maybeSingle(),
           maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
           maps().from('fasen').select('*').eq('plan_id', planId).order('volgorde'),
-          maps().from('items').select('*').eq('plan_id', planId).order('volgorde'),
-          maps().from('bibliotheek').select('*').eq('actief', true).or(`plan_id.is.null,plan_id.eq.${planId}`).order('categorie').order('naam'),
+          alles(() => maps().from('items').select('*').eq('plan_id', planId).order('volgorde')),
+          alles(() => maps().from('bibliotheek').select('*').eq('actief', true).or(`plan_id.is.null,plan_id.eq.${planId}`).order('categorie').order('naam')),
         ]);
         const eerste = [p, l, f, i, b].find((r) => r.error);
         if (eerste) throw eerste.error;
@@ -438,7 +438,7 @@ export default function Editor({ planId }) {
     let laatst = Date.now();
     const haal = async () => {
       laatst = Date.now();
-      const b = await maps().from('bibliotheek').select('*').eq('actief', true).or(`plan_id.is.null,plan_id.eq.${planId}`).order('categorie').order('naam');
+      const b = await alles(() => maps().from('bibliotheek').select('*').eq('actief', true).or(`plan_id.is.null,plan_id.eq.${planId}`).order('categorie').order('naam'));
       if (b.error || !b.data) return;
       const l = metTekeningen(await metOudeElementen(b.data, st.current.items));
       setElementen(l.filter((x) => x.tekenwijze !== 'stijl' && x.tekenwijze !== 'doek'));
@@ -704,7 +704,7 @@ export default function Editor({ planId }) {
   // Na een onderbreking alles ophalen wat gemist werd.
   const herlaad = useCallback(async () => {
     const [i, l, p] = await Promise.all([
-      maps().from('items').select('*').eq('plan_id', planId),
+      alles(() => maps().from('items').select('*').eq('plan_id', planId)),
       maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
       maps().from('plannen').select('*').eq('id', planId).maybeSingle(),
     ]);
@@ -4165,7 +4165,7 @@ export default function Editor({ planId }) {
     }
     await wijzigPlan({ versie: (p.versie || 1) + 1 });
     setLagen((l) => [...l, ...ontbrekend]);
-    const vers = await maps().from('items').select('*').eq('plan_id', p.id).order('volgorde');
+    const vers = await alles(() => maps().from('items').select('*').eq('plan_id', p.id).order('volgorde'));
     const lijst = vers.data || oudeItems;
     bewaarder.current.zetBasis(lijst);
     st.current.items = lijst;

@@ -1,7 +1,7 @@
 'use client';
 
 // Een plan laden zonder de editor (voor het exporttabblad): dezelfde gegevens als de editor gebruikt.
-import { maps } from './db';
+import { maps, alles } from './db';
 import { metTekeningen } from './tekeningen';
 import { laadVasteAansluitingen } from './vasteAansluitingen';
 
@@ -10,8 +10,8 @@ export async function laadPlanData(planId) {
     maps().from('plannen').select('*').eq('id', planId).maybeSingle(),
     maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
     maps().from('fasen').select('*').eq('plan_id', planId).order('volgorde'),
-    maps().from('items').select('*').eq('plan_id', planId).order('volgorde'),
-    maps().from('bibliotheek').select('*').eq('actief', true).or(`plan_id.is.null,plan_id.eq.${planId}`).order('categorie').order('naam'),
+    alles(() => maps().from('items').select('*').eq('plan_id', planId).order('volgorde')),
+    alles(() => maps().from('bibliotheek').select('*').eq('actief', true).or(`plan_id.is.null,plan_id.eq.${planId}`).order('categorie').order('naam')),
   ]);
   const fout = [p, l, f, i, b].find((r) => r.error);
   if (fout) throw fout.error;
