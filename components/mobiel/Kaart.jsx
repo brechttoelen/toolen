@@ -463,7 +463,12 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return undefined;
-    if (paneel !== 'verplaats' || !verplRef.current) { map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 }); setVizierY(null); return undefined; }
+    if (paneel !== 'verplaats' || !verplRef.current) {
+      const p = map.getPadding();
+      // Zonder sprong terug: wat onder het vizier stond, blijft zichtbaar boven het itempaneel.
+      if (p.top || p.bottom) { map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 }); map.panBy([0, (p.bottom - p.top) / 2], { duration: 0 }); }
+      setVizierY(null); return undefined;
+    }
     const t = requestAnimationFrame(() => {
       const tab = document.querySelector('.mb-tab')?.offsetHeight || 0;
       const onder = (paneelEl.current?.offsetHeight || 0) + tab; const boven = 64;
