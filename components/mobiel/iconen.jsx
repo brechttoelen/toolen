@@ -24,4 +24,5 @@ export const Ic = {
   terug: I('chevronlinks'),
   verplaats: I('verplaats'),
   binnen: I('gebouw'),
+  drie: I('element'),
 };

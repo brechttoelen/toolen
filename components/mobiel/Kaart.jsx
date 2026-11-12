@@ -13,14 +13,17 @@ import { middelpunt, kader, getal, lengte, oppervlakte, verschuifGraden } from '
 import { draaiRond } from '../maps/itemgeo';
 import { soortenVoorPakket, rijMetOnderdelen, nieuwId, linkAan } from '../maps/ontvangers';
 import { metTekeningen } from '../maps/tekeningen';
-import { navigatieUrl } from '../maps/PopupInhoud';
 import { isSign } from '../maps/signalisatie';
 import { hitOp, ITEMLAGEN } from '../maps/hit';
 import { zorgVoorVeldpuntLagen, zetVeldpunten } from '../maps/veldpunten';
 import { zorgVoorMeetLagen, meetGeometrie } from '../maps/deelmeten';
 import { startLive } from '../maps/live';
-import { heeft3d, Knop3D, Groot3D } from '../maps/drie3d';
-import BinnenScherm from '../maps/BinnenScherm';
+import { heeft3d } from '../maps/drie3d';
+import dynamic from 'next/dynamic';
+
+// 3D en binnenplannen laden pas als iemand erop tikt: de kaart zelf blijft licht.
+const Groot3D = dynamic(() => import('../maps/drie3d').then((m) => m.Groot3D), { ssr: false });
+const BinnenScherm = dynamic(() => import('../maps/BinnenScherm'), { ssr: false });
 import { kleurVoor } from '../maps/Aanwezigheid';
 import { Ic } from './iconen';
 import { initialen } from './MobielApp';
@@ -657,27 +660,23 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
                 const el = elMap.get(item.element_id); const l = lagenMap.get(item.laag_id); const v = item.velden || {};
                 const m = matenTekst(maten(item, el));
                 const fn = (item.fase_ids || []).map((id) => fasen.find((f) => f.id === id)?.naam).filter(Boolean).join(', ');
-                const nav = navigatieUrl(item.geometrie);
                 const rijen = [['Leverancier', v.herkomst || item.herkomst], ['Plaatsen', v.opbouw], ['Weghalen', v.afbraak], ['Verantwoordelijke', v.verantwoordelijke], ['Contact', v.contact]].filter(([, w]) => w);
                 return (
                   <>
-                    <div>
-                      <p className="mb-titel" style={{ fontSize: 17 }}>{naamItem(item)}</p>
-                      <p className="mb-sub">{[l?.naam, fn && `fase ${fn}`, mijn ? `${meters(afstand(mijn.punt, middelpunt(item.geometrie)))} van jou` : ''].filter(Boolean).join(' · ')}</p>
+                    <div className="mb-itemkop">
+                      <div>
+                        <p className="mb-titel" style={{ fontSize: 17 }}>{naamItem(item)}</p>
+                        <p className="mb-sub">{[m, l?.naam, fn && `fase ${fn}`, mijn ? `${meters(afstand(mijn.punt, middelpunt(item.geometrie)))} van jou` : ''].filter(Boolean).join(' · ')}</p>
+                      </div>
+                      <button type="button" className="mb-sluit" aria-label="Sluiten" onClick={sluit}>×</button>
                     </div>
-                    <div className="mb-feiten">
-                      <div><small>Maat</small><b>{m || '–'}</b></div>
-                      <div><small>Status</small><b>{item.geplaatst_op ? 'Geplaatst' : 'Nog te plaatsen'}</b></div>
-                      <div><small>Meldingen</small><b>{opm.filter((o) => o.status === 'open').length}</b></div>
+                    <div className="mb-acties">
+                      {schrijven && <button type="button" className={item.geplaatst_op ? 'ok' : ''} aria-pressed={!!item.geplaatst_op} onClick={() => zetGeplaatst(item)}><Ic.opbouw maat={18} />{item.geplaatst_op ? 'Geplaatst' : 'Plaatsen'}</button>}
+                      <button type="button" onClick={() => startMelden(item)}><Ic.melden maat={18} />Melden{opm.filter((o) => o.status === 'open').length > 0 && <i>{opm.filter((o) => o.status === 'open').length}</i>}</button>
+                      {schrijven && magVerplaatsen(item) && <button type="button" onClick={() => startVerplaats(item)}><Ic.verplaats maat={18} />Verplaats</button>}
+                      {heeft3d(item, el) && <button type="button" onClick={() => setGroot3d(item.id)}><Ic.drie maat={18} />3D</button>}
+                      {binnenHosts.has(item.id) && <button type="button" onClick={() => setBinnen({ host: item.id, verd: null })}><Ic.binnen maat={18} />Binnen</button>}
                     </div>
-                    <div className="mb-knoppen">
-                      <button type="button" className="mb-knop hoofd" onClick={() => startMelden(item)}><Ic.melden />Melden</button>
-                      {nav ? <a className="mb-knop" href={nav} target="_blank" rel="noreferrer"><Ic.route />Route</a> : <span />}
-                      {schrijven && <button type="button" className={`mb-knop${item.geplaatst_op ? ' ok' : ''}`} onClick={() => zetGeplaatst(item)}>{item.geplaatst_op ? 'Geplaatst' : 'Zet op geplaatst'}</button>}
-                      {binnenHosts.has(item.id) && <button type="button" className="mb-knop" onClick={() => setBinnen({ host: item.id, verd: null })}><Ic.binnen />Binnengaan</button>}
-                      {schrijven && magVerplaatsen(item) && <button type="button" className="mb-knop" onClick={() => startVerplaats(item)}><Ic.verplaats />Verplaatsen</button>}
-                    </div>
-                    {heeft3d(item, el) && <Knop3D it={item} el={el} elementenMap={elMap} onOpen={() => setGroot3d(item.id)} tekst="In 3D bekijken" />}
                     {(item.notitie || rijen.length > 0) && (
                       <dl className="mb-dl">
                         {item.notitie && <><dt>Notitie</dt><dd>{item.notitie}</dd></>}
@@ -694,7 +693,6 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
                         {opm.map((o) => <div key={o.id} style={o.status !== 'open' ? { opacity: 0.6 } : undefined}><small>{o.auteur_naam || 'Collega'} · {new Date(o.created_at).toLocaleString('nl-BE', { dateStyle: 'short', timeStyle: 'short' })}{o.status !== 'open' ? ' · opgelost' : ''}</small>{o.tekst}</div>)}
                       </div>
                     )}
-                    <button type="button" className="mb-knop vol" onClick={sluit}>Sluiten</button>
                   </>
                 );
               })()}

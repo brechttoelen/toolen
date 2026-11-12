@@ -221,3 +221,14 @@ html:has(.mb) { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-ac
 .mb-feiten b { font-size: 13px; }
 .mb-totaal strong { font-size: 20px; }
 .mb-persoon { width: 28px; height: 28px; font-size: 10px; }
+
+/* Itempaneel: kop met sluitkruis, acties op één rij. */
+.mb-itemkop { display: flex; align-items: flex-start; gap: 10px; }
+.mb-itemkop > div { flex: 1; min-width: 0; }
+.mb-itemkop .mb-titel { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-sluit { flex: none; width: 32px; height: 32px; margin: -4px -6px 0 0; border: 0; border-radius: 50%; background: rgba(2, 32, 86, .07); color: var(--t-tekst-2); font-size: 20px; line-height: 1; cursor: pointer; }
+.mb-acties { display: flex; gap: 6px; }
+.mb-acties button { flex: 1 1 0; min-width: 0; height: 52px; border: 1px solid var(--t-rand-2); border-radius: var(--t-r); background: rgba(255, 255, 255, .7); color: var(--t-navy); font-size: 11.5px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; position: relative; padding: 0 2px; }
+.mb-acties button.ok { background: var(--t-groen); border-color: var(--t-groen); color: #fff; font-weight: 600; }
+.mb-acties i { position: absolute; top: 4px; right: 6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--t-let-op); color: #fff; font-size: 10px; font-style: normal; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.mb-paneel-in { padding-bottom: 14px; }
