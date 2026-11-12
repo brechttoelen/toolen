@@ -60,7 +60,7 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
   async function inloggen(e: React.FormEvent) {
     e.preventDefault();
     const c = code.trim().toLowerCase();
-    if (!geldigeSlug(c)) { setFout("Vul je bedrijfscode in, bv. FLCS. Je vindt ze in je uitnodiging."); return; }
+    if (!geldigeSlug(c)) { setFout("Vul je bedrijfscode in. Je vindt ze in je uitnodiging."); return; }
     setBezig(true); setFout("");
     const sb = supabaseBrowser();
     const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password: wachtwoord });
@@ -124,7 +124,7 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
           {!vast && (
             <label><span className="t-label">Bedrijfscode</span>
               <input className="t-veld" style={{ height: 44, textTransform: "uppercase", letterSpacing: ".04em" }} required value={code} onChange={(e) => setCode(e.target.value.replace(/\s/g, ""))}
-                placeholder="Bv. FLCS" autoComplete="organization" autoCapitalize="characters" spellCheck={false} autoFocus={!code} maxLength={30} />
+                placeholder="Bv. MIJNBEDRIJF" autoComplete="organization" autoCapitalize="characters" spellCheck={false} autoFocus={!code} maxLength={30} />
               {info?.naam && <span className="t-stil" style={{ display: "block", fontSize: 12.5, marginTop: 5 }}>{info.naam}</span>}
             </label>
           )}

@@ -11,9 +11,9 @@ const MOMENTEN = [
 ];
 
 // Een plan dat zichzelf tekent: wegen, parcours, hekken, tenten, stroom en een maat. Enkel CSS, stopt bij "minder beweging".
-function PlanScene() {
+export function PlanScene({ className = "" }: { className?: string }) {
   return (
-    <svg className="t-scene" viewBox="0 0 600 400" role="img" aria-label="Een eventplan dat zich opbouwt: parcours, hekken, tenten en stroom">
+    <svg className={`t-scene ${className}`.trim()} viewBox="0 0 600 400" role="img" aria-label="Een eventplan dat zich opbouwt: parcours, hekken, tenten en stroom">
       <defs>
         <pattern id="t-scene-raster" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#0B2C6B" strokeWidth="1" /></pattern>
         <pattern id="t-scene-dam" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="#fff" /><rect x="4" y="4" width="4" height="4" fill="#fff" /></pattern>
@@ -38,6 +38,16 @@ function PlanScene() {
   );
 }
 
+export function Momenten() {
+  return (
+    <div className="t-momenten" aria-live="off">
+      {MOMENTEN.map(([wanneer, wat], i) => (
+        <p key={wanneer} className="t-moment" style={{ animationDelay: `${i * 4}s` }}><b>{wanneer}</b>{wat}</p>
+      ))}
+    </div>
+  );
+}
+
 // Navy vlak links met een plan dat zich opbouwt, inhoud rechts. Voor inloggen, organisatie kiezen, uitnodigingen en MFA.
 // Met een eigen huisstijl: logo en kleur van de organisatie, met een kleine vermelding van Toolen Maps.
 export default function Inlogkader({ titel, children, huisstijl = null }: { titel?: string; children: React.ReactNode; huisstijl?: Huisstijl }) {
@@ -55,11 +65,7 @@ export default function Inlogkader({ titel, children, huisstijl = null }: { tite
         <PlanScene />
         <h1 className="t-titel t-inlog-titel">{titel || "Uitgetekend."}</h1>
         {!titel && <p className="t-inlog-onder">Van eerste lijn tot laatste spandoek.</p>}
-        <div className="t-momenten" aria-live="off">
-          {MOMENTEN.map(([wanneer, wat], i) => (
-            <p key={wanneer} className="t-moment" style={{ animationDelay: `${i * 4}s` }}><b>{wanneer}</b>{wat}</p>
-          ))}
-        </div>
+        <Momenten />
       </section>
       <section className="t-inlog-vak">
         <div style={{ width: "100%", maxWidth: 420 }}>{children}</div>

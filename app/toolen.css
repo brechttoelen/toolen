@@ -312,3 +312,15 @@ section.t-kaart:has(> .t-sys-kop), section.t-kaart:has(> .t-rij .t-sys-kop) { pa
 .t-plmenu-veld { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; font-size: 12px; color: var(--t-tekst-2); text-align: left; }
 .t-plmenu-veld .t-veld { height: 32px; font-size: 13px; }
 .t-plmenu .t-menu button.gevaar { color: var(--t-fout, #C0362C); }
+
+/* Startpagina toolen.be */
+.t-home { min-height: 100vh; background: var(--t-navy); color: #fff; overflow: hidden; }
+.t-home-kop { max-width: 1200px; margin: 0 auto; padding: 24px; display: flex; align-items: center; box-sizing: border-box; }
+.t-home-hero { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; min-height: calc(100vh - 88px); box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 48px; align-items: center; }
+.t-home-tekst { display: flex; flex-direction: column; gap: 20px; }
+.t-home-uitleg { margin: 0; font-size: 17px; line-height: 1.6; color: rgba(255, 255, 255, .72); max-width: 520px; }
+.t-scene.t-scene-home { max-width: none; max-height: none; margin: 0; }
+@media (max-width: 820px) {
+  .t-home-hero { grid-template-columns: minmax(0, 1fr); padding-top: 24px; gap: 24px; min-height: 0; align-content: start; }
+  .t-scene.t-scene-home { display: block; order: -1; }
+}
