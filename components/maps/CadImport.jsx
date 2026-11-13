@@ -12,6 +12,8 @@ import { cadTekst, isCad } from './cad';
 const PT_MM = 25.4 / 72; // 1 PDF-punt in mm op papier
 // Het object wordt met al zijn lijnen in het plan bewaard en bij elke kaartbeweging hertekend: daarom een grens.
 const MAX = 20000;
+// De eenheid in de kop van een DXF of DWG klopt vaak niet met hoe er getekend is: daarom zelf te kiezen.
+const EENHEDEN = [[0.001, 'Millimeter'], [0.01, 'Centimeter'], [0.1, 'Decimeter'], [1, 'Meter'], [0.0254, 'Inch'], [0.3048, 'Voet']];
 
 async function pdfjsLaden() {
   const pdfjs = await import('pdfjs-dist');
@@ -246,6 +248,14 @@ export default function CadImport({ onSluit, onKlaar, vervang = null }) {
             {paden.length > 0 && (
               <>
                 <div className="fm-kop">Schaal{mPerE ? ' ✓' : ''}</div>
+                {bron?.soort === 'dxf' && (
+                  <label className="fm-veld">Eenheid in de tekening
+                    <select value={EENHEDEN.some(([v]) => v === mPerE) ? mPerE : ''} onChange={(e) => { const v = Number(e.target.value); if (v > 0) setMPerE(v); }}>
+                      {!EENHEDEN.some(([v]) => v === mPerE) && <option value="">Gemeten</option>}
+                      {EENHEDEN.map(([v, t]) => <option key={v} value={v}>{t}{v === bron.eenheidM ? ' · volgens het bestand' : ''}</option>)}
+                    </select>
+                  </label>
+                )}
                 {bron?.soort === 'pdf' && (
                   <label className="fm-veld">Schaal van de tekening (1:…)<input value={schaalN} inputMode="decimal" placeholder="bv. 200" onChange={(e) => zetSchaalN(e.target.value)} /></label>
                 )}
