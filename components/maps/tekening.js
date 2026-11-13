@@ -13,7 +13,7 @@
 // }
 import { padSegmenten } from './svgpad';
 
-const MAX_PUNTEN = 40000;
+const MAX_PUNTEN = 120000;
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 // ---------- SVG ----------

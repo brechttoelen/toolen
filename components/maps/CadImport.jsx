@@ -10,7 +10,8 @@ import { leesDxf } from './dxf';
 import { cadTekst, isCad } from './cad';
 
 const PT_MM = 25.4 / 72; // 1 PDF-punt in mm op papier
-const MAX = 8000;
+// Het object wordt met al zijn lijnen in het plan bewaard en bij elke kaartbeweging hertekend: daarom een grens.
+const MAX = 20000;
 
 async function pdfjsLaden() {
   const pdfjs = await import('pdfjs-dist');
