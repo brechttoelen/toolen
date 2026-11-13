@@ -2458,3 +2458,5 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-dk-mapgroep .kop { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--fm-grijs, #55627a); padding: 14px 10px 4px; }
 .fm-dk-mappen p { margin: 14px 10px 0; font-size: 12px; line-height: 1.45; }
 @media (max-width: 760px) { .fm-dk-mappen { flex-basis: 100%; position: static; max-height: none; } }
+.fm-dk-el { display: flex; align-items: center; justify-content: center; width: 44px; height: 36px; flex-shrink: 0; background: #f4f6fa; border-radius: 5px; overflow: hidden; }
+.fm-dk-el.groot { width: 100%; height: 70px; }

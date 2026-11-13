@@ -749,7 +749,7 @@ function DoekenBeheer({ doeken, setDoeken, schrijven }) {
           <div className="fm-sectie">
             <div className="fm-kop">{gekozen === 'nieuw' ? (v.eigenschappen?.drager === 'totem' ? 'Nieuw paneel' : 'Nieuw doek') : v.naam}</div>
             <div className="fm-veld">Voor
-              <div className="fm-doekvoor">{[['', 'Heras-hek'], ['totem', 'Infototem'], ['vlag', 'Beachvlag'], ['truss', 'Truss'], ['frame', 'Frame'], ['drape', 'Pipe & drape']].map(([k, t]) => <button key={t} className={(v.eigenschappen?.drager || '') === k ? 'aan' : ''} disabled={!schrijven} onClick={() => zetE({ drager: k || null })}>{t}</button>)}</div>
+              <div className="fm-doekvoor">{[['', 'Heras-hek'], ['totem', 'Infototem'], ['vlag', 'Beachvlag'], ['truss', 'Truss'], ['frame', 'Frame'], ['drape', 'Pipe & drape'], ['stelling', 'Stelling']].map(([k, t]) => <button key={t} className={(v.eigenschappen?.drager || '') === k ? 'aan' : ''} disabled={!schrijven} onClick={() => zetE({ drager: k || null })}>{t}</button>)}</div>
             </div>
             {v.id && (isToolen(v) ? <div className="fm-sub">Uit de centrale bibliotheek van Toolen: enkel lezen.</div> : (
               <label className="fm-veld">Waar<select value={v.event_id || ''} disabled={!schrijven} onChange={(e) => zetBereik(e.target.value || null)}>

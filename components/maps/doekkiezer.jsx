@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import { maps, sb, BUCKET, publiekeUrl, foutTekst, wieBenIk } from './db';
 import { DRAGERS, dragerOp, ontwerpDrager, voorbeeldVan } from './branding';
 import { heeftModule, heeftKoppeling, getOrganisatie } from './merk';
-import { gridlabOntwerpen, tekenGridlab, gridlabAlsDoek, statusVan, afmetingVan } from './gridlab';
+import { gridlabOntwerpen, tekenGridlab, gridlabAlsDoek, gridlabAllesOvernemen, statusVan, afmetingVan } from './gridlab';
 
 export const NIEUW_ONTWERP = 'fm-ontwerp-nieuw';
 const pad = (ext) => `ontwerpen/${getOrganisatie()?.slug || 'organisatie'}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
@@ -59,7 +59,7 @@ function Beeld({ d, groot = false }) {
 }
 
 // Tegels om een doek te kiezen. strook = vast in het scherm (compacter), anders in een venster.
-export function DoekTegels({ doeken = [], drager = null, waarde = null, onKies, planId = null, schrijven = true, geenLabel = 'Geen doek', metGeen = true, strook = false, telling = null, onNieuw = null }) {
+export function DoekTegels({ doeken = [], drager = null, waarde = null, onKies, planId = null, schrijven = true, geenLabel = 'Geen doek', metGeen = true, strook = false, telling = null, onNieuw = null, sleep = false, uitleg = null }) {
   const ev = usePlanEvent(planId); const ik = useIk();
   const [zoek, setZoek] = useState(''); const [map, setMap] = useState('alle'); const [alleSoorten, setAlleSoorten] = useState(!drager);
   const [nieuw, setNieuw] = useState(false);
@@ -80,12 +80,14 @@ export function DoekTegels({ doeken = [], drager = null, waarde = null, onKies, 
         {mappen.map(([k, n]) => <button key={k} type="button" aria-pressed={map === k} className={map === k ? 'aan' : ''} onClick={() => setMap(k)}>{n} · {tel(k)}</button>)}
         {drager && <label className="fm-dk-soorten"><input type="checkbox" checked={alleSoorten} onChange={(e) => setAlleSoorten(e.target.checked)} />Andere soorten</label>}
       </div>
+      {uitleg && <div className="fm-sub">{uitleg}</div>}
       <div className="fm-dk-tegels">
         {metGeen && <button type="button" className={`fm-dk-tegel geen${!waarde ? ' aan' : ''}`} disabled={!schrijven} onClick={() => onKies?.(null)}><span className="fm-dk-beeld leeg" /><b>{geenLabel}</b></button>}
         {lijst.map(({ d, b }) => {
           const n = telling ? telling(d.id) : null;
           return (
-            <button key={d.id} type="button" className={`fm-dk-tegel${waarde === d.id ? ' aan' : ''}`} disabled={!schrijven} title={d.naam} onClick={() => onKies?.(d.id, d)}>
+            <button key={d.id} type="button" className={`fm-dk-tegel${waarde === d.id ? ' aan' : ''}`} disabled={!schrijven} title={d.naam} onClick={() => onKies?.(d.id, d)}
+              draggable={sleep && schrijven} onDragStart={sleep ? (e) => { e.dataTransfer.setData('text/fm-doek', d.id); e.dataTransfer.effectAllowed = 'copy'; } : undefined}>
               <Beeld d={d} />
               <b>{d.naam}</b>
               <small>{[b.naam, d.eigenschappen?.afmeting, n != null ? (n ? `${n}× op plan` : 'niet gebruikt') : null].filter(Boolean).join(' · ')}</small>
@@ -200,6 +202,15 @@ export function NieuwDoekVenster({ planId = null, event: evIn = null, drager: dr
     } catch (e) { setFout(foutTekst(e)); setBezig(''); }
   };
 
+  // Alle GridLab-ontwerpen in één keer overnemen naar het gekozen bereik (enkel beheerders).
+  const alles = async () => {
+    setFout('');
+    try {
+      const r = await gridlabAllesOvernemen((n, tot, naam) => setBezig(tot ? `Overnemen ${n} van ${tot}${naam ? ` · ${naam}` : ''}` : ''), { eventId: b === 'event' ? ev?.id || null : null, drager });
+      setBezig(''); try { new BroadcastChannel('fm-bibliotheek').postMessage({ t: Date.now() }); } catch {}
+      setFout(r.fouten.length ? `${r.nieuw} doeken toegevoegd, ${r.fouten.length} mislukt: ${r.fouten.slice(0, 3).join(' · ')}` : r.nieuw ? `${r.nieuw} doeken toegevoegd. Sluit dit venster en vernieuw de pagina om ze te zien.` : 'Alle ontwerpen stonden er al.');
+    } catch (e) { setBezig(''); setFout(foutTekst(e)); }
+  };
   const glLijst = (gl || []).filter((o) => !glZoek || `${o.name} ${o.event || ''}`.toLowerCase().includes(glZoek.toLowerCase()));
   if (typeof document === 'undefined') return null;
   return createPortal(
@@ -230,6 +241,7 @@ export function NieuwDoekVenster({ planId = null, event: evIn = null, drager: dr
           <div className="fm-dk-gl">
             <div className="fm-dk-gl-lijst">
               <input type="search" value={glZoek} onChange={(e) => setGlZoek(e.target.value)} placeholder="Zoek in GridLab" aria-label="Zoek in GridLab" />
+              {admin && (gl || []).length > 0 && <button type="button" className="fm-knop klein" disabled={!!bezig} title="Elk ontwerp (elk canvas) als doek in het gekozen bereik; wat er al staat, wordt overgeslagen" onClick={alles}>{bezig.startsWith('Overnemen') ? bezig : `Alle ${gl.length} ontwerpen overnemen`}</button>}
               {gl === undefined && <div className="fm-sub">Ontwerpen laden…</div>}
               {gl === null && <div className="fm-melding">De koppeling met GridLab staat niet aan.</div>}
               {glLijst.map((o) => (

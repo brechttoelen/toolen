@@ -8,8 +8,7 @@ import TerugKnop from './TerugKnop';
 // ze te verslepen, te draaien, te kopiëren of er een doek op te zetten.
 // Parallelle projectie: elk doek past met een gewone matrix op zijn vlak.
 import { useBouwerSchild, schildProps } from './bouwerschild';
-import { DoekUpload } from './doekupload';
-import { DoekKnop } from './doekkiezer';
+import { DoekKnop, DoekTegels } from './doekkiezer';
 import { DoekBeeld, PLAATSINGEN, STARTEN } from './doekbeeld';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -457,22 +456,9 @@ export default function WandStudio({ it, el, elementenMap, doeken = [], schrijve
             </>
           ) : (
             <>
-              <input type="search" placeholder="Zoek een doek" value={zoek} onChange={(e) => setZoek(e.target.value)} />
-              <div className="fm-sub">{gekozen.length ? `Klik een doek voor de ${kant === 'achter' ? 'achterkant' : 'voorkant'} van ${gekozen.length === 1 ? `frame ${gekozen[0].i + 1}` : `${gekozen.length} frames`}, of sleep het op een frame.` : 'Sleep een doek op een frame.'}</div>
-              <div className="fm-ws-doeklijst">
-                {lijst.map((x) => {
-                  const src = x.eigenschappen?.beeld ? publiekeUrl(x.eigenschappen.beeld) : null;
-                  return (
-                    <button key={x.id} draggable={schrijven} disabled={!schrijven} onDragStart={(e) => { e.dataTransfer.setData('text/fm-doek', x.id); e.dataTransfer.effectAllowed = 'copy'; }}
-                      className={`fm-ws-doek${doekNu === x.id ? ' aan' : ''}`} title={x.naam} onClick={() => gekozen.length && metDoek(sel, kant, x.id)}>
-                      <span className="fm-ws-doekbeeld" style={{ background: x.eigenschappen?.kleur || '#64748B' }}>{src && <img src={src} alt="" draggable={false} />}</span>
-                      <span className="fm-afkap">{x.naam}</span>
-                    </button>
-                  );
-                })}
-                {!doeken.length && <div className="fm-sub">Nog geen frame-doeken: laad er hieronder een op.</div>}
-              </div>
-              {schrijven && <DoekUpload planId={it.plan_id} drager="frame" klein onNieuw={(d) => { if (gekozen.length) metDoek(sel, kant, d.id); }} />}
+              <DoekTegels strook sleep metGeen={false} doeken={doeken} drager="frame" waarde={doekNu || null} planId={it.plan_id} schrijven={schrijven}
+                uitleg={gekozen.length ? `Klik een doek voor de ${kant === 'achter' ? 'achterkant' : 'voorkant'} van ${gekozen.length === 1 ? `frame ${gekozen[0].i + 1}` : `${gekozen.length} frames`}, of sleep het op een frame.` : 'Sleep een doek op een frame, of kies eerst frames en klik dan een doek.'}
+                onKies={(id) => { if (gekozen.length && id) metDoek(sel, kant, id); }} />
             </>
           )}
         </aside>

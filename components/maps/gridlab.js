@@ -118,8 +118,8 @@ export async function vernieuwGridlabDoeken(doeken = []) {
   } finally { _bezig = false; }
 }
 
-// Alle ontwerpen (elk canvas) in één keer als doek in de organisatiebibliotheek. Wat er al staat, wordt overgeslagen.
-export async function gridlabAllesOvernemen(onStap = () => {}) {
+// Alle ontwerpen (elk canvas) in één keer als doek, bij de organisatie of bij een event. Wat er al staat, wordt overgeslagen.
+export async function gridlabAllesOvernemen(onStap = () => {}, { eventId = null, drager = 'hek' } = {}) {
   const lijst = (await gridlabOntwerpen()) || [];
   const { data: al } = await maps().from('bibliotheek').select('eigenschappen').is('plan_id', null).not('eigenschappen->gridlab', 'is', null);
   const heeft = new Set((al || []).map((r) => `${r.eigenschappen?.gridlab?.id}|${r.eigenschappen?.gridlab?.canvas}`));
@@ -127,7 +127,7 @@ export async function gridlabAllesOvernemen(onStap = () => {}) {
   let klaar = 0; const fouten = [];
   for (const { o, c } of taken) {
     onStap(klaar, taken.length, o.name);
-    try { await gridlabAlsDoek({ ontwerp: o, canvasId: c.id, planId: null, alle: true }); } catch (e) { fouten.push(`${o.name}: ${e?.message || e}`); }
+    try { await gridlabAlsDoek({ ontwerp: o, canvasId: c.id, alle: !eventId, eventId, drager }); } catch (e) { fouten.push(`${o.name}: ${e?.message || e}`); }
     klaar++;
   }
   onStap(klaar, taken.length, '');

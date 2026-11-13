@@ -214,7 +214,7 @@ export function brandingBestellijst(items, elementenMap) {
   const t = brandingTelling(items, elementenMap);
   return [...t.perOntwerp].map(([id, n]) => {
     const d = elementenMap.get(id);
-    return { id, naam: d?.naam || '?', drager: ontwerpDrager(d), afmeting: d?.eigenschappen?.afmeting || '', aantal: n, eigen: !!d?.plan_id, bestand: d?.eigenschappen?.bestand || d?.eigenschappen?.beeld || '' };
+    return { id, naam: d?.naam || '?', drager: ontwerpDrager(d), afmeting: d?.eigenschappen?.afmeting || '', aantal: n, eigen: !!(d?.event_id || d?.plan_id), bestand: d?.eigenschappen?.bestand || d?.eigenschappen?.beeld || '' };
   }).sort((a, b) => DRAGERS.findIndex((x) => x.id === a.drager) - DRAGERS.findIndex((x) => x.id === b.drager) || a.naam.localeCompare(b.naam, 'nl'));
 }
 export function brandingCsv(rijen) {

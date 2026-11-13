@@ -313,7 +313,7 @@ export default function BibliotheekPaneel({ elementen, gekozen, onKies, schrijve
         <>
           {cs.length > 1 ? cs.map((c) => { const l = gewoon.filter((e) => (e.categorie || '') === c); return groep(`${fam}#${c}`, c || 'Overig', l, metStd(l, `${fam}#${c}`)); }) : metStd(gewoon, fam)}
           {sets.length > 0 && groep(`${fam}#sets`, 'Opstellingen van een partner', sets, rijenVan(sets, 's'))}
-          {event.length > 0 && groep(`${fam}#event`, 'Dit event', event, rijenVan(event, 'e'))}
+          {event.length > 0 && groep(`${fam}#event`, 'Dit plan', event, rijenVan(event, 'e'))}
         </>
       );
     }

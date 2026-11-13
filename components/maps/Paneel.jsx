@@ -4,6 +4,8 @@
 // Zelfde skelet voor elke familie (zie familie.js); wat ertussen staat verschilt per familie (Eigenschappen.jsx).
 import { getOrganisatie } from './merk';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ElementIcoon } from './BibliotheekPaneel';
 import { Icoon } from './iconen';
 import { sorteerCategorieen } from './categorieen';
 import { familieVanElement } from './familie';
@@ -144,6 +146,53 @@ export function ItemMenu({ item, el, open, onSluit, onActie, inGroep = false, is
 
 // Elementkeuze: wisselen binnen de familie. Lijnen: alle lijnelementen (of gewone lijn); vlak-elementen: een ander
 // formaat van dezelfde soort, of dezelfde maat met een andere inhoud.
+// Model kiezen met beeld: tegels per model, zoeken en filter per leverancier (zelfde opzet als de doekkiezer).
+function ModelKnop({ el, per, levs, mk, kort, uit, onKies }) {
+  const [open, setOpen] = useState(false); const [zoek, setZoek] = useState(''); const [lev, setLev] = useState(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const t = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); } };
+    window.addEventListener('keydown', t, true); return () => window.removeEventListener('keydown', t, true);
+  }, [open]);
+  const nu = mk(el); const z = zoek.trim().toLowerCase();
+  const sleutels = [...per.keys()].filter((k) => (lev == null || k.split('|')[0] === lev) && (!z || k.toLowerCase().includes(z)))
+    .sort((a, b) => (a === nu ? -1 : b === nu ? 1 : 0) || a.split('|')[1].localeCompare(b.split('|')[1], 'nl', { numeric: true }));
+  return (
+    <>
+      <button type="button" className="fm-dk-knop gekozen" disabled={uit} aria-haspopup="dialog" onClick={() => setOpen(true)} style={{ flex: 1, minWidth: 0 }}>
+        <span className="fm-dk-el"><ElementIcoon el={el} maat={34} /></span>
+        <span className="tekst"><b>{kort(nu.split('|')[1])}</b><small>{el.leverancier || 'Leverancier vrij'}</small></span>
+        {!uit && <span className="actie">Wijzigen</span>}
+      </button>
+      {open && typeof document !== 'undefined' && createPortal(
+        <div className="fm fm-appdialoog-achter" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+          <div className="fm-appdialoog fm-dk-venster" role="dialog" aria-modal="true" aria-label="Model kiezen">
+            <div className="fm-dk-kop"><span className="titel">Model kiezen</span><span style={{ flex: 1 }} /><button type="button" className="fm-sluit" aria-label="Sluiten" onClick={() => setOpen(false)}>×</button></div>
+            <div className="fm-dk">
+              <div className="fm-dk-balk"><input type="search" value={zoek} onChange={(e) => setZoek(e.target.value)} placeholder="Zoek een model" aria-label="Zoek een model" /></div>
+              <div className="fm-dk-filter" role="group" aria-label="Leverancier">
+                <button type="button" aria-pressed={lev == null} className={lev == null ? 'aan' : ''} onClick={() => setLev(null)}>Alle · {per.size}</button>
+                {levs.map((l) => <button key={l || '_'} type="button" aria-pressed={lev === l} className={lev === l ? 'aan' : ''} onClick={() => setLev(l)}>{l || 'Leverancier vrij'} · {[...per.keys()].filter((k) => k.split('|')[0] === l).length}</button>)}
+              </div>
+              <div className="fm-dk-tegels">
+                {sleutels.map((k) => { const l = per.get(k); return (
+                  <button key={k} type="button" className={`fm-dk-tegel${k === nu ? ' aan' : ''}`} title={k.split('|')[1]} onClick={() => { setOpen(false); if (k !== nu) onKies(k); }}>
+                    <span className="fm-dk-el groot"><ElementIcoon el={l[0]} maat={56} /></span>
+                    <b>{kort(k.split('|')[1])}</b>
+                    <small>{[k.split('|')[0] || 'Leverancier vrij', l.length > 1 ? `${l.length} uitvoeringen` : null].filter(Boolean).join(' · ')}</small>
+                  </button>
+                ); })}
+                {!sleutels.length && <div className="fm-sub" style={{ gridColumn: '1 / -1', padding: 8 }}>Niets gevonden.</div>}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
 function ElementKeuze({ item, el, elementen, uitgeschakeld, onWissel }) {
   const g = item.geometrie;
   if (!el && g?.type !== 'LineString') return <div className="fm-kiesrij stil"><span className="l">Soort</span><span className="w">{SOORT[item.soort] || item.soort}</span></div>;
@@ -203,15 +252,9 @@ function ElementKeuze({ item, el, elementen, uitgeschakeld, onWissel }) {
       const wissel = (x) => { if (x && x.id !== el.id) onWissel(x.id, zelfde(x) ? 'inhoud' : 'formaat'); };
       return (
         <>
-          <label className="fm-kiesrij"><span className="l">Model</span>
-            <select value={mk(el)} disabled={uitgeschakeld} aria-label="Model" onChange={(e) => { const l = per.get(e.target.value) || []; const u = el.eigenschappen?.uitvoering; wissel(l.find((x) => u && x.eigenschappen?.uitvoering === u) || l[0]); }}>
-              {levs.map((l) => (
-                <optgroup key={l || '_'} label={l ? `Van ${l}` : 'Algemeen (leverancier vrij)'}>
-                  {[...per.keys()].filter((k) => k.split('|')[0] === l).sort(nl).map((k) => <option key={k} value={k}>{kort(k.split('|')[1])}{per.get(k).length > 1 ? ` (${per.get(k).length})` : ''}</option>)}
-                </optgroup>
-              ))}
-            </select>
-          </label>
+          <div className="fm-kiesrij"><span className="l">Model</span>
+            <ModelKnop el={el} per={per} levs={levs} mk={mk} kort={kort} uit={uitgeschakeld} onKies={(k) => { const l = per.get(k) || []; const u = el.eigenschappen?.uitvoering; wissel(l.find((x) => u && x.eigenschappen?.uitvoering === u) || l[0]); }} />
+          </div>
           {ditModel.length > 1 && (
             <label className="fm-kiesrij"><span className="l">Uitvoering</span>
               <select value={el.id} disabled={uitgeschakeld} aria-label="Uitvoering" onChange={(e) => wissel(ditModel.find((x) => x.id === e.target.value))}>
