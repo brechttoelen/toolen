@@ -4884,7 +4884,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                   <section>
                     <h3>Op maat</h3>
                     {bouwRij('teken', 'vrijehand', 'Element tekenen', 'Eigen vorm in het tekenscherm, komt als groep op de kaart', () => kiesBouwer({ soort: 'teken' }))}
-                    {schrijven && bouwRij('cad', 'lagen', 'CAD-plan van een leverancier', 'DWG, DXF of PDF als één object op schaal', () => { setTab(null); setCadVervang(null); setDialoog('cad'); })}
+                    {schrijven && bouwRij('cad', 'bouw-cad', 'CAD-plan van een leverancier', 'DWG, DXF of PDF als één object op schaal', () => { setTab(null); setCadVervang(null); setDialoog('cad'); })}
                   </section>
                 </div>
               )}
