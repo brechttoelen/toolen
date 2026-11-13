@@ -1319,6 +1319,40 @@ export default function Eigenschappen(props) {
   return assembleer();
 }
 
+// Twee stroomgroepen op het plan als één bron: samen leveren (vermogen opgeteld) of één als reserve.
+function TwinVeld({ item, st, items, elementenMap, ro, onZet, naam }) {
+  const bronnen = items.filter((i) => i.id !== item.id).map((i) => ({ i, s: stroomVan(i, elementenMap.get(i.element_id)) })).filter((x) => x.s.rol === 'bron' && !x.s.vast);
+  const hoofd = bronnen.find((x) => x.s.twin === item.id);
+  if (hoofd) return <p className="fm-sub" style={{ margin: 0 }}>Twin van {naam(hoofd.i)}. Ontkoppelen doe je bij die stroomgroep.</p>;
+  // Wie al in een andere twin zit, kan niet nog eens.
+  const bezet = new Set(bronnen.filter((x) => x.s.twin).flatMap((x) => [x.i.id, x.s.twin]));
+  const vrij = bronnen.filter((x) => !bezet.has(x.i.id) || x.i.id === st.twin);
+  if (!vrij.length && !st.twin) return null;
+  const partner = bronnen.find((x) => x.i.id === st.twin);
+  const som = (Number(st.kva) || 0) + (Number(partner?.s.kva) || 0);
+  return (
+    <>
+      <div className="fm-raster2">
+        <label className="fm-veld">Twin met
+          <select value={partner ? st.twin : ''} disabled={ro} onChange={(e) => onZet({ twin: e.target.value || null })}>
+            <option value="">Geen</option>
+            {vrij.map((x) => <option key={x.i.id} value={x.i.id}>{naam(x.i)}{x.s.kva ? ` · ${x.s.kva} kVA` : ''}</option>)}
+          </select>
+        </label>
+        {partner && (
+          <label className="fm-veld">Werking
+            <select value={st.twinWijze} disabled={ro} onChange={(e) => onZet({ twinWijze: e.target.value })}>
+              <option value="samen">Samen leveren</option>
+              <option value="reserve">Reserve</option>
+            </select>
+          </label>
+        )}
+      </div>
+      {partner && <p className="fm-sub" style={{ margin: 0 }}>{st.twinWijze === 'reserve' ? `Telt als ${st.kva || '?'} kVA. De tweede neemt over bij uitval.` : `Telt als één bron van ${som || '?'} kVA.`} Sluit alles aan op deze stroomgroep.</p>}
+    </>
+  );
+}
+
 export function StroomSectie({ item, el, items, elementenMap, ro, isLijn, onZet, onKabel, vast = [], open = null }) {
   const st = stroomVan(item, el);
   const rollen = isLijn ? ROLLEN.filter(([k]) => k === '' || k === 'kabel') : ROLLEN.filter(([k]) => k !== 'kabel');
@@ -1341,6 +1375,7 @@ export function StroomSectie({ item, el, items, elementenMap, ro, isLijn, onZet,
           <Veld label="Verbruik" eenheid="l/u" soort="number" waarde={st.liter_per_uur ?? ''} onBewaar={(v) => onZet({ liter_per_uur: getalOf(v) })} uitgeschakeld={ro} />
         </div>
       )}
+      {st.rol === 'bron' && !st.vast && <TwinVeld item={item} st={st} items={items} elementenMap={elementenMap} ro={ro} onZet={onZet} naam={naam} />}
       {st.rol === 'verbruiker' && st.aansluitingen?.length > 0 && (
         <div className="fm-aansluitingen">
           {st.aansluitingen.map((a, i) => {

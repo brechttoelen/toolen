@@ -2,6 +2,7 @@
 // Uit Editor.jsx gehaald: de body van een useEffect; Editor roept dit aan met zijn
 // state, refs en callbacks. Geeft de opruimfunctie terug.
 
+import { KNOOP_PX } from './gereedschap';
 import { zetCursor } from './cursor';
 import * as geo from './geo';
 import { stelsel, geschaald } from './groepschaal';
@@ -25,12 +26,14 @@ export default function slimSlepen(ctx) {
       let raf = 0;
       const M_PER_GRAAD = 111320;
       const px = (c) => map.project(c);
+      // Zelfde afstand als Terra Draw (pointerDistance): was die hier kleiner, dan greep Terra Draw het punt terwijl
+      // wij de hele lijn begonnen te verslepen; de lijn volgde dan niet en sprong bij het loslaten.
       const nabijHoekpunt = (it, p) => {
         const g = it.geometrie;
         const c = g.type === 'LineString' ? g.coordinates : g.coordinates[0];
         for (let i = 0; i < c.length; i++) {
           const a = px(c[i]);
-          if (Math.hypot(a.x - p.x, a.y - p.y) < 10) return true;
+          if (Math.hypot(a.x - p.x, a.y - p.y) < KNOOP_PX) return true;
         }
         return false;
       };
@@ -86,7 +89,7 @@ export default function slimSlepen(ctx) {
           }
         }
         // Bij een bestaand punt wint dat punt (Terra Draw sleept het).
-        for (const q of c) { const a = px(q); if (Math.hypot(a.x - e.point.x, a.y - e.point.y) < 10) return null; }
+        for (const q of c) { const a = px(q); if (Math.hypot(a.x - e.point.x, a.y - e.point.y) < KNOOP_PX) return null; }
         const mid = middens(si).find((m) => Math.hypot(m.x - e.point.x, m.y - e.point.y) < 10);
         if (mid) return { ...si, k: mid.k, punt: mid.punt, midden: true };
         if (!best) return null;

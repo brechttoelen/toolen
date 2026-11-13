@@ -7,8 +7,9 @@ import { getal } from './geo';
 // Rechterpaneel in de werkruimte Stroom: belasting, fasen en vrije uitgangen van het gekozen item,
 // daaronder de gewone elektriciteitsvelden (rol, voeding, kW, kabel).
 export default function StroomDetail({ item, el, stroom, items, elementenMap, vast, schrijven, onZet, onKabel, onKiesItem }) {
-  const s = stroomVan(item, el);
   const knoop = stroom?.knopen?.get(item.id) || null;
+  // Hoofdgroep van een twin: het opgetelde vermogen en de uitgangen die daarbij horen.
+  const s = knoop?.twin ? knoop.s : stroomVan(item, el);
   const deel = stroom ? [...stroom.knopen.values()].filter((k) => k.item.id === item.id) : [];
   const meld = (stroom?.meldingen || []).filter((m) => m.id === item.id);
   const kinderen = knoop?.kinderen || [];

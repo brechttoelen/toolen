@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { kabelStukken, kabelBestelling, kabelVoor, standaardUitgangen, isKastNaam } from '../components/maps/stroom';
+import { kabelStukken, kabelBestelling, kabelVoor, standaardUitgangen, isKastNaam, berekenStroom } from '../components/maps/stroom';
 
 const totaal = (s) => Object.entries(s).reduce((t, [l, n]) => t + Number(l) * n, 0);
 const stuks = (s) => Object.values(s).reduce((t, n) => t + n, 0);
@@ -40,5 +40,28 @@ describe('stroom: kabels en kasten', () => {
   it('Een verdeelkast is een kast, een koelkast niet', () => {
     expect(isKastNaam('Verdeelkast 63 A')).toBe(true);
     expect(isKastNaam('Koelkast')).toBe(false);
+  });
+});
+
+describe('stroom: twin van twee stroomgroepen', () => {
+  const punt = { type: 'Point', coordinates: [4, 51] };
+  const bron = (id, kva, extra = {}) => ({ id, naam: id, geometrie: punt, velden: { stroom: { rol: 'bron', kva, liter_per_uur: 10, ...extra } } });
+  const last = (id, kw, voeding) => ({ id, naam: id, geometrie: punt, velden: { stroom: { rol: 'verbruiker', kw, ampere: 63, voeding } } });
+  const reken = (items) => berekenStroom(items, new Map(), { gelijktijdigheid: 1 });
+  it('Samen leveren: één bron met het opgetelde vermogen', () => {
+    const r = reken([bron('a', 100, { twin: 'b' }), bron('b', 100), last('x', 60, 'a'), last('y', 60, 'b')]);
+    expect(r.bronnen.map((b) => b.id)).toEqual(['a']);
+    expect(r.bronnen[0].s.kva).toBe(200);
+    expect(r.bronnen[0].kw).toBe(120);
+    expect(Math.round(r.bronnen[0].procent)).toBe(75);
+    expect(r.meldingen.filter((m) => /niet aangesloten/.test(m.tekst))).toEqual([]);
+  });
+  it('Reserve: het vermogen van één groep telt', () => {
+    const r = reken([bron('a', 100, { twin: 'b', twinWijze: 'reserve' }), bron('b', 100), last('x', 60, 'a'), last('y', 60, 'b')]);
+    expect(r.bronnen[0].s.kva).toBe(100);
+    expect(r.bronnen[0].procent).toBeGreaterThan(100);
+  });
+  it('Zonder twin blijven het twee bronnen', () => {
+    expect(reken([bron('a', 100), bron('b', 100)]).bronnen.length).toBe(2);
   });
 });

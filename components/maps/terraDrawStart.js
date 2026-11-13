@@ -9,7 +9,7 @@ import {
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
 import * as geo from './geo';
 import { platen, padMaat, haaks } from './stijl';
-import { TD_MODUS } from './gereedschap';
+import { TD_MODUS, KNOOP_PX } from './gereedschap';
 import { bboxVan } from './controle';
 
 // Terra Draw houdt enkel vast wat geselecteerd is (en wat je aan het tekenen bent): met honderden items erin
@@ -42,6 +42,8 @@ function slimTd(td, { st, tdFeature, bewerkbaar }) {
   Object.defineProperty(w, 'enabled', { get: () => td.enabled });
   return w;
 }
+
+const GREEP_STIL = ['fm-greep-v', 'fm-greep-vt', 'fm-greep-b', 'fm-greep-l', 'fm-greep-p'];
 
 export default function terraDrawStart(ctx) {
   // ctx is een functie: de waarden worden pas gelezen als het effect loopt (zoals de oorspronkelijke closure).
@@ -136,7 +138,7 @@ export default function terraDrawStart(ctx) {
           // Terra Draw toont enkel de knooppunten van wat geselecteerd is.
           allowManualSelection: false,
           allowManualDeselection: false,
-          pointerDistance: 12,
+          pointerDistance: KNOOP_PX,
           flags: {
             polygon: vlakFlags,
             linestring: vlakFlags,
@@ -227,6 +229,8 @@ export default function terraDrawStart(ctx) {
           const it = st.current.items.find((x) => x.id === id); if (!f || !it || !f.geometry) return;
           if (JSON.stringify(it.geometrie?.coordinates) === JSON.stringify(f.geometry.coordinates)) return;
           voorbeeldRef?.current?.([{ ...it, geometrie: f.geometry }]); m0._fmTdVb = true;
+          // De '+' en de bochtbolletjes horen bij de oude vorm: tijdens het slepen even weg.
+          if (!m0._fmGreepWeg) { m0._fmGreepWeg = true; for (const l of GREEP_STIL) if (m0.getLayer(l)) m0.setLayoutProperty(l, 'visibility', 'none'); }
         });
       };
       if (m0 && !m0._fmTdBeweeg) { m0._fmTdBeweeg = true; m0.on('mousemove', (e) => { if (e.originalEvent?.buttons) m0._fmTdVolg?.(); }); m0.on('touchmove', () => m0._fmTdVolg?.()); }
@@ -236,7 +240,7 @@ export default function terraDrawStart(ctx) {
         const cc = m0.getCanvasContainer(); if (!m0._fmTdKnoop || !cc || cc.contains(e.target)) return;
         try { m0.getCanvas().dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY, pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: e.isPrimary, button: e.button, buttons: 0 })); } catch {}
       }, true); }
-      if (m0 && !m0._fmTdUp) { m0._fmTdUp = true; const op = () => { m0._fmTdKnoop = false; setTimeout(() => { if (m0._fmTdVb) { m0._fmTdVb = false; m0._fmVoorbeeldWeg?.(); } }, 120); }; window.addEventListener('mouseup', op); window.addEventListener('touchend', op); } }
+      if (m0 && !m0._fmTdUp) { m0._fmTdUp = true; const op = () => { m0._fmTdKnoop = false; if (m0._fmGreepWeg) setTimeout(() => { m0._fmGreepWeg = false; for (const l of GREEP_STIL) if (m0.getLayer(l)) m0.setLayoutProperty(l, 'visibility', 'visible'); }, 150); setTimeout(() => { if (m0._fmTdVb) { m0._fmTdVb = false; m0._fmVoorbeeldWeg?.(); } }, 120); }; window.addEventListener('mouseup', op); window.addEventListener('touchend', op); } }
     td.on('deselect', () => { if (sleepVoorbeeldRef.v) { sleepVoorbeeldRef.v = false; voorbeeldRef?.current?.(null); } if (st.current.doekPenseel || st.current.brandPenseel || st.current.stilDeselect) return; setGeselecteerd(null); if (!shiftRef.current) setExtra([]); });
 
     syncTd();

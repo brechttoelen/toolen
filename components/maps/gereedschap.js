@@ -101,3 +101,7 @@ export const PANEELTIP = {
 export const nieuwId = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
   const r = (Math.random() * 16) | 0; return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
 }));
+
+// Hoe dicht (in schermpixels) je bij een knooppunt moet klikken om het te grijpen. Eén waarde voor Terra Draw
+// en voor het eigen slepen: verschillen die, dan grijpen ze elk iets anders.
+export const KNOOP_PX = 14;

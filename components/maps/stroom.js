@@ -168,6 +168,9 @@ export function stroomVan(item, element) {
     stekkerdoos: !!eig.stekkerdoos,
     invoer,
     vast: !!eigen.vast,
+    // Twin: deze stroomgroep werkt samen met een tweede (id). 'samen' = vermogen opgeteld, 'reserve' = de tweede neemt over.
+    twin: rol === 'bron' ? eigen.twin ?? null : null,
+    twinWijze: eigen.twinWijze === 'reserve' ? 'reserve' : 'samen',
   };
 }
 
@@ -271,13 +274,32 @@ export function berekenStroom(items, elementenMap, { gelijktijdigheid = 0.8, mar
     knopen.set(it.id, { id: it.id, item: it, el, s, naam: metHost(it, naamVan(it, el)), kinderen: [] });
   }
   const meldingen = [];
+  // Twins: twee stroomgroepen als één bron. De hoofdgroep draagt de boom; de partner hangt eraan vast en is
+  // zelf geen bron meer. Wat op de partner aangesloten stond, telt bij de hoofdgroep.
+  const partnerVan = new Map();
+  for (const k of knopen.values()) {
+    if (k.s.rol !== 'bron' || !k.s.twin || partnerVan.has(k.id)) continue;
+    const pk = knopen.get(k.s.twin);
+    if (!pk || pk.id === k.id || pk.s.rol !== 'bron' || pk.s.vast || k.s.vast || partnerVan.has(pk.id) || pk.twin) continue;
+    partnerVan.set(pk.id, k.id);
+    pk.twinVan = k.id;
+    const samen = k.s.twinWijze !== 'reserve';
+    const eigenKva = Number(k.s.kva) || 0; const pKva = Number(pk.s.kva) || 0;
+    k.twin = { wijze: k.s.twinWijze, partner: pk, kvaElk: [eigenKva, pKva] };
+    if (samen) {
+      const kva = eigenKva + pKva;
+      k.s = { ...k.s, kva: kva || null, ...(k.s.uitgangenStandaard ? { uitgangen: standaardUitgangen(kva) } : {}) };
+    } else if (pKva && eigenKva && pKva < eigenKva) meldingen.push({ id: pk.item.id, soort: 'waarschuwing', tekst: `${pk.naam}: als reserve kleiner (${pKva} kVA) dan ${k.naam} (${eigenKva} kVA).` });
+    k.naam = `${k.naam} · twin${samen ? '' : ' met reserve'}`;
+  }
+  const echteVoeding = (id) => (id && partnerVan.get(id)) || id;
   // Boom opbouwen.
   // Zonder voeding maar met een getekende kabel ernaartoe: de kabel bepaalt de voeding.
   const viaKabel = new Map();
   for (const k of knopen.values()) if (k.s.rol === 'kabel' && k.s.naar && k.s.van) viaKabel.set(k.s.naar, k.s.van);
   for (const k of knopen.values()) {
     if (k.s.rol === 'kabel' || k.s.rol === 'bron') continue;
-    const vid = k.s.voeding || viaKabel.get(k.id) || null;
+    const vid = echteVoeding(k.s.voeding || viaKabel.get(k.id) || null);
     const ouder = vid ? knopen.get(vid) : null;
     if (ouder && ouder.s.rol !== 'verbruiker' && ouder.s.rol !== 'kabel' && ouder.id !== k.id) ouder.kinderen.push(k);
     else if (k.s.rol !== 'kabel') meldingen.push({ id: k.item.id, soort: 'waarschuwing', tekst: `${k.naam}: niet aangesloten op een bron of kast.` });
@@ -315,7 +337,7 @@ export function berekenStroom(items, elementenMap, { gelijktijdigheid = 0.8, mar
     k.ampereFase = { L1: (fase.L1 * 1000) / 230, L2: (fase.L2 * 1000) / 230, L3: (fase.L3 * 1000) / 230 };
     return { kw, fase };
   };
-  const bronnen = [...knopen.values()].filter((k) => k.s.rol === 'bron');
+  const bronnen = [...knopen.values()].filter((k) => k.s.rol === 'bron' && !k.twinVan);
   for (const b of bronnen) {
     tel(b);
     const capaciteit = (Number(b.s.kva) || 0) * (Number(b.s.cosphi) || 0.8);
@@ -414,6 +436,8 @@ export function berekenStroom(items, elementenMap, { gelijktijdigheid = 0.8, mar
     for (const b of bronnen) {
       if (b.item.fase_ids?.length && !b.item.fase_ids.includes(f.id)) continue;
       if (b.s.liter_per_uur) liter += b.s.liter_per_uur * uren;
+      // Twin die samen levert: de tweede groep draait mee. Een reserve staat stil.
+      if (b.twin && b.twin.wijze !== 'reserve' && b.twin.partner.s.liter_per_uur) liter += b.twin.partner.s.liter_per_uur * uren;
     }
     if (liter) brandstof.push({ fase: f.naam, uren, liter });
   }
@@ -433,7 +457,7 @@ export function schemaIndeling(bronnen) {
 
 export function knoopTekst(k) {
   const s = k.s;
-  if (s.rol === 'bron') return `${s.kva || '?'} kVA · ${k.belast ? k.belast.toFixed(1) : 0} kW${k.procent != null ? ` · ${Math.round(k.procent)} %` : ''}`;
+  if (s.rol === 'bron') return `${k.twin ? (k.twin.wijze === 'reserve' ? `${s.kva || '?'} kVA + reserve ${k.twin.kvaElk[1] || '?'}` : `${k.twin.kvaElk[0] || '?'} + ${k.twin.kvaElk[1] || '?'} = ${s.kva || '?'}`) : s.kva || '?'} kVA · ${k.belast ? k.belast.toFixed(1) : 0} kW${k.procent != null ? ` · ${Math.round(k.procent)} %` : ''}`;
   if (s.rol === 'kast') return `${s.ampere || '?'} A · ${k.kw ? k.kw.toFixed(1) : 0} kW · L1 ${(k.fase?.L1 || 0).toFixed(1)} · L2 ${(k.fase?.L2 || 0).toFixed(1)} · L3 ${(k.fase?.L3 || 0).toFixed(1)}`;
   return `${s.kw || '?'} kW · ${s.fase === '3F' ? '3 fasen' : s.fase}${s.ampere ? ` · ${s.ampere} A` : ''}`;
 }
