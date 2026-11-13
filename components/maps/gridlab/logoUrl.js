@@ -3,7 +3,7 @@
 // Wijzigt GridLab de export, kopieer dan dit bestand opnieuw (zelfde inhoud, enkel de imports zijn aangepast).
 export const LOGO_BUCKET = 'gridlab-logos'
 
-import { SUPABASE_URL } from '@/lib/supabase/env'
+import { GRIDLAB_URL as SUPABASE_URL } from '@/lib/gridlabBron'
 
 const STORAGE_BASE = SUPABASE_URL
   + `/storage/v1/object/public/${LOGO_BUCKET}/`

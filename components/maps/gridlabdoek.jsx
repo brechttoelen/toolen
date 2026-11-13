@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { heeftKoppeling } from './merk';
-import { gridlabOntwerpen, tekenGridlab, gridlabAlsDoek, statusVan, afmetingVan } from './gridlab';
+import { gridlabOntwerpen, tekenGridlab, gridlabAlsDoek, gridlabAllesOvernemen, statusVan, afmetingVan } from './gridlab';
 import { foutTekst, wieBenIk } from './db';
 import { dragerOp } from './branding';
 
@@ -41,14 +41,22 @@ function GridlabKiezer({ planId, drager, onSluit, onNieuw }) {
     setBezig('Toevoegen…'); setFout('');
     try { const d = await gridlabAlsDoek({ ontwerp: keuze, canvasId, planId, alle: waar === 'alle' && admin, drager }); onNieuw(d); } catch (e) { setFout(foutTekst(e)); setBezig(''); }
   };
+  const alles = async () => {
+    setFout('');
+    try {
+      const r = await gridlabAllesOvernemen((n, tot, naam) => setBezig(tot ? `Overnemen ${n} van ${tot}${naam ? ` · ${naam}` : ''}` : ''));
+      setBezig(''); setFout(r.fouten.length ? `${r.nieuw} doeken toegevoegd, ${r.fouten.length} mislukt: ${r.fouten.slice(0, 3).join(' · ')}` : `${r.nieuw} doeken toegevoegd aan de organisatiebibliotheek.`);
+      window.dispatchEvent(new CustomEvent('fm-ontwerp-nieuw', { detail: null }));
+    } catch (e) { setBezig(''); setFout(foutTekst(e)); }
+  };
   const cs = keuze?.canvases || [];
   if (typeof document === 'undefined') return null;
   return createPortal(
     <div className="fm fm-appdialoog-achter" onMouseDown={(e) => { if (e.target === e.currentTarget) onSluit(); }}>
       <div className="fm-appdialoog fm-gl" role="dialog" aria-modal="true" aria-label="Uit GridLab">
-        <div className="fm-gl-kop"><span className="titel">Uit GridLab</span><span className="fm-sub">Voor {dragerOp(drager).naam.toLowerCase()} · {dragerOp(drager).afmeting}</span><span style={{ flex: 1 }} /><button type="button" className="fm-sluit" aria-label="Sluiten" onClick={onSluit}>×</button></div>
+        <div className="fm-gl-kop"><span className="titel">Uit GridLab</span><span className="fm-sub">Voor {dragerOp(drager).naam.toLowerCase()} · {dragerOp(drager).afmeting}</span><span style={{ flex: 1 }} />{admin && lijst?.length > 0 && <button type="button" className="fm-knop klein" disabled={!!bezig} title="Elk ontwerp (elk canvas) als doek in de organisatiebibliotheek; wat er al staat, wordt overgeslagen" onClick={alles}>{bezig.startsWith('Overnemen') ? bezig : 'Alles overnemen'}</button>}<button type="button" className="fm-sluit" aria-label="Sluiten" onClick={onSluit}>×</button></div>
         {lijst === undefined && <div className="fm-sub">Ontwerpen laden…</div>}
-        {lijst === null && <div className="fm-melding">Je hebt geen toegang tot GridLab. Vraag de beheerder van GridLab om je toe te voegen.</div>}
+        {lijst === null && <div className="fm-melding">De koppeling met GridLab staat niet aan voor deze organisatie.</div>}
         {lijst && (
           <div className="fm-gl-lijf">
             <div className="fm-gl-lijst">

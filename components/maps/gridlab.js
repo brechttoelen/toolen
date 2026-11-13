@@ -1,18 +1,27 @@
 'use client';
 
-// Koppeling met GridLab (schema gridlab in dezelfde database): sponsor-backdrops als doek in Toolen Maps.
-// - Lezen gebeurt met de eigen login: wie in GridLab de ontwerpen mag zien, ziet ze hier ook (RLS van GridLab).
+// Koppeling met GridLab (in het Publitool-project van FLCS): sponsor-backdrops als doek in Toolen Maps.
+// - Lezen gebeurt via de server van Toolen (/api/koppeling/gridlab), voor organisaties met de koppeling gridlab.
 // - Tekenen gebeurt met de exportcode van GridLab zelf (map gridlab/), dus het doek is gelijk aan de JPEG uit GridLab.
 // - Het beeld wordt in de Toolen Maps-bucket bewaard (zo werkt het ook in de deellink en de PDF) en
 //   vernieuwd zodra het ontwerp in GridLab gewijzigd is (vernieuwGridlabDoeken).
 import { sb, maps, BUCKET } from './db';
-import { heeftKoppeling } from './merk';
+import { heeftKoppeling, getOrganisatie } from './merk';
 import { renderJpegBlob } from './gridlab/exportJpeg';
-import { setLogoVersions, LOGO_BUCKET } from './gridlab/logoUrl';
+import { setLogoVersions } from './gridlab/logoUrl';
 import { withRecalcMargins } from './gridlab/formatGeometry';
 
-const gl = () => sb().schema('gridlab');
-const LIJST = 'id, name, event, season, edition, version, approval_locked, updated_at, format_code, folder, canvases';
+// Eén vraag aan de server geeft ontwerpen, logo-overrides en logoversies (kort bewaard).
+let _bron = null;
+async function haal(ids = null) {
+  if (!ids && _bron && Date.now() - _bron.op < 60000) return _bron.d;
+  const r = await fetch('/api/koppeling/gridlab', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ org: getOrganisatie()?.slug, ids }) });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 403 || r.status === 401) return null;
+  if (!r.ok) throw new Error(d.fout || 'GridLab is niet bereikbaar.');
+  if (!ids) _bron = { op: Date.now(), d };
+  return d;
+}
 
 // Zoals GridLab een ontwerp laadt (useDesignState.recalcOnLoad): marges herrekenen, behalve bij een portiek.
 function opLaden(fmt) {
@@ -28,27 +37,23 @@ export const afmetingVan = (fmt) => (fmt?.CanvasWidth_mm && fmt?.CanvasHeight_mm
 
 // Ontwerpen die deze gebruiker in GridLab mag zien. null = geen toegang tot GridLab.
 export async function gridlabOntwerpen() {
-  const { data, error } = await gl().from('designs').select(LIJST).order('updated_at', { ascending: false });
-  if (error) { if (/permission|not allowed|PGRST106|schema/i.test(`${error.message} ${error.code}`)) return null; throw error; }
-  return data || [];
+  const d = await haal();
+  return d ? d.ontwerpen || [] : null;
 }
 
 let _logos = null;
 async function laadLogoInfo() {
   // Cache-busters per logo (zoals GridLab: bijgewerkt logo = nieuwe URL) en eventuele logo-overrides.
   if (_logos && Date.now() - _logos.op < 60000) return _logos;
-  const [lijst, ovr] = await Promise.all([
-    sb().storage.from(LOGO_BUCKET).list('', { limit: 2000 }),
-    gl().from('logo_overrides').select('sponsor_name, logo_data_url'),
-  ]);
+  const d = (await haal()) || {};
   const versies = {};
-  for (const f of lijst.data || []) {
+  for (const f of d.logos || []) {
     const raw = (f.name || '').replace(/\.(png|svg)$/i, ''); if (!raw) continue;
-    const key = raw.replace(/ /g, '_'); const t = f.updated_at || f.created_at || f.metadata?.lastModified; const token = t ? new Date(t).getTime() : null;
+    const key = raw.replace(/ /g, '_'); const t = f.t; const token = t ? new Date(t).getTime() : null;
     if (token && !(key in versies)) versies[key] = token;
   }
   setLogoVersions(versies);
-  _logos = { op: Date.now(), custom: Object.fromEntries((ovr.data || []).map((r) => [r.sponsor_name, r.logo_data_url])) };
+  _logos = { op: Date.now(), custom: Object.fromEntries((d.overrides || []).map((r) => [r.sponsor_name, r.logo_data_url])) };
   return _logos;
 }
 
@@ -70,7 +75,7 @@ const gridlabInfo = (o, c) => ({ id: o.id, canvas: c.id, versie: o.version ?? nu
 // Als doek in de bibliotheek zetten (dit event of alle events), met de koppeling naar GridLab.
 export async function gridlabAlsDoek({ ontwerp, canvasId, planId, alle = false, drager = 'hek', naam = null }) {
   const r = await tekenGridlab(ontwerp, canvasId);
-  const beeld = pad(alle ? 'flcs' : planId);
+  const beeld = pad(alle ? (getOrganisatie()?.slug || 'organisatie') : planId);
   const up = await sb().storage.from(BUCKET).upload(beeld, r.blob, { contentType: 'image/jpeg' }); if (up.error) throw up.error;
   const meer = (ontwerp.canvases || []).length > 1 ? ` · ${r.canvas.label || 'canvas'}` : '';
   const rij = { naam: naam || `${ontwerp.name}${meer}`, categorie: 'Doeken en drukwerk', tekenwijze: 'doek', stijl: {}, actief: true, plan_id: alle ? null : planId,
@@ -89,15 +94,16 @@ export async function vernieuwGridlabDoeken(doeken = []) {
   _bezig = true;
   try {
     const ids = [...new Set(gekoppeld.map((d) => d.eigenschappen.gridlab.id))];
-    const { data, error } = await gl().from('designs').select(LIJST).in('id', ids);
-    if (error || !data) return [];
+    const d0 = await haal(ids).catch(() => null);
+    const data = d0?.ontwerpen;
+    if (!data) return [];
     const perId = new Map(data.map((o) => [o.id, o])); const uit = [];
     for (const d of gekoppeld) {
       const g = d.eigenschappen.gridlab; const o = perId.get(g.id); if (!o) continue;
       if (o.updated_at === g.bijgewerkt && (o.version ?? null) === (g.versie ?? null) && statusVan(o) === g.status) continue;
       try {
         const r = await tekenGridlab(o, g.canvas);
-        const beeld = pad(d.plan_id || 'flcs');
+        const beeld = pad(d.plan_id || getOrganisatie()?.slug || 'organisatie');
         const up = await sb().storage.from(BUCKET).upload(beeld, r.blob, { contentType: 'image/jpeg' }); if (up.error) continue;
         const eig = { ...d.eigenschappen, kleur: r.kleur, afmeting: r.afmeting || d.eigenschappen.afmeting, beeld, gridlab: gridlabInfo(o, r.canvas) };
         const { data: rij, error: e2 } = await maps().from('bibliotheek').update({ eigenschappen: eig }).eq('id', d.id).select().single();
@@ -108,4 +114,20 @@ export async function vernieuwGridlabDoeken(doeken = []) {
     }
     return uit;
   } finally { _bezig = false; }
+}
+
+// Alle ontwerpen (elk canvas) in één keer als doek in de organisatiebibliotheek. Wat er al staat, wordt overgeslagen.
+export async function gridlabAllesOvernemen(onStap = () => {}) {
+  const lijst = (await gridlabOntwerpen()) || [];
+  const { data: al } = await maps().from('bibliotheek').select('eigenschappen').is('plan_id', null).not('eigenschappen->gridlab', 'is', null);
+  const heeft = new Set((al || []).map((r) => `${r.eigenschappen?.gridlab?.id}|${r.eigenschappen?.gridlab?.canvas}`));
+  const taken = lijst.flatMap((o) => (o.canvases || []).filter((c) => c?.format).map((c) => ({ o, c }))).filter(({ o, c }) => !heeft.has(`${o.id}|${c.id}`));
+  let klaar = 0; const fouten = [];
+  for (const { o, c } of taken) {
+    onStap(klaar, taken.length, o.name);
+    try { await gridlabAlsDoek({ ontwerp: o, canvasId: c.id, planId: null, alle: true }); } catch (e) { fouten.push(`${o.name}: ${e?.message || e}`); }
+    klaar++;
+  }
+  onStap(klaar, taken.length, '');
+  return { nieuw: taken.length - fouten.length, overgeslagen: heeft.size, fouten };
 }
