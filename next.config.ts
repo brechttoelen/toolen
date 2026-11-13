@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
     // (bv. de testomgeving), dan het gewone SUPABASE_URL. Geen geheim: het staat ook in elke aanvraag.
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "",
   },
+  // Oude paden uit FLCS Maps (/flcsmaps/...) heten in Toolen /m/... (zelfde bestanden), bv. in oude versies of PDF's.
+  async redirects() {
+    return [{ source: "/flcsmaps/:pad*", destination: "/m/:pad*", permanent: true }];
+  },
   async headers() {
     return [
       { source: "/((?!d/).*)", headers: [...basis, { key: "X-Frame-Options", value: "SAMEORIGIN" }, { key: "Content-Security-Policy", value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" }] },
