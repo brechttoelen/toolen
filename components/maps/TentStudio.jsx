@@ -15,6 +15,7 @@ const TentDrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: 
 import { TENTTYPES, WANDEN, wandSoort, DAKEN, dakSoort, ALU, tentMaten, tentSegmenten, dakHoogte, tentTelling, ZIJDEN, segGroep, TERRAS_H, isTentBouw, tentTypeVan, tentGroep, stukKleur, intergevels, binnenOpeningen, wandPanelen, standaardWandVan, isVrijeTent, doekHoogte, stretchMasten, stretchPalen, sailPieken, sailOmtrek, RAND_H, frameRuns, frameLeden, runVan, runBuren, bannerMaat, FRAME_Z0, FRAME_Z1, FRAME_RAND, FRAME_UIT } from './tentbouw';
 import { publiekeUrl } from './db';
 import { DoekUpload } from './doekupload';
+import { DoekKnop } from './doekkiezer';
 import TentVloerPlan, { VloerPalet } from './TentVloerPlan';
 import { StellingPlannen } from './stellingplannen';
 
@@ -790,7 +791,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
             {[['V', 'Voor'], ['A', 'Achter']].map(([z, zn]) => (
               <div key={z} className="fm-sb-rij" style={{ flexWrap: 'wrap' }}><span style={{ width: 46 }}>{zn}</span><div className="fm-segment">{[['dicht', 'Dicht'], ['transparant', 'Transparant'], ['open', 'Open']].map(([k, n]) => <button key={k} disabled={!schrijven} title={k === 'open' ? 'Spitszeil eruit: open tussen zijwand en dak' : undefined} className={(t.gevelZ?.[z] || t.gevel || 'dicht') === k ? 'aan' : ''} onClick={() => { const gz = { V: t.gevelZ?.V || t.gevel || 'dicht', A: t.gevelZ?.A || t.gevel || 'dicht', [z]: k }; zet({ ...t, gevel: undefined, gevelZ: gz }); }}>{n}</button>)}</div>
                 <label className="fm-vink" title="Overspanning zonder tussenpalen in de gevel: enkel de hoekstaanders (versterkt gevelspant)"><input type="checkbox" disabled={!schrijven} checked={!!t.gevelVrij?.[z]} onChange={(e) => zet({ ...t, gevelVrij: { ...(t.gevelVrij || {}), [z]: e.target.checked || undefined } })} />Zonder tussenpalen</label>
-                <select disabled={!schrijven} value={t.gevelDoek?.[z] || ''} title="Eén bedrukt doek over de hele gevel, ook over de spits" onChange={(e) => zet({ ...t, gevelDoek: { ...(t.gevelDoek || {}), [z]: e.target.value || undefined } })} style={{ maxWidth: '100%' }}><option value="">Geen doek over de hele gevel</option>{ontwerpen.map((o) => <option key={o.id} value={o.id}>Doek: {o.naam}</option>)}</select></div>
+                <DoekKnop doeken={ontwerpen} waarde={t.gevelDoek?.[z] || null} planId={it.plan_id} schrijven={schrijven} titel={`Doek over de hele ${zn.toLowerCase()}gevel`} geenLabel="Geen doek over de hele gevel" onKies={(id) => zet({ ...t, gevelDoek: { ...(t.gevelDoek || {}), [z]: id || undefined } })} /></div>
             ))}
           </div>}
           {!vrij && <label className="fm-veld">Kleur aluminium<select disabled={!schrijven} value={t.kleur || 'naturel'} onChange={(e) => zet({ ...t, kleur: e.target.value === 'naturel' ? undefined : e.target.value })}><option value="naturel">Naturel</option><option value="wit">Wit</option><option value="zwart">Zwart</option></select></label>}
@@ -826,7 +827,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
             </div>
           )}
             {modulair && <label className="fm-veld" style={{ marginTop: 8 }}>Doek over de hele gevel
-              {[['V', 'Voorgevel'], ['A', 'Achtergevel']].map(([z, zn]) => <select key={z} aria-label={zn} disabled={!schrijven} value={t.gevelDoek?.[z] || ''} onChange={(e) => zet({ ...t, gevelDoek: { ...(t.gevelDoek || {}), [z]: e.target.value || undefined } })}><option value="">{zn}: geen doek</option>{ontwerpen.map((d) => <option key={d.id} value={d.id}>{zn}: {d.naam}</option>)}</select>)}
+              {[['V', 'Voorgevel'], ['A', 'Achtergevel']].map(([z, zn]) => <div key={z} className="fm-veld">{zn}<DoekKnop doeken={ontwerpen} waarde={t.gevelDoek?.[z] || null} planId={it.plan_id} schrijven={schrijven} titel={`Doek over de ${zn.toLowerCase()}`} geenLabel="Geen doek" onKies={(id) => zet({ ...t, gevelDoek: { ...(t.gevelDoek || {}), [z]: id || undefined } })} /></div>)}
             </label>}
           </>}
           {scherm === 'nakijken' && <>
@@ -871,7 +872,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
             <div className="fm-tb-inter">{Array.from({ length: m.n - 1 }, (_, k) => <label key={k} className="fm-vink"><input type="checkbox" disabled={!schrijven} checked={!!t.inter?.[k + 1]} onChange={() => zetInter(k + 1)} />Na {m.type === 'pagode' ? 'pagode' : 'travee'} {k + 1}</label>)}</div>
             {(m.type === 'kader' || m.type === 'boog') && Object.keys(t.inter || {}).filter((sp) => t.inter[sp]).map((sp) => (
               <label key={sp} className="fm-veld">Doek over intergevel na travee {sp} (ook de spits)
-                <select disabled={!schrijven} value={t.gevelDoek?.[`I-${sp}`] || ''} onChange={(e) => zet({ ...t, gevelDoek: { ...(t.gevelDoek || {}), [`I-${sp}`]: e.target.value || undefined } })}><option value="">Geen doek</option>{ontwerpen.map((o) => <option key={o.id} value={o.id}>{o.naam}</option>)}</select>
+                <DoekKnop doeken={ontwerpen} waarde={t.gevelDoek?.[`I-${sp}`] || null} planId={it.plan_id} schrijven={schrijven} titel="Doek over de tussengevel" geenLabel="Geen doek" onKies={(id) => zet({ ...t, gevelDoek: { ...(t.gevelDoek || {}), [`I-${sp}`]: id || undefined } })} />
               </label>
             ))}
           </>}
@@ -893,7 +894,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
               {t.frames && gekozen in t.frames && (() => {
                 const r = runVan(runs, gekozen); if (!r) return null; const { links, rechts } = runBuren(runs, r); const bm = bannerMaat(r.len); const nt = new Set(r.delen.map((d) => d.k)).size;
                 return <>
-                  <label className="fm-veld">Banner<select disabled={!schrijven} value={r.doek || ''} onChange={(e) => zetBanner(gekozen, e.target.value)}><option value="">Nog geen ontwerp</option>{ontwerpen.map((d) => <option key={d.id} value={d.id}>{d.naam}</option>)}</select></label>
+                  <div className="fm-veld">Banner<DoekKnop doeken={ontwerpen} waarde={r.doek || null} planId={it.plan_id} schrijven={schrijven} titel="Banner op het frame" geenLabel="Nog geen ontwerp" onKies={(id) => zetBanner(gekozen, id || '')} /></div>
                   <div className="fm-sub">Banner {getal(bm.l)} × {getal(bm.h)} m{r.delen.length > 1 ? ` · één doek over ${r.delen.length} frames${nt > 1 ? ` in ${nt} tenten` : ''}` : ''}.</div>
                   {schrijven && (links || rechts) && <div className="fm-sb-rij fm-tb-koppelrij">Eén banner met <div className="fm-segment">
                     {links && <button type="button" title="Koppel met het frame links ervan (gezien van buiten): één lang kader met één banner" onClick={() => koppelRuns(links, r)}>← Links</button>}
@@ -902,7 +903,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
                   {schrijven && r.delen.length > 1 && <button type="button" className="fm-knop klein" title="Weer aparte frames, elk met zijn eigen banner" onClick={() => ontkoppelRun(r)}>Ontkoppelen</button>}
                 </>;
               })()}
-              {gw.doek && <label className="fm-veld">Ontwerp<select disabled={!schrijven} value={t.doeken?.[gekozen] || ''} onChange={(e) => zet({ ...t, doeken: { ...(t.doeken || {}), [gekozen]: e.target.value || undefined } })}><option value="">Nog geen ontwerp</option>{ontwerpen.map((d) => <option key={d.id} value={d.id}>{d.naam}</option>)}</select></label>}
+              {gw.doek && <div className="fm-veld">Ontwerp<DoekKnop doeken={ontwerpen} waarde={t.doeken?.[gekozen] || null} planId={it.plan_id} schrijven={schrijven} titel="Ontwerp op deze zijde" geenLabel="Nog geen ontwerp" onKies={(id) => zet({ ...t, doeken: { ...(t.doeken || {}), [gekozen]: id || undefined } })} /></div>}
             </div>
           )}
           {scherm === 'bouwen' && gekozenDak != null && (

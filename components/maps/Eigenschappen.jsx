@@ -1,5 +1,6 @@
 'use client';
 
+import { DoekKnop } from './doekkiezer';
 import { isStellingBouw } from './stellingbouw';
 import { isCameraStelling, isLosseTvCamera, tvCamTekst, LENZEN, OPSTELLINGEN } from './tvcamera';
 import { isTentCategorie } from './categorieen';
@@ -733,7 +734,7 @@ export default function Eigenschappen(props) {
           const dk = el?.eigenschappen?.doek;
           return (
             <>
-              {(dk === 'bedrukt' || isVlagHek(el)) && doeken.length > 0 && <DoekPerHek item={item} el={el} doeken={doeken} elementenMap={elementenMap} onWijzig={onWijzig} penseel={doekPenseel} onPenseel={onDoekPenseel} />}
+              {(dk === 'bedrukt' || isVlagHek(el)) && <DoekPerHek item={item} el={el} doeken={doeken} elementenMap={elementenMap} onWijzig={onWijzig} penseel={doekPenseel} onPenseel={onDoekPenseel} />}
               {dk === 'bedrukt' && !doeken.length && (
                 <label className="fm-veld">Doek (ontwerp of sponsor)
                   <input defaultValue={velden.doek_naam || ''} key={item.id} placeholder="bv. Sponsor X – banner" onBlur={(e) => e.target.value !== (velden.doek_naam || '') && onWijzig({ velden: { ...velden, doek_naam: e.target.value.trim() || null } })} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
@@ -748,13 +749,9 @@ export default function Eigenschappen(props) {
           );
         })()}
         {isVlag(el) && (
-          <label className="fm-veld">Ontwerp op de vlag
-            <select value={velden.ontwerp || ''} disabled={!schrijven} onChange={(e) => onWijzig({ velden: { ...velden, ontwerp: e.target.value || null } })}>
-              <option value="">Nog geen ontwerp</option>
-              {vlagOntwerpen.map((d) => <option key={d.id} value={d.id}>{d.naam}{d.plan_id ? ' (dit event)' : ''}</option>)}
-            </select>
-            {!vlagOntwerpen.length && <span className="fm-sub">Nog geen vlagontwerpen: upload er een in de werkruimte Branding.</span>}
-          </label>
+          <div className="fm-veld">Ontwerp op de vlag
+            <DoekKnop doeken={alleDoeken} waarde={velden.ontwerp || null} drager="vlag" planId={item.plan_id} schrijven={schrijven} titel="Ontwerp op de vlag" geenLabel="Nog geen ontwerp" onKies={(id) => onWijzig({ velden: { ...velden, ontwerp: id || null } })} />
+          </div>
         )}
         {Array.isArray(velden.vlaggen) && velden.vlaggen.some(Boolean) && (
           <div className="fm-veld"><span>Vlaggen in deze hekken<Info>Elke vlag hangt aan de eerste staander van dat hek. Toevoegen of weghalen doe je met het penseel in de werkruimte Branding (tab Beachvlaggen).</Info></span>
@@ -1486,7 +1483,7 @@ function DoekPerHek({ item, el, doeken, elementenMap, onWijzig, penseel, onPense
     <div className="fm-veld fm-doekperhek"><span>Doek per hek · {n} hekken<Info>Hekken tellen vanaf het begin van de lijn. Op de kaart staan de nummers bij ver inzoomen.</Info></span>
       <div className="fm-hekstrook" aria-hidden="true">{lijst.map((id, i) => <span key={i} title={`Hek ${i + 1}: ${id ? elementenMap.get(id)?.naam : 'geen doek'}`} style={{ background: id ? kleur(id) : '#ffffff', borderColor: id ? kleur(id) : '#B9BCC1' }} />)}</div>
       <div className="fm-doekrij">
-        <select value={kies} onChange={(e) => { setKies(e.target.value); if (actief) onPenseel({ ...penseel, doekId: e.target.value }); }} aria-label="Doek"><option value="">Geen doek</option>{opties}</select>
+        <DoekKnop doeken={doeken} waarde={kies || null} drager="hek" planId={item.plan_id} titel="Doek voor deze hekken" onKies={(id) => { setKies(id || ''); if (actief) onPenseel({ ...penseel, doekId: id || '' }); }} />
       </div>
       <div className="fm-doekrij">
         <span className="fm-segment" style={{ width: 'auto' }}>
@@ -1532,13 +1529,10 @@ function DrapeDoeken({ item, el, doeken, elementenMap, onWijzig, schrijven }) {
   return (
     <div className="fm-veld"><span>Doek per sectie · {n} {n === 1 ? 'sectie' : 'secties'}</span>
       {l.map((id, k) => (
-        <label key={k} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div key={k} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <b style={{ width: 18, color: id ? elementenMap.get(id)?.eigenschappen?.kleur : undefined }}>{k + 1}</b>
-          <select value={id || ''} disabled={!schrijven} style={{ flex: 1, minWidth: 0 }} onChange={(e) => { const nl = [...l]; nl[k] = e.target.value || null; zet(nl); }}>
-            <option value="">Gordijn (geen print)</option>
-            {doeken.map((d) => <option key={d.id} value={d.id}>{d.naam}{d.plan_id ? ' (dit event)' : ''}</option>)}
-          </select>
-        </label>
+          <span style={{ flex: 1, minWidth: 0 }}><DoekKnop doeken={doeken} waarde={id || null} drager="drape" planId={item.plan_id} schrijven={schrijven} titel={`Doek voor sectie ${k + 1}`} geenLabel="Gordijn (geen print)" onKies={(nid) => { const nl = [...l]; nl[k] = nid || null; zet(nl); }} /></span>
+        </div>
       ))}
       {schrijven && doeken.length > 0 && n > 1 && (
         <select value="" onChange={(e) => { if (e.target.value) zet(l.map(() => (e.target.value === '-' ? null : e.target.value))); }} aria-label="Alle secties">
@@ -1572,13 +1566,10 @@ function TotemPanelen({ item, el = null, panelen, elementenMap, onWijzig, schrij
         </svg>}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
           {ZIJ.map((n, k) => (
-            <label key={k} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <div key={k} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <b style={{ width: 14, color: lijst[k] ? kleur(lijst[k]) : undefined }}>{k + 1}</b>
-              <select value={lijst[k] || ''} disabled={!schrijven} onChange={(e) => zet(k, e.target.value)} aria-label={`${truss ? 'Doek' : 'Paneel'} ${n.toLowerCase()}`} style={{ flex: 1, minWidth: 0 }}>
-                <option value="">{n.replace(/ \(.*\)$/, '')}: geen {truss ? 'doek' : 'paneel'}</option>
-                {panelen.map((d) => <option key={d.id} value={d.id}>{d.naam}{d.plan_id ? ' (dit event)' : ''}</option>)}
-              </select>
-            </label>
+              <span style={{ flex: 1, minWidth: 0 }}><DoekKnop doeken={panelen} waarde={lijst[k] || null} drager={isFrame(el) ? 'frame' : truss ? 'truss' : 'totem'} planId={item.plan_id} schrijven={schrijven} titel={`${truss ? 'Doek' : 'Paneel'} · ${n}`} geenLabel={`Geen ${truss ? 'doek' : 'paneel'}`} onKies={(id) => zet(k, id || '')} /></span>
+            </div>
           ))}
         </div>
       </div>

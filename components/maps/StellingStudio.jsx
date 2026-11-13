@@ -14,7 +14,7 @@ import { createPortal } from 'react-dom';
 import { VAK, LEUNING_H, LADDER_BOVEN, SOORTEN, soortVan, RICHTING, HOEKEN, RAND, sleutel, uitSleutel, hoogteOp, stellingAfgeleid,  stellingKader, brugVakken, brugMaat, HELLINGEN, afwijking, stellingMaten, HALF, LEUNINGEN, leuningHoogte, delenVan, opCm, grondVan, grondHoek, PLATEN, AANLOOP, LIGGERS, liggerSoort, DOORGANG_FUNCTIES, functieNaam, TRAPMODULES, BORDES, OPSTAP, trapModule, hellingenVanzelf, brugDek, onderDek, WIEL_H, START_TYPES, cameraStelling, platform, tribune, voetgangersbrug, ROZET, schoorOpRand, horizontaleDiagonalen, liggerHoogtes, GEEN_STAANDER, doorgangWand, doorgangOpen, rozetVoet, DEK_ROZET, cameraPlek, cameraStandaard, CAMERA_OOG, CAMERA_SECTOR, isMetaal, metaalDelen, METAAL_OP, toren, randParen, paarSleutel, wandBoven, tussenVloeren, tussenOpen, vloerHoogtes, vloerRozet, vloerLoop, wandMaten, wandRozetten, wandLiggers, wandVloeren, wandVloerLeuning, schoorStukken, schoorStart } from './stellingbouw';
 import { LENZEN, OPSTELLINGEN, tvCamTekst } from './tvcamera';
 import { publiekeUrl } from './db';
-import { DoekUpload } from './doekupload';
+import { DoekTegels } from './doekkiezer';
 
 const getal = (v, d = 2) => Number(v).toLocaleString('nl-BE', { maximumFractionDigits: d });
 const rad = (g) => (g * Math.PI) / 180;
@@ -1088,10 +1088,7 @@ export default function StellingStudio({ it, el, schrijven, onZet, onSluit, doek
           <aside className="fm-ws-doeken fm-sb-palet fm-sb-merk">
             <div className="fm-kop">Ontwerpen</div>
             <div className="fm-sub">Kies wat je tekent. Is er een doek gekozen, dan krijgt dat doek dit ontwerp.</div>
-            <div className="fm-sb-tegels">
-              {[{ id: '', naam: 'Wit canvas' }, ...ontwerpen].map((o) => <button key={o.id || 'wit'} type="button" disabled={!schrijven} className={(doekT?.voor || '') === o.id ? 'aan' : ''} title={o.naam} onClick={() => ontwerpKies(o.id)}>{o.eigenschappen?.beeld ? <img src={publiekeUrl(o.eigenschappen.beeld)} alt="" /> : <span style={{ background: o.id ? o.eigenschappen?.kleur || '#0F766E' : '#FFFFFF' }} />}<em>{o.naam}</em></button>)}
-            </div>
-            {schrijven && <DoekUpload planId={it.plan_id} drager="stelling" klein onNieuw={(d) => ontwerpKies(d.id)} />}
+            <DoekTegels strook doeken={ontwerpen} drager="stelling" waarde={doekT?.voor || null} planId={it.plan_id} schrijven={schrijven} geenLabel="Wit canvas" onKies={(id) => ontwerpKies(id || '')} />
           </aside>
         )}
 

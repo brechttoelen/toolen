@@ -4,8 +4,8 @@
 // event-eigen ontwerpen uploaden, penseel kiezen, en wat nog leeg is.
 import { useId, useMemo, useState } from 'react';
 import { maps, sb, BUCKET, publiekeUrl, foutTekst } from './db';
-import { GridlabKnop } from './gridlabdoek';
-import { DRAGERS, dragerOp, ontwerpDrager, brandingTelling, plekNaam, voorbeeldVan } from './branding';
+import { NieuwDoekKnop, usePlanEvent } from './doekkiezer';
+import { DRAGERS, dragerOp, ontwerpDrager, ontwerpDrager as ontwerpDragerVan, brandingTelling, plekNaam, voorbeeldVan } from './branding';
 import Info from './info';
 
 const pad = (map, ext) => `ontwerpen/${map}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
@@ -19,8 +19,9 @@ export default function BrandingPaneel({ plan, items, doeken, elementenMap, schr
   const telling = useMemo(() => brandingTelling(items, elementenMap), [items, elementenMap]);
   const dr = dragerOp(soort);
   const lijst = doeken.filter((d) => ontwerpDrager(d) === soort && (!zoek || d.naam.toLowerCase().includes(zoek.toLowerCase())));
-  const eigen = lijst.filter((d) => d.plan_id);
-  const vast = lijst.filter((d) => !d.plan_id);
+  const ev = usePlanEvent(plan.id);
+  const eigen = lijst.filter((d) => d.event_id || d.plan_id);
+  const vast = lijst.filter((d) => !d.event_id && !d.plan_id);
   const aantal = (id) => telling.perOntwerp.get(id) || 0;
 
   const kies = (d) => {
@@ -66,7 +67,7 @@ export default function BrandingPaneel({ plan, items, doeken, elementenMap, schr
   };
 
   const naarBibliotheek = async (d) => {
-    const { data, error } = await maps().from('bibliotheek').update({ plan_id: null }).eq('id', d.id).select().single();
+    const { data, error } = await maps().from('bibliotheek').update({ plan_id: null, event_id: null }).eq('id', d.id).select().single();
     if (error) { setFout(foutTekst(error)); return; }
     onOntwerp(data, 'wijzig');
   };
@@ -90,10 +91,10 @@ export default function BrandingPaneel({ plan, items, doeken, elementenMap, schr
             {aan && <em>Penseel actief</em>}
           </span>
         </button>
-        {(d.eigenschappen?.bestand || (d.plan_id && beheerder)) && (
+        {(d.eigenschappen?.bestand || ((d.event_id || d.plan_id) && beheerder)) && (
           <span className="fm-ontwerp-extra">
             {d.eigenschappen?.bestand && <a href={publiekeUrl(d.eigenschappen.bestand)} target="_blank" rel="noreferrer">Drukbestand</a>}
-            {d.plan_id && beheerder && <button className="fm-link" onClick={() => naarBibliotheek(d)} title="Ook beschikbaar maken voor andere events">Naar de organisatiebibliotheek</button>}
+            {(d.event_id || d.plan_id) && beheerder && <button className="fm-link" onClick={() => naarBibliotheek(d)} title="Ook beschikbaar maken voor andere events">Naar de organisatiebibliotheek</button>}
           </span>
         )}
       </div>
@@ -106,7 +107,7 @@ export default function BrandingPaneel({ plan, items, doeken, elementenMap, schr
       <div className="fm-sectie">
         <div className="fm-kop">Ontwerpen<Info>Kies een ontwerp: het penseel staat aan. Klik of sleep op de kaart over hekken, totemzijden of vlaggen. Op hekken kies je in de gele balk Een stuk (eerste en laatste hek) of Losse hekken. Weghalen doe je met de Gom. Esc of Klaar zet het penseel uit.</Info></div>
         <div className="fm-segment" role="tablist">
-          {DRAGERS.map((d) => (
+          {DRAGERS.filter((d) => !d.bouwer).map((d) => (
             <button key={d.id} title={d.naam} role="tab" aria-selected={soort === d.id} className={soort === d.id ? 'aan' : ''} onClick={() => { setSoort(d.id); setNieuw(null); if (penseel && penseel.drager !== d.id) onPenseel(null); }}>
               <span className="lbl">{d.kort || d.naam.split(/[- ]/)[0]}</span><small>{doeken.filter((x) => ontwerpDrager(x) === d.id).length}</small>
             </button>
@@ -116,14 +117,8 @@ export default function BrandingPaneel({ plan, items, doeken, elementenMap, schr
         {soort === 'vlag' && <div className="fm-sub">Klik met het penseel op een Heras-hek: de vlag komt aan de staander van dat hek. Een losse vlag op kruisvoet plaats je met Beachvlag.</div>}
         {fout && <div className="fm-melding fout">{fout}</div>}
 
-        <div className="fm-ctxkop">Alleen dit event</div>
-        {schrijven && !nieuw && (
-          <label className="fm-upload">
-            {bezig || `+ ${dr.enkel === 'vlag' ? 'Vlagontwerp' : dr.enkel === 'paneel' ? 'Paneel' : 'Doek'} uploaden (jpg, png, pdf)`}
-            <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.pdf" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; setNieuw({}); bestandGekozen(f); }} />
-          </label>
-        )}
-        {schrijven && !nieuw && <GridlabKnop planId={plan.id} drager={soort} onNieuw={(d) => onPenseel({ id: d.id, drager: soort })} />}
+        <div className="fm-ctxkop">{ev ? `Dit event · ${ev.naam}` : 'Dit event'}</div>
+        {schrijven && <NieuwDoekKnop planId={plan.id} drager={soort} tekst={`Nieuw ${dr.enkel === 'vlag' ? 'vlagontwerp' : dr.enkel === 'paneel' ? 'paneel' : 'doek'}`} onNieuw={(d) => onPenseel({ id: d.id, drager: ontwerpDragerVan(d) })} />}
         {nieuw && (
           <div className="fm-upload-vorm">
             <div className="beeld" style={{ background: soort === 'vlag' ? '#F4F4F5' : nieuw.kleur || '#F4F4F5' }}>{nieuw.url ? (soort === 'vlag' ? <Beachvlag src={nieuw.url} kleur={nieuw.kleur} hoogte={110} /> : <img src={nieuw.url} alt="Voorbeeld" />) : <span className="fm-sub">{bezig || 'Bestand kiezen…'}</span>}</div>
@@ -138,7 +133,7 @@ export default function BrandingPaneel({ plan, items, doeken, elementenMap, schr
           </div>
         )}
         {eigen.map(kaart)}
-        {!eigen.length && !nieuw && <div className="fm-sub">Nog geen eigen ontwerpen voor dit event.</div>}
+        {!eigen.length && !nieuw && <div className="fm-sub">{ev ? 'Nog geen eigen ontwerpen voor dit event.' : 'Dit plan hoort bij geen event: nieuwe doeken gaan naar de organisatie.'}</div>}
 
         <div className="fm-ctxkop">Organisatiebibliotheek</div>
         {vast.map(kaart)}

@@ -9,7 +9,7 @@ import TerugKnop from './TerugKnop';
 // Parallelle projectie: elk doek past met een gewone matrix op zijn vlak.
 import { useBouwerSchild, schildProps } from './bouwerschild';
 import { DoekUpload } from './doekupload';
-import { GridlabKnop } from './gridlabdoek';
+import { DoekKnop } from './doekkiezer';
 import { DoekBeeld, PLAATSINGEN, STARTEN } from './doekbeeld';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -510,11 +510,8 @@ export default function WandStudio({ it, el, elementenMap, doeken = [], schrijve
               </div>
               {schrijven && (
                 <>
-                  <select value={doekNu} onChange={(e) => metDoek(sel, kant, e.target.value)}>
-                    <option value="">{gekozen.length > 1 && !gekozen.every((x) => x[kant] === gekozen[0][kant]) ? 'Verschillend' : 'Geen doek'}</option>
-                    {doeken.map((x) => <option key={x.id} value={x.id}>{x.naam}</option>)}
-                  </select>
-                  <GridlabKnop planId={it.plan_id} drager="frame" klein onNieuw={(d) => metDoek(sel, kant, d.id)} />
+                  <DoekKnop doeken={doeken} waarde={doekNu || null} drager="frame" planId={it.plan_id} titel={`Doek voor de ${kant === 'achter' ? 'achterkant' : 'voorkant'}`}
+                    geenLabel={gekozen.length > 1 && !gekozen.every((x) => x[kant] === gekozen[0][kant]) ? 'Verschillend' : 'Geen doek'} onKies={(id) => metDoek(sel, kant, id || '')} />
                   {blokken.length > gekozen.length && doekNu && <button className="fm-knop klein" title="Dit doek op dezelfde kant van alle frames" onClick={() => metDoek(blokken.map((x) => x.i), kant, doekNu)}>Op alle frames</button>}
                   {doekNu && (() => {
                     const kp = `${kant}Pl`; const kk = `${kant}Over`;

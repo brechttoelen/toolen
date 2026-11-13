@@ -3,6 +3,7 @@
 import { heeftKoppeling, heeftModule } from './merk';
 import { Beachvlag } from './BrandingPaneel';
 import { voorbeeldVan } from './branding';
+import { NieuwDoekVenster } from './doekkiezer';
 import Info from './info';
 import { metTekeningen } from './tekeningen';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -614,15 +615,38 @@ function DoekenBeheer({ doeken, setDoeken, schrijven }) {
   const [soort, setSoort] = useState(() => { try { return new URLSearchParams(window.location.search).get('ds') || 'hek'; } catch { return 'hek'; } }); // hek = doeken voor Heras, totem = forexpanelen, vlag = beachvlaggen, truss = trussdoeken
   const totem = soort === 'totem';
   const dr = (d) => d.eigenschappen?.drager || 'hek';
-  const lijst = useMemo(() => doeken.filter((d) => dr(d) === soort), [doeken, soort]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Mappen: alle doeken, de organisatie, per event, en Toolen (centraal, enkel lezen).
+  const [map, setMap] = useState(() => { try { return new URLSearchParams(window.location.search).get('map') || 'alle'; } catch { return 'alle'; } });
+  const [events, setEvents] = useState([]);
+  const [profiel, setProfielD] = useState(null);
+  const [nieuwOpen, setNieuwOpen] = useState(false);
+  useEffect(() => {
+    maps().from('events').select('id, naam, datum, created_at').order('datum', { ascending: false, nullsFirst: false }).then(({ data }) => setEvents(data || []));
+    wieBenIk().then(setProfielD).catch(() => {});
+  }, []);
+  const isToolen = (d) => isCentraalElement(profiel, d);
+  const inMap = (d, m = map) => (m === 'alle' ? true : m === 'toolen' ? isToolen(d) : m === 'org' ? !isToolen(d) && !d.event_id : d.event_id === m);
+  const telMap = (m) => doeken.filter((d) => inMap(d, m)).length;
+  const evNaam = (id) => events.find((e) => e.id === id)?.naam || 'Event';
+  const evJaar = (e) => String(e.datum || e.created_at || '').slice(0, 4) || 'Zonder datum';
+  const jaren = useMemo(() => { const m = new Map(); for (const e of events) { const j = evJaar(e); if (!m.has(j)) m.set(j, []); m.get(j).push(e); } return [...m.entries()]; }, [events]); // eslint-disable-line react-hooks/exhaustive-deps
+  const inDeMap = useMemo(() => doeken.filter((d) => inMap(d)), [doeken, map, profiel]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lijst = useMemo(() => inDeMap.filter((d) => dr(d) === soort), [inDeMap, soort]); // eslint-disable-line react-hooks/exhaustive-deps
+  const zetBereik = async (eventId) => {
+    const w = vRef.current; if (!w?.id) return;
+    setStatus('Bewaren…'); setFout('');
+    const r0 = await bibSchrijf().update({ event_id: eventId || null, plan_id: null }).eq('id', w.id).select().single();
+    if (r0.error) { setStatus(''); setFout(foutTekst(r0.error)); return; }
+    setDoeken((l) => l.map((x) => (x.id === r0.data.id ? r0.data : x))); setV((x) => ({ ...x, event_id: r0.data.event_id, plan_id: null })); setStatus('Bewaard');
+  };
   // Na vernieuwen: zelfde soort en hetzelfde doek open (adresbalk).
   const urlDoek = useRef(undefined);
   if (urlDoek.current === undefined) { try { urlDoek.current = new URLSearchParams(window.location.search).get('doek'); } catch { urlDoek.current = null; } }
   useEffect(() => { if (!urlDoek.current || !doeken.length) return; const d = doeken.find((x) => x.id === urlDoek.current); urlDoek.current = null; if (d) { setSoort(dr(d)); kies(d); } }, [doeken.length]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    try { const u = new URL(window.location.href); if (soort !== 'hek') u.searchParams.set('ds', soort); else u.searchParams.delete('ds'); if (gekozen && gekozen !== 'nieuw') u.searchParams.set('doek', gekozen); else u.searchParams.delete('doek'); if (u.href !== window.location.href) window.history.replaceState(window.history.state, '', u.href); } catch {}
-  }, [soort, gekozen]);
-  useEffect(() => () => { try { const u = new URL(window.location.href); u.searchParams.delete('ds'); u.searchParams.delete('doek'); window.history.replaceState(window.history.state, '', u.href); } catch {} }, []);
+    try { const u = new URL(window.location.href); if (soort !== 'hek') u.searchParams.set('ds', soort); else u.searchParams.delete('ds'); if (map !== 'alle') u.searchParams.set('map', map); else u.searchParams.delete('map'); if (gekozen && gekozen !== 'nieuw') u.searchParams.set('doek', gekozen); else u.searchParams.delete('doek'); if (u.href !== window.location.href) window.history.replaceState(window.history.state, '', u.href); } catch {}
+  }, [soort, gekozen, map]);
+  useEffect(() => () => { try { const u = new URL(window.location.href); u.searchParams.delete('ds'); u.searchParams.delete('doek'); u.searchParams.delete('map'); window.history.replaceState(window.history.state, '', u.href); } catch {} }, []);
   const kies = (d) => { if (vRef.current?.id) opslaan(); bewaard.current = d ? JSON.stringify((({ id: _i, created_at: _c, updated_at: _u, ...x }) => x)(d)) : ''; setStatus(''); setFout(''); setGekozen(d?.id || 'nieuw'); setV(d ? { ...d, eigenschappen: { ...(d.eigenschappen || {}) } } : { naam: '', categorie: 'Doeken en drukwerk', tekenwijze: 'doek', stijl: {}, eigenschappen: totem ? { kleur: '#16A34A', afmeting: '100 × 250 cm', drager: 'totem' } : soort === 'truss' ? { kleur: '#7C3AED', afmeting: '200 × 200 cm', drager: 'truss' } : soort === 'frame' ? { kleur: '#EA580C', afmeting: '100 × 200 cm', drager: 'frame' } : soort === 'drape' ? { kleur: '#0F766E', afmeting: '300 × 300 cm', drager: 'drape' } : soort === 'vlag' ? { kleur: '#2563EB', afmeting: '85 × 330 cm', drager: 'vlag' } : { kleur: '#E11D48', afmeting: '340 × 173 cm' }, actief: true }); setFout(''); };
   // Bewaren: een bestaand doek bewaart meteen bij een keuze (kleur, drager, ontwerp) en bij het verlaten van
   // een tekstveld; een nieuw doek komt pas in de bibliotheek met "Doek toevoegen".
@@ -691,19 +715,32 @@ function DoekenBeheer({ doeken, setDoeken, schrijven }) {
                 </span>
               )}
               <strong style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}><i style={{ width: 10, height: 10, background: d.eigenschappen?.kleur || '#E11D48', flex: 'none' }} />{d.naam}</strong>
-              <span className="fm-sub">{d.eigenschappen?.afmeting || ''}</span>
+              <span className="fm-sub">{[map === 'alle' ? (isToolen(d) ? 'Toolen' : d.event_id ? evNaam(d.event_id) : 'Organisatie') : null, d.eigenschappen?.afmeting].filter(Boolean).join(' · ')}</span>
             </button>
           ))}
           {!lijst.length && <div className="fm-sub">{totem ? 'Nog geen panelen.' : 'Nog geen doeken.'}</div>}
         </div>
-  ), [lijst, gekozen]); // eslint-disable-line react-hooks/exhaustive-deps
+  ), [lijst, gekozen, map, events, profiel]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, padding: '16px 32px 32px' }}>
+      <nav className="fm-dk-mappen" aria-label="Mappen">
+        <button type="button" className={map === 'alle' ? 'aan' : ''} onClick={() => { setMap('alle'); setGekozen(null); setV(null); }}><span>Alle doeken</span><small>{telMap('alle')}</small></button>
+        <button type="button" className={map === 'org' ? 'aan' : ''} onClick={() => { setMap('org'); setGekozen(null); setV(null); }}><span>Organisatie</span><small>{telMap('org')}</small></button>
+        {jaren.map(([j, l]) => (
+          <div key={j} className="fm-dk-mapgroep"><div className="kop">Events {j}</div>
+            {l.map((e) => <button key={e.id} type="button" className={map === e.id ? 'aan' : ''} title={e.naam} onClick={() => { setMap(e.id); setGekozen(null); setV(null); }}><span>{e.naam}</span><small>{telMap(e.id)}</small></button>)}
+          </div>
+        ))}
+        {telMap('toolen') > 0 && <div className="fm-dk-mapgroep"><div className="kop">Gedeeld</div><button type="button" className={map === 'toolen' ? 'aan' : ''} onClick={() => { setMap('toolen'); setGekozen(null); setV(null); }}><span>Toolen</span><small>{telMap('toolen')}</small></button></div>}
+        <p className="fm-sub">Een event-map toont enkel de doeken van dat event. In de plannen van het event zie je die samen met de organisatiedoeken.</p>
+      </nav>
       <div style={{ flex: '999 1 520px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div className="fm-segment fm-doektabs">{[['hek', `Heras-doeken · ${doeken.filter((d) => dr(d) === 'hek').length}`], ['totem', `Totempanelen · ${doeken.filter((d) => dr(d) === 'totem').length}`], ['vlag', `Beachvlaggen · ${doeken.filter((d) => dr(d) === 'vlag').length}`], ['truss', `Truss-doeken · ${doeken.filter((d) => dr(d) === 'truss').length}`], ['frame', `Frame-doeken · ${doeken.filter((d) => dr(d) === 'frame').length}`], ['drape', `Drape-doeken · ${doeken.filter((d) => dr(d) === 'drape').length}`]].map(([k, t]) => <button key={k} className={soort === k ? 'aan' : ''} onClick={() => { setSoort(k); setGekozen(null); setV(null); }}>{t}</button>)}</div>
+          <div className="fm-segment fm-doektabs">{[['hek', 'Heras-doeken'], ['totem', 'Totempanelen'], ['vlag', 'Beachvlaggen'], ['truss', 'Truss-doeken'], ['frame', 'Frame-doeken'], ['drape', 'Drape-doeken'], ['stelling', 'Stellingdoeken']].map(([k, t]) => [k, `${t} · ${inDeMap.filter((d) => dr(d) === k).length}`]).map(([k, t]) => <button key={k} className={soort === k ? 'aan' : ''} onClick={() => { setSoort(k); setGekozen(null); setV(null); }}>{t}</button>)}</div>
           <span className="fm-sub" style={{ flex: '1 1 160px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{totem ? 'Forexpanelen voor de infototem' : soort === 'vlag' ? 'Ontwerpen voor beachvlaggen' : soort === 'truss' ? 'Doeken voor een trusskubus of -boog' : soort === 'frame' ? 'Doeken voor textielframes (B-matrix), voor- en achterkant' : soort === 'drape' ? 'Bedrukte doeken voor pipe & drape, per sectie' : 'Doeken voor gezeilde hekken'}<Info>{totem ? 'Op het plan kies je per zijde van een infototem welk paneel erop komt.' : 'Op het plan kies je per hek welk doek erop komt (hek met eigen doek).'}</Info></span>
-          {schrijven && <button className="fm-knop rood" onClick={() => kies(null)}>{totem ? 'Nieuw paneel' : soort === 'vlag' ? 'Nieuwe vlag' : 'Nieuw doek'}</button>}
+          {schrijven && <button className="fm-knop rood" onClick={() => setNieuwOpen(true)}>{totem ? 'Nieuw paneel' : soort === 'vlag' ? 'Nieuwe vlag' : 'Nieuw doek'}</button>}
+          {nieuwOpen && <NieuwDoekVenster drager={soort} event={map !== 'alle' && map !== 'org' && map !== 'toolen' ? { id: map, naam: evNaam(map) } : null} onSluit={() => setNieuwOpen(false)}
+            onNieuw={(d) => { setNieuwOpen(false); setDoeken((l) => [...l, d].sort((a2, b2) => a2.naam.localeCompare(b2.naam, 'nl'))); kies(d); }} />}
         </div>
         {raster}
       </div>
@@ -714,6 +751,12 @@ function DoekenBeheer({ doeken, setDoeken, schrijven }) {
             <div className="fm-veld">Voor
               <div className="fm-doekvoor">{[['', 'Heras-hek'], ['totem', 'Infototem'], ['vlag', 'Beachvlag'], ['truss', 'Truss'], ['frame', 'Frame'], ['drape', 'Pipe & drape']].map(([k, t]) => <button key={t} className={(v.eigenschappen?.drager || '') === k ? 'aan' : ''} disabled={!schrijven} onClick={() => zetE({ drager: k || null })}>{t}</button>)}</div>
             </div>
+            {v.id && (isToolen(v) ? <div className="fm-sub">Uit de centrale bibliotheek van Toolen: enkel lezen.</div> : (
+              <label className="fm-veld">Waar<select value={v.event_id || ''} disabled={!schrijven} onChange={(e) => zetBereik(e.target.value || null)}>
+                <option value="">Organisatie · alle plannen</option>
+                {events.map((e) => <option key={e.id} value={e.id}>Event · {e.naam}</option>)}
+              </select></label>
+            ))}
             {fout && <div className="fm-melding fout">{fout}</div>}
             <label className="fm-veld">Naam<input value={v.naam || ''} disabled={!schrijven} onChange={(e) => { const t = e.target.value; setV((x) => ({ ...x, naam: t })); }} onBlur={() => opslaan()} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} placeholder="bv. Sponsor A" /></label>
             <label className="fm-veld">Afmeting<input value={v.eigenschappen?.afmeting || ''} disabled={!schrijven} onChange={(e) => zetLokaal({ afmeting: e.target.value })} onBlur={() => opslaan()} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} placeholder="bv. 340 × 173 cm" /></label>

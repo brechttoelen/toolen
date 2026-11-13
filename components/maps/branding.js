@@ -20,12 +20,13 @@ export const DRAGERS = [
   { id: 'truss', naam: 'Truss-doeken', kort: 'Truss', enkel: 'trussdoek', afmeting: '200 × 200 cm', kleur: '#7C3AED' },
   { id: 'frame', naam: 'Frame-doeken', kort: 'Frame', enkel: 'framedoek', afmeting: '100 × 200 cm', kleur: '#EA580C' },
   { id: 'drape', naam: 'Pipe & drape-doeken', kort: 'Drape', enkel: 'drapedoek', afmeting: '300 × 300 cm', kleur: '#0F766E' },
+  { id: 'stelling', naam: 'Stellingdoeken', kort: 'Stelling', enkel: 'stellingdoek', afmeting: '207 × 100 cm', kleur: '#0369A1', bouwer: true },
 ];
 // Secties en zijden die als 'hek' (per stuk in de lijn) of als 'totem' (per zijde) werken.
 const perStuk = (d) => d === 'hek' || d === 'drape';
 const perZijde = (d) => d === 'totem' || d === 'truss' || d === 'frame';
 export const dragerOp = (id) => DRAGERS.find((d) => d.id === id) || DRAGERS[0];
-export const ontwerpDrager = (d) => (['totem', 'vlag', 'truss', 'frame', 'drape'].includes(d?.eigenschappen?.drager) ? d.eigenschappen.drager : 'hek');
+export const ontwerpDrager = (d) => (['totem', 'vlag', 'truss', 'frame', 'drape', 'stelling'].includes(d?.eigenschappen?.drager) ? d.eigenschappen.drager : 'hek');
 export { isVlag, isVlagHek };
 export function dragerVan(el) {
   if (!el) return null;

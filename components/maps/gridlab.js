@@ -73,12 +73,14 @@ const pad = (map) => `ontwerpen/${map}/gridlab-${Date.now()}-${Math.random().toS
 const gridlabInfo = (o, c) => ({ id: o.id, canvas: c.id, versie: o.version ?? null, bijgewerkt: o.updated_at, status: statusVan(o), naam: o.name, event: o.event || null, canvasNaam: c.label || null });
 
 // Als doek in de bibliotheek zetten (dit event of alle events), met de koppeling naar GridLab.
-export async function gridlabAlsDoek({ ontwerp, canvasId, planId, alle = false, drager = 'hek', naam = null }) {
+export async function gridlabAlsDoek({ ontwerp, canvasId, planId = null, alle = false, drager = 'hek', naam = null, eventId = null }) {
   const r = await tekenGridlab(ontwerp, canvasId);
-  const beeld = pad(alle ? (getOrganisatie()?.slug || 'organisatie') : planId);
+  const beeld = pad(getOrganisatie()?.slug || 'organisatie');
   const up = await sb().storage.from(BUCKET).upload(beeld, r.blob, { contentType: 'image/jpeg' }); if (up.error) throw up.error;
   const meer = (ontwerp.canvases || []).length > 1 ? ` · ${r.canvas.label || 'canvas'}` : '';
-  const rij = { naam: naam || `${ontwerp.name}${meer}`, categorie: 'Doeken en drukwerk', tekenwijze: 'doek', stijl: {}, actief: true, plan_id: alle ? null : planId,
+  // Bereik: een event (eventId), anders de organisatie. Oude aanroepen met planId zonder alle: bij het plan.
+  const rij = { naam: naam || `${ontwerp.name}${meer}`, categorie: drager === 'vlag' ? 'Vlaggen' : 'Doeken en drukwerk', tekenwijze: 'doek', stijl: {}, actief: true,
+    plan_id: eventId || alle ? null : planId, event_id: eventId || null,
     eigenschappen: { kleur: r.kleur, afmeting: r.afmeting, beeld, gridlab: gridlabInfo(ontwerp, r.canvas), ...(drager !== 'hek' ? { drager } : {}) } };
   const { data, error } = await maps().from('bibliotheek').insert(rij).select().single(); if (error) throw error;
   window.dispatchEvent(new CustomEvent('fm-ontwerp-nieuw', { detail: data }));

@@ -6,7 +6,7 @@ import TerugKnop from './TerugKnop';
 // Aan het uiteinde van een stuk bepaalt de muis de richting: rechtdoor, een hoek, omhoog of
 // omlaag. Hoekstukken en baseplates komen er vanzelf bij. Shift/Ctrl + klik = meer kiezen.
 import { useBouwerSchild, schildProps } from './bouwerschild';
-import { DoekUpload } from './doekupload';
+import { DoekKnop } from './doekkiezer';
 import { DoekBeeld, PLAATSINGEN, STARTEN } from './doekbeeld';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -826,11 +826,7 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
                 <div className="fm-segment fm-ws-tabs" role="group" aria-label="Kant">
                   {[['voor', 'Voorkant'], ['achter', 'Achterkant']].map(([k, n]) => <button key={k} className={doekKant === k ? 'aan' : ''} onClick={() => setDoekKant(k)}>{n}</button>)}
                 </div>
-                <select value={dk[doekKant] || ''} disabled={!schrijven} onChange={(e) => zet({ [doekKant]: e.target.value || null })}>
-                  <option value="">Geen ontwerp</option>
-                  {ontwerpen.map((d) => <option key={d.id} value={d.id}>{d.naam}</option>)}
-                </select>
-                {schrijven && <DoekUpload planId={it.plan_id} drager="truss" klein onNieuw={(d) => zet({ [doekKant]: d.id })} />}
+                <DoekKnop doeken={ontwerpen} waarde={dk[doekKant] || null} drager="truss" planId={it.plan_id} schrijven={schrijven} titel={`Ontwerp voor de ${doekKant === 'achter' ? 'achterkant' : 'voorkant'}`} geenLabel="Geen ontwerp" onKies={(id) => zet({ [doekKant]: id || null })} />
                 <div className="fm-segment fm-ws-tabs" role="group" aria-label="Plaatsing van het ontwerp">
                   {PLAATSINGEN.map(([k, n, tip]) => <button key={k} disabled={!schrijven} title={tip} className={(dk.plaatsing || 'vullen') === k ? 'aan' : ''} onClick={() => zet({ plaatsing: k === 'vullen' ? null : k })}>{n}</button>)}
                 </div>
