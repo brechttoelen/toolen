@@ -417,12 +417,12 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
       {gsm && it && (
         <div className="fm-deel-blad" role="dialog" aria-label={it.naam || 'Info'}>
           <button className="fm-x fm-deel-blad-x" aria-label={t.sluiten || 'Sluiten'} onClick={() => setGekozen(null)}>×</button>
-          <DeelPopup key={it.id} item={it} laag={lagenMap.get(it.laag_id)} element={elementenMap.get(it.element_id)} elementenMap={elementenMap} taal={taal} t={t} token={token}
+          <DeelPopup key={it.id} item={it} laag={lagenMap.get(it.laag_id)} element={elementenMap.get(it.element_id)} elementenMap={elementenMap} items={items} taal={taal} t={t} token={token}
             opties={opties} opmerkingen={(data.opmerkingen || []).filter((o) => o.item_id === it.id)} onBinnen={binnenHosts.has(it.id) ? () => { setGekozen(null); setBinnenOpen(it.id); } : null} on3d={() => setGroot3d(it.id)} />
         </div>
       )}
       {popupDiv && it && createPortal(
-        <DeelPopup item={it} laag={lagenMap.get(it.laag_id)} element={elementenMap.get(it.element_id)} elementenMap={elementenMap} taal={taal} t={t} token={token}
+        <DeelPopup item={it} laag={lagenMap.get(it.laag_id)} element={elementenMap.get(it.element_id)} elementenMap={elementenMap} items={items} taal={taal} t={t} token={token}
           opties={opties} opmerkingen={(data.opmerkingen || []).filter((o) => o.item_id === it.id)} onBinnen={binnenHosts.has(it.id) ? () => { setGekozen(null); setBinnenOpen(it.id); } : null} on3d={() => setGroot3d(it.id)} />,
         popupDiv,
       )}
@@ -436,7 +436,7 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
   );
 }
 
-function DeelPopup({ item, laag, element, elementenMap, taal = 'nl', t, token, opties, opmerkingen, onBinnen = null, on3d = null }) {
+function DeelPopup({ item, laag, element, elementenMap, items = null, taal = 'nl', t, token, opties, opmerkingen, onBinnen = null, on3d = null }) {
   const [naam, setNaam] = useState('');
   const [tekst, setTekst] = useState('');
   const [verstuurd, setVerstuurd] = useState(false);
@@ -457,7 +457,7 @@ function DeelPopup({ item, laag, element, elementenMap, taal = 'nl', t, token, o
     <div className="fm fm-pop" style={{ width: 300, maxWidth: 'calc(100vw - 40px)' }}>
       <PopupKop item={item} laag={laag} element={element} />
       {onBinnen && <div className="blok"><button className="fm-knop zwart" style={{ width: '100%', whiteSpace: 'nowrap' }} onClick={onBinnen}>▦ {t.binnen || 'Binnen bekijken'}</button></div>}
-      {on3d && heeft3d(item, element) && <div className="blok"><Knop3D it={item} el={element} elementenMap={elementenMap} onOpen={on3d} tekst={t.drie || 'In 3D bekijken'} /></div>}
+      {on3d && heeft3d(item, element) && <div className="blok"><Knop3D it={item} el={element} elementenMap={elementenMap} items={items} onOpen={on3d} tekst={t.drie || 'In 3D bekijken'} /></div>}
       {isStellingBouw(item) && <div className="blok"><DoorgangLijst st={item.velden.stelling} /></div>}
       {element && elementenMap && !heeft3d(item, element) && ontwerpenVan(item, element, elementenMap).length > 0 && <div className="blok"><OntwerpDuimen it={item} el={element} elementenMap={elementenMap} groot max={8} zijNamen={binnenTekst(taal)} tekst={binnenTekst(taal)} /></div>}
       {opties.notities && <PopupInfo item={item} />}

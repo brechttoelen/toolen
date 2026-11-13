@@ -78,11 +78,11 @@ export function Groot3D({ it, el, elementenMap, naam, onSluit, schrijven = false
 }
 
 // Klikbaar voorbeeld dat de 3D over het hele scherm opent.
-export function Knop3D({ it, el, elementenMap, onOpen, tekst = 'In 3D bekijken' }) {
+export function Knop3D({ it, el, elementenMap, onOpen, tekst = 'In 3D bekijken', items = null }) {
   if (!heeft3d(it, el)) return null;
   return (
     <button type="button" className="fm-bs-lees-3d" title="In 3D bekijken over het hele scherm" onClick={onOpen}>
-      <Mini3D it={it} el={el} elementenMap={elementenMap} />
+      <Mini3D it={it} el={el} elementenMap={elementenMap} items={items} />
       <span className="fm-bs-lees-3d-tip">⤢ {tekst}</span>
     </button>
   );
