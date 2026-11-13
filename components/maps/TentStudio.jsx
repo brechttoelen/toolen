@@ -401,9 +401,18 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
         const L2 = (a, f) => [a[0] + (tp[0] - a[0]) * f, a[1] + (tp[1] - a[1]) * f, zf(f)];
         for (let k = 0; k < 4; k++) {
           const p = c[k]; const q = c[(k + 1) % 4]; const kl = dk.streep && k % 2 ? { ...dk, kleur: dk.streep } : dk;
-          for (let b = 0; b < nb; b++) { const f0 = b / nb; const f1 = (b + 1) / nb; dakVlak(b === nb - 1 ? [L2(p, f0), L2(q, f0), tp] : [L2(p, f0), L2(q, f0), L2(q, f1), L2(p, f1)], i, kl); }
+          for (let b = 0; b < nb; b++) { const f0 = b / nb; const f1 = (b + 1) / nb; const pts = b === nb - 1 ? [L2(p, f0), L2(q, f0), tp] : [L2(p, f0), L2(q, f0), L2(q, f1), L2(p, f1)];
+            // Vouwtent: één doek per zijde, zonder lijnen tussen de stroken.
+            if (m.type === 'vouw') vlak(pts, kl.kleur, 'vul', { fillOpacity: kl.dekking, ...(hoofd ? { 'data-dak': i, style: { cursor: dakKies ? 'pointer' : undefined } } : geen) }, 'min'); else dakVlak(pts, i, kl); }
         }
-        for (let k = 0; k < 4; k++) { const p = c[k]; const q = c[(k + 1) % 4]; const vb = m.type === 'vouw' ? 0.3 : 0.22; vlak([[p[0], p[1], m.zijH + 0.01], [q[0], q[1], m.zijH + 0.01], [q[0], q[1], m.zijH - vb], [p[0], p[1], m.zijH - vb]], dk.kleur, '#9CA3AF', { fillOpacity: Math.max(m.type === 'vouw' ? 0.95 : 0.6, dk.dekking), ...geen }); }
+        for (let k = 0; k < 4; k++) {
+          const p = c[k]; const q = c[(k + 1) % 4];
+          if (m.type === 'vouw') {
+            // Volant: een band van 30 cm rondom, net buiten de poten, in de kleur van het doek.
+            const [nx, ny] = [[0, -1], [1, 0], [0, 1], [-1, 0]][k]; const o = 0.03; const P = (r, z) => [r[0] + nx * o, r[1] + ny * o, z];
+            vlak([P(p, m.zijH + 0.02), P(q, m.zijH + 0.02), P(q, m.zijH - 0.3), P(p, m.zijH - 0.3)], dk.kleur, '#9CA3AF', { fillOpacity: 1, ...geen });
+          } else vlak([[p[0], p[1], m.zijH], [q[0], q[1], m.zijH], [q[0], q[1], m.zijH - 0.22], [p[0], p[1], m.zijH - 0.22]], dk.kleur, '#9CA3AF', { fillOpacity: Math.max(0.6, dk.dekking), ...geen });
+        }
         if (m.type === 'pagode') lijn(tp, [tp[0], tp[1], m.nok + 0.35], alu, 2 * lw, -0.01);
       }
     }
@@ -415,14 +424,6 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
       if (m.type === 'kader' || m.type === 'boog') { const n = m.type === 'kader' ? 2 : 12; for (let k = 0; k < n; k++) { const y0 = (m.B * k) / n; const y1 = (m.B * (k + 1)) / n; lijn([x, y0, dakHoogte(m, x, y0)], [x, y1, dakHoogte(m, x, y1)], alu, kolom * 0.85, 'min'); } }
     }
     if (m.type !== 'vouw') for (const y of [0, m.B]) lijn([0, y, m.zijH], [m.L, y, m.zijH], alu, kolom * 0.7, 0.01);
-    // Vouwtent: geen dakrandbalk maar een schaarframe tussen de poten, net onder het doek.
-    if (m.type === 'vouw' && !mini) for (let i = 0; i < m.n; i++) {
-      const x0 = i * m.travee; const x1 = x0 + m.travee; const hb = m.zijH - 0.06; const ho = m.zijH - 0.5;
-      for (const [a, b] of [[[x0, 0], [x1, 0]], [[x1, 0], [x1, m.B]], [[x1, m.B], [x0, m.B]], [[x0, m.B], [x0, 0]]]) {
-        const l = Math.hypot(b[0] - a[0], b[1] - a[1]); const n = Math.max(2, Math.round(l / 1.5));
-        for (let k = 0; k < n; k++) { const P = (f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; const p0 = P(k / n); const p1 = P((k + 1) / n); lijn([...p0, hb], [...p1, ho], VOUW_FRAME, kolom * 0.3, 0.02); lijn([...p0, ho], [...p1, hb], VOUW_FRAME, kolom * 0.3, 0.02); }
-      }
-    }
     if (m.type === 'kader') lijn([0, m.B / 2, m.nok], [m.L, m.B / 2, m.nok], alu, kolom * 0.6, 'min');
     if (m.type === 'kader' || m.type === 'boog') for (const sg of segs.filter((x) => (x.zijde === 'V' || x.zijde === 'A' || x.zijde === 'I') && !t.gevelVrij?.[x.zijde])) { const [x, y] = sg.b; if (y > 0.01 && y < m.B - 0.01) lijn([x, y, 0], [x, y, dakHoogte(m, x, y)], alu, kolom * 0.8, 0.01); }
     if (m.type === 'pagode' || m.type === 'vouw') for (let i = 0; i < m.n; i++) {

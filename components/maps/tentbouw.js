@@ -128,7 +128,8 @@ export function tentMaten(it, el) {
     : type === 'kader' ? zijH + (B / 2) * Math.tan(((B <= 5 ? 23 : B <= 7.5 ? 19.5 : B <= 10 ? 17.2 : B <= 12.5 ? 16.8 : B <= 15 ? 16.3 : 15.1) * Math.PI) / 180)
     : type === 'boog' ? zijH + B * 0.148
       : type === 'pagode' ? zijH + Math.min(B, L / n) * 0.48
-        : zijH + Math.min(B, L) * 0.18;
+        // Vouwtent (easy-up): de punt staat duidelijk boven de rand, ± 1 m bij 3 × 3 m.
+        : zijH + Math.min(B, L) * 0.3;
   return { type, L, B, travee: L / n, n, zijH, nok: Math.round(nok * 100) / 100 };
 }
 
