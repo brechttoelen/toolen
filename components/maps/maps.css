@@ -2460,3 +2460,18 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 @media (max-width: 760px) { .fm-dk-mappen { flex-basis: 100%; position: static; max-height: none; } }
 .fm-dk-el { display: flex; align-items: center; justify-content: center; width: 44px; height: 36px; flex-shrink: 0; background: #f4f6fa; border-radius: 5px; overflow: hidden; }
 .fm-dk-el.groot { width: 100%; height: 70px; }
+
+/* Deellink op de gsm: compacte kop (logo en titel op één regel, knoppen eronder) en een kleine voet. */
+@media (max-width: 720px) {
+  .fm-deelkop { flex-direction: row !important; flex-wrap: wrap !important; align-items: center !important; gap: 6px 10px !important; padding: calc(6px + env(safe-area-inset-top)) 12px 6px !important; }
+  .fm-deelkop > img { height: 18px !important; max-width: 84px !important; flex: none; }
+  .fm-deelkop > span[aria-hidden] { position: static !important; flex: none; }
+  .fm-deelkop .fm-deeltitel { flex: 1 1 0 !important; min-width: 0; padding-left: 0 !important; gap: 0 !important; }
+  .fm-deelkop .fm-deeltitel > strong { font-size: 14px !important; display: block; }
+  .fm-deelkop .fm-deeltitel > strong .fm-deeltitel-link { display: inline !important; font-size: inherit !important; }
+  .fm-deelkop .fm-deeltitel > span { font-size: 11px !important; }
+  .fm-deel-tools { flex: 1 1 100%; margin: 0 -12px; padding: 0 12px; }
+  .fm-deel-tools .fm-knop, .fm-deel-tools select { height: 30px !important; font-size: 12.5px !important; }
+  .fm-deel-powered { bottom: 6px; padding: 2px 7px; font-size: 10px; gap: 4px; background: rgba(255, 255, 255, .6); }
+  .fm-deel-powered svg { width: 10px; height: 10px; }
+}

@@ -147,7 +147,7 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
     map.touchZoomRotate.disableRotation();
     klapBronvermeldingIn(map);
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
-    map.addControl(new maplibregl.ScaleControl({ unit: 'metric', maxWidth: 140 }), 'bottom-left');
+    map.addControl(new maplibregl.ScaleControl({ unit: 'metric', maxWidth: window.innerWidth < 640 ? 80 : 140 }), 'bottom-left');
     map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true, showAccuracyCircle: true, positionOptions: { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 } }), 'bottom-right');
     // Startbeeld van de link (zoals de afzender het instelde), anders alles in beeld.
     const sb = data.link?.opties?.beeld;
