@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './maps.css';
-import FeedbackKnop, { zetFeedbackContext } from './Feedback';
+import { zetFeedbackContext } from './Feedback';
 import { sb, zetDeelToken } from './db';
 import { basisStijl, registreerProtocollen, zetOndergrond, klapBronvermeldingIn, kiesFotoVl } from './ondergronden';
 import { kaartLagen, naarGeojson, zorgVoorPatronen } from './stijl';
@@ -312,27 +312,20 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
         {hs && (hs.logo_donker || hs.logo_licht)
           ? <img src={hs.logo_donker || hs.logo_licht} alt={hs.naam || ''} style={{ height: 26, width: 'auto', maxWidth: 160, objectFit: 'contain' }} />
           : <span aria-hidden style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--t-blauw, #108AED)' }} />}
-        <div className="fm-deeltitel" style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <strong style={{ fontSize: 16, fontFamily: 'var(--font-titel)', fontStretch: '112%', fontWeight: 700 }}>{data.plan.naam}</strong>
-          <span style={{ fontSize: 13, color: '#a9a9a5', marginLeft: 8 }}>{[data.plan.editie_naam, data.plan.locatie, `${t.versie} ${data.plan.versie}`, data.link.stand ? new Date(data.link.stand.op).toLocaleDateString(taal === 'en' ? 'en-GB' : taal === 'fr' ? 'fr-BE' : 'nl-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : (data.link.live ? 'live' : null)].filter(Boolean).join(' · ')}</span>
+        <div className="fm-deeltitel">
+          <strong>{data.plan.naam}{data.link.naam && data.link.naam !== data.plan.naam ? <span className="fm-deeltitel-link"> · {data.link.naam}</span> : null}</strong>
+          <span>{[data.plan.editie_naam, data.plan.locatie, `${t.versie} ${data.plan.versie}`, data.link.stand ? new Date(data.link.stand.op).toLocaleDateString(taal === 'en' ? 'en-GB' : taal === 'fr' ? 'fr-BE' : 'nl-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : (data.link.live ? 'live' : null)].filter(Boolean).join(' · ')}</span>
         </div>
         <div className="fm-deel-tools">
         <select aria-label="Ondergrond" value={ondergrond} onChange={(e) => setOndergrond(e.target.value)} style={{ height: 30, border: 0, padding: '0 8px', flex: '1 1 140px', maxWidth: 220 }}>
           <option value="luchtfoto">{t.kaart}</option><option value="luchtfoto_straten">{t.kaart} + {t.straat.toLowerCase()}</option><option value="lijntekening">{t.lijn}</option><option value="stratenkaart">{t.straat}</option>
         </select>
-        {herkomsten.length > 1 && (
-          <select aria-label={t.herkomst} value={herkomst} onChange={(e) => setHerkomst(e.target.value)} style={{ height: 30, border: 0, padding: '0 8px', flex: '1 1 160px', maxWidth: 240 }}>
-            <option value="">{t.alleLev}</option>
-            {herkomsten.map(([h, n]) => <option key={h} value={h}>{t.herkomst}: {h} ({n})</option>)}
-          </select>
-        )}
         {!sd && opties.materialen !== false && materialen.length > 0 && <button className="fm-knop klein" aria-pressed={toonLijst} onClick={() => { setToonLijst((x) => !x); if (gsm) { setToonLagen(false); setGekozen(null); } }}>{t.materialen}</button>}
         <button className="fm-knop klein" aria-pressed={meet} onClick={() => { setMeet((x) => !x); setMeetPunten([]); setVpModus(false); setGekozen(null); setVpKeuze(null); if (gsm) { setToonLagen(false); setToonLijst(false); } }}>📏 {(MEET_TEKST[taal] || MEET_TEKST.nl).knop}</button>
         {opties.opmerkingen && <button className="fm-knop klein" aria-pressed={vpModus} title={(VP_TEKST[taal] || VP_TEKST.nl).uitleg} onClick={() => { setVpModus((x) => !x); setVpPlek(null); setMeet(false); setGekozen(null); if (gsm) { setToonLagen(false); setToonLijst(false); } }}>📍 {(VP_TEKST[taal] || VP_TEKST.nl).knop}</button>}
         {sd && <button className="fm-knop klein" aria-pressed={toonStroom} onClick={() => { setToonStroom((x) => !x); if (gsm) { setToonLagen(false); setToonLijst(false); setGekozen(null); } }}>⚡ Stroompunten</button>}
         <button className="fm-knop klein" aria-pressed={toonLagen} onClick={() => { setToonLagen((x) => !x); if (gsm) { setToonLijst(false); setGekozen(null); setToonStroom(false); } }}>{t.lagen}</button>
         {opties.pdf !== false && <button className="fm-knop klein rood" data-menuknop disabled={!!bezig} aria-expanded={pdfMenu} onClick={() => setPdfMenu((x) => !x)}>{bezig || t.pdf}</button>}
-          <FeedbackKnop deelToken={token} klein />
         </div>
       </header>
       {pdfMenu && (

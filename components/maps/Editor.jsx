@@ -2233,6 +2233,32 @@ export default function Editor({ planId }) {
     map.on('dblclick', dubbel);
     return () => map.off('dblclick', dubbel);
   }, [kaartKlaar]);
+  // Kleine items (bv. een marshall-camera van 1,2 m) zijn op de kaart maar enkele pixels groot. Klik je er net naast,
+  // dan kiest Toolen het dichtstbijzijnde item binnen 12 pixels, zodat je het niet hoeft te raken.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !kaartKlaar) return undefined;
+    const LG = ['fm-vulling', 'fm-patroon', 'fm-punt', 'fm-vloer', 'fm-lijn'];
+    const klik = (e) => {
+      const s = st.current;
+      if (s.iso || s.binnen || s.gereedschap !== 'selecteer' || e.originalEvent?.shiftKey || e.originalEvent?.altKey) return;
+      if ((map._fmNegeerKlik || 0) > Date.now()) return;
+      const lg = LG.filter((l) => map.getLayer(l)); if (!lg.length) return;
+      if (map.queryRenderedFeatures(e.point, { layers: lg }).some((f) => f.properties?.id)) return; // raak: terra-draw kiest zelf
+      const R = 12; const p = e.point;
+      const kand = map.queryRenderedFeatures([[p.x - R, p.y - R], [p.x + R, p.y + R]], { layers: lg }).map((f) => f.properties?.id).filter(Boolean);
+      let best = null; let bestD = Infinity;
+      for (const id of new Set(kand)) {
+        const it = s.items.find((x) => x.id === id); const m = it?.parameters?.midden; if (!m) continue;
+        const c = map.project(m); const d = Math.hypot(c.x - p.x, c.y - p.y);
+        if (d < bestD) { best = it; bestD = d; }
+      }
+      if (!best || bestD > R * 1.5) return;
+      setTimeout(() => { setGeselecteerd(best.id); setExtra([]); try { tdRef.current?.selectFeature(best.id); } catch {} }, 0);
+    };
+    map.on('click', klik);
+    return () => map.off('click', klik);
+  }, [kaartKlaar]);
 
   useEffect(() => {
     const map = mapRef.current;
