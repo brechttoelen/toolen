@@ -20,9 +20,9 @@ export async function POST(req: NextRequest) {
   const sleutel = process.env.TOOLEN_GRIDLAB_SLEUTEL;
   if (!sleutel) return fout("De koppeling met GridLab is nog niet ingesteld (sleutel ontbreekt op de server).", 503);
   const ids = Array.isArray(b.ids) ? b.ids.filter((x) => /^[0-9a-f-]{36}$/i.test(String(x))).slice(0, 500) : null;
-  const r = await fetch(`${GRIDLAB_URL}/rest/v1/rpc/toolen_lezen`, {
+  const r = await fetch(`${GRIDLAB_URL}/rest/v1/rpc/toolen_gridlab_lezen`, {
     method: "POST", cache: "no-store",
-    headers: { apikey: GRIDLAB_PUBLIEK, "content-type": "application/json", "content-profile": "gridlab", "accept-profile": "gridlab" },
+    headers: { apikey: GRIDLAB_PUBLIEK, "content-type": "application/json" },
     body: JSON.stringify({ p_sleutel: sleutel, p_ids: ids && ids.length ? ids : null }),
   });
   if (!r.ok) return fout("GridLab is niet bereikbaar.", 502);
