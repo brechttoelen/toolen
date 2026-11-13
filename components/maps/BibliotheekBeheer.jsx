@@ -13,6 +13,7 @@ import { ElementIcoon, elementMaat } from './BibliotheekPaneel';
 import { KLEUREN, TOEBEHOREN, TB_SOORTEN } from './stijl';
 import { leesSvg, dxfTekening } from './tekening';
 import { leesDxf } from './dxf';
+import { cadTekst, isCad } from './cad';
 import { AANSLUITINGEN, FASEN_EL } from './stroom';
 import { AppDialogen, bevestig, vraagTekst } from './dialoog';
 import { Icoon } from './iconen';
@@ -176,8 +177,9 @@ export default function BibliotheekBeheer({ soort = 'elementen' }) {
   const kiesTekening = async (f) => {
     if (!f) return;
     setFout('');
-    const tekst = await f.text();
-    const soort = /\.dxf$/i.test(f.name) ? 'dxf' : 'svg';
+    const soort = isCad(f.name) ? 'dxf' : 'svg';
+    let tekst;
+    try { tekst = await cadTekst(f); } catch (e) { setFout(e.message); return; }
     let dxf = null;
     if (soort === 'dxf') { try { dxf = leesDxf(tekst); } catch (e) { setFout(e.message); return; } }
     setTekBestand({ naam: f.name, soort, tekst, dxf });
@@ -243,7 +245,7 @@ export default function BibliotheekBeheer({ soort = 'elementen' }) {
         {schrijven && weergave === 'elementen' && <button className="fm-knop" style={{ height: 40 }} onClick={() => setToonImport((x) => !x)}>Importeren uit Excel of CSV</button>}
         {schrijven && weergave === 'elementen' && (
           <label className="fm-knop" style={{ height: 40 }}>Tekening inladen (SVG of DXF)
-            <input type="file" accept=".svg,.dxf,image/svg+xml" style={{ display: 'none' }} onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; await kies(null); setTekBreedte(''); setTimeout(() => kiesTekening(f), 0); }} />
+            <input type="file" accept=".svg,.dxf,.dwg,image/svg+xml" style={{ display: 'none' }} onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; await kies(null); setTekBreedte(''); setTimeout(() => kiesTekening(f), 0); }} />
           </label>
         )}
         {schrijven && weergave === 'elementen' && <a className="fm-knop" style={{ height: 40 }} href="/maps/bibliotheek/teken/nieuw">Element tekenen</a>}
@@ -463,7 +465,7 @@ export default function BibliotheekBeheer({ soort = 'elementen' }) {
                   <>
                     <div className="fm-raster2">
                       <label className="fm-knop" style={{ alignSelf: 'end' }}>{tekening ? 'Andere tekening' : 'Bestand kiezen'}
-                        <input type="file" accept=".svg,.dxf,image/svg+xml" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; kiesTekening(f); }} />
+                        <input type="file" accept=".svg,.dxf,.dwg,image/svg+xml" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; kiesTekening(f); }} />
                       </label>
                       <label className="fm-veld">Echte breedte (m)<input value={tekBreedte} inputMode="decimal" placeholder={tekBestand?.soort === 'dxf' ? 'uit de DXF' : 'bv. 6'} onChange={(e) => setTekBreedte(e.target.value)} onBlur={() => tekBestand && zetTekening()} onKeyDown={(e) => e.key === 'Enter' && zetTekening()} /></label>
                     </div>

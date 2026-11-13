@@ -12,6 +12,9 @@ const basis = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // DWG lezen (LibreDWG, WebAssembly) blijft op de server: niet bundelen, en het wasm-bestand meenemen.
+  serverExternalPackages: ["@mlightcad/libredwg-web"],
+  outputFileTracingIncludes: { "/api/cad/dwg": ["./node_modules/@mlightcad/libredwg-web/**/*"] },
   // Versie van de app voor de foutmonitoring.
   env: {
     NEXT_PUBLIC_VERSIE: (process.env.VERCEL_GIT_COMMIT_SHA || "lokaal").slice(0, 7),

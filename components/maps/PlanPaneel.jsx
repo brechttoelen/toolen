@@ -183,7 +183,7 @@ export default function PlanPaneel({
         })}
         {schrijven && (
           <>
-            <input ref={bestandRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.dxf" onChange={upload} style={{ display: 'none' }} />
+            <input ref={bestandRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.dxf,.dwg" onChange={upload} style={{ display: 'none' }} />
             <button className="fm-knop klein" disabled={!!bezig} onClick={() => bestandRef.current?.click()}>{bezig || 'Achtergrondtekening toevoegen'}</button>
           </>
         )}

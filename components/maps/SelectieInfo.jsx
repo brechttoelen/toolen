@@ -7,6 +7,7 @@ import * as geo from './geo';
 import { maten, isHekElement } from './stijl';
 import { schoorTussen } from './verstevig';
 import { LaagOpties } from './laagOpties';
+import { stroomVan } from './stroom';
 
 const SOORT = { punt: 'Punt', lijn: 'Lijn', vlak: 'Vlak', rechthoek: 'Rechthoek', cirkel: 'Cirkel', tekst: 'Tekst', notitie: 'Notitie', veelhoek: 'Veelhoek', ellips: 'Ellips', sector: 'Kijkhoek', afstand: 'Maatlijn' };
 const g1 = (v) => (Math.round(v * 10) / 10).toLocaleString('nl-BE');
@@ -22,6 +23,11 @@ export default function SelectieInfo({ sel, lagen, lagenMap, fasen, elementenMap
     const { lijnen } = schoorTussen(hekken[0].geometrie.coordinates, hekken[1].geometrie.coordinates, { om: schoor.om, lengte: L, patroon: schoor.patroon });
     onMaak(lijnen.map((c) => ({ soort: 'element', element_id: schuinEl.id, laag_id: hekken[0].laag_id, fase_ids: hekken[0].fase_ids || null, geometrie: { type: 'LineString', coordinates: c }, parameters: {}, naam: 'Schuin hek (versteviging)' })));
   };
+  // Twee stroomgroepen geselecteerd: koppelen als twin (de eerste draagt de aansluitingen).
+  const gens = sel.length === 2 ? sel.map((x) => ({ it: x, s: stroomVan(x, elementenMap.get(x.element_id)) })).filter((x) => x.s.rol === 'bron' && !x.s.vast) : [];
+  const twinVan = gens.length === 2 ? gens.find((x) => x.s.twin === gens.find((y) => y !== x).it.id) : null;
+  const zetStroom = (x, patch) => onWijzig(x.it.id, { velden: { ...(x.it.velden || {}), stroom: { ...(x.it.velden?.stroom || {}), ...patch } } });
+  const koppelTwin = (wijze) => { zetStroom(gens[0], { twin: gens[1].it.id, twinWijze: wijze }); if (gens[1].s.twin) zetStroom(gens[1], { twin: null }); };
   // Per soort element: aantal, stuks, meter, m².
   const per = new Map();
   for (const it of sel) {
@@ -59,6 +65,30 @@ export default function SelectieInfo({ sel, lagen, lagenMap, fasen, elementenMap
             </tbody>
           </table>
         </div>
+        {schrijven && gens.length === 2 && (
+          <div className="fm-sectie">
+            <div className="fm-kop">Twin</div>
+            {twinVan ? (
+              <>
+                <div className="fm-sub">{twinVan.s.twinWijze === 'reserve' ? `Gekoppeld: telt als ${twinVan.s.kva || '?'} kVA, de tweede is reserve.` : `Gekoppeld: telt als één bron van ${(Number(gens[0].s.kva) || 0) + (Number(gens[1].s.kva) || 0)} kVA.`}</div>
+                <div className="fm-selinfo-rij">
+                  <div className="fm-segment" role="group" aria-label="Werking">
+                    {[['samen', 'Samen leveren'], ['reserve', 'Reserve']].map(([k, n]) => <button key={k} className={twinVan.s.twinWijze === k ? 'aan' : ''} onClick={() => zetStroom(twinVan, { twinWijze: k })}>{n}</button>)}
+                  </div>
+                  <button className="fm-knop klein" onClick={() => zetStroom(twinVan, { twin: null })}>Ontkoppelen</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="fm-sub">Twee stroomgroepen als één bron in de stroomberekening.</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button className="fm-knop klein zwart" onClick={() => koppelTwin('samen')}>Koppelen · samen leveren</button>
+                  <button className="fm-knop klein" onClick={() => koppelTwin('reserve')}>Koppelen · één als reserve</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
         {schrijven && schuinEl && onMaak && (() => {
           const L = Number(schuinEl.eenheid_m) || 2.5;
           const v = schoorTussen(hekken[0].geometrie.coordinates, hekken[1].geometrie.coordinates, { om: schoor.om, lengte: L, patroon: schoor.patroon });

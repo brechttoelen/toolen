@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Info from './info';
 import { pdfVectoren, schoonOp, naarTekening } from './cadpdf';
 import { leesDxf } from './dxf';
+import { cadTekst, isCad } from './cad';
 
 const PT_MM = 25.4 / 72; // 1 PDF-punt in mm op papier
 const MAX = 8000;
@@ -51,8 +52,8 @@ export default function CadImport({ onSluit, onKlaar, vervang = null }) {
     if (!f) return;
     setFout(''); setBezig('Bestand lezen…'); setPaden([]); setKader(null); setGewist(new Set()); setUit(new Set()); setMeet([]);
     try {
-      if (/\.dxf$/i.test(f.name)) {
-        const d = leesDxf(await f.text());
+      if (isCad(f.name)) {
+        const d = leesDxf(await cadTekst(f));
         const p = d.lijnen.map((l) => ({ pts: l.c, k: l.laag, d: 0 }));
         // Zonder eenheid in het bestand: grote getallen zijn bijna altijd millimeter.
         const breed = Math.max(d.kader[2] - d.kader[0], d.kader[3] - d.kader[1]);
@@ -215,7 +216,7 @@ export default function CadImport({ onSluit, onKlaar, vervang = null }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 270px', gap: 16, padding: 16 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              <label className="fm-knop klein zwart" style={{ cursor: 'pointer' }}>{bron ? 'Ander bestand' : 'Kies PDF of DXF'}<input type="file" accept=".pdf,.dxf,application/pdf" style={{ display: 'none' }} onChange={(e) => kiesBestand(e.target.files?.[0])} /></label>
+              <label className="fm-knop klein zwart" style={{ cursor: 'pointer' }}>{bron ? 'Ander bestand' : 'Kies PDF, DXF of DWG'}<input type="file" accept=".pdf,.dxf,.dwg,application/pdf" style={{ display: 'none' }} onChange={(e) => kiesBestand(e.target.files?.[0])} /></label>
               {bron?.soort === 'pdf' && bron.paginas > 1 && (
                 <select value={pagina} onChange={(e) => laadPagina(bron.doc, bron.pdfjs, Number(e.target.value))} style={{ height: 26 }} aria-label="Pagina">
                   {Array.from({ length: bron.paginas }, (_, i) => <option key={i} value={i + 1}>Pagina {i + 1}</option>)}

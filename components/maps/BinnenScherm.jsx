@@ -1907,7 +1907,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
             )}
           </span>
         )}
-        <input ref={bestandRef} type="file" accept=".dxf,.pdf,image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { setZonder(false); onGrondplan(f); } }} />
+        <input ref={bestandRef} type="file" accept=".dxf,.dwg,.pdf,image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { setZonder(false); onGrondplan(f); } }} />
       </div>
       <div className="fm-bs-lijf">
         <aside className="fm-bs-links">

@@ -12,6 +12,7 @@
     "predev": "node -e \"require('fs').copyFileSync('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs','public/m/maplibre-worker.mjs')\""
   },
   "dependencies": {
+    "@mlightcad/libredwg-web": "0.8.8",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.119.0",
     "@turf/turf": "7.4.0",

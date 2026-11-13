@@ -216,10 +216,11 @@ export async function nieuweOnderlegger(planId, bestand, midden, breedteM, voort
   let w;
   let h;
   let ext = (bestand.name.split('.').pop() || 'png').toLowerCase();
-  if (ext === 'dxf') {
-    voortgang('DXF lezen…');
+  if (ext === 'dxf' || ext === 'dwg') {
+    voortgang(ext === 'dwg' ? 'DWG omzetten…' : 'DXF lezen…');
     const { leesDxf, raadStelsel, naarOnderlegger } = await import('./dxf');
-    const d = leesDxf(await bestand.text());
+    const { cadTekst } = await import('./cad');
+    const d = leesDxf(await cadTekst(bestand));
     const stelsel = raadStelsel(d);
     const ol = naarOnderlegger(d, stelsel);
     voortgang('Uploaden…');
@@ -243,7 +244,7 @@ export async function nieuweOnderlegger(planId, bestand, midden, breedteM, voort
   } else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
     [w, h] = await beeldMaat(bestand);
   } else {
-    throw new Error('Kies een PDF, PNG, JPG of DXF. Een DWG bewaar je in je CAD-programma eerst als DXF.');
+    throw new Error('Kies een PDF, PNG, JPG, DXF of DWG.');
   }
   voortgang('Uploaden…');
   const id = crypto.randomUUID();

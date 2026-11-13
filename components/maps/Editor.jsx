@@ -5040,7 +5040,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                     <button className={binnenFoto ? 'zwart' : ''} aria-pressed={binnenFoto} onClick={() => setBinnenFoto((x) => !x)}>Luchtfoto</button>
                     <label className="fm-sub" title="Doorzichtigheid van het grondplan">Grondplan <input type="range" min="0.1" max="1" step="0.1" value={ol.dekking ?? 0.6} onChange={(e) => wijzigPlan({ instellingen: { ...(plan.instellingen || {}), onderleggers: (plan.instellingen?.onderleggers || []).map((o) => (o.id === ol.id ? { ...o, dekking: Number(e.target.value) } : o)) } })} style={{ width: 70, verticalAlign: 'middle' }} /></label></>
                   : <button title="Een PDF, foto of DXF van het grondplan van deze verdieping, om over te tekenen" onClick={() => grondplanRef.current?.click()}>+ Grondplan</button>)}
-                 <input ref={grondplanRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.dxf" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; grondplanToevoegen(f); }} />
+                 <input ref={grondplanRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.dxf,.dwg" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; grondplanToevoegen(f); }} />
                 <span className="fm-sub">Teken ruimtes als vlak met een naam · alles telt mee in de stuklijst</span>
                 <button className="zwart" onClick={sluitBinnen}>Klaar</button>
               </div>
