@@ -66,7 +66,8 @@ export default function terraDrawStart(ctx) {
     // hoeft niet elk hoekpunt (van honderden items en de GRB) bij elke muisbeweging opnieuw geprojecteerd te worden.
     const projCache = { sleutel: '', m: new Map() };
     const proj = (c) => {
-      const t = map.transform; const k = `${t.zoom}|${t.center.lng}|${t.center.lat}|${t.bearing}|${t.pitch}|${t.width}|${t.height}`;
+      // Enkel de publieke kaartfuncties: map.transform bestaat niet meer in MapLibre 6 (tekenen en meten vielen daardoor stil).
+      const ce = map.getCenter(); const cv = map.getCanvas(); const k = `${map.getZoom()}|${ce.lng}|${ce.lat}|${map.getBearing()}|${map.getPitch()}|${cv.clientWidth}|${cv.clientHeight}`;
       if (projCache.sleutel !== k) { projCache.sleutel = k; projCache.m = new Map(); }
       let q = projCache.m.get(c); if (!q) { q = map.project(c); projCache.m.set(c, q); }
       return q;
