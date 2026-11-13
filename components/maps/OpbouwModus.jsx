@@ -3,7 +3,8 @@
 import { streetViewUrl } from './streetview';
 import { metTekeningen } from './tekeningen';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import './kaartwerker';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as turf from '@turf/turf';
 import './maps.css';

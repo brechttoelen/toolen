@@ -15,7 +15,8 @@
 //    De regionale luchtfoto's komen pas vanaf zoom 11, zodat uitgezoomd geen
 //    lappendeken van overzichtsbeelden en witte vlakken ontstaat.
 //  - Stratenkaart: OpenStreetMap, enkel op het scherm (geen drukwerk, geen voorladen).
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import './kaartwerker';
 
 const VL = 'https://geo.api.vlaanderen.be';
 // Wallonië: transparant buiten het gewest, anders legt het een wit vlak over de buren.

@@ -2,7 +2,8 @@
 
 // Signalisatie-PDF: voorblad met overzichtskaart, 4 punten per A4 (kaartuitsnede,
 // kijkrichting, de borden met hun pijl) en de bestellijst.
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import './kaartwerker';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import { basisStijl, registreerProtocollen, drukbaar, bronvermelding } from './ondergronden';

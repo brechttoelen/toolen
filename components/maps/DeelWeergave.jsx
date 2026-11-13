@@ -8,7 +8,8 @@ import { VeldpuntPaneel, VeldpuntBewerk, VP_TEKST, zorgVoorVeldpuntLagen, zetVel
 import { AttestenLijst } from './attesten';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import './kaartwerker';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './maps.css';
 import { zetFeedbackContext } from './Feedback';

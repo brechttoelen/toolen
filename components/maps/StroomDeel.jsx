@@ -4,7 +4,8 @@
 // toont wat er moet staan, wat mee moet, het aansluitschema en de aandachtspunten (zoals het stroomdossier, zonder
 // controlelijst). "Toon op de kaart" zoomt in op dat net; de nummers staan als bolletjes op de kaart.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import './kaartwerker';
 import { berekenStroom } from './stroom';
 import { dossierGegevens, meeRijen } from './stroomDossier';
 import { kader as bbox } from './geo';

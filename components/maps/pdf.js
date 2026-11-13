@@ -3,7 +3,8 @@
 // PDF op vaste schaal. De ondergrond wordt in een onzichtbare kaart op de
 // juiste resolutie getekend en als afbeelding geplaatst; alle items, labels,
 // raster, legende en titelblok zijn vector, dus scherp op elk formaat.
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import './kaartwerker';
 import { jsPDF } from 'jspdf';
 import { zetOnderleggers } from './onderlegger';
 import { basisStijl, bronvermelding, drukbaar, registreerProtocollen } from './ondergronden';

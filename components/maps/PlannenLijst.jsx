@@ -197,7 +197,7 @@ function PlannenKaart({ plannen, kleurVan, onKies }) {
   useEffect(() => {
     let weg = false; let map = null;
     (async () => {
-      const maplibregl = (await import('maplibre-gl')).default;
+      const maplibregl = (await import('./kaartwerker'), await import('maplibre-gl'));
       await import('maplibre-gl/dist/maplibre-gl.css');
       const { basisStijl, registreerProtocollen } = await import('./ondergronden');
       if (weg || !ref.current) return;

@@ -3,7 +3,8 @@
 // Signalisatieplan verkeer (voor politie en stad): A3-kaart met enkel de verkeerslaag,
 // legende met de gebruikte borden, dan per bord een regel (nr, bord, onderbord, straat,
 // datum en uur) en de stuklijst.
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import './kaartwerker';
 import { jsPDF } from 'jspdf';
 import { basisStijl, registreerProtocollen, drukbaar, bronvermelding } from './ondergronden';
 import { kader as bbox } from './geo';

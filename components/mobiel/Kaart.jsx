@@ -3,7 +3,8 @@
 // Kaart op de gsm: plan bekijken met gps en zoeken, item aantikken voor info.
 // Ter plaatse: melden op een plek, foto op de plek, meten en (zelf aan te zetten) je plek delen met je ploeg.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import '../maps/kaartwerker';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as turf from '@turf/turf';
 import { maps, alles, inBereik, sb, BUCKET, foutTekst, magSchrijven, publiekeUrl } from '../maps/db';
