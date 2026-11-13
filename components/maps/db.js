@@ -18,6 +18,12 @@ export function sb() {
   if (!_sb) _sb = createBrowserClient(URL, KEY, { db: { schema: 'maps' }, cookieOptions: cookieOpties(), global: { fetch: fetchMetOrganisatie } });
   return _sb;
 }
+// Doeken met een event (bibliotheek.event_id) horen enkel in de plannen van dat event. Wat al op het plan staat, blijft altijd.
+export function inBereik(els, eventId, items = []) {
+  const nodig = new Set((items || []).map((i) => i.element_id).filter(Boolean));
+  return (els || []).filter((e) => !e.event_id || e.event_id === eventId || nodig.has(e.id));
+}
+
 export function maps() {
   return sb().schema('maps');
 }

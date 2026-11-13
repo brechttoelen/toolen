@@ -7,7 +7,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as turf from '@turf/turf';
 import './maps.css';
-import { maps, alles, sb, BUCKET, foutTekst, wieBenIk, magSchrijven, publiekeUrl as publiekeUrlOp } from './db';
+import { maps, alles, inBereik, sb, BUCKET, foutTekst, wieBenIk, magSchrijven, publiekeUrl as publiekeUrlOp } from './db';
 import { basisStijl, registreerProtocollen, WA_TEGEL, klapBronvermeldingIn, kiesFotoVl, fotoVlTegel } from './ondergronden';
 import { kaartLagen, naarGeojson, zorgVoorPatronen, maten, matenTekst, doekenPerHek, isTotem, isVlag, isVlagHek, totemPanelen, trussDoek } from './stijl';
 import { middelpunt, kader, getal } from './geo';
@@ -49,7 +49,7 @@ export default function OpbouwModus({ planId }) {
         const e = [p, l, f, i, b].find((r) => r.error);
         if (e) throw e.error;
         if (!p.data) throw new Error('Dit plan bestaat niet (meer).');
-        setProfiel(wie); setPlan(p.data); setLagen(l.data || []); setFasen(f.data || []); setItems(pasWachtrijToe(i.data || [])); setElementen(metTekeningen(b.data || []));
+        setProfiel(wie); setPlan(p.data); setLagen(l.data || []); setFasen(f.data || []); setItems(pasWachtrijToe(i.data || [])); setElementen(metTekeningen(inBereik(b.data || [], p.data.event_id || null, i.data)));
         try { localStorage.setItem(`fm-opbouw-${planId}`, JSON.stringify({ wie, plan: p.data, lagen: l.data, fasen: f.data, items: i.data, elementen: b.data, op: Date.now() })); } catch {}
         const tel = {};
         for (const x of ft.data || []) if (x.item_id) tel[x.item_id] = (tel[x.item_id] || 0) + 1;

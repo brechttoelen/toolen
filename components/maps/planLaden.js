@@ -1,7 +1,7 @@
 'use client';
 
 // Een plan laden zonder de editor (voor het exporttabblad): dezelfde gegevens als de editor gebruikt.
-import { maps, alles } from './db';
+import { maps, alles, inBereik } from './db';
 import { metTekeningen } from './tekeningen';
 import { laadVasteAansluitingen } from './vasteAansluitingen';
 
@@ -21,7 +21,7 @@ export async function laadPlanData(planId) {
   const ids = new Set(els.map((e) => e.id));
   const mist = [...new Set((i.data || []).map((it) => it.element_id).filter((id) => id && !ids.has(id)))];
   if (mist.length) { const r = await maps().from('bibliotheek').select('*').in('id', mist); if (!r.error && r.data) els = [...els, ...r.data]; }
-  els = metTekeningen(els).filter((x) => x.tekenwijze !== 'stijl');
+  els = metTekeningen(inBereik(els, p.data.event_id || null, i.data)).filter((x) => x.tekenwijze !== 'stijl');
   let vast = []; try { vast = await laadVasteAansluitingen(); } catch {}
   return { plan: p.data, lagen: l.data || [], fasen: f.data || [], items: i.data || [], elementenMap: new Map(els.map((e) => [e.id, e])), vast };
 }

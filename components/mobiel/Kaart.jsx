@@ -6,7 +6,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as turf from '@turf/turf';
-import { maps, alles, sb, BUCKET, foutTekst, magSchrijven, publiekeUrl } from '../maps/db';
+import { maps, alles, inBereik, sb, BUCKET, foutTekst, magSchrijven, publiekeUrl } from '../maps/db';
 import { basisStijl, registreerProtocollen, zetOndergrond, klapBronvermeldingIn, kiesFotoVl, ONDERGRONDEN } from '../maps/ondergronden';
 import { kaartLagen, naarGeojson, zorgVoorPatronen, maten, matenTekst } from '../maps/stijl';
 import { middelpunt, kader, getal, lengte, oppervlakte, verschuifGraden } from '../maps/geo';
@@ -152,7 +152,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
         const e = [p, l, f, i, b].find((r) => r.error);
         if (e) throw e.error;
         if (!p.data) throw new Error('Dit plan bestaat niet (meer).');
-        const d = { plan: p.data, lagen: l.data || [], fasen: f.data || [], items: i.data || [], elementen: b.data || [] };
+        const d = { plan: p.data, lagen: l.data || [], fasen: f.data || [], items: i.data || [], elementen: inBereik(b.data || [], p.data.event_id || null, i.data) };
         if (weg) return;
         setData({ ...d, elementen: metTekeningen(d.elementen) });
         setVeldpunten(v.data || []);
