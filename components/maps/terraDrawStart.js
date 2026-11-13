@@ -233,6 +233,7 @@ export default function terraDrawStart(ctx) {
           if (!m0._fmGreepWeg) { m0._fmGreepWeg = true; for (const l of GREEP_STIL) if (m0.getLayer(l)) m0.setLayoutProperty(l, 'visibility', 'none'); }
         });
       };
+      if (m0 && !m0._fmTdPid) { m0._fmTdPid = true; m0.getCanvas().addEventListener('pointerdown', (e) => { m0._fmPid = e.pointerId; }, true); }
       if (m0 && !m0._fmTdBeweeg) { m0._fmTdBeweeg = true; m0.on('mousemove', (e) => { if (e.originalEvent?.buttons) m0._fmTdVolg?.(); }); m0.on('touchmove', () => m0._fmTdVolg?.()); }
       // Losgelaten boven iets anders dan de kaart (paneel, knop, kaartje): Terra Draw krijgt dan geen 'loslaten' en het
       // knooppunt bleef aan de muis hangen. Het loslaten dan zelf aan de kaart doorgeven.

@@ -28,6 +28,9 @@ export default function slimSlepen(ctx) {
       const px = (c) => map.project(c);
       // Zelfde afstand als Terra Draw (pointerDistance): was die hier kleiner, dan greep Terra Draw het punt terwijl
       // wij de hele lijn begonnen te verslepen; de lijn volgde dan niet en sprong bij het loslaten.
+      // Tijdens het verslepen van een knooppunt blijft de muis bij de kaart: ook boven een kaartje, greep of paneel
+      // volgt het punt dan verder (anders bleef de lijn daar staan).
+      const vangMuis = () => { try { if (map._fmPid != null) map.getCanvas().setPointerCapture(map._fmPid); } catch {} };
       const nabijHoekpunt = (it, p) => {
         const g = it.geometrie;
         const c = g.type === 'LineString' ? g.coordinates : g.coordinates[0];
@@ -437,7 +440,7 @@ export default function slimSlepen(ctx) {
         }
         // Knooppunt van de geselecteerde lijn of vlak: altijd Terra Draw, ook als er een ander item bovenop ligt.
         { const sel0 = ids[0] ? s2.items.find((x) => x.id === ids[0]) : null;
-          if (sel0 && !vastItem(sel0) && sel0.geometrie && sel0.geometrie.type !== 'Point' && !(sel0.groep_id && !s2.iso) && nabijHoekpunt(sel0, e.point)) { map._fmTdKnoop = true; return; } }
+          if (sel0 && !vastItem(sel0) && sel0.geometrie && sel0.geometrie.type !== 'Point' && !(sel0.groep_id && !s2.iso) && nabijHoekpunt(sel0, e.point)) { map._fmTdKnoop = true; vangMuis(); return; } }
         const spookKlik = !(e.originalEvent.ctrlKey || e.originalEvent.metaKey || e.originalEvent.shiftKey) ? spookOp(e) : null;
         if (spookKlik?.midden) {
           // Middenbolletje: punt erbij en meteen slepen (afbuigen).
@@ -466,7 +469,7 @@ export default function slimSlepen(ctx) {
         const lijst = s2.items.filter((x) => (ids.includes(x.id) || (x.velden?.tentStuk && ids.includes(x.velden.tentStuk.tent) && !ids.includes(x.id))) && !vastItem(x) && x.geometrie);
         if (!lijst.length) return;
         const prim = lijst.find((x) => x.id === ids[0]);
-        if (prim && prim.geometrie.type !== 'Point' && raakSel && !(prim.groep_id && !s2.iso) && nabijHoekpunt(prim, e.point)) { map._fmTdKnoop = true; return; } // knooppunt: Terra Draw (niet in een gesloten groep)
+        if (prim && prim.geometrie.type !== 'Point' && raakSel && !(prim.groep_id && !s2.iso) && nabijHoekpunt(prim, e.point)) { map._fmTdKnoop = true; vangMuis(); return; } // knooppunt: Terra Draw (niet in een gesloten groep)
         // Wat je ziet telt: een stelling of wand getekend vanaf een ankerlijn grijp je ook bij de vakken, niet enkel bij de lijn.
         if (!lijst.some((it) => it.id === hit || raakt(it, e))) return;
         e.preventDefault();
