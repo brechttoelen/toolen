@@ -139,3 +139,79 @@ export function naarTekening(paden, mPerPt, { kleur = null, max = 8000 } = {}) {
   }
   return { b: r((c - a) * mPerPt), h: r((d - b) * mPerPt), lijnen, vlakken, teksten: [], afgekapt: paden.length > max };
 }
+
+// Witte achtergrond binnen de omtrek van een CAD-tekening (lokale meters): de vorm rond alle lijnen, met de
+// vakken ertussen dicht. Zo blijft het plan leesbaar op een luchtfoto en dekt het wat eronder ligt af.
+// Werkt op een raster: lijnen inkleuren, openingen dichten (verdikken, gaten vullen, weer verdunnen) en de
+// rand van wat overblijft als veelhoek teruggeven. Geeft vlakken voor de tekening ([] als er geen vorm is).
+export function achtergrondVlakken(lijnen, { vul = '#ffffff' } = {}) {
+  let a = Infinity; let b = Infinity; let c = -Infinity; let d = -Infinity;
+  for (const l of lijnen) for (const [x, y] of l.c) { if (x < a) a = x; if (y < b) b = y; if (x > c) c = x; if (y > d) d = y; }
+  if (!Number.isFinite(a)) return [];
+  const groot = Math.max(c - a, d - b); if (!(groot > 0)) return [];
+  // Openingen kleiner dan dit gaan dicht (vakken van een stelling of podium); grotere inhammen blijven open.
+  const rand = Math.max(1.5, Math.min(6, groot / 12));
+  const cel = Math.max(groot / 420, 0.05);
+  const R = Math.max(1, Math.ceil(rand / 2 / cel));
+  const M = R + 2; // marge rond de tekening
+  const W = Math.ceil((c - a) / cel) + 1 + 2 * M; const H = Math.ceil((d - b) / cel) + 1 + 2 * M;
+  const ix = (x) => Math.round((x - a) / cel) + M; const iy = (y) => Math.round((y - b) / cel) + M;
+  let g = new Uint8Array(W * H);
+  for (const l of lijnen) for (let i = 0; i < l.c.length; i++) {
+    const [x0, y0] = l.c[i]; g[iy(y0) * W + ix(x0)] = 1;
+    if (i + 1 < l.c.length) { const [x1, y1] = l.c[i + 1]; const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / (cel * 0.7)); for (let k = 1; k < n; k++) g[iy(y0 + ((y1 - y0) * k) / n) * W + ix(x0 + ((x1 - x0) * k) / n)] = 1; }
+  }
+  // Verdikken of verdunnen met een vierkant van R cellen: eerst per rij, dan per kolom.
+  const schuif = (bron, zoek) => {
+    const tus = new Uint8Array(W * H); const uit = new Uint8Array(W * H);
+    for (let y = 0; y < H; y++) { let laatst = -1e9; const rij = y * W;
+      for (let x = 0; x < W; x++) { if (bron[rij + x] === zoek) laatst = x; if (x - laatst <= R) tus[rij + x] = 1; }
+      laatst = 1e9; for (let x = W - 1; x >= 0; x--) { if (bron[rij + x] === zoek) laatst = x; if (laatst - x <= R) tus[rij + x] = 1; } }
+    for (let x = 0; x < W; x++) { let laatst = -1e9;
+      for (let y = 0; y < H; y++) { if (tus[y * W + x]) laatst = y; if (y - laatst <= R) uit[y * W + x] = 1; }
+      laatst = 1e9; for (let y = H - 1; y >= 0; y--) { if (tus[y * W + x]) laatst = y; if (laatst - y <= R) uit[y * W + x] = 1; } }
+    return uit; // 1 = binnen R cellen van een cel met waarde 'zoek'
+  };
+  g = schuif(g, 1);
+  // Gaten vullen: alles wat van buitenaf niet bereikbaar is, hoort bij de vorm.
+  const buiten = new Uint8Array(W * H); const rij = [0]; buiten[0] = 1;
+  while (rij.length) { const k = rij.pop(); const x = k % W; const y = (k - x) / W;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx; const ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const nk = ny * W + nx; if (!buiten[nk] && !g[nk]) { buiten[nk] = 1; rij.push(nk); } } }
+  // Weer verdunnen: wat binnen R cellen van 'buiten' ligt, valt weg.
+  const weg = schuif(buiten, 1);
+  const vol = (x, y) => x >= 0 && y >= 0 && x < W && y < H && !weg[y * W + x];
+  // Rand volgen: per gevulde cel de zijden naast een lege cel, met de klok mee, en die aan elkaar rijgen.
+  const randen = new Map(); const sleutel = (x, y) => y * (W + 1) + x;
+  const voeg = (x0, y0, x1, y1) => { const k = sleutel(x0, y0); const l = randen.get(k); if (l) l.push([x1, y1]); else randen.set(k, [[x1, y1]]); };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { if (!vol(x, y)) continue;
+    if (!vol(x, y - 1)) voeg(x + 1, y, x, y); if (!vol(x + 1, y)) voeg(x + 1, y + 1, x + 1, y); if (!vol(x, y + 1)) voeg(x, y + 1, x + 1, y + 1); if (!vol(x - 1, y)) voeg(x, y, x, y + 1); }
+  const r3 = (v) => Math.round(v * 1000) / 1000;
+  const uit = [];
+  for (const [start] of randen) {
+    while (randen.get(start)?.length) {
+      const lus = []; let k = start; let stop = 0;
+      while (randen.get(k)?.length && stop++ < 4 * W * H) { const x = k % (W + 1); const y = (k - x) / (W + 1); lus.push([x, y]); const [nx, ny] = randen.get(k).pop(); k = sleutel(nx, ny); if (k === start) break; }
+      if (lus.length < 4) continue;
+      // Rechte stukken samennemen, dan vereenvoudigen tot op één cel.
+      const m = lus.map(([x, y]) => [a + (x - M - 0.5) * cel, b + (y - M - 0.5) * cel]);
+      const eenv = vereenvoudig([...m, m[0]], cel * 1.2);
+      if (eenv.length > 3) uit.push({ r: [eenv.map(([x, y]) => [r3(x), r3(y)])], vul, lijn: null, d: 0, op: 1, achtergrond: true });
+    }
+  }
+  return uit;
+}
+// Douglas-Peucker op een gesloten ring (eerste punt = laatste punt).
+function vereenvoudig(ring, tol) {
+  const n = ring.length; if (n < 5) return ring;
+  // Splitsen op het verste punt van het begin, zodat beide helften een open lijn zijn.
+  let ver = 0; let vd = -1; for (let i = 1; i < n - 1; i++) { const dd = (ring[i][0] - ring[0][0]) ** 2 + (ring[i][1] - ring[0][1]) ** 2; if (dd > vd) { vd = dd; ver = i; } }
+  const dp = (pts) => {
+    const hou = new Uint8Array(pts.length); hou[0] = 1; hou[pts.length - 1] = 1; const st = [[0, pts.length - 1]];
+    while (st.length) { const [i0, i1] = st.pop(); const [x0, y0] = pts[i0]; const [x1, y1] = pts[i1]; const dx = x1 - x0; const dy = y1 - y0; const l = Math.hypot(dx, dy) || 1; let best = -1; let bd = tol;
+      for (let i = i0 + 1; i < i1; i++) { const dd = Math.abs((pts[i][0] - x0) * dy - (pts[i][1] - y0) * dx) / l; if (dd > bd) { bd = dd; best = i; } }
+      if (best > 0) { hou[best] = 1; st.push([i0, best], [best, i1]); } }
+    return pts.filter((_, i) => hou[i]);
+  };
+  const h1 = dp(ring.slice(0, ver + 1)); const h2 = dp(ring.slice(ver));
+  return [...h1, ...h2.slice(1)];
+}

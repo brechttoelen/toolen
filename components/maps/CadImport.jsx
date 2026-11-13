@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Info from './info';
-import { pdfVectoren, schoonOp, naarTekening } from './cadpdf';
+import { pdfVectoren, schoonOp, naarTekening, achtergrondVlakken } from './cadpdf';
 import { leesDxf } from './dxf';
 import { cadTekst, isCad } from './cad';
 
@@ -43,6 +43,7 @@ export default function CadImport({ onSluit, onKlaar, vervang = null }) {
   const [mPerE, setMPerE] = useState(null);       // meter per bron-eenheid
   const [schaalN, setSchaalN] = useState('');
   const [kleur, setKleur] = useState('origineel');
+  const [wit, setWit] = useState(true);            // witte achtergrond binnen de omtrek
   const [naam, setNaam] = useState(vervang?.naam || '');
   const [leverancier, setLeverancier] = useState(vervang?.leverancier || '');
   const canvasRef = useRef(null);
@@ -208,6 +209,7 @@ export default function CadImport({ onSluit, onKlaar, vervang = null }) {
     if (!mPerE || !zicht.length || !naam.trim()) return;
     const tk = naarTekening(zicht, mPerE, { kleur: kleur === 'origineel' ? (bron.soort === 'dxf' ? '#1d1d1b' : null) : kleur === 'zwart' ? '#1d1d1b' : kleur, max: MAX });
     delete tk.afgekapt;
+    if (wit) { try { tk.vlakken = [...achtergrondVlakken(tk.lijnen), ...tk.vlakken]; } catch {} }
     onKlaar({ naam: naam.trim(), leverancier: leverancier.trim() || null, tekening: tk, cad: { bestand: bron.naam, pagina: bron.soort === 'pdf' ? pagina : null, ingeladen: new Date().toISOString().slice(0, 10), lijnen: Math.min(zicht.length, MAX) } });
   };
 
@@ -298,6 +300,9 @@ export default function CadImport({ onSluit, onKlaar, vervang = null }) {
                     <option value="#E11D48">Rood</option>
                     <option value="#7C3AED">Paars</option>
                   </select>
+                </label>
+                <label className="fm-vink" title="Het object dekt af wat eronder ligt: de luchtfoto schijnt er niet door">
+                  <input type="checkbox" checked={wit} onChange={(e) => setWit(e.target.checked)} />Witte achtergrond binnen de omtrek
                 </label>
                 <div className="fm-sub" style={{ color: te ? '#B91C1C' : undefined }}>{zicht.length} lijnen{te ? ` · te veel, maximaal ${MAX}: maak een kleinere uitsnede of haal meer details weg` : ''}</div>
 
