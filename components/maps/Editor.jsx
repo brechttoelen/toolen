@@ -1857,6 +1857,13 @@ export default function Editor({ planId }) {
       map._fmSleepRaf = 0; const l2 = map._fmSleepNu; if (!l2 || !map.getSource('fm-sleep-v')) return;
       const eerste = (g) => (g?.type === 'Point' ? g.coordinates : g?.type === 'LineString' ? g.coordinates[0] : g?.type === 'Polygon' ? g.coordinates[0][0] : null);
       const laatste = (g) => (g?.type === 'LineString' ? g.coordinates[g.coordinates.length - 1] : g?.type === 'Polygon' ? g.coordinates[0][Math.floor(g.coordinates[0].length / 2)] : null);
+      const ring = (g) => (g?.type === 'LineString' ? g.coordinates : g?.type === 'Polygon' ? g.coordinates[0] : null);
+      const alleVerschoven = (g0, g1, dx, dy) => {
+        const r0 = ring(g0); const r1 = ring(g1); if (!r0 || !r1) return true;
+        if (r0.length !== r1.length) return false;
+        for (let i = 0; i < r0.length; i++) if (Math.abs(r1[i][0] - r0[i][0] - dx) > 1e-9 || Math.abs(r1[i][1] - r0[i][1] - dy) > 1e-9) return false;
+        return true;
+      };
       const sleutelL = l2.map((x) => x.id).join(',');
       let c = map._fmSleepCache;
       let d = null;
@@ -1867,6 +1874,8 @@ export default function Editor({ planId }) {
           // Ook het laatste punt moet even ver verschoven zijn: anders is het item gedraaid (een lijn heeft geen rot).
           const ok = l2.every((x, k) => { const p0 = eerste(c.basis[k].geometrie); const p1 = eerste(x.geometrie); const q0 = laatste(c.basis[k].geometrie); const q1 = laatste(x.geometrie); return p0 && p1 && Math.abs(p1[0] - p0[0] - dx) < 1e-9 && Math.abs(p1[1] - p0[1] - dy) < 1e-9
             && (!q0 || !q1 || (Math.abs(q1[0] - q0[0] - dx) < 1e-9 && Math.abs(q1[1] - q0[1] - dy) < 1e-9))
+            // Een punt midden in een lijn of vlak verslepen laat begin en einde staan: elk punt moet even ver verschoven zijn.
+            && alleVerschoven(c.basis[k].geometrie, x.geometrie, dx, dy)
             && (Number(x.parameters?.rot) || 0) === (Number(c.basis[k].parameters?.rot) || 0) && x.parameters?.breedte === c.basis[k].parameters?.breedte && x.parameters?.diepte === c.basis[k].parameters?.diepte
             // Een bocht verslepen verandert enkel de bogen, niet de punten: dan opnieuw tekenen.
             && JSON.stringify(x.parameters?.bogen || null) === JSON.stringify(c.basis[k].parameters?.bogen || null); });
