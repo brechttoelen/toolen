@@ -396,13 +396,14 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
       if (m.type === 'pagode' || m.type === 'vouw') {
         const tp = [(x0 + x1) / 2, m.B / 2, m.nok]; const c = [[x0, 0], [x1, 0], [x1, m.B], [x0, m.B]];
         // Pagode: hol puntdak (vlak aan de rand, steil naar de piek); vouwtent: rechte vlakken.
-        const nb = m.type === 'pagode' ? (mini ? 3 : 6) : 1; const zf = (f) => m.zijH + (m.nok - m.zijH) * (m.type === 'pagode' ? f ** 1.7 : f);
+        // Vouwtent (easy-up): het doek hangt licht door tussen de rand en de punt.
+        const nb = m.type === 'pagode' ? (mini ? 3 : 6) : (mini ? 2 : 4); const zf = (f) => m.zijH + (m.nok - m.zijH) * dakBol(m.type, f);
         const L2 = (a, f) => [a[0] + (tp[0] - a[0]) * f, a[1] + (tp[1] - a[1]) * f, zf(f)];
         for (let k = 0; k < 4; k++) {
           const p = c[k]; const q = c[(k + 1) % 4]; const kl = dk.streep && k % 2 ? { ...dk, kleur: dk.streep } : dk;
           for (let b = 0; b < nb; b++) { const f0 = b / nb; const f1 = (b + 1) / nb; dakVlak(b === nb - 1 ? [L2(p, f0), L2(q, f0), tp] : [L2(p, f0), L2(q, f0), L2(q, f1), L2(p, f1)], i, kl); }
         }
-        for (let k = 0; k < 4; k++) { const p = c[k]; const q = c[(k + 1) % 4]; vlak([[p[0], p[1], m.zijH], [q[0], q[1], m.zijH], [q[0], q[1], m.zijH - 0.22], [p[0], p[1], m.zijH - 0.22]], dk.kleur, '#9CA3AF', { fillOpacity: Math.max(0.6, dk.dekking), ...geen }); }
+        for (let k = 0; k < 4; k++) { const p = c[k]; const q = c[(k + 1) % 4]; const vb = m.type === 'vouw' ? 0.3 : 0.22; vlak([[p[0], p[1], m.zijH + 0.01], [q[0], q[1], m.zijH + 0.01], [q[0], q[1], m.zijH - vb], [p[0], p[1], m.zijH - vb]], dk.kleur, '#9CA3AF', { fillOpacity: Math.max(m.type === 'vouw' ? 0.95 : 0.6, dk.dekking), ...geen }); }
         if (m.type === 'pagode') lijn(tp, [tp[0], tp[1], m.nok + 0.35], alu, 2 * lw, -0.01);
       }
     }
@@ -410,17 +411,25 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
     // Constructie: staanders, dakliggers, gevelstaanders, dakrand.
     const spanten = Array.from({ length: m.n + 1 }, (_, k) => k * m.travee);
     for (const x of spanten) {
-      for (const y of [0, m.B]) lijn([x, y, 0], [x, y, m.zijH], alu, kolom, 0.01);
+      for (const y of [0, m.B]) lijn([x, y, 0], [x, y, m.zijH], m.type === 'vouw' ? VOUW_FRAME : alu, m.type === 'vouw' ? kolom * 0.5 : kolom, 0.01);
       if (m.type === 'kader' || m.type === 'boog') { const n = m.type === 'kader' ? 2 : 12; for (let k = 0; k < n; k++) { const y0 = (m.B * k) / n; const y1 = (m.B * (k + 1)) / n; lijn([x, y0, dakHoogte(m, x, y0)], [x, y1, dakHoogte(m, x, y1)], alu, kolom * 0.85, 'min'); } }
     }
-    for (const y of [0, m.B]) lijn([0, y, m.zijH], [m.L, y, m.zijH], alu, kolom * 0.7, 0.01);
+    if (m.type !== 'vouw') for (const y of [0, m.B]) lijn([0, y, m.zijH], [m.L, y, m.zijH], alu, kolom * 0.7, 0.01);
+    // Vouwtent: geen dakrandbalk maar een schaarframe tussen de poten, net onder het doek.
+    if (m.type === 'vouw' && !mini) for (let i = 0; i < m.n; i++) {
+      const x0 = i * m.travee; const x1 = x0 + m.travee; const hb = m.zijH - 0.06; const ho = m.zijH - 0.5;
+      for (const [a, b] of [[[x0, 0], [x1, 0]], [[x1, 0], [x1, m.B]], [[x1, m.B], [x0, m.B]], [[x0, m.B], [x0, 0]]]) {
+        const l = Math.hypot(b[0] - a[0], b[1] - a[1]); const n = Math.max(2, Math.round(l / 1.5));
+        for (let k = 0; k < n; k++) { const P = (f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; const p0 = P(k / n); const p1 = P((k + 1) / n); lijn([...p0, hb], [...p1, ho], VOUW_FRAME, kolom * 0.3, 0.02); lijn([...p0, ho], [...p1, hb], VOUW_FRAME, kolom * 0.3, 0.02); }
+      }
+    }
     if (m.type === 'kader') lijn([0, m.B / 2, m.nok], [m.L, m.B / 2, m.nok], alu, kolom * 0.6, 'min');
     if (m.type === 'kader' || m.type === 'boog') for (const sg of segs.filter((x) => (x.zijde === 'V' || x.zijde === 'A' || x.zijde === 'I') && !t.gevelVrij?.[x.zijde])) { const [x, y] = sg.b; if (y > 0.01 && y < m.B - 0.01) lijn([x, y, 0], [x, y, dakHoogte(m, x, y)], alu, kolom * 0.8, 0.01); }
     if (m.type === 'pagode' || m.type === 'vouw') for (let i = 0; i < m.n; i++) {
-      const x0 = i * m.travee; const x1 = x0 + m.travee; const tp = [(x0 + x1) / 2, m.B / 2, m.nok]; const nb = m.type === 'pagode' ? 6 : 1;
-      for (const [x, y] of [[x0, 0], [x1, 0], [x1, m.B], [x0, m.B]]) for (let b = 0; b < nb; b++) { const P = (f) => [x + (tp[0] - x) * f, y + (tp[1] - y) * f, m.zijH + (m.nok - m.zijH) * (m.type === 'pagode' ? f ** 1.7 : f)]; lijn(P(b / nb), P((b + 1) / nb), alu, kolom * 0.5, 0.02); }
+      const x0 = i * m.travee; const x1 = x0 + m.travee; const tp = [(x0 + x1) / 2, m.B / 2, m.nok]; const nb = m.type === 'pagode' ? 6 : 4;
+      for (const [x, y] of [[x0, 0], [x1, 0], [x1, m.B], [x0, m.B]]) for (let b = 0; b < nb; b++) { const P = (f) => [x + (tp[0] - x) * f, y + (tp[1] - y) * f, m.zijH + (m.nok - m.zijH) * dakBol(m.type, f)]; lijn(P(b / nb), P((b + 1) / nb), m.type === 'vouw' ? VOUW_FRAME : alu, kolom * (m.type === 'vouw' ? 0.25 : 0.5), 0.02); }
     }
-    if (!mini) for (const x of spanten) for (const y of [0, m.B]) { const v = S([x, y, 0]); prims.push({ k: 'voet', p: W3([x, y, 0]) }); lagen.push({ d: v[2] + 0.05, el: (k) => <rect key={k} x={v[0] - 5} y={v[1] - 2.5} width={10} height={5} fill="#6B7280" /> }); }
+    if (!mini && m.type !== 'vouw') for (const x of spanten) for (const y of [0, m.B]) { const v = S([x, y, 0]); prims.push({ k: 'voet', p: W3([x, y, 0]) }); lagen.push({ d: v[2] + 0.05, el: (k) => <rect key={k} x={v[0] - 5} y={v[1] - 2.5} width={10} height={5} fill="#6B7280" /> }); }
 
     }
     // Luifel aan een gevel
@@ -959,6 +968,9 @@ function groepMeldingen(m, groep) {
 }
 
 // Soort, breedte en lengte van de tent, en een tent ertegen: allemaal in de bouwer.
+// Dakprofiel van rand (0) naar punt (1): pagode hol en steil, vouwtent licht doorhangend, anders recht.
+const dakBol = (type, f) => (type === 'pagode' ? f ** 1.7 : type === 'vouw' ? f ** 1.3 : f);
+const VOUW_FRAME = '#2B2F36';
 const KORT_T = { kader: 'Kader', boog: 'Booghal', pagode: 'Pagode', vouw: 'Vouwtent', stretch: 'Stretch', sail: 'Sailcloth' };
 const tentLabel = (e) => { const ty = tentTypeVan(e); const mod = ty === 'kader' || ty === 'boog'; const tr = Number(e.breedte_m); return `${mod ? `${String(Number(e.diepte_m)).replace('.', ',')} m breed · travee ${String(tr).replace('.', ',')} m` : e.naam}${e.leverancier ? ` · ${e.leverancier}` : ''}`; };
 function tentLijst(elementen) { return elementen.filter((e) => e.actief !== false && !e.plan_id && isTentBouw(e)).sort((a, b) => (Number(a.diepte_m) || 0) - (Number(b.diepte_m) || 0) || (Number(a.breedte_m) || 0) - (Number(b.breedte_m) || 0) || String(a.leverancier || '').localeCompare(String(b.leverancier || ''), 'nl')); }

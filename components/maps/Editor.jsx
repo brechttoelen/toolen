@@ -5228,8 +5228,9 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                 onSluit={() => { const h = binnenScherm?.host; setBinnenScherm(null); setOvergang('uit'); setTimeout(() => setOvergang(''), 520); setTimeout(() => { syncTd(); if (h && st.current.items.some((x) => x.id === h)) { setGeselecteerd(h); setExtra([]); setTimeout(() => { try { tdRef.current?.selectFeature(h); } catch {} }, 60); } }, 30); }} />
             );
           })()}
+          <div className="fm-chipstapel">
           {schrijven && klembord?.items?.length > 0 && (
-            <div className="fm-metingen-chip fm-klembord-chip" style={{ top: metingen.length ? 48 : 12 }}>
+            <div className="fm-metingen-chip fm-klembord-chip">
               <span>{klembord.n} gekopieerd{klembord.van && klembord.van !== plan.naam ? ` uit ${klembord.van}` : ''}</span>
               <button onClick={() => plakRef.current?.()} title="Plakken waar je muis was, of in het midden (Ctrl V)">Plakken</button>
               <button onClick={() => { setKlembord(null); try { localStorage.removeItem('fm-klembord'); } catch {} }} aria-label="Klembord leegmaken">×</button>
@@ -5251,6 +5252,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
               <button onClick={() => setMetingen([])}>Alles wissen</button>
             </div>
           )}
+          </div>
           <div className="fm-onderbalk">
           {(melding || elementUitleg) && (
             <div className="fm-melding-kaart" role="status">

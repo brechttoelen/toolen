@@ -2475,3 +2475,15 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
   .fm-deel-powered { bottom: 6px; padding: 2px 7px; font-size: 10px; gap: 4px; background: rgba(255, 255, 255, .6); }
   .fm-deel-powered svg { width: 10px; height: 10px; }
 }
+
+/* Zwevende knoppen bovenaan de kaart: elk een eigen plek, niets over elkaar.
+   Links de laagknop, daaronder de meldingen (gekopieerd, metingen) onder elkaar; de selectiebalk rechts ervan. */
+.fm-chipstapel { position: absolute; left: calc(var(--fm-l, 0px) + 12px); top: 62px; z-index: 5; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+.fm-chipstapel > * { pointer-events: auto; }
+.fm-chipstapel .fm-metingen-chip { position: static; flex-wrap: wrap; max-width: 278px; }
+.fm-laagchip .knop { max-width: 260px; }
+.fm-contextbalk { left: calc(var(--fm-l, 0px) + 290px + (100% - var(--fm-l, 0px) - var(--fm-r, 0px) - 290px) / 2); max-width: calc(100% - var(--fm-l, 0px) - var(--fm-r, 0px) - 314px); top: 12px; }
+@media (max-width: 1250px) {
+  .fm-contextbalk { left: calc(var(--fm-l, 0px) + (100% - var(--fm-l, 0px) - var(--fm-r, 0px)) / 2); max-width: calc(100% - var(--fm-l, 0px) - var(--fm-r, 0px) - 24px); top: 60px; }
+  .fm-chipstapel { top: 132px; }
+}
