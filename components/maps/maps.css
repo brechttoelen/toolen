@@ -1569,7 +1569,7 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-link { background: none; border: 0; padding: 0; color: #1E3A8A; text-decoration: underline; cursor: pointer; font-size: inherit; }
 
-.fm-fblijst { max-width: 980px; width: 100%; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 12px; }
+.fm-fblijst { width: 100%; box-sizing: border-box; padding: 24px 40px 48px; display: flex; flex-direction: column; gap: 12px; }
 .fm-fblijst-kop h1 { margin: 0 0 4px; }
 .fm-fblijst-filter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .fm-fblijst-filter input { height: 28px; border: 1px solid var(--fm-rand2); padding: 0 8px; min-width: 220px; flex: 1; font: inherit; }

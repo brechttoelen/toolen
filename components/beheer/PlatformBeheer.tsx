@@ -92,7 +92,7 @@ export default function PlatformBeheer({ blad = "organisaties" }: { blad?: "orga
   if (blad === "organisaties" && (nieuw || open)) {
     const terug = () => { kies(null); setNieuw(false); };
     return (
-      <main className="t-inhoud" style={{ maxWidth: 1240, margin: 0, padding: "20px 32px 64px" }}>
+      <main className="t-inhoud" style={{ padding: "20px 40px 64px" }}>
         <button className="t-knop klein stil" style={{ marginBottom: 14 }} onClick={terug}>← Alle organisaties</button>
         {nieuw ? <NieuweOrganisatie pk={pk} onSluit={terug} onKlaar={() => laad()} />
           : open && <OrganisatieDetail key={open.id} pk={pk} org={orgs?.find((o) => o.id === open.id) || open} onSluit={terug} onGewijzigd={() => laad()} />}
@@ -101,7 +101,7 @@ export default function PlatformBeheer({ blad = "organisaties" }: { blad?: "orga
   }
 
   return (
-    <main className="t-inhoud" style={{ maxWidth: 1240, margin: 0, padding: "28px 32px 64px" }}>
+    <main className="t-inhoud" style={{ padding: "28px 40px 64px" }}>
       <div className="t-rij" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 300px" }}>
           <h1 className="t-titel">{blad === "pakketten" ? "Pakketten" : "Organisaties"}</h1>

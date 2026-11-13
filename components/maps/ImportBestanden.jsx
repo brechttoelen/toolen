@@ -62,7 +62,7 @@ export default function ImportBestanden() {
   const mis = rijen.filter((r) => r.fout && !r.gekopieerd_op).length;
 
   return (
-    <div className="fm" style={{ padding: 24, maxWidth: 900 }}>
+    <div className="fm" style={{ padding: '24px 40px' }}>
       <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 6px' }}>Bestanden importeren</h1>
       <p style={{ color: '#686D76', margin: '0 0 16px' }}>
         {rijen.length === 0 ? 'Er staan geen bestanden klaar (enkel zichtbaar voor platformbeheerders).' : `${klaar} van ${rijen.length} gekopieerd${mis ? ` · ${mis} met een fout` : ''}.`}

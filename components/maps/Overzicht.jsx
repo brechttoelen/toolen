@@ -160,7 +160,7 @@ export default function Overzicht() {
   return (
     <div className="fm" style={{ flex: 1, background: 'var(--t-vlak)', fontFamily: 'var(--font-sans)' }}>
       <AppDialogen />
-      <main style={{ padding: '28px 32px 48px', display: 'flex', flexDirection: 'column', gap: 28, maxWidth: 1360 }}>
+      <main style={{ padding: '28px 32px 48px', display: 'flex', flexDirection: 'column', gap: 28, width: '100%', boxSizing: 'border-box' }}>
         <header style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 14 }}>
           <div style={{ flex: '1 1 300px' }}>
             <p style={{ ...sub, margin: 0, fontSize: 13.5 }}>{eventDatum(vandaag).replace(/^(\w+)/, (d) => ({ Ma: 'Maandag', Di: 'Dinsdag', Wo: 'Woensdag', Do: 'Donderdag', Vr: 'Vrijdag', Za: 'Zaterdag', Zo: 'Zondag' }[d] || d))}</p>
