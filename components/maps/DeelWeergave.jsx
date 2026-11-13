@@ -333,7 +333,6 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
         <button className="fm-knop klein" aria-pressed={toonLagen} onClick={() => { setToonLagen((x) => !x); if (gsm) { setToonLijst(false); setGekozen(null); setToonStroom(false); } }}>{t.lagen}</button>
         {opties.pdf !== false && <button className="fm-knop klein rood" data-menuknop disabled={!!bezig} aria-expanded={pdfMenu} onClick={() => setPdfMenu((x) => !x)}>{bezig || t.pdf}</button>}
           <FeedbackKnop deelToken={token} klein />
-          {hs && !hs.toolen_verbergen && <a className="t-powered" href="https://toolen.be" target="_blank" rel="noreferrer" style={{ color: 'rgba(255,255,255,.82)', alignSelf: 'center' }}>Powered by <ToolenTeken op="navy" grootte={16} /><b style={{ color: '#fff' }}>Toolen Maps</b></a>}
         </div>
       </header>
       {pdfMenu && (
@@ -350,6 +349,7 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
       {offline && <div className="fm-melding info" style={{ margin: 0, borderRadius: 0 }}>Geen netwerk: je ziet de stand van {new Date(offline).toLocaleString('nl-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.</div>}
       <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
         <div ref={kaartRef} style={{ position: 'absolute', inset: 0 }} />
+        {hs && !hs.toolen_verbergen && <a className="t-powered fm-deel-powered" href="https://toolen.be" target="_blank" rel="noreferrer">Powered by <ToolenTeken op="licht" grootte={12} /><b>Toolen Maps</b></a>}
         {meet && <MeetPaneel taal={taal} punten={meetPunten} setPunten={setMeetPunten} vlak={meetVlak} setVlak={setMeetVlak} onSluit={() => { setMeet(false); setMeetPunten([]); }} />}
         {vpModus && <VeldpuntPaneel taal={taal} eigen={vpLijst.filter((o) => o.eigen && o.status === 'open')} onKies={(o) => { setVpModus(false); setVpPlek(null); setVpKeuze(o.id); mapRef.current?.easeTo({ center: o.punt, duration: 300 }); }} plek={vpPlek} setPlek={(p) => { setVpPlek(p); if (p) mapRef.current?.easeTo({ center: p, duration: 300 }); }} onBewaar={bewaarVeldpunt} onSluit={() => { setVpModus(false); setVpPlek(null); }} />}
         {vpKeuze && !vpModus && (() => { const o = vpLijst.find((x) => x.id === vpKeuze); if (!o) return null; return (

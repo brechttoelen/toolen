@@ -2384,3 +2384,9 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-ws-rechts .fm-ws-acties { flex-wrap: wrap; }
 .fm-gevel-rijen select { padding-left: 4px; padding-right: 16px; text-overflow: ellipsis; }
 .fm-gevel-plan { max-width: 100%; height: auto; }
+
+/* Deellink: "Powered by Toolen Maps" subtiel onderaan in het midden van de kaart. */
+.fm-deel-powered { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 2; gap: 5px; padding: 3px 9px; border-radius: 999px;
+  background: rgba(255, 255, 255, .72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #5b6b85; font-size: 11px; opacity: .85; }
+.fm-deel-powered:hover { opacity: 1; }
+.fm-deel-powered b { color: #22314f; font-weight: 600; }
