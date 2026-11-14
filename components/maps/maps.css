@@ -2487,3 +2487,17 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
   .fm-contextbalk { left: calc(var(--fm-l, 0px) + (100% - var(--fm-l, 0px) - var(--fm-r, 0px)) / 2); max-width: calc(100% - var(--fm-l, 0px) - var(--fm-r, 0px) - 24px); top: 60px; }
   .fm-chipstapel { top: 132px; }
 }
+
+/* Materiaal hier: lijstje op een punt of zone. */
+.fm-mh-lijst { display: flex; flex-direction: column; gap: 4px; }
+.fm-mh-rij { display: grid; grid-template-columns: minmax(0, 1fr) 64px 28px; gap: 6px; align-items: center; font-size: 12.5px; }
+.fm .fm-mh-rij input { height: 28px; text-align: right; padding: 0 6px; }
+.fm-mh-weg { width: 28px; height: 28px; border: 1px solid var(--fm-rand); border-radius: 6px; background: #fff; cursor: pointer; font-size: 15px; line-height: 1; color: #6b7280; }
+.fm-mh-weg:hover { color: #B4123A; border-color: #B4123A; }
+.fm-mh-zoek { position: relative; display: flex; flex-direction: column; gap: 4px; }
+.fm-mh-keuze { display: flex; flex-direction: column; border: 1px solid var(--fm-rand); border-radius: 6px; overflow: hidden; background: #fff; }
+.fm-mh-keuze button { display: flex; justify-content: space-between; gap: 8px; align-items: center; min-height: 30px; padding: 4px 8px; border: 0; border-top: 1px solid var(--fm-rand); background: #fff; cursor: pointer; font-size: 12.5px; text-align: left; }
+.fm-mh-keuze button:first-child { border-top: 0; }
+.fm-mh-keuze button:hover { background: var(--fm-aan-bg); }
+.fm-mh-keuze small { color: #6b7280; white-space: nowrap; }
+.fm-mh-stroom { display: flex; flex-direction: column; gap: 4px; }

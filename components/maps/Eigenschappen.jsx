@@ -1,5 +1,7 @@
 'use client';
 
+import MateriaalHierBlok from './MateriaalHierBlok';
+import { kanMateriaalHier } from './materiaalHier';
 import { DoekKnop } from './doekkiezer';
 import { isStellingBouw } from './stellingbouw';
 import { isCameraStelling, isLosseTvCamera, tvCamTekst, LENZEN, OPSTELLINGEN } from './tvcamera';
@@ -124,7 +126,7 @@ export function PlanAlgemeen({ plan, items, schrijven, onPlan, elementenMap }) {
 
 export default function Eigenschappen(props) {
   const { item, groepNaam = '', onGroepNaam = () => {}, groepAantal = 0, binnenplan = null, plan, lagen, fasen, elementen, doeken: alleDoeken = [], doekPenseel = null, onDoekPenseel = () => {}, elementenMap, lagenMap, items, schrijven,
-    onWijzig, onStijl, onGeometrie, onDupliceer, onVerwijder, onRaster, onLangsLijn, onAlsElement, onPlan, onZoom, onKabel, onActie, gekopieerdeStijl, plannen, fotos, uitgebreid = true, snelstijlen = [], vast = [], onMenu = null, iso = false } = props;
+    onWijzig, onStijl, onGeometrie, onDupliceer, onVerwijder, onRaster, onLangsLijn, onUittekenen = null, onAlsElement, onPlan, onZoom, onKabel, onActie, gekopieerdeStijl, plannen, fotos, uitgebreid = true, snelstijlen = [], vast = [], onMenu = null, iso = false } = props;
   const dragerVanOntwerp = (d) => d?.eigenschappen?.drager || 'hek';
   const doeken = alleDoeken.filter((d) => dragerVanOntwerp(d) === 'hek');
   const panelen = alleDoeken.filter(isPaneel);
@@ -1294,7 +1296,9 @@ export default function Eigenschappen(props) {
     // Binnen: tenten, units en vrije vlakken; geen stellingen, truss of wanden.
     const metBinnen = magModule('binnen') && !!binnenplan && !!(binnenplan.ruimte || (binnenplan.open && (['units', 'vormen'].includes(familie) || (familie === 'tenten' && isTentBouw(el)))));
     const stroomTab = familie === 'stroom' && magModule('stroom');
-    const standaard = isBouwer ? 'bouwer' : brandingJsx && (familie === 'branding' || panelenJsx) ? 'branding' : stroomTab ? 'stroom' : familie === 'vormen' && item.soort !== 'notitie' ? 'stijl' : 'in';
+    // Materiaal op deze plek zonder tekening (punt of zone): lijstje uit de bibliotheek.
+    const materiaalJsx = kanMateriaalHier(item, el) ? <MateriaalHierBlok item={item} elementen={elementen} elementenMap={elementenMap} items={items} vast={vast} ro={ro} metStroom={magModule('stroom')} onWijzig={onWijzig} onUittekenen={onUittekenen} /> : null;
+    const standaard = isBouwer ? 'bouwer' : brandingJsx && (familie === 'branding' || panelenJsx) ? 'branding' : stroomTab ? 'stroom' : item.velden?.materiaal?.length ? 'in' : familie === 'vormen' && item.soort !== 'notitie' ? 'stijl' : 'in';
     const tab = tabKeuze || standaard;
     const tabs = [(isBouwer || (!!el && isContainerDeel(el) && !!item.parameters?.midden)) && { k: 'bouwer', naam: cameraJsx ? 'Camera' : 'Bouwer' }, stroomTab && { k: 'stroom', naam: lichtJsx ? 'Licht' : 'Stroom' }, { k: 'in', naam: legTab ? 'Leggen' : 'Instellen' }, brandingJsx && { k: 'branding', naam: 'Branding' }, metBinnen && { k: 'binnen', naam: 'Binnen' }, metStijl && { k: 'stijl', naam: g.type === 'Point' && familie === 'vormen' ? 'Icoon' : 'Stijl' }, { k: 'meer', naam: 'Meer' }];
     return (
@@ -1309,7 +1313,7 @@ export default function Eigenschappen(props) {
         {tab === 'stroom' && lichtJsx}
         {tab === 'stroom' && <StroomSectie item={item} el={el} items={items} elementenMap={elementenMap} ro={ro} isLijn={isLijn} vast={vast} open
           onZet={(patch) => onWijzig({ velden: { ...velden, stroom: { ...(velden.stroom || {}), ...patch } } })} onKabel={onKabel} />}
-        {tab === 'in' && <>{!stroomTab && lichtJsx}{!metBinnen && binnenplanJsx}{instellenKop}{matenEnOpstelling}{!isBouwer && bouwerBlokken}{labelVinkjes && <div className="fm-sectie">{labelVinkjes}</div>}</>}
+        {tab === 'in' && <>{!stroomTab && lichtJsx}{!metBinnen && binnenplanJsx}{materiaalJsx}{instellenKop}{matenEnOpstelling}{!isBouwer && bouwerBlokken}{labelVinkjes && <div className="fm-sectie">{labelVinkjes}</div>}</>}
         {tab === 'binnen' && <div className="fm-sectie">{binnenplanJsx}</div>}
         {tab === 'stijl' && metStijl && renderStijl()}
         {tab === 'meer' && <>{!metStijl && renderStijl()}{meerBlokken}</>}

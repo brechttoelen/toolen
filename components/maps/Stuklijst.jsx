@@ -16,6 +16,7 @@ import { isWand, wandTelling, wandFrames, frameNaam, lengtesVanItem, naarMeterLi
 import { isTrussBouw, trussStukken, trussTelling, trussTypeVoor } from './trussbouw';
 import { isStellingBouw, stellingOmschrijving } from './stellingbouw';
 import { zitMeubel, naamMeubel } from './meubel';
+import { materiaalVan } from './materiaalHier';
 
 export function berekenStuklijst(items, elementen, lagen, actieveFase = null, std = null) {
   // Per regel onthouden uit welke items ze komt (r.ids): voor het materiaalscherm (doorklikken naar de kaart, leverancier wisselen).
@@ -36,6 +37,13 @@ export function berekenStuklijst(items, elementen, lagen, actieveFase = null, st
       const mb = it.velden?.meubel; const z = mb && !mb.stoel_huis ? zitMeubel(mb) : 0;
       if (z) { const r = perElement.get('vrij|meubel:stoel') || { naam: 'Stoel', categorie: 'Binnenruimte', leverancier: '', artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' }; r.aantal += z; perElement.set('vrij|meubel:stoel', r); }
       continue;
+    }
+    // Materiaal op deze plek zonder het uit te tekenen (velden.materiaal): telt als getekende stuks.
+    for (const mr of materiaalVan(it, elementen)) {
+      const e2 = mr.el; const hk2 = herkomstVan({ velden: {} }, e2, std);
+      const sl = `${e2.id}||h:${hk2}`;
+      const r = perElement.get(sl) || { naam: e2.naam, categorie: e2.categorie, leverancier: hk2, artikel_id: e2.artikel_id || null, aantal: 0, meter: 0, tekenwijze: e2.tekenwijze === 'lijn' ? 'punt' : e2.tekenwijze };
+      r.aantal += mr.aantal; perElement.set(sl, r);
     }
     const m = maten(it, el);
     if (m.capaciteit) capaciteit += m.capaciteit;
@@ -318,6 +326,13 @@ export function leverlijstRijen(items, elementen, lagen, fasen, leverancier, std
   const r = [['Element', 'Naam', 'Laag', 'Fasen', 'Aantal', 'Meter', 'Plaatsen', 'Weghalen', 'Breedtegraad', 'Lengtegraad', 'Google Maps', 'Notitie']];
   for (const it of items) {
     const el = it.element_id ? elementen.get(it.element_id) : null;
+    // Materiaal op een plek zonder tekening: één regel per soort, met de naam van de plek.
+    for (const mr of materiaalVan(it, elementen)) {
+      if (herkomstVan({ velden: {} }, mr.el, std) !== leverancier) continue;
+      const p2 = middelpunt(it.geometrie) || []; const v2 = it.velden || {};
+      r.push([mr.el.naam, it.naam || '', lagen.get(it.laag_id)?.naam || '', (it.fase_ids || []).map((f) => fasen.find((x) => x.id === f)?.naam).filter(Boolean).join(', '), mr.aantal, '', v2.opbouw || '', v2.afbraak || '',
+        p2[1] ? Number(p2[1].toFixed(6)) : '', p2[0] ? Number(p2[0].toFixed(6)) : '', p2[1] ? `https://www.google.com/maps?q=${p2[1].toFixed(6)},${p2[0].toFixed(6)}` : '', (it.notitie || '').replace(/\n/g, ' ')]);
+    }
     if (!el || herkomstVan(it, el, std) !== leverancier || el.eigenschappen?.huis) continue;
     const m = maten(it, el);
     const p = middelpunt(it.geometrie) || [];

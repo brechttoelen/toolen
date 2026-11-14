@@ -65,3 +65,25 @@ describe('stroom: twin van twee stroomgroepen', () => {
     expect(reken([bron('a', 100), bron('b', 100)]).bronnen.length).toBe(2);
   });
 });
+
+describe('materiaal op een plek zonder tekening', () => {
+  const punt = { type: 'Point', coordinates: [4, 51] };
+  const els = new Map([['doos', { id: 'doos', naam: 'Stekkerdoos', categorie: 'Elektriciteit', familie: 'stroom', tekenwijze: 'punt', eigenschappen: { stekkerdoos: true, ampere: 16 } }], ['frigo', { id: 'frigo', naam: 'Frigo', categorie: 'Horeca', tekenwijze: 'schaal', eigenschappen: { kw: 0.5 } }], ['tafel', { id: 'tafel', naam: 'Tafel', categorie: 'Meubilair', tekenwijze: 'schaal', eigenschappen: {} }]]);
+  it('Telt mee in de materiaallijst', async () => {
+    const { berekenStuklijst } = await import('../components/maps/Stuklijst.jsx');
+    const s = berekenStuklijst([{ id: 'p', soort: 'punt', naam: 'Perszaal', geometrie: punt, velden: { materiaal: [{ element_id: 'doos', aantal: 10 }, { element_id: 'tafel', aantal: 1 }] } }], els, new Map());
+    expect(s.elementen.find((e) => e.naam === 'Stekkerdoos').aantal).toBe(10);
+    expect(s.elementen.find((e) => e.naam === 'Tafel').aantal).toBe(1);
+  });
+  it('Het vermogen van het materiaal telt in de stroom en de plek wordt een verbruiker', async () => {
+    const { metMateriaal } = await import('../components/maps/materiaalHier.js');
+    const it0 = { id: 'p', soort: 'punt', naam: 'Perszaal', geometrie: punt, velden: {} };
+    const velden = metMateriaal(it0, [{ element_id: 'doos', aantal: 10 }, { element_id: 'frigo', aantal: 4 }], els);
+    expect(velden.stroom.rol).toBe('verbruiker'); expect(velden.stroom.kwMateriaal).toBe(2);
+    const bron = { id: 'g', naam: 'Generator', geometrie: punt, velden: { stroom: { rol: 'bron', kva: 20 } } };
+    const r = berekenStroom([bron, { ...it0, velden: { ...velden, stroom: { ...velden.stroom, voeding: 'g' } } }], els, { gelijktijdigheid: 1 });
+    expect(r.bronnen[0].kw).toBe(2);
+    // lijstje leeg: het vermogen verdwijnt weer
+    expect(metMateriaal({ ...it0, velden }, [], els).stroom.kwMateriaal).toBeUndefined();
+  });
+});

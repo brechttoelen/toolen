@@ -1,6 +1,7 @@
 'use client';
 
 // Stijlen, standaardlagen en de omzetting van items naar kaartlagen.
+import { materiaalVan, materiaalTekst } from './materiaalHier';
 import { isLichtmast, lichtVlekken } from './licht';
 import { tekeningFeatures, trapFeatures, plaatser } from './tekening';
 import { isKabelcam, kabelcamFeatures } from './kabelcam';
@@ -1601,7 +1602,9 @@ function tekenItem(it, { lagenMap, elementenMap, doek, toebehoren, doeknaam, hek
       }
       if (vorm === 'vlak' && s.vulpatroon === 'trap') vormen.push(...trapFeatures(it, basis, s.trap_richting || 'x', Number(s.trede) || 0.3));
     }
-    if (it.soort !== 'tekst' && s.label === true && (it.naam || el)) {
+    // Materiaal op deze plek (zonder tekening): altijd als label erbij, ook als het naamlabel uit staat.
+    const matT = it.velden?.materiaal?.length ? materiaalTekst(materiaalVan(it, elementenMap), 3) : '';
+    if (it.soort !== 'tekst' && (s.label === true || matT) && (it.naam || el || matT)) {
       const m = maten(it, el);
       const naam = it.naam || el?.naam || '';
       const extra = (el?.tekenwijze === 'lijn' || isRijpad(it, el)) && m.stuks != null ? `${getal(m.lengte)} m · ${m.stuks} st.${m.fietsen != null ? ` · ${m.fietsen} fietsen` : ''}` : '';
@@ -1611,7 +1614,7 @@ function tekenItem(it, { lagenMap, elementenMap, doek, toebehoren, doeknaam, hek
       } else {
         const p = middelpunt(g);
         const oppT = s.opp && vorm === 'vlak' ? `${getal(oppervlakte(g), 0)} m²` : '';
-        if (p) labels.push({ type: 'Feature', geometry: { type: 'Point', coordinates: p }, properties: { id: it.id, soort: 'label', punt: vorm === 'punt', label: [naam, extra, oppT].filter(Boolean).join('\n'), maat, kleur: s.kleur, tekstgrootte: Number(s.tekstgrootte) || 12, tekst_rot: vorm === 'vlak' ? Number(s.tekst_rot) || 0 : 0, vet: !!s.vet, cursief: !!s.cursief, achtergrond: !!s.achtergrond } });
+        if (p) labels.push({ type: 'Feature', geometry: { type: 'Point', coordinates: p }, properties: { id: it.id, soort: 'label', punt: vorm === 'punt', label: [naam, extra, oppT, matT].filter(Boolean).join('\n'), maat, kleur: s.kleur, tekstgrootte: Number(s.tekstgrootte) || 12, tekst_rot: vorm === 'vlak' ? Number(s.tekst_rot) || 0 : 0, vet: !!s.vet, cursief: !!s.cursief, achtergrond: !!s.achtergrond } });
       }
     }
     // Kabelcam: verreikers aan de uiteinden, de camera op de kabel met haar kijkhoek.

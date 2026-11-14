@@ -148,7 +148,8 @@ export function stroomVan(item, element) {
     // Kast zonder opgave: de stroomsterkte van zijn stekker.
     ampere: eigen.ampere ?? eig.ampere ?? (rol === 'kast' && ingang ? UITGANG_A[ingang] || null : null),
     ingang,
-    kw: eigen.kw ?? eig.kw ?? null,
+    // Materiaal op deze plek (velden.materiaal) telt mee: zijn vermogen komt bovenop wat hier zelf ingevuld is.
+    kw: Number(eigen.kwMateriaal) > 0 ? (Number(eigen.kw ?? eig.kw) || 0) + Number(eigen.kwMateriaal) : eigen.kw ?? eig.kw ?? null,
     fase: eigen.fase ?? (eig.fase || '3F'),
     voeding: eigen.voeding ?? null,
     van: eigen.van ?? null,

@@ -1,5 +1,6 @@
 'use client';
 
+import { materiaalVan } from './materiaalHier';
 import { getOrganisatie } from './merk';
 import { ToolenTeken } from '../ToolenLogo';
 import { tvCamTekst } from './tvcamera';
@@ -461,6 +462,12 @@ function DeelPopup({ item, laag, element, elementenMap, items = null, taal = 'nl
       {on3d && heeft3d(item, element) && <div className="blok"><Knop3D it={item} el={element} elementenMap={elementenMap} items={items} onOpen={on3d} tekst={t.drie || 'In 3D bekijken'} /></div>}
       {isStellingBouw(item) && <div className="blok"><DoorgangLijst st={item.velden.stelling} /></div>}
       {element && elementenMap && !heeft3d(item, element) && ontwerpenVan(item, element, elementenMap).length > 0 && <div className="blok"><OntwerpDuimen it={item} el={element} elementenMap={elementenMap} groot max={8} zijNamen={binnenTekst(taal)} tekst={binnenTekst(taal)} /></div>}
+      {elementenMap && materiaalVan(item, elementenMap).length > 0 && (
+        <div className="blok">
+          <div className="fm-kop">Materiaal hier</div>
+          {materiaalVan(item, elementenMap).map((r) => <div key={r.element_id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}><span>{r.el.naam}</span><strong>{r.aantal} ×</strong></div>)}
+        </div>
+      )}
       {opties.notities && <PopupInfo item={item} />}
       {opties.attesten !== false && item.velden?.attesten?.length > 0 && <div className="blok"><div className="fm-kop">{t.attesten}</div><AttestenLijst attesten={item.velden.attesten} /></div>}
       {opties.opmerkingen && (

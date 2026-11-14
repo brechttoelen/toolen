@@ -25,6 +25,7 @@ import { FAMILIE_NAAM, familieVan, familieVanElement } from './familie';
 import FeedbackKnop, { zetFeedbackContext } from './Feedback';
 import { deurPlek, lijnHeel, isDeurElement, deurLijnId, deurBreedte, deurPlaats, deurOpPlek, volgLijn, schuifOpening, herschikOpeningen, knipOpeningen, keerOpeningen } from './deur';
 import * as geo from './geo';
+import { materiaalVan, metMateriaal, rasterPlekken, kanUittekenen } from './materiaalHier';
 import * as turf from '@turf/turf';
 import { kaderVan, stelsel } from './groepschaal';
 import { isBouwElement } from './bouwerSignaal';
@@ -2649,6 +2650,22 @@ export default function Editor({ planId }) {
       tdRef.current?.addFeatures([tdFeature(it)]);
     }
   }, [maakItem, elementItem, laagVoorElement, tdFeature]);
+
+  // Materiaal op een plek (velden.materiaal) als echte elementen op de kaart zetten; het lijstje gaat weg.
+  const uittekenenMateriaal = useCallback((id) => {
+    const it = st.current.items.find((x) => x.id === id); if (!it) return;
+    const emap = new Map(st.current.elementen.map((e) => [e.id, e]));
+    const rijen = materiaalVan(it, emap); const midden = geo.middelpunt(it.geometrie);
+    if (!rijen.length || !midden) return;
+    let n = 0;
+    for (const p of rasterPlekken(rijen, midden)) {
+      const nieuw = maakItem({ laag_id: laagVoorElement(p.el), fase_ids: it.fase_ids || null, ...elementItem(p.el, p.c, 0) });
+      tdRef.current?.addFeatures([tdFeature(nieuw)]); n++;
+    }
+    const rest = (it.velden?.materiaal || []).filter((r) => { const e = emap.get(r.element_id); return e && !kanUittekenen(e); });
+    wijzigItem(id, { velden: metMateriaal(it, rest, emap) });
+    setMelding(`${n} stuks uitgetekend onder ${it.naam || 'de plek'}${rest.length ? ' · wat als lijn getekend wordt, blijft in het lijstje' : ''}.`);
+  }, [maakItem, elementItem, laagVoorElement, tdFeature, wijzigItem]);
 
   const zetGeometrie = useCallback((id, geometrie, parameters) => {
     const it = st.current.items.find((x) => x.id === id);
@@ -5557,7 +5574,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
               <Eigenschappen item={item} binnenplan={item?.geometrie?.type === 'Polygon' ? (binnen ? (item.id !== binnen.host && item.soort !== 'element' ? { ruimte: true } : null) : { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length }) : !binnen && isBinnenPunt(item) ? { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length } : null} groepNaam={item?.groep_id ? groepNaam(item.groep_id) : ''} onGroepNaam={(n) => item?.groep_id && zetGroepNaam(item.groep_id, n)} groepAantal={item?.groep_id ? items.filter((x) => x.groep_id === item.groep_id).length : 0} plan={plan} lagen={lagen} fasen={fasen} elementen={elementen} doeken={heeftModule('branding') ? doeken : GEEN_DOEKEN} doekPenseel={doekPenseel} onDoekPenseel={setDoekPenseel} elementenMap={elementenMap} lagenMap={lagenMap}
                 items={items} schrijven={schrijven && !slotInfo.current.slot && magWp(item)} uitgebreid={uitgebreid} vast={vast}
                 onWijzig={(patch) => { if (!item) return; if ('laag_id' in patch && item.groep_id) { for (const x of items.filter((y) => y.groep_id === item.groep_id)) wijzigItem(x.id, { laag_id: patch.laag_id }); const { laag_id, ...rest } = patch; if (Object.keys(rest).length) wijzigItem(item.id, rest); return; } wijzigItem(item.id, patch); if (patch.geometrie) { try { tdRef.current?.updateFeatureGeometry(item.id, geo.rondGeom(patch.geometrie)); } catch { setTimeout(syncTd, 0); } } }} onStijl={(patch) => item && wijzigItem(item.id, { stijl: { ...item.stijl, ...patch } })} onGeometrie={(g, p) => item && zetGeometrie(item.id, g, p)}
-                onDupliceer={() => item && dupliceer(item.id)} onVerwijder={() => item && verwijderItems([item.id])} onRaster={(r, k, x, y) => item && maakRaster(item.id, r, k, x, y)} onLangsLijn={(elId, interval) => item && langsLijn(item.id, elId, interval)}
+                onDupliceer={() => item && dupliceer(item.id)} onVerwijder={() => item && verwijderItems([item.id])} onRaster={(r, k, x, y) => item && maakRaster(item.id, r, k, x, y)} onLangsLijn={(elId, interval) => item && langsLijn(item.id, elId, interval)} onUittekenen={() => item && uittekenenMateriaal(item.id)}
                 onAlsElement={() => item && bewaarAlsElement(item.id)} onActie={(soort, arg) => (soort === 'plaatsfiche' ? item && naarPlaatsfiche(item.id) : actie(soort, arg))}
                 gekopieerdeStijl={stijlKlembord} plannen={anderePlannen} fotos={fotos} snelstijlen={snelstijlen} onPlan={wijzigPlanGecontroleerd} onZoom={() => zoomNaar(item)} onKabel={tekenKabel} onMenu={paneelActie} iso={!!iso} />
             </details>
@@ -5579,7 +5596,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
               onDupliceer={() => item && dupliceer(item.id)}
               onVerwijder={() => item && verwijderItems([item.id])}
               onRaster={(r, k, x, y) => item && maakRaster(item.id, r, k, x, y)}
-              onLangsLijn={(elId, interval) => item && langsLijn(item.id, elId, interval)}
+              onLangsLijn={(elId, interval) => item && langsLijn(item.id, elId, interval)} onUittekenen={() => item && uittekenenMateriaal(item.id)}
               onAlsElement={() => item && bewaarAlsElement(item.id)}
               onActie={(soort, arg) => (soort === 'plaatsfiche' ? item && naarPlaatsfiche(item.id) : actie(soort, arg))}
               gekopieerdeStijl={stijlKlembord} plannen={anderePlannen} fotos={fotos} snelstijlen={snelstijlen} vast={vast}
