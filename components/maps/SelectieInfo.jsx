@@ -49,8 +49,9 @@ export default function SelectieInfo({ sel, lagen, lagenMap, fasen, elementenMap
   const faseStaat = (id) => { const n = sel.filter((x) => x.fase_ids?.includes(id)).length; return n === 0 ? 'geen' : n === sel.length ? 'alle' : 'deels'; };
   return (
     <aside className="fm-eigenschappen">
-      <div className="fm-paneelkop"><span className="fm-paneelnaam">{sel.length} geselecteerd</span><button className="fm-sluit" aria-label="Selectie opheffen" onClick={onSluit}>×</button></div>
+      <div className="fm-paneelkop"><span className="fm-paneelnaam fm-familienaam">Selectie</span><button className="fm-sluit" aria-label="Selectie opheffen" onClick={onSluit}>×</button></div>
       <div className="fm-paneel-inhoud fm-selinfo">
+        <div className="fm-kern"><div className="groot">{sel.length} geselecteerd</div></div>
         <div className="fm-sectie">
           <div className="fm-kop">In de selectie</div>
           <table className="fm-tabel fm-selinfo-tabel">
@@ -127,10 +128,10 @@ export default function SelectieInfo({ sel, lagen, lagenMap, fasen, elementenMap
               </div>
             )}
             {sel.some((x) => x.element_id) && (
-              <div className="fm-veld">Geleverd door
+              <div className="fm-veld">Leverancier
                 <div className="fm-selinfo-rij">
                   <input aria-label="Geleverd door" value={herkomst} placeholder={herk.length === 1 ? herk[0] || 'leverancier uit de bibliotheek' : `${herk.length} verschillende`} onChange={(e) => setHerkomst(e.target.value)} />
-                  <button className="fm-knop klein" disabled={!herkomst.trim()} onClick={() => { const v = herkomst.trim(); zet((x) => (x.element_id && !x.vergrendeld ? { velden: { ...(x.velden || {}), herkomst: v } } : null)); setHerkomst(''); }}>Instellen</button>
+                  <button className="fm-knop klein" disabled={!herkomst.trim()} onClick={() => { const v = herkomst.trim(); zet((x) => (x.element_id && !x.vergrendeld ? { velden: { ...(x.velden || {}), herkomst: v } } : null)); setHerkomst(''); }}>Toepassen</button>
                 </div>
               </div>
             )}

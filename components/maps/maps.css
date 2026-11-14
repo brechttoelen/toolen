@@ -2503,3 +2503,21 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-mh-stroom { display: flex; flex-direction: column; gap: 4px; }
 .fm .fm-mh-rij input, .fm .fm-mh-zoek input { height: 30px; border: 1px solid var(--t-rand, #D5DCE6); border-radius: 6px; padding: 0 8px; font: inherit; font-size: 12.5px; background: #fff; box-shadow: none; -webkit-appearance: none; appearance: none; }
 .fm .fm-mh-rij input:focus, .fm .fm-mh-zoek input:focus { outline: 2px solid #108aed; outline-offset: -1px; border-color: transparent; }
+
+/* Rechterpaneel: één taal voor inklappen, knoppen en zoekvelden.
+   Inklappen: altijd een pijltje (hoofdblok vet, onderblok gewoon), nooit een kader met plusje. */
+.fm-meer { border: 0; }
+.fm-meer > summary { padding: 4px 0; font-size: 12px; font-weight: 500; color: var(--fm-zwart); }
+.fm-meer > summary::before, .fm-meer[open] > summary::before { content: ''; display: inline-block; width: 0; height: 0; border-left: 4px solid currentColor; border-top: 4px solid transparent; border-bottom: 4px solid transparent; margin-right: 7px; vertical-align: 1px; transition: transform .12s; }
+.fm-meer[open] > summary::before { transform: rotate(90deg); }
+.fm-meer[open] { padding-bottom: 4px; }
+.fm-meer > *:not(summary) { margin: 6px 0 0 11px; }
+/* Knoppen: de hoofdactie van een blok donker en over de volle breedte; al de rest klein met een rand, op eigen breedte. */
+.fm-eigenschappen .fm-knop.zwart { min-height: 34px; align-self: stretch; font-size: 12.5px; }
+.fm-eigenschappen .fm-blok-inhoud > .fm-knop:not(.zwart), .fm-eigenschappen .fm-sectie > .fm-knop:not(.zwart) { align-self: flex-start; }
+.fm-eigenschappen .fm-binnenknop .fm-knop { flex: 1; }
+/* Zoekvelden zoals de andere velden: dunne lichte rand. */
+.fm input[type=search] { height: 30px; border: 1px solid var(--t-rand, #D5DCE6); border-radius: 6px; padding: 0 8px; background: #fff; -webkit-appearance: none; appearance: none; box-shadow: none; }
+.fm input[type=search]:focus { outline: 2px solid #108aed; outline-offset: -1px; border-color: transparent; }
+/* "Laatst gewijzigd" staat onderaan het paneel, niet meer boven de naam. */
+.fm-eigenschappen > .fm-geschiedenis { border-bottom: 0; border-top: 1px solid var(--fm-rand); margin-top: auto; flex: none; }

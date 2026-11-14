@@ -1907,12 +1907,14 @@ export default function Editor({ planId }) {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const s = st.current;
+        // Met meerdere items geselecteerd of Ctrl/Shift ingedrukt (bijselecteren) geen kaartje: het dekt af wat je wil aanklikken.
+        const bij = e.originalEvent?.ctrlKey || e.originalEvent?.metaKey || e.originalEvent?.shiftKey || (selectieRef.current || []).length > 1;
         if (!s.schrijven || s.gereedschap !== 'selecteer' || s.brandPenseel || e.originalEvent?.buttons) { setZweef(null); licht(null); return; }
         // Zelfde regel als selecteren (hit.js): wat oplicht, is wat je met een klik selecteert.
         const id = hitOp(map, e.point, s.items)?.id;
         if (!id || id === s.geselecteerd) { setZweef(null); licht(null); zetCursor(map, 'licht', id ? 'move' : ''); return; }
         zetCursor(map, 'licht', 'pointer');
-        setZweef((z) => (z?.id === id ? z : { id, x: e.point.x, y: e.point.y }));
+        if (bij) setZweef(null); else setZweef((z) => (z?.id === id ? z : { id, x: e.point.x, y: e.point.y }));
         licht(id);
       });
     };
@@ -4628,6 +4630,26 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
   const paneelOpen = !volScherm && tab;
   const eigenschappenOpen = !volScherm && !!item;
   const veelSel = selectie.length > 1 && !groepSel; // meerdere losse items: selectiepaneel i.p.v. de eigenschappen van één
+  // Ligt wat je aanklikte onder het rechterpaneel, dan schuift de kaart zodat je het ziet. Niet terwijl de muisknop
+  // nog ingedrukt is (je sleept misschien): dan pas bij het loslaten.
+  const muisNeerRef = useRef(false);
+  useEffect(() => {
+    const neer = () => { muisNeerRef.current = true; }; const op = () => { muisNeerRef.current = false; };
+    window.addEventListener('pointerdown', neer, true); window.addEventListener('pointerup', op, true); window.addEventListener('pointercancel', op, true);
+    return () => { window.removeEventListener('pointerdown', neer, true); window.removeEventListener('pointerup', op, true); window.removeEventListener('pointercancel', op, true); };
+  }, []);
+  useEffect(() => {
+    const map = mapRef.current; if (!map || !geselecteerd || !eigenschappenOpen) return undefined;
+    const id = geselecteerd; let t2 = null;
+    const doe = () => {
+      if (muisNeerRef.current) { t2 = setTimeout(doe, 200); return; }
+      const it = st.current.items.find((x) => x.id === id); const c = it?.geometrie ? geo.middelpunt(it.geometrie) : null; if (!c || st.current.geselecteerd !== id) return;
+      const p = map.project(c); const W = map.getContainer().clientWidth; const grens = W - 320 - 30;
+      if (p.x > grens && p.x < W + 60 && p.y > 0 && p.y < map.getContainer().clientHeight) map.panBy([p.x - grens + 50, 0], { duration: 250 });
+    };
+    const t = setTimeout(doe, 250);
+    return () => { clearTimeout(t); clearTimeout(t2); };
+  }, [geselecteerd, eigenschappenOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const vastOpen = !volScherm && !!vastSel && !item;
   const plaatsOpen = schrijven && !volScherm && !item && gereedschap === 'element' && !!gekozenElement;
   const planOpen = !!plan && !volScherm && !item && !vastSel && !plaatsOpen && !binnen && planZicht;
@@ -5568,8 +5590,8 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
           <aside className="fm-eigenschappen">
             <div className="fm-paneelkop"><span className="fm-paneelnaam fm-familienaam">{isSign(item) ? `Bordpunt ${item.velden.sign.nr}` : FAMILIE_NAAM[familieVan(item, elementenMap.get(item.element_id))]}</span><button className="fm-sluit" aria-label="Selectie opheffen" onClick={() => { try { tdRef.current?.deselectFeature(item.id); } catch {} setGeselecteerd(null); setExtra([]); }}>×</button></div>
             <SlotBanner slot={slotInfo.current.slot} kijkers={slotInfo.current.kijkers} onToch={() => setOvername((o) => new Set([...o, item.id]))} />
-            <ItemGeschiedenis item={item} />
             {wrDetail}
+            <ItemGeschiedenis item={item} />
             <details className="fm-blok fm-wr-alles"><summary><span>Alle eigenschappen</span></summary>
               <Eigenschappen item={item} binnenplan={item?.geometrie?.type === 'Polygon' ? (binnen ? (item.id !== binnen.host && item.soort !== 'element' ? { ruimte: true } : null) : { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length }) : !binnen && isBinnenPunt(item) ? { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length } : null} groepNaam={item?.groep_id ? groepNaam(item.groep_id) : ''} onGroepNaam={(n) => item?.groep_id && zetGroepNaam(item.groep_id, n)} groepAantal={item?.groep_id ? items.filter((x) => x.groep_id === item.groep_id).length : 0} plan={plan} lagen={lagen} fasen={fasen} elementen={elementen} doeken={heeftModule('branding') ? doeken : GEEN_DOEKEN} doekPenseel={doekPenseel} onDoekPenseel={setDoekPenseel} elementenMap={elementenMap} lagenMap={lagenMap}
                 items={items} schrijven={schrijven && !slotInfo.current.slot && magWp(item)} uitgebreid={uitgebreid} vast={vast}
@@ -5584,7 +5606,6 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
           <aside className="fm-eigenschappen">
             <div className="fm-paneelkop"><span className="fm-paneelnaam fm-familienaam" title="Eigenschappen">{FAMILIE_NAAM[familieVan(item, elementenMap.get(item.element_id))]}</span><button className="fm-sluit" aria-label="Selectie opheffen" onClick={() => { try { tdRef.current?.deselectFeature(item.id); } catch {} setGeselecteerd(null); setExtra([]); }}>×</button></div>
             <SlotBanner slot={slotInfo.current.slot} kijkers={slotInfo.current.kijkers} onToch={() => setOvername((o) => new Set([...o, item.id]))} />
-            <ItemGeschiedenis item={item} />
             <Eigenschappen
               binnenplan={item?.geometrie?.type === 'Polygon' ? (binnen ? (item.id !== binnen.host && item.soort !== 'element' ? { ruimte: true } : null) : { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length }) : !binnen && isBinnenPunt(item) ? { open: () => gaNaarBinnenRef.current?.(item.id), aantal: items.filter((x) => x.velden?.binnen?.host === item.id).length } : null}
               groepNaam={item?.groep_id ? groepNaam(item.groep_id) : ''} onGroepNaam={(n) => item?.groep_id && zetGroepNaam(item.groep_id, n)} groepAantal={item?.groep_id ? items.filter((x) => x.groep_id === item.groep_id).length : 0}
@@ -5606,6 +5627,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
               onMenu={paneelActie} iso={!!iso}
             />
             {item?.geometrie && isSign(item) && <div className="fm-nav-onder"><NavKnoppen geometrie={item.geometrie} /></div>}
+            <ItemGeschiedenis item={item} />
           </aside>
         )}
       </div>

@@ -49,19 +49,21 @@ const SOORT = { punt: 'Punt', lijn: 'Lijn', vlak: 'Vlak', rechthoek: 'Rechthoek'
 // Invoerveld dat meteen (na een korte pauze in het typen) toepast, en ook bij
 // Enter of bij het verlaten van het veld.
 function Veld({ label, waarde, onBewaar, soort = 'text', uitgeschakeld, eenheid, rijen, ...rest }) {
-  const [w, setW] = useState(waarde ?? '');
+  // Getallen tonen met een komma, zoals overal in de tekst (6,06 in plaats van 6.06); typen mag met punt of komma.
+  const toon = (x) => (soort === 'number' && x !== '' && x != null ? String(x).replace('.', ',') : x ?? '');
+  const [w, setW] = useState(toon(waarde));
   const timer = useRef(null);
   const bewaardRef = useRef(waarde);
-  useEffect(() => { bewaardRef.current = waarde; if (!timer.current) setW(waarde ?? ''); }, [waarde]);
+  useEffect(() => { bewaardRef.current = waarde; if (!timer.current) setW(toon(waarde)); }, [waarde]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => clearTimeout(timer.current), []);
   const bewaar = (v = w, opBlur = true) => {
     clearTimeout(timer.current); timer.current = null;
-    if (String(v) === String(bewaardRef.current ?? '')) return;
+    if (String(v).replace(',', '.') === String(bewaardRef.current ?? '').replace(',', '.')) return;
     if (soort === 'number') {
       const t = String(v).replace(',', '.').trim();
       if (t === '') { if (opBlur) { bewaardRef.current = ''; onBewaar(0); } return; }
       const n = Number(t);
-      if (Number.isFinite(n)) { bewaardRef.current = n; onBewaar(n); } else if (opBlur) setW(waarde ?? '');
+      if (Number.isFinite(n)) { bewaardRef.current = n; onBewaar(n); } else if (opBlur) setW(toon(waarde));
     } else { bewaardRef.current = v; onBewaar(v); }
   };
   const props = {
@@ -74,7 +76,7 @@ function Veld({ label, waarde, onBewaar, soort = 'text', uitgeschakeld, eenheid,
       timer.current = setTimeout(() => bewaar(v, false), soort === 'number' ? 450 : 700);
     },
     onBlur: () => bewaar(w, true),
-    onKeyDown: (e) => { if (e.key === 'Enter' && !rijen) { e.currentTarget.blur(); } if (e.key === 'Escape') { setW(waarde ?? ''); } },
+    onKeyDown: (e) => { if (e.key === 'Enter' && !rijen) { e.currentTarget.blur(); } if (e.key === 'Escape') { setW(toon(waarde)); } },
     ...rest,
   };
   return (
@@ -823,7 +825,7 @@ export default function Eigenschappen(props) {
           {opstelling.map((x, i) => <Fragment key={i}>{x}</Fragment>)}
         </Blok>
       )}
-      <Blok titel={legTab ? 'Leggen' : 'Maten'} open={legTab || !(item.soort === 'element' && el?.tekenwijze === 'lijn')}>
+      <Blok titel={legTab ? 'Leggen' : g.type === 'Point' ? 'Plaats' : 'Maten'} open={legTab || !(item.soort === 'element' && el?.tekenwijze === 'lijn')}>
         {el?.varianten?.length > 0 && (
           <label className="fm-veld">Variant
             <select value={velden.variant || ''} disabled={ro} onChange={(e) => {
@@ -839,7 +841,8 @@ export default function Eigenschappen(props) {
             </select>
           </label>
         )}
-        {matenTekst(m) && <div style={{ fontSize: 13 }}>{matenTekst(m)}</div>}
+        {/* De maat staat al groot in de kop: hier enkel als ze daar niet staat. */}
+        {matenTekst(m) && !parametrisch && !`${kern.groot || ''} ${kern.klein || ''}`.includes(matenTekst(m)) && <div style={{ fontSize: 13 }}>{matenTekst(m)}</div>}
         {parametrisch && (
           <div className="fm-raster3">
             <Veld label="Breedte" eenheid="m" soort="number" waarde={geo.rond(p.breedte, 2)} uitgeschakeld={ro || !!el?.omtrek}
@@ -1075,7 +1078,7 @@ export default function Eigenschappen(props) {
           )}
           {/* Gele vlag enkel op een paal (punt) of een lijn zonder toebehoren; op hekken is het een toebehoren. */}
           {((g.type === 'Point' && (!el || /paal|post|vlag/i.test(`${el.naam} ${el.categorie || ''}`))) || isLijn) && !(item.soort === 'element' && el?.tekenwijze === 'lijn' && Number(el.eenheid_m) > 0 && isLijn && toebehorenVan(el).length > 0) && (
-            <div className="fm-veld">Gele vlag<Info>Een gele vlag op de kop van een paal: op het begin of het einde van een lijn (hek, paal en net), of op een punt zoals een materiaalpost. Op een ander knooppunt van een lijn: rechtsklik op dat punt.</Info>
+            <div className="fm-veld"><span>Gele vlag<Info>Een gele vlag op de kop van een paal: op het begin of het einde van een lijn (hek, paal en net), of op een punt zoals een materiaalpost. Op een ander knooppunt van een lijn: rechtsklik op dat punt.</Info></span>
               {g.type === 'Point'
                 ? <label className="fm-vink"><input type="checkbox" disabled={ro} checked={!!p.vlag} onChange={(e) => onWijzig({ parameters: { ...p, vlag: e.target.checked || undefined } })} />Gele vlag erop</label>
                 : <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -1298,9 +1301,10 @@ export default function Eigenschappen(props) {
     const stroomTab = familie === 'stroom' && magModule('stroom');
     // Materiaal op deze plek zonder tekening (punt of zone): lijstje uit de bibliotheek.
     const materiaalJsx = kanMateriaalHier(item, el) ? <MateriaalHierBlok item={item} elementen={elementen} elementenMap={elementenMap} items={items} vast={vast} ro={ro} metStroom={magModule('stroom')} onWijzig={onWijzig} onUittekenen={onUittekenen} /> : null;
-    const standaard = isBouwer ? 'bouwer' : brandingJsx && (familie === 'branding' || panelenJsx) ? 'branding' : stroomTab ? 'stroom' : item.velden?.materiaal?.length ? 'in' : familie === 'vormen' && item.soort !== 'notitie' ? 'stijl' : 'in';
+    const standaard = isBouwer ? 'bouwer' : brandingJsx && (familie === 'branding' || panelenJsx) ? 'branding' : stroomTab ? 'stroom' : 'in';
     const tab = tabKeuze || standaard;
-    const tabs = [(isBouwer || (!!el && isContainerDeel(el) && !!item.parameters?.midden)) && { k: 'bouwer', naam: cameraJsx ? 'Camera' : 'Bouwer' }, stroomTab && { k: 'stroom', naam: lichtJsx ? 'Licht' : 'Stroom' }, { k: 'in', naam: legTab ? 'Leggen' : 'Instellen' }, brandingJsx && { k: 'branding', naam: 'Branding' }, metBinnen && { k: 'binnen', naam: 'Binnen' }, metStijl && { k: 'stijl', naam: g.type === 'Point' && familie === 'vormen' ? 'Icoon' : 'Stijl' }, { k: 'meer', naam: 'Meer' }];
+    // Geen tab voor één knop: de containerbouwer en het binnenplan staan onder Instellen.
+    const tabs = [isBouwer && { k: 'bouwer', naam: cameraJsx ? 'Camera' : 'Bouwer' }, stroomTab && { k: 'stroom', naam: lichtJsx ? 'Licht' : 'Stroom' }, { k: 'in', naam: legTab ? 'Leggen' : 'Instellen' }, brandingJsx && { k: 'branding', naam: 'Branding' }, metStijl && { k: 'stijl', naam: g.type === 'Point' && familie === 'vormen' ? 'Icoon' : 'Stijl' }, { k: 'meer', naam: 'Meer' }];
     return (
       <div className="fm-paneel2" data-familie={familie}>
         <PaneelKop std={plan?.instellingen?.leveranciers || null} item={item} el={el} elementen={elementen} lagen={lagen} fasen={fasen} items={items} elementenMap={elementenMap} schrijven={schrijven}
@@ -1313,7 +1317,7 @@ export default function Eigenschappen(props) {
         {tab === 'stroom' && lichtJsx}
         {tab === 'stroom' && <StroomSectie item={item} el={el} items={items} elementenMap={elementenMap} ro={ro} isLijn={isLijn} vast={vast} open
           onZet={(patch) => onWijzig({ velden: { ...velden, stroom: { ...(velden.stroom || {}), ...patch } } })} onKabel={onKabel} />}
-        {tab === 'in' && <>{!stroomTab && lichtJsx}{!metBinnen && binnenplanJsx}{materiaalJsx}{instellenKop}{matenEnOpstelling}{!isBouwer && bouwerBlokken}{labelVinkjes && <div className="fm-sectie">{labelVinkjes}</div>}</>}
+        {tab === 'in' && <>{!stroomTab && lichtJsx}{metBinnen ? <div className="fm-sectie">{binnenplanJsx}</div> : binnenplanJsx}{materiaalJsx}{instellenKop}{matenEnOpstelling}{!isBouwer && bouwerBlokken}{labelVinkjes && <div className="fm-sectie">{labelVinkjes}</div>}</>}
         {tab === 'binnen' && <div className="fm-sectie">{binnenplanJsx}</div>}
         {tab === 'stijl' && metStijl && renderStijl()}
         {tab === 'meer' && <>{!metStijl && renderStijl()}{meerBlokken}</>}
