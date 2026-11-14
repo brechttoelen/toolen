@@ -6,7 +6,7 @@
 // startLive({ client, planId, sleutel, onItem, onWeg, onLaag, onPlan, onStatus, onAanwezig, onMuis })
 //  -> { stop(), deel(state), muis(lngLat|null) }
 
-export function startLive({ client, planId, sleutel, onItem, onWeg, onLaag, onPlan, onStatus, onAanwezig, onMuis, onBericht }) {
+export function startLive({ client, planId, sleutel, onItem, onWeg, onLaag, onPlan, onStatus, onAanwezig, onMuis, onBericht, onOpmerking }) {
   let kanaal = null;
   let gestopt = false;
   let ooitVerbonden = false;
@@ -30,6 +30,7 @@ export function startLive({ client, planId, sleutel, onItem, onWeg, onLaag, onPl
       .on('postgres_changes', { event: '*', schema: 'maps', table: 'items_prullenbak', filter: `plan_id=eq.${planId}` }, (p) => { if (p.table === 'items_prullenbak' && p.new?.id && !p.new.teruggezet_op) onWeg?.(p.new); })
       .on('postgres_changes', { event: '*', schema: 'maps', table: 'lagen', filter: `plan_id=eq.${planId}` }, (p) => { if (p.table === 'lagen') onLaag?.(p.eventType, p.new, p.old); })
       .on('postgres_changes', { event: 'UPDATE', schema: 'maps', table: 'plannen', filter: `id=eq.${planId}` }, (p) => { if (p.table === 'plannen' && p.new?.id) onPlan?.(p.new); })
+      .on('postgres_changes', { event: '*', schema: 'maps', table: 'opmerkingen', filter: `plan_id=eq.${planId}` }, (p) => { if (p.table === 'opmerkingen') onOpmerking?.(p.new); })
       .on('presence', { event: 'sync' }, () => { if (k === kanaal) onAanwezig?.(k.presenceState()); })
       .on('broadcast', { event: 'muis' }, ({ payload }) => onMuis?.(payload))
       .on('broadcast', { event: 'bericht' }, ({ payload }) => onBericht?.(payload))

@@ -8,7 +8,7 @@ import './kaartwerker';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as turf from '@turf/turf';
 import './maps.css';
-import { maps, alles, inBereik, sb, BUCKET, foutTekst, wieBenIk, magSchrijven, publiekeUrl as publiekeUrlOp } from './db';
+import { maps, alles, inBereik, sb, BUCKET, foutTekst, wieBenIk, magSchrijven, publiekeUrl as publiekeUrlOp, haalBibliotheek } from './db';
 import { basisStijl, registreerProtocollen, WA_TEGEL, klapBronvermeldingIn, kiesFotoVl, fotoVlTegel } from './ondergronden';
 import { kaartLagen, naarGeojson, zorgVoorPatronen, maten, matenTekst, doekenPerHek, isTotem, isVlag, isVlagHek, totemPanelen, trussDoek } from './stijl';
 import { middelpunt, kader, getal } from './geo';
@@ -44,7 +44,7 @@ export default function OpbouwModus({ planId }) {
           maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
           maps().from('fasen').select('*').eq('plan_id', planId).order('volgorde'),
           alles(() => maps().from('items').select('*').eq('plan_id', planId).order('volgorde')),
-          alles(() => maps().from('bibliotheek').select('*').or(`plan_id.is.null,plan_id.eq.${planId}`)),
+          haalBibliotheek(planId, { enkelActief: false }),
           maps().from('bestanden').select('item_id').eq('plan_id', planId).eq('soort', 'foto'),
         ]);
         const e = [p, l, f, i, b].find((r) => r.error);

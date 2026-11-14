@@ -17,12 +17,11 @@
 //  - Stratenkaart: OpenStreetMap, enkel op het scherm (geen drukwerk, geen voorladen).
 import * as maplibregl from 'maplibre-gl';
 import './kaartwerker';
+import { ADRES, VL_KVP } from './bronadressen';
 
-const VL = 'https://geo.api.vlaanderen.be';
 // Wallonië: transparant buiten het gewest, anders legt het een wit vlak over de buren.
-export const WA_TEGEL = (bbox) => `https://geoservices.wallonie.be/arcgis/rest/services/IMAGERIE/ORTHO_LAST/MapServer/export?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&f=image`;
-const KVP = (dienst, laag) =>
-  `${VL}/${dienst}/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${laag}&STYLE=&FORMAT=image/png&TILEMATRIXSET=GoogleMapsVL&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
+export const WA_TEGEL = (bbox) => ADRES['wa-ortho'].replace('{bbox-epsg-3857}', bbox);
+const KVP = VL_KVP;
 
 // [west, zuid, oost, noord]
 export const GEBIED = {
@@ -82,32 +81,32 @@ export const BRONNEN = {
   },
   'fr-ortho': {
     type: 'raster', tileSize: 256, minzoom: REGIO_MINZOOM, maxzoom: 20, bounds: GEBIED.fr,
-    tiles: ['wit://https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],
+    tiles: [`wit://${ADRES['fr-ortho']}`],
     attribution: '© IGN – BD ORTHO',
   },
   'nrw-ortho': {
     type: 'raster', tileSize: 256, minzoom: REGIO_MINZOOM, maxzoom: 20, bounds: GEBIED.nrw,
-    tiles: ['https://www.wms.nrw.de/geobasis/wms_nw_dop?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=nw_dop_rgb&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=TRUE'],
+    tiles: [ADRES['nrw-ortho']],
     attribution: '© Geobasis NRW (dl-de/zero-2-0)',
   },
   'lu-ortho': {
     type: 'raster', tileSize: 256, minzoom: REGIO_MINZOOM, maxzoom: 20, bounds: GEBIED.lu,
-    tiles: ['wit://https://wmts1.geoportail.lu/opendata/wmts/ortho_latest/GLOBAL_WEBMERCATOR_4_V3/{z}/{x}/{y}.jpeg'],
+    tiles: [`wit://${ADRES['lu-ortho']}`],
     attribution: '© Geoportail Luxembourg',
   },
   'ch-ortho': {
     type: 'raster', tileSize: 256, minzoom: REGIO_MINZOOM, maxzoom: 20, bounds: GEBIED.ch,
-    tiles: ['wit://https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg'],
+    tiles: [`wit://${ADRES['ch-ortho']}`],
     attribution: '© swisstopo',
   },
   'at-ortho': {
     type: 'raster', tileSize: 256, minzoom: REGIO_MINZOOM, maxzoom: 19, bounds: GEBIED.at,
-    tiles: ['wit://https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg'],
+    tiles: [`wit://${ADRES['at-ortho']}`],
     attribution: '© basemap.at',
   },
   'es-ortho': {
     type: 'raster', tileSize: 256, minzoom: REGIO_MINZOOM, maxzoom: 20, bounds: GEBIED.es,
-    tiles: ['wit://https://www.ign.es/wmts/pnoa-ma?request=GetTile&service=WMTS&VERSION=1.0.0&Layer=OI.OrthoimageCoverage&Style=default&Format=image/jpeg&TileMatrixSet=GoogleMapsCompatible&TileMatrix={z}&TileRow={y}&TileCol={x}'],
+    tiles: [`wit://${ADRES['es-ortho']}`],
     attribution: 'PNOA © scne.es',
   },
   ...(ESRI ? { esri: {
@@ -118,11 +117,11 @@ export const BRONNEN = {
   } } : {}),
   s2: {
     type: 'raster', tileSize: 256, maxzoom: 15,
-    tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg'],
+    tiles: [ADRES.s2],
     attribution: 'Sentinel-2 cloudless 2016 © EOX IT Services (Copernicus Sentinel-gegevens 2016)',
   },
   osm: {
-    type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19,
+    type: 'raster', tiles: [ADRES.osm], tileSize: 256, maxzoom: 19,
     attribution: '© OpenStreetMap-bijdragers',
   },
 };
@@ -240,13 +239,13 @@ export function registreerProtocollen() {
   maplibregl.addProtocol('pdok', async (params, abort) => {
     const [, laag, z, x, y] = params.url.match(/^pdok:\/\/([^/]+)\/(\d+)\/(\d+)\/(\d+)/) || [];
     const zz = String(z).padStart(2, '0');
-    const url = `https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/${laag}/EPSG:3857/${zz}/${x}/${y}.jpeg`;
+    const url = ADRES['nl-ortho'].replace('Actueel_orthoHR', laag).replace('{zz}', zz).replace('{x}', x).replace('{y}', y);
     return { data: await witWeg(url, abort) };
   });
   // Tegels die buiten hun gebied wit zijn: wit doorzichtig maken.
   maplibregl.addProtocol('wit', async (params, abort) => ({ data: await witWeg(params.url.slice(6), abort) }));
   maplibregl.addProtocol('ofmjson', async (params, abort) => {
-    const r = await fetch('https://tiles.openfreemap.org/planet', { signal: abort.signal });
+    const r = await fetch(ADRES.ofm, { signal: abort.signal });
     if (!r.ok) throw new Error(`TileJSON ${r.status}`);
     const j = await r.json();
     return { data: { ...j, attribution: OFM_TEKST } };

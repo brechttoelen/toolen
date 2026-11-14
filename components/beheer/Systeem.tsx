@@ -7,6 +7,7 @@ import WachtwoordMails from "./WachtwoordMails";
 import Vrijgave from "./Vrijgave";
 import Fouten, { type FoutGroep } from "./Fouten";
 import Backups, { type Backup } from "./Backups";
+import Kaartbronnen, { type Kaartbron } from "./Kaartbronnen";
 import { REPO as REPO_NAAM } from "@/lib/vrijgave";
 import { HOOFDDOMEIN } from "@/lib/org";
 
@@ -41,7 +42,8 @@ const vol = (n: number, max: number | null) => max != null && n >= max * 0.9;
 // Systeempagina voor de platformbeheerder: versie, databank, gebruik per organisatie, signalen en updates.
 export default async function Systeem() {
   const supabase = await supabaseServer();
-  const [{ data, error }, lijst, { data: zonderWw }, { data: fouten }, { data: backups }] = await Promise.all([supabase.rpc("platform_systeem"), updates(), supabase.rpc("platform_zonder_wachtwoord"), supabase.rpc("platform_fouten"), supabase.rpc("platform_backups")]);
+  const [{ data, error }, lijst, { data: zonderWw }, { data: fouten }, { data: backups }, { data: bronnen }] = await Promise.all([supabase.rpc("platform_systeem"), updates(), supabase.rpc("platform_zonder_wachtwoord"), supabase.rpc("platform_fouten"), supabase.rpc("platform_backups"), supabase.rpc("platform_kaartbronnen")]);
+  const bronUitval = ((bronnen as Kaartbron[] | null) || []).filter((b) => !b.ok);
   const zonder = (zonderWw || []) as { user_id: string; email: string; organisatie: string }[];
   const sleutel = adminIngesteld(); const dienst = mailDienst(); const mail = !!dienst;
   const c = data as Cijfers | null;
@@ -60,6 +62,7 @@ export default async function Systeem() {
         <Vrijgave repo={REPO_NAAM} testAdres={process.env.NEXT_PUBLIC_TEST_ADRES || `https://login.test.${HOOFDDOMEIN.replace(/^test\./, "")}`} />
         <Fouten begin={(fouten as FoutGroep[] | null) || []} />
         <Backups begin={(backups as Backup[] | null) || []} />
+        <Kaartbronnen begin={(bronnen as Kaartbron[] | null) || []} />
         <section className="t-kaart t-sys-vak">
           <h2>Versie</h2>
           <dl className="t-sys-feiten">
@@ -89,6 +92,7 @@ export default async function Systeem() {
         <section className="t-kaart t-sys-vak">
           <h2>Vraagt aandacht</h2>
           <ul className="t-sys-lijst">
+            {bronUitval.length > 0 && <li><b>{bronUitval.length === 1 ? "Een kaartbron valt uit" : `${bronUitval.length} kaartbronnen vallen uit`}</b>: {bronUitval.map((b) => b.naam).join(", ")}. Zie Kaartbronnen hierboven.</li>}
             {(c?.wissels || []).length > 0
               ? c!.wissels.map((w) => <li key={w.email}><b>{w.email}</b> werd {w.aantal}× afgemeld door een derde apparaat (laatst {datum(w.laatst)}). Mogelijk een gedeeld account.</li>)
               : <li className="t-stil">Geen accounts die op meer dan twee apparaten tegelijk gebruikt worden (30 dagen).</li>}

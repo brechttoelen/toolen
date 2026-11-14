@@ -56,7 +56,7 @@ async function route(req: NextRequest) {
 
   // Sessie verversen (Supabase SSR), enkel als er een sessie-cookie is.
   const heeftSessie = req.cookies.getAll().some((c) => c.name.startsWith("sb-"));
-  if (heeftSessie && supabaseIngesteld()) {
+  if (heeftSessie && supabaseIngesteld() && sessieBijnaVerlopen(req)) {
     try {
       // Dynamisch geladen: een fout in de Supabase-bibliotheek kan de site nooit laten vallen.
       const { createServerClient } = await import("@supabase/ssr");
@@ -75,6 +75,22 @@ async function route(req: NextRequest) {
     }
   }
   return res;
+}
+
+// Verversen kost bij elke paginavraag een aanroep naar de databank. Het hoeft enkel als de sessie binnen
+// 10 minuten verloopt: de vervaltijd staat in de cookie zelf. Is die niet te lezen, dan verversen zoals vroeger.
+function sessieBijnaVerlopen(req: NextRequest): boolean {
+  try {
+    const stukken = req.cookies.getAll().filter((c) => /^sb-.*-auth-token(\.\d+)?$/.test(c.name) || /^sb-toolen-test(\.\d+)?$/.test(c.name))
+      .sort((a, b) => Number(a.name.split(".").pop()) - Number(b.name.split(".").pop()) || 0);
+    if (!stukken.length) return true;
+    let tekst = stukken.map((c) => c.value).join("");
+    if (tekst.startsWith("base64-")) tekst = atob(tekst.slice(7).replace(/-/g, "+").replace(/_/g, "/"));
+    else tekst = decodeURIComponent(tekst);
+    const tot = Number((JSON.parse(tekst) as { expires_at?: number }).expires_at);
+    if (!Number.isFinite(tot) || tot <= 0) return true;
+    return tot * 1000 - Date.now() < 10 * 60 * 1000;
+  } catch { return true; }
 }
 
 export const config = {

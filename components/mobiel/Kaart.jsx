@@ -7,7 +7,7 @@ import * as maplibregl from 'maplibre-gl';
 import '../maps/kaartwerker';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as turf from '@turf/turf';
-import { maps, alles, inBereik, sb, BUCKET, foutTekst, magSchrijven, publiekeUrl } from '../maps/db';
+import { maps, alles, inBereik, sb, BUCKET, foutTekst, magSchrijven, publiekeUrl, haalBibliotheek } from '../maps/db';
 import { basisStijl, registreerProtocollen, zetOndergrond, klapBronvermeldingIn, kiesFotoVl, ONDERGRONDEN } from '../maps/ondergronden';
 import { kaartLagen, naarGeojson, zorgVoorPatronen, maten, matenTekst } from '../maps/stijl';
 import { middelpunt, kader, getal, lengte, oppervlakte, verschuifGraden } from '../maps/geo';
@@ -147,7 +147,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
           maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
           maps().from('fasen').select('*').eq('plan_id', planId).order('volgorde'),
           alles(() => maps().from('items').select('*').eq('plan_id', planId).order('volgorde')),
-          alles(() => maps().from('bibliotheek').select('*').or(`plan_id.is.null,plan_id.eq.${planId}`)),
+          haalBibliotheek(planId, { enkelActief: false }),
           maps().from('opmerkingen').select('id, tekst, auteur_naam, status, punt, item_id, created_at').eq('plan_id', planId).not('punt', 'is', null).order('created_at'),
         ]);
         const e = [p, l, f, i, b].find((r) => r.error);

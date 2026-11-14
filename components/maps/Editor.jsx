@@ -12,7 +12,7 @@ import * as maplibregl from 'maplibre-gl';
 import './kaartwerker';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './maps.css';
-import { maps, alles, inBereik, sb, BUCKET, foutTekst, wieBenIk, magSchrijven as kanSchrijven, namenVan, publiekeUrl } from './db';
+import { maps, alles, inBereik, sb, BUCKET, foutTekst, wieBenIk, magSchrijven as kanSchrijven, namenVan, publiekeUrl, haalBibliotheek, opIds } from './db';
 import { maakBewaarder, verschil as itemVerschil, pasPatchToe, gelijk, instellingenOpdrachten } from './bewaren';
 import Botsingen from './Botsingen';
 import { startLive, startLobby } from './live';
@@ -365,7 +365,7 @@ export default function Editor({ planId }) {
           maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
           maps().from('fasen').select('*').eq('plan_id', planId).order('volgorde'),
           alles(() => maps().from('items').select('*').eq('plan_id', planId).order('volgorde')),
-          alles(() => maps().from('bibliotheek').select('*').eq('actief', true).or(`plan_id.is.null,plan_id.eq.${planId}`).order('categorie').order('naam')),
+          haalBibliotheek(planId),
         ]);
         const eerste = [p, l, f, i, b].find((r) => r.error);
         if (eerste) throw eerste.error;
@@ -443,7 +443,7 @@ export default function Editor({ planId }) {
     let laatst = Date.now();
     const haal = async () => {
       laatst = Date.now();
-      const b = await alles(() => maps().from('bibliotheek').select('*').eq('actief', true).or(`plan_id.is.null,plan_id.eq.${planId}`).order('categorie').order('naam'));
+      const b = await haalBibliotheek(planId);
       if (b.error || !b.data) return;
       const l = metTekeningen(inBereik(await metOudeElementen(b.data, st.current.items), st.current.plan?.event_id || null, st.current.items));
       setElementen(l.filter((x) => x.tekenwijze !== 'stijl' && x.tekenwijze !== 'doek'));
@@ -707,24 +707,35 @@ export default function Editor({ planId }) {
     });
   }, []);
   // Na een onderbreking alles ophalen wat gemist werd.
-  const herlaadStand = useRef({ t: 0, bezig: false, wacht: null });
+  const veldLaadRef = useRef(null); const veldWacht = useRef(null);
+  const herlaadStand = useRef({ t: 0, bezig: false, wacht: null, uitgesteld: false });
   const herlaad = useCallback(async () => {
     // Hoogstens om de 20 s en nooit twee keer tegelijk: bij een haperende verbinding anders telkens het hele plan opnieuw.
     const hs = herlaadStand.current;
+    // Tabblad op de achtergrond: wachten tot je terugkomt (anders haalt een vergeten tabblad urenlang gegevens op).
+    if (document.visibilityState === 'hidden') { hs.uitgesteld = true; return; }
+    hs.uitgesteld = false;
     const over = 20000 - (Date.now() - hs.t);
     if (hs.bezig || over > 0) { clearTimeout(hs.wacht); hs.wacht = setTimeout(() => herlaadRef.current?.(), Math.max(over, 2000)); return; }
     hs.bezig = true; hs.t = Date.now();
     try { await herlaadNuRef.current(); } finally { hs.bezig = false; hs.t = Date.now(); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const herlaadNu = useCallback(async () => {
+    // Eerst een korte lijst (id + versie), dan enkel de items ophalen die nieuw of gewijzigd zijn.
     const [i, l, p] = await Promise.all([
-      alles(() => maps().from('items').select('*').eq('plan_id', planId)),
+      alles(() => maps().from('items').select('id, rev').eq('plan_id', planId)),
       maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
       maps().from('plannen').select('*').eq('id', planId).maybeSingle(),
     ]);
     if (i.error || !i.data) return;
     const op = new Set(i.data.map((x) => x.id));
-    for (const r of i.data) ontvangItem(r);
+    const gekend = new Map(st.current.items.map((x) => [x.id, x.rev ?? 0]));
+    const nodig = i.data.filter((r) => !gekend.has(r.id) || (r.rev ?? 0) > gekend.get(r.id)).map((r) => r.id);
+    if (nodig.length) {
+      const vers = await opIds('items', nodig);
+      if (vers.error || !vers.data) return;
+      for (const r of vers.data) ontvangItem(r);
+    }
     const weg = st.current.items.filter((x) => !op.has(x.id) && bewaarder.current.basis.has(x.id)).map((x) => x.id);
     if (weg.length) {
       bewaarder.current.vergeet(weg);
@@ -737,7 +748,11 @@ export default function Editor({ planId }) {
   }, [planId, ontvangItem, ontvangLaag, ontvangPlan, naExtern]);
   const herlaadNuRef = useRef(herlaadNu); herlaadNuRef.current = herlaadNu;
   const herlaadRef = useRef(herlaad); herlaadRef.current = herlaad;
-  useEffect(() => () => clearTimeout(herlaadStand.current.wacht), []);
+  useEffect(() => {
+    const terug = () => { if (document.visibilityState === 'visible' && herlaadStand.current.uitgesteld) herlaadRef.current?.(); };
+    document.addEventListener('visibilitychange', terug);
+    return () => { document.removeEventListener('visibilitychange', terug); clearTimeout(herlaadStand.current.wacht); }; // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (laden || !profiel?.id || !planId) return undefined;
@@ -749,6 +764,7 @@ export default function Editor({ planId }) {
       onAanwezig: (state) => aanwezigRef.current?.(state),
       onMuis: (m) => muisRef.current?.(m),
       onBericht: (m) => berichtRef.current?.(m),
+      onOpmerking: () => { clearTimeout(veldWacht.current); veldWacht.current = setTimeout(() => veldLaadRef.current?.(), 800); },
     });
     liveRef.current = live;
     const lobby = startLobby({ client: sb(), sleutel: `${profiel.id}:${tab}`, orgId: plan?.organisatie_id });
@@ -3372,8 +3388,11 @@ export default function Editor({ planId }) {
   useEffect(() => {
     if (!planId) return undefined; let weg = false;
     const laad = () => maps().from('opmerkingen').select('*').eq('plan_id', planId).not('punt', 'is', null).order('created_at').then(({ data }) => { if (weg || !data) return; setVeldpunten((oud) => { const n = data.filter((o) => o.status === 'open' && !oud.some((x) => x.id === o.id)).length; if (n) setTimeout(() => setMelding(`${n} ${n === 1 ? 'nieuw veldpunt' : 'nieuwe veldpunten'} van het terrein op het plan (oranje). Klik erop om in te tekenen.`), 0); return data; }); });
-    laad(); const t = setInterval(laad, 60000); const f = () => laad(); window.addEventListener('focus', f);
-    return () => { weg = true; clearInterval(t); window.removeEventListener('focus', f); };
+    // Nieuwe veldpunten komen via de live verbinding (zie startLive, onOpmerking). Als vangnet nog om de 10 minuten,
+    // en als je terugkomt naar dit tabblad.
+    veldLaadRef.current = laad;
+    laad(); const t = setInterval(() => { if (document.visibilityState !== 'hidden') laad(); }, 600000); const f = () => laad(); window.addEventListener('focus', f);
+    return () => { weg = true; veldLaadRef.current = null; clearInterval(t); window.removeEventListener('focus', f); };
   }, [planId]);
   useEffect(() => {
     const map = mapRef.current; if (!map || !kaartKlaar) return undefined;

@@ -4,5 +4,8 @@
   "regions": [
     "fra1"
   ],
-  "ignoreCommand": "sh scripts/bouwen-nodig.sh"
+  "ignoreCommand": "sh scripts/bouwen-nodig.sh",
+  "crons": [
+    { "path": "/api/platform/kaartbronnen", "schedule": "20 5 * * *" }
+  ]
 }

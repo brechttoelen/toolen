@@ -8,6 +8,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import { cookieOpties } from '@/lib/supabase/cookie';
 import { SUPABASE_URL, SUPABASE_KEY } from '@/lib/supabase/env';
 import { fetchMetOrganisatie } from '@/lib/supabase/orgfetch';
+import { getOrganisatie } from './merk';
 
 const URL = SUPABASE_URL;
 const KEY = SUPABASE_KEY;
@@ -106,4 +107,81 @@ export async function alles(maak, stap = 1000) {
     data.push(...(r.data || []));
     if (!r.data || r.data.length < stap) return { data, error: null };
   }
+}
+
+// Volledige rijen op id, in stukken (een lange lijst past niet in één adres).
+export async function opIds(tabel, ids, stap = 80) {
+  const data = [];
+  for (let i = 0; i < ids.length; i += stap) {
+    const r = await maps().from(tabel).select('*').in('id', ids.slice(i, i + stap));
+    if (r.error) return { data: null, error: r.error };
+    data.push(...(r.data || []));
+  }
+  return { data, error: null };
+}
+
+// ---------- Bibliotheek met geheugen in de browser ----------
+// De bibliotheek is groot en wijzigt zelden. Bij elk plan alles opnieuw ophalen kost tijd en dataverkeer.
+// Daarom: eerst een korte lijst (id + laatst gewijzigd), dan enkel de rijen ophalen die nieuw of gewijzigd zijn;
+// de rest komt uit IndexedDB. Per organisatie en per gebruiker (de databank beslist wie wat ziet).
+// Lukt het geheugen niet (privévenster, oude browser), dan gewoon alles ophalen zoals vroeger.
+function bibOpslag(modus, doe) {
+  return new Promise((klaar, mis) => {
+    let open;
+    try { open = indexedDB.open('toolen-bibliotheek', 1); } catch (e) { mis(e); return; }
+    open.onupgradeneeded = () => { try { open.result.createObjectStore('rijen'); } catch {} };
+    open.onerror = () => mis(open.error);
+    open.onsuccess = () => {
+      const d = open.result;
+      try {
+        const tx = d.transaction('rijen', modus);
+        const v = doe(tx.objectStore('rijen'));
+        tx.oncomplete = () => { d.close(); klaar(v?.result); };
+        tx.onerror = tx.onabort = () => { d.close(); mis(tx.error); };
+      } catch (e) { try { d.close(); } catch {} mis(e); }
+    };
+  });
+}
+
+export async function haalBibliotheek(planId, { enkelActief = true } = {}) {
+  const vraag = (kolommen) => () => {
+    let q = maps().from('bibliotheek').select(kolommen);
+    if (enkelActief) q = q.eq('actief', true);
+    return q.or(`plan_id.is.null,plan_id.eq.${planId}`).order('categorie').order('naam');
+  };
+  const alles_ = () => alles(vraag('*'));
+  let sleutel = null;
+  try {
+    if (typeof indexedDB === 'undefined') return alles_();
+    const { data } = await sb().auth.getSession();
+    const uid = data?.session?.user?.id;
+    if (!uid) return alles_();
+    sleutel = `${getOrganisatie()?.slug || '-'}:${uid}`;
+  } catch { return alles_(); }
+
+  let bewaard = null;
+  try { bewaard = await bibOpslag('readonly', (o) => o.get(sleutel)); } catch { return alles_(); }
+  const oud = bewaard?.rijen instanceof Map ? bewaard.rijen : null;
+  // Nog niets bewaard: alles in één keer (sneller dan lijst + rijen) en bewaren.
+  if (!oud || !oud.size) {
+    const r = await alles_();
+    if (!r.error && r.data) bibOpslag('readwrite', (o) => o.put({ rijen: new Map(r.data.map((x) => [x.id, x])) }, sleutel)).catch(() => {});
+    return r;
+  }
+  const kort = await alles(vraag('id, updated_at'));
+  if (kort.error || !kort.data) return alles_();
+  const nodig = kort.data.filter((k) => oud.get(k.id)?.updated_at !== k.updated_at).map((k) => k.id);
+  // Bijna alles anders (andere organisatie-inhoud, grote import): dan is één volledige vraag lichter.
+  if (nodig.length > 300) {
+    const r = await alles_();
+    if (!r.error && r.data) bibOpslag('readwrite', (o) => o.put({ rijen: new Map(r.data.map((x) => [x.id, x])) }, sleutel)).catch(() => {});
+    return r;
+  }
+  const vers = nodig.length ? await opIds('bibliotheek', nodig) : { data: [], error: null };
+  if (vers.error) return alles_();
+  const nieuw = new Map(vers.data.map((x) => [x.id, x]));
+  // Volgorde van de databank (categorie, naam) behouden. Een rij die tussen de twee vragen verdween, valt weg.
+  const data = kort.data.map((k) => nieuw.get(k.id) || (oud.get(k.id)?.updated_at === k.updated_at ? oud.get(k.id) : null)).filter(Boolean);
+  if (nodig.length || data.length !== oud.size) bibOpslag('readwrite', (o) => o.put({ rijen: new Map(data.map((x) => [x.id, x])) }, sleutel)).catch(() => {});
+  return { data, error: null };
 }
