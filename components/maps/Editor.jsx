@@ -1897,6 +1897,28 @@ export default function Editor({ planId }) {
     });
   };
 
+  // (Hooks: vóór de vroege returns van dit onderdeel houden.)
+  // Ligt wat je aanklikte onder het rechterpaneel, dan schuift de kaart zodat je het ziet. Niet terwijl de muisknop
+  // nog ingedrukt is (je sleept misschien): dan pas bij het loslaten.
+  const muisNeerRef = useRef(false);
+  useEffect(() => {
+    const neer = () => { muisNeerRef.current = true; }; const op = () => { muisNeerRef.current = false; };
+    window.addEventListener('pointerdown', neer, true); window.addEventListener('pointerup', op, true); window.addEventListener('pointercancel', op, true);
+    return () => { window.removeEventListener('pointerdown', neer, true); window.removeEventListener('pointerup', op, true); window.removeEventListener('pointercancel', op, true); };
+  }, []);
+  useEffect(() => {
+    const map = mapRef.current; if (!map || !geselecteerd || volScherm) return undefined;
+    const id = geselecteerd; let t2 = null;
+    const doe = () => {
+      if (muisNeerRef.current) { t2 = setTimeout(doe, 200); return; }
+      const it = st.current.items.find((x) => x.id === id); const c = it?.geometrie ? geo.middelpunt(it.geometrie) : null; if (!c || st.current.geselecteerd !== id) return;
+      const p = map.project(c); const W = map.getContainer().clientWidth; const grens = W - 320 - 30;
+      if (p.x > grens && p.x < W + 60 && p.y > 0 && p.y < map.getContainer().clientHeight) map.panBy([p.x - grens + 50, 0], { duration: 250 });
+    };
+    const t = setTimeout(doe, 250);
+    return () => { clearTimeout(t); clearTimeout(t2); };
+  }, [geselecteerd, volScherm]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---------- Zweefkaartje: essentiële info bij hoveren (bewerkmodus) ----------
   useEffect(() => {
     const map = mapRef.current;
@@ -4630,26 +4652,6 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
   const paneelOpen = !volScherm && tab;
   const eigenschappenOpen = !volScherm && !!item;
   const veelSel = selectie.length > 1 && !groepSel; // meerdere losse items: selectiepaneel i.p.v. de eigenschappen van één
-  // Ligt wat je aanklikte onder het rechterpaneel, dan schuift de kaart zodat je het ziet. Niet terwijl de muisknop
-  // nog ingedrukt is (je sleept misschien): dan pas bij het loslaten.
-  const muisNeerRef = useRef(false);
-  useEffect(() => {
-    const neer = () => { muisNeerRef.current = true; }; const op = () => { muisNeerRef.current = false; };
-    window.addEventListener('pointerdown', neer, true); window.addEventListener('pointerup', op, true); window.addEventListener('pointercancel', op, true);
-    return () => { window.removeEventListener('pointerdown', neer, true); window.removeEventListener('pointerup', op, true); window.removeEventListener('pointercancel', op, true); };
-  }, []);
-  useEffect(() => {
-    const map = mapRef.current; if (!map || !geselecteerd || !eigenschappenOpen) return undefined;
-    const id = geselecteerd; let t2 = null;
-    const doe = () => {
-      if (muisNeerRef.current) { t2 = setTimeout(doe, 200); return; }
-      const it = st.current.items.find((x) => x.id === id); const c = it?.geometrie ? geo.middelpunt(it.geometrie) : null; if (!c || st.current.geselecteerd !== id) return;
-      const p = map.project(c); const W = map.getContainer().clientWidth; const grens = W - 320 - 30;
-      if (p.x > grens && p.x < W + 60 && p.y > 0 && p.y < map.getContainer().clientHeight) map.panBy([p.x - grens + 50, 0], { duration: 250 });
-    };
-    const t = setTimeout(doe, 250);
-    return () => { clearTimeout(t); clearTimeout(t2); };
-  }, [geselecteerd, eigenschappenOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const vastOpen = !volScherm && !!vastSel && !item;
   const plaatsOpen = schrijven && !volScherm && !item && gereedschap === 'element' && !!gekozenElement;
   const planOpen = !!plan && !volScherm && !item && !vastSel && !plaatsOpen && !binnen && planZicht;
