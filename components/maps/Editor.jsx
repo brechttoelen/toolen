@@ -707,7 +707,16 @@ export default function Editor({ planId }) {
     });
   }, []);
   // Na een onderbreking alles ophalen wat gemist werd.
+  const herlaadStand = useRef({ t: 0, bezig: false, wacht: null });
   const herlaad = useCallback(async () => {
+    // Hoogstens om de 20 s en nooit twee keer tegelijk: bij een haperende verbinding anders telkens het hele plan opnieuw.
+    const hs = herlaadStand.current;
+    const over = 20000 - (Date.now() - hs.t);
+    if (hs.bezig || over > 0) { clearTimeout(hs.wacht); hs.wacht = setTimeout(() => herlaadRef.current?.(), Math.max(over, 2000)); return; }
+    hs.bezig = true; hs.t = Date.now();
+    try { await herlaadNuRef.current(); } finally { hs.bezig = false; hs.t = Date.now(); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const herlaadNu = useCallback(async () => {
     const [i, l, p] = await Promise.all([
       alles(() => maps().from('items').select('*').eq('plan_id', planId)),
       maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
@@ -726,6 +735,9 @@ export default function Editor({ planId }) {
     bewaarder.current.opnieuw();
     naExtern();
   }, [planId, ontvangItem, ontvangLaag, ontvangPlan, naExtern]);
+  const herlaadNuRef = useRef(herlaadNu); herlaadNuRef.current = herlaadNu;
+  const herlaadRef = useRef(herlaad); herlaadRef.current = herlaad;
+  useEffect(() => () => clearTimeout(herlaadStand.current.wacht), []);
 
   useEffect(() => {
     if (laden || !profiel?.id || !planId) return undefined;
