@@ -25,7 +25,8 @@ export default function ExportScherm({ planId }) {
   const [nu, setNu] = useState(Date.now());
   const gestart = useRef(false);
 
-  useEffect(() => { const t = setInterval(() => setNu(Date.now()), 1000); return () => clearInterval(t); }, []);
+  // De teller stopt als de PDF klaar is (hij liep door tot je het tabblad sloot).
+  useEffect(() => { if (klaar || fout) return undefined; const t = setInterval(() => setNu(Date.now()), 1000); return () => clearInterval(t); }, [klaar, fout]);
   useEffect(() => {
     if (gestart.current) return; gestart.current = true;
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/maps-sw.js', { scope: '/maps/' }).catch(() => {});

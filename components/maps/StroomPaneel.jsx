@@ -2,7 +2,6 @@
 
 import Info from './info';
 import { useMemo } from 'react';
-import { jsPDF } from 'jspdf';
 import { berekenStroom, schemaIndeling, knoopTekst, kabellijstCsv, stukkenTekst, isKabelgoot, isRolstoelGoot } from './stroom';
 import { getal } from './geo';
 import VasteAansluitingenLijst from './VasteAansluitingenLijst';
@@ -45,7 +44,9 @@ function Schema({ rijen }) {
   );
 }
 
-export function schemaPdf(plan, r) {
+// jsPDF pas laden bij het maken van de PDF.
+export async function schemaPdf(plan, r) {
+  const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   schemaInPdf(doc, plan, r);
   doc.save(`Eendraadschema - ${plan.naam}.pdf`.replace(/[\\/:*?"<>|]/g, ''));

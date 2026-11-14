@@ -258,7 +258,8 @@ export function registreerProtocollen() {
 }
 
 async function leegPng() {
-  const c = new OffscreenCanvas(1, 1);
+  // Zonder context weigert de browser het doek om te zetten ("has no rendering context"): eerst een context vragen.
+  const c = new OffscreenCanvas(1, 1); c.getContext('2d');
   return (await c.convertToBlob({ type: 'image/png' })).arrayBuffer();
 }
 

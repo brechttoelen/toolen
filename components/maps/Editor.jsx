@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { heeftModule, nietInPakket } from './merk';
 const GEEN_DOEKEN = [];
 import { zorgVoorVeldpuntLagen, zetVeldpunten } from './veldpunten';
@@ -44,13 +45,11 @@ import LaagChip from './LaagChip';
 import Tekenscherm from './Tekenscherm';
 import BibliotheekPaneel from './BibliotheekPaneel';
 import Stuklijst, { berekenStuklijst } from './Stuklijst';
-import MateriaalScherm from './MateriaalScherm';
 import Eigenschappen, { PlanAlgemeen } from './Eigenschappen';
 import PopupInhoud, { NavKnoppen } from './PopupInhoud';
 import DraaiboekPaneel from './DraaiboekPaneel';
 import { controleer } from './controle';
 import Delen from './Delen';
-import PdfDialoog from './PdfDialoog';
 import PlanPaneel, { verschil } from './PlanPaneel';
 import OnderleggerGrepen from './OnderleggerGrepen';
 import { zetOnderleggers, naarLokaal, pasAan, pasAanVast, planTransform, nieuweOnderlegger, dxfGeojson, pdfLijnen, bewaarVectorOnderlegger } from './onderlegger';
@@ -59,10 +58,8 @@ import { stroomVan, berekenStroom, kabellijstCsv, KABEL_KLEUR, kabelSpanning, ka
 import SignalisatiePaneel from './SignalisatiePaneel';
 import CommandoPalet from './CommandoPalet';
 import { IcoonKiezer, IcoonBol, icoonNaam } from './kaarticonen';
-import Uitvoer from './Uitvoer';
 import ExportVoortgang from './ExportVoortgang';
 import { startExport } from './planLaden';
-import CadImport from './CadImport';
 import ControlePaneel, { DefinitiefDialoog } from './ControlePaneel';
 import { isSign, instSign, volgendNr, richtingUitRoutes, signGeojson, zorgVoorKijkIcoon } from './signalisatie';
 import { laadVasteAansluitingen, uitPlekItem, naarGeojsonVa, zorgVoorVaIconen, vaKaartLagen, zetVaDekking, vaId, isVaId, vaUuid, alsStroomItem } from './vasteAansluitingen';
@@ -96,6 +93,12 @@ import vakSlepen from './vakSlepen';
 import routeTekenen from './routeTekenen';
 import { legLangsWeg } from './wegVolgen';
 import tekenhulp from './tekenhulp';
+
+// Zware schermen pas laden als je ze opent (materiaallijst, PDF, delen en exporteren, CAD-import): de kaart staat er sneller.
+const MateriaalScherm = dynamic(() => import('./MateriaalScherm'), { ssr: false });
+const PdfDialoog = dynamic(() => import('./PdfDialoog'), { ssr: false });
+const Uitvoer = dynamic(() => import('./Uitvoer'), { ssr: false });
+const CadImport = dynamic(() => import('./CadImport'), { ssr: false });
 
 // Hoort een item bij dit binnenplan (gebouw, tent of container + verdieping)?
 export const inBinnen = (it, b) => !!b && it.velden?.binnen?.host === b.host && (it.velden.binnen.verd || null) === (b.verd || null);
@@ -781,7 +784,7 @@ export default function Editor({ planId }) {
   // Eigen naam (voor collega's).
   useEffect(() => { if (profiel?.id) namenVan([profiel.id]).then((n) => setMijnNaam(n[profiel.id] && n[profiel.id] !== 'een collega' ? n[profiel.id] : (profiel.email || '').split('@')[0] || 'Collega')); }, [profiel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Eigen aanwezigheid delen: werkruimte, selectie en wat je bewerkt. Hoogstens om de 1,5 s.
+  // Eigen aanwezigheid delen: werkruimte, selectie en wat je bewerkt. Hoogstens om de 3 s.
   const deelNu = useCallback(() => {
     const live = liveRef.current;
     if (!live || !profiel?.id) return;
@@ -792,7 +795,7 @@ export default function Editor({ planId }) {
   deelLater.current = () => {
     const w = deelWacht.current;
     clearTimeout(w.h);
-    const wacht = Math.max(0, 1500 - (Date.now() - w.t));
+    const wacht = Math.max(0, 3000 - (Date.now() - w.t)); // Realtime weigert aanwezigheid die te vaak verstuurd wordt
     w.h = setTimeout(() => { w.t = Date.now(); deelNu(); }, wacht);
   };
   useEffect(() => { deelLater.current?.(); }, [werkruimte, geselecteerd, extra, verbinding, mijnNaam]); // eslint-disable-line react-hooks/exhaustive-deps
