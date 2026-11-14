@@ -2501,3 +2501,5 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-mh-keuze button:hover { background: var(--fm-aan-bg); }
 .fm-mh-keuze small { color: #6b7280; white-space: nowrap; }
 .fm-mh-stroom { display: flex; flex-direction: column; gap: 4px; }
+.fm .fm-mh-rij input, .fm .fm-mh-zoek input { height: 30px; border: 1px solid var(--t-rand, #D5DCE6); border-radius: 6px; padding: 0 8px; font: inherit; font-size: 12.5px; background: #fff; box-shadow: none; -webkit-appearance: none; appearance: none; }
+.fm .fm-mh-rij input:focus, .fm .fm-mh-zoek input:focus { outline: 2px solid #108aed; outline-offset: -1px; border-color: transparent; }

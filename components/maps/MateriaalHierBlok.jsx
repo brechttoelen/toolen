@@ -24,9 +24,10 @@ export default function MateriaalHierBlok({ item, elementen, elementenMap, items
   const st = stroomVan(item, null);
   const voedingen = stroom ? [...vast.map(alsStroomItem), ...items.filter((i) => i.id !== item.id && ['bron', 'kast'].includes(stroomVan(i, elementenMap.get(i.element_id)).rol))] : [];
   const naamV = (i) => (i.vast ? `${i.naam} (vast)` : i.naam || elementenMap.get(i.element_id)?.naam || 'Zonder naam');
+  const totaal = rijen.reduce((s, r) => s + r.aantal, 0);
   if (ro && !rijen.length) return null;
   return (
-    <Blok titel={`Materiaal hier${rijen.length ? ` · ${rijen.reduce((s, r) => s + r.aantal, 0)} stuks` : ''}`} open info="Materiaal dat op deze plek moet komen, zonder het uit te tekenen. Telt mee in de materiaallijst en in de bestelling per leverancier.">
+    <Blok titel={`Materiaal hier${rijen.length ? ` · ${totaal} ${totaal === 1 ? 'stuk' : 'stuks'}` : ''}`} open info="Materiaal dat op deze plek moet komen, zonder het uit te tekenen. Telt mee in de materiaallijst en in de bestelling per leverancier.">
       {rijen.length > 0 && (
         <div className="fm-mh-lijst">
           {rijen.map((r) => (

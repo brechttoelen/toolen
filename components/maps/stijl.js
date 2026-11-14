@@ -1603,7 +1603,7 @@ function tekenItem(it, { lagenMap, elementenMap, doek, toebehoren, doeknaam, hek
       if (vorm === 'vlak' && s.vulpatroon === 'trap') vormen.push(...trapFeatures(it, basis, s.trap_richting || 'x', Number(s.trede) || 0.3));
     }
     // Materiaal op deze plek (zonder tekening): altijd als label erbij, ook als het naamlabel uit staat.
-    const matT = it.velden?.materiaal?.length ? materiaalTekst(materiaalVan(it, elementenMap), 3) : '';
+    const matT = it.velden?.materiaal?.length ? materiaalTekst(materiaalVan(it, elementenMap), 4, '\n') : '';
     if (it.soort !== 'tekst' && (s.label === true || matT) && (it.naam || el || matT)) {
       const m = maten(it, el);
       const naam = it.naam || el?.naam || '';

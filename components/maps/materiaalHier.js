@@ -21,10 +21,10 @@ export const kwVanMateriaal = (rijen) => Math.round(rijen.reduce((s, r) => s + k
 // Heeft dit materiaal stroom nodig (verbruiker, stekkerdoos of iets uit de familie stroom)?
 export const vraagtStroom = (rijen) => rijen.some((r) => kwVanElement(r.el) > 0 || r.el.eigenschappen?.stekkerdoos || (r.el.familie === 'stroom' && !r.el.eigenschappen?.kva));
 
-export const materiaalTekst = (rijen, max = 4) => {
+export const materiaalTekst = (rijen, max = 4, tussen = ' · ') => {
   const t = rijen.slice(0, max).map((r) => `${r.aantal} × ${r.el.naam}`);
   if (rijen.length > max) t.push(`+ ${rijen.length - max}`);
-  return t.join(' · ');
+  return t.join(tussen);
 };
 
 // Nieuwe velden na een wijziging van het lijstje: het lijstje zelf, en voor de stroom het vermogen dat erbij hoort.
