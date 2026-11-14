@@ -14,10 +14,12 @@
 //  - Overal, en bij uitzoomen: Sentinel-2 cloudless 2016 van EOX (CC BY 4.0).
 //    De regionale luchtfoto's komen pas vanaf zoom 11, zodat uitgezoomd geen
 //    lappendeken van overzichtsbeelden en witte vlakken ontstaat.
-//  - Stratenkaart: OpenStreetMap, enkel op het scherm (geen drukwerk, geen voorladen).
+//  - Stratenkaart en de grijze kaart onder de lijntekening: vectortegels van OpenFreeMap (OpenStreetMap-data,
+//    vrij te gebruiken, ook commercieel en in drukwerk). Geen tegels meer van tile.openstreetmap.org.
 import * as maplibregl from 'maplibre-gl';
 import './kaartwerker';
 import { ADRES, VL_KVP } from './bronadressen';
+import { OFM_KAART, OFM_GRIJS } from './ofmStijlen';
 
 // Wallonië: transparant buiten het gewest, anders legt het een wit vlak over de buren.
 export const WA_TEGEL = (bbox) => ADRES['wa-ortho'].replace('{bbox-epsg-3857}', bbox);
@@ -119,10 +121,6 @@ export const BRONNEN = {
     type: 'raster', tileSize: 256, maxzoom: 15,
     tiles: [ADRES.s2],
     attribution: 'Sentinel-2 cloudless 2016 © EOX IT Services (Copernicus Sentinel-gegevens 2016)',
-  },
-  osm: {
-    type: 'raster', tiles: [ADRES.osm], tileSize: 256, maxzoom: 19,
-    attribution: '© OpenStreetMap-bijdragers',
   },
 };
 
@@ -227,8 +225,8 @@ const FOTO_BASIS = ESRI ? ['s2', 'esri'] : ['s2'];
 export const ONDERGRONDEN = {
   luchtfoto:    { naam: 'Luchtfoto',     lagen: [...FOTO_BASIS, 'fr-ortho', 'es-ortho', 'ch-ortho', 'at-ortho', 'lu-ortho', 'nrw-ortho', 'nl-ortho', 'wa-ortho', 'vl-ortho', 'namen'] },
   luchtfoto_straten: { naam: 'Luchtfoto met straten', lagen: [...FOTO_BASIS, 'fr-ortho', 'es-ortho', 'ch-ortho', 'at-ortho', 'lu-ortho', 'nrw-ortho', 'nl-ortho', 'wa-ortho', 'vl-ortho', 'straten', 'namen'] },
-  lijntekening: { naam: 'Lijntekening',  lagen: ['osm-grijs', 'vl-grb'] },
-  stratenkaart: { naam: 'Stratenkaart',  lagen: ['osm'] },
+  lijntekening: { naam: 'Lijntekening',  lagen: ['ofm-grijs', 'vl-grb'] },
+  stratenkaart: { naam: 'Stratenkaart',  lagen: ['ofm-kaart'] },
   leeg:         { naam: 'Leeg',          lagen: [] },
 };
 
@@ -304,12 +302,13 @@ export function basisStijl(ondergrond = 'luchtfoto', centrum = null) {
   return {
     version: 8,
     glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
-    sources: { ...Object.fromEntries(Object.entries(BRONNEN).map(([k, v]) => [k, k === 'vl-ortho' ? vlBron() : { ...v }])), ...(zicht.has('straten') || zicht.has('namen') ? { ofm: OFM } : {}) },
+    sources: { ...Object.fromEntries(Object.entries(BRONNEN).map(([k, v]) => [k, k === 'vl-ortho' ? vlBron() : { ...v }])), ...(OFM_GROEPEN.some((g) => zicht.has(g)) ? { ofm: OFM } : {}) },
     layers: [
       { id: 'og-achtergrond', type: 'background', paint: { 'background-color': '#f4f4f2' } },
       // Straten en straatnamen over de luchtfoto (OpenStreetMap-data via OpenFreeMap, vrij te gebruiken).
-      raster('osm-grijs', 'osm', { 'raster-saturation': -1, 'raster-opacity': 0.45 }),
-      raster('osm', 'osm'),
+      // Stratenkaart en de grijze kaart onder de lijntekening: vectorlagen van OpenFreeMap (vrij te gebruiken, ook in drukwerk).
+      ...(zicht.has('ofm-grijs') ? OFM_GRIJS : []),
+      ...(zicht.has('ofm-kaart') ? OFM_KAART : []),
       raster('s2', 's2'),
       ...(ESRI ? [raster('esri', 'esri')] : []),
       raster('fr-ortho', 'fr-ortho'),
@@ -331,13 +330,18 @@ export function zetOndergrond(map, ondergrond) {
   const zicht = new Set(ONDERGRONDEN[ondergrond]?.lagen || []);
   map._fmFotoAan = zicht.has('esri');
   if (ESRI && !map._fmEsriLuister) { map._fmEsriLuister = true; map.on('moveend', () => regelEsri(map)); }
-  for (const id of ['osm-grijs', 'osm', 's2', 'esri', 'fr-ortho', 'es-ortho', 'ch-ortho', 'at-ortho', 'lu-ortho', 'nrw-ortho', 'nl-ortho', 'wa-ortho', 'vl-ortho', 'vl-grb']) {
+  for (const id of ['s2', 'esri', 'fr-ortho', 'es-ortho', 'ch-ortho', 'at-ortho', 'lu-ortho', 'nrw-ortho', 'nl-ortho', 'wa-ortho', 'vl-ortho', 'vl-grb']) {
     if (map.getLayer(`og-${id}`)) map.setLayoutProperty(`og-${id}`, 'visibility', zicht.has(id) ? 'visible' : 'none');
   }
   regelEsri(map);
-  // Straten en plaatsnamen pas laden als iemand ze kiest.
-  if ((zicht.has('straten') || zicht.has('namen')) && !map.getSource('ofm')) {
-    map.addSource('ofm', OFM);
+  // Vectorlagen (OpenFreeMap) pas laden als iemand ze kiest.
+  if (OFM_GROEPEN.some((g) => zicht.has(g)) && !map.getSource('ofm')) map.addSource('ofm', OFM);
+  for (const [groep, lagen] of [['ofm-grijs', OFM_GRIJS], ['ofm-kaart', OFM_KAART]]) {
+    // Onder de luchtfoto's, boven de achtergrond.
+    if (zicht.has(groep) && !map.getLayer(lagen[0].id)) for (const l of lagen) map.addLayer(l, map.getLayer('og-s2') ? 'og-s2' : undefined);
+    for (const l of lagen) if (map.getLayer(l.id)) map.setLayoutProperty(l.id, 'visibility', zicht.has(groep) ? 'visible' : 'none');
+  }
+  if ((zicht.has('straten') || zicht.has('namen')) && !map.getLayer('og-plaats')) {
     const eersteEigen = (map.getStyle()?.layers || []).find((l) => l.id.startsWith('fm-'))?.id;
     for (const l of [...stratenLagen(zicht.has('straten')), ...namenLagen(zicht.has('namen'))]) map.addLayer(l, eersteEigen);
   }
@@ -347,7 +351,8 @@ export function zetOndergrond(map, ondergrond) {
 
 // De TileJSON van OpenFreeMap via een eigen protocol: de bronvermelding uit die (externe) TileJSON wordt
 // vervangen door een vaste tekst. Zo komt er nooit HTML van een derde in de kaart (MapLibre 5: GHSA-jrc7-96c5-q579).
-const OFM_TEKST = '© OpenStreetMap-bijdragers · OpenFreeMap';
+const OFM_TEKST = '© OpenStreetMap-bijdragers · OpenMapTiles · OpenFreeMap';
+const OFM_GROEPEN = ['straten', 'namen', 'ofm-kaart', 'ofm-grijs'];
 const OFM = { type: 'vector', url: 'ofmjson://planet', attribution: OFM_TEKST };
 
 // Wegen als dunne witte lijnen en straatnamen langs de weg (OpenMapTiles-schema).
@@ -418,20 +423,16 @@ export function bronvermelding(ondergrond, [lng, lat] = [4.4, 50.9]) {
     if (in_(GEBIED.es)) delen.push('PNOA © scne.es');
     delen.push(ESRI ? 'Esri, Maxar, Earthstar Geographics' : 'Sentinel-2 cloudless 2016 © EOX');
   } else if (ondergrond === 'lijntekening') {
-    delen.push(in_(GEBIED.vl) ? 'GRB © Digitaal Vlaanderen' : '© OpenStreetMap-bijdragers');
+    delen.push(in_(GEBIED.vl) ? 'GRB © Digitaal Vlaanderen · © OpenStreetMap-bijdragers, OpenMapTiles' : '© OpenStreetMap-bijdragers, OpenMapTiles');
   } else if (ondergrond === 'stratenkaart') {
-    delen.push('© OpenStreetMap-bijdragers');
+    delen.push('© OpenStreetMap-bijdragers, OpenMapTiles');
   }
   return delen.join(' · ');
 }
 
-// Mag deze ondergrond in een PDF? OSM-tegels niet (gebruiksvoorwaarden).
-export function drukbaar(ondergrond, [lng, lat]) {
-  if (ondergrond === 'leeg') return true;
-  if (ondergrond === 'stratenkaart') return false;
-  const in_ = (g) => lng >= g[0] && lng <= g[2] && lat >= g[1] && lat <= g[3];
-  if (ondergrond === 'lijntekening') return in_(GEBIED.vl);
-  return true; // Luchtfoto: Sentinel-2 (CC BY 4.0) dekt overal.
+// Mag deze ondergrond in een PDF? Sinds de stratenkaart en de lijntekening van OpenFreeMap komen: allemaal.
+export function drukbaar() {
+  return true;
 }
 
 // Bronvermelding (©) ingeklapt starten: enkel het i-knopje, openklikken kan altijd.

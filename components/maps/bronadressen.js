@@ -19,8 +19,7 @@ export const ADRES = {
   'at-ortho': 'https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg',
   'es-ortho': 'https://www.ign.es/wmts/pnoa-ma?request=GetTile&service=WMTS&VERSION=1.0.0&Layer=OI.OrthoimageCoverage&Style=default&Format=image/jpeg&TileMatrixSet=GoogleMapsCompatible&TileMatrix={z}&TileRow={y}&TileCol={x}',
   s2: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg',
-  osm: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-  // Straten en plaatsnamen over de luchtfoto (vectortegels).
+  // Stratenkaart, lijntekening buiten Vlaanderen, straten en plaatsnamen over de luchtfoto (vectortegels).
   ofm: 'https://tiles.openfreemap.org/planet',
 };
 
@@ -37,8 +36,7 @@ export const BRON_INFO = {
   'at-ortho': { naam: 'Luchtfoto Oostenrijk (basemap.at)', punt: [16.3738, 48.2082] },
   'es-ortho': { naam: 'Luchtfoto Spanje (PNOA)', punt: [-3.7038, 40.4168] },
   s2: { naam: 'Satellietbeeld wereld (Sentinel-2, EOX)', punt: [4.3517, 50.8503], zoom: 10 },
-  osm: { naam: 'Stratenkaart (OpenStreetMap)', punt: [4.3517, 50.8503] },
-  ofm: { naam: 'Straten en namen over de luchtfoto (OpenFreeMap)', soort: 'json' },
+  ofm: { naam: 'Stratenkaart, straten en namen (OpenFreeMap)', soort: 'json' },
 };
 
 // Diensten die geen kaartlaag zijn maar waar functies op steunen.
