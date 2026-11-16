@@ -87,15 +87,16 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
         )}
 
         <div ref={orgRef} style={{ position: "relative" }}>
-          <button className="t-zij-org" onClick={() => setOrgOpen(!orgOpen)} aria-expanded={orgOpen}>
+          {/* Eén organisatie: gewoon tonen, er valt niets te wisselen. */}
+          <button className={`t-zij-org${organisaties.length > 1 ? "" : " vast"}`} onClick={organisaties.length > 1 ? () => setOrgOpen(!orgOpen) : undefined} aria-expanded={organisaties.length > 1 ? orgOpen : undefined} disabled={organisaties.length <= 1}>
             <span className="t-zij-orgteken">{(organisatie.kort || organisatie.naam).slice(0, 4).toUpperCase()}</span>
             <span className="t-zij-orgnaam">
               <b>{organisatie.naam}</b>
               <small>{[PAKKET[organisatie.pakket || ""] || organisatie.pakket, plaatsen ? `${plaatsen} plaatsen` : null].filter(Boolean).join(" · ")}</small>
             </span>
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 5.5l3 3 3-3" stroke="currentColor" strokeWidth="1.6" fill="none" /></svg>
+            {organisaties.length > 1 && <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 5.5l3 3 3-3" stroke="currentColor" strokeWidth="1.6" fill="none" /></svg>}
           </button>
-          {orgOpen && (
+          {orgOpen && organisaties.length > 1 && (
             <div className="t-menu" style={{ left: 0, right: 0, minWidth: 0, top: "calc(100% + 6px)" }}>
               <div className="kop">Organisaties</div>
               {organisaties.map((o) => (

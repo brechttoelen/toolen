@@ -144,6 +144,7 @@ select.t-veld { padding-right: 6px; }
   border-radius: 8px; min-height: 44px; color: var(--t-wit); }
 .t-zij-org { background: rgba(255,255,255,.08); }
 .t-zij-org:hover, .t-zij-ik:hover { background: rgba(255,255,255,.14); }
+.t-zij-org.vast, .t-zij-org.vast:hover { cursor: default; background: rgba(255,255,255,.08); color: inherit; }
 .t-zij-org:focus-visible, .t-zij-ik:focus-visible, .t-zij a:focus-visible { outline: 2px solid var(--t-blauw); outline-offset: 2px; }
 .t-zij-orgteken { width: 30px; height: 30px; flex: none; border-radius: 6px; background: var(--t-wit); color: var(--t-navy); font-weight: 700; font-size: 10.5px;
   display: grid; place-items: center; }
