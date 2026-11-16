@@ -22,11 +22,12 @@ De middleware herschrijft `<org>.toolen.be/...` intern naar `/<org>/...`. Lokaal
 - `components/maps/` de editor en alle modules
 - `lib/org.ts` subdomein → organisatie, gereserveerde namen
 - `public/m/` iconen, borden, doeken, structuren, `public/maps-sw.js` offline voor de opbouwmodus
+- `docs/` ontwerpnota's (zie `docs/README.md`)
 - `docs/referentie-flcsmaps-migraties/` de 32 migraties uit Publitool, enkel als referentie voor de nieuwe basismigratie (fase 2)
 
 ## Stand van de afsplitsing
 
-Zie `claude/ONTWERP-afsplitsing.md` in het project.
+Zie `docs/ONTWERP-afsplitsing.md`. Alle ontwerpnota's staan in `docs/` (overzicht in `docs/README.md`).
 
 - [x] Fase 1: zelfstandige app, routes onder `/maps`, adressen per organisatie, merknaam Toolen Maps
 - [ ] Fase 2: basismigratie (schema `maps`) multi-tenant met organisaties en leden
