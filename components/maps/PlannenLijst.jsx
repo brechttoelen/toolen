@@ -9,6 +9,7 @@ import { Avatar } from './Aanwezigheid';
 import { STANDAARD_LAGEN, STANDAARD_FASEN } from './stijl';
 import { regioVan } from './geo';
 import { laadEvents, maakEvent, kleurVoor, eventDatum, groepeer } from './events';
+import EventDialoog from './EventDialoog';
 
 const nieuwId = () => crypto.randomUUID();
 
@@ -241,6 +242,7 @@ export default function PlannenLijst() {
   const [zoek, setZoek] = useState('');
   const [filter, setFilter] = useState('');
   const [nieuw, setNieuw] = useState(null);
+  const [evBewerk, setEvBewerk] = useState(null); // event dat gewijzigd of verwijderd wordt
   const [aanwezig, setAanwezig] = useState(new Map());
   const [ev, setEv] = useState({ events: [], ok: false });
   const [kaartAan, setKaartAan] = useState(false);
@@ -298,13 +300,16 @@ export default function PlannenLijst() {
   const lijst = actief.filter(SNEL.find((x) => x[0] === snel)?.[2] || (() => true));
   const groepen = useMemo(() => {
     if (!perEvent || prullenbak) return [{ id: 'alles', naam: null, plannen: lijst }];
-    const g = groepeer(lijst, ev.events, ev.ok).filter((x) => x.plannen.length);
+    // Events zonder plan staan er ook bij (om er een plan aan toe te voegen, of het event te wijzigen of te verwijderen),
+    // behalve als je zoekt of filtert op status.
+    const ookLeeg = ev.ok && !q && !snel;
+    const g = groepeer(lijst, ev.events, ev.ok).filter((x) => x.plannen.length || (ookLeeg && (!filter || filter === x.id)));
     const vandaag = new Date().toISOString().slice(0, 10);
     g.sort((a, b) => (!a.datum) - (!b.datum) || ((a.datum < vandaag) - (b.datum < vandaag)) || String(a.datum || a.naam).localeCompare(String(b.datum || b.naam)));
     const los = lijst.filter((p) => !g.some((x) => x.plannen.includes(p)));
     if (los.length) g.push({ id: 'geen', naam: 'Zonder event', kleur: '#CFD7E3', datum: null, plannen: los, los: true });
     return g;
-  }, [lijst, ev, perEvent, prullenbak]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lijst, ev, perEvent, prullenbak, q, snel, filter]); // eslint-disable-line react-hooks/exhaustive-deps
   const kleurVan = useMemo(() => { const m = new Map(groepeer(lijst, ev.events, ev.ok).flatMap((g) => g.plannen.map((p) => [p.id, g.kleur]))); return (p) => m.get(p.id) || '#8492A8'; }, [lijst, ev]);
   const bewerkt = (t) => { const d = new Date(t); const nu = new Date(); const dag = (x) => x.toISOString().slice(0, 10); if (dag(d) === dag(nu)) return `Vandaag ${d.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' })}`; const g = new Date(nu); g.setDate(g.getDate() - 1); if (dag(d) === dag(g)) return 'Gisteren'; return datumKort(t); };
   const gedeeld = (p) => { const n = p.deel_links?.[0]?.count; return n == null ? '' : n ? `${n} ${n === 1 ? 'link' : 'links'}` : 'Niet gedeeld'; };
@@ -380,8 +385,12 @@ export default function PlannenLijst() {
                           <b>{g.naam}</b>
                           <span>{[g.datum ? eventDatum(g.datum) : null, `${g.plannen.length} ${g.plannen.length === 1 ? 'plan' : 'plannen'}`].filter(Boolean).join(' · ')}</span>
                           {schrijven && !prullenbak && !g.los && ev.ok && <button className="t-pllink" onClick={() => setNieuw(g.id)}>Plan toevoegen</button>}
+                          {schrijven && !prullenbak && !g.los && ev.ok && <button className="t-pllink" style={{ marginRight: 18, fontWeight: 500 }} title="Naam, datum of plaats wijzigen, of het event verwijderen" onClick={() => setEvBewerk(g)}>Wijzigen</button>}
                         </td>
                       </tr>
+                    )}
+                    {g.naam && !g.plannen.length && (
+                      <tr><td colSpan={perEvent ? 7 : 8} className="stil" style={{ padding: '12px 16px' }}>Nog geen plan voor dit event.</td></tr>
                     )}
                     {g.plannen.map((p) => {
                       const wie = aanwezig.get(p.id) || [];
@@ -449,6 +458,11 @@ export default function PlannenLijst() {
         )}
       </div>
       {nieuw !== null && <NieuwPlan plannen={plannen} startEvent={nieuw} onSluit={() => setNieuw(null)} />}
+      {evBewerk && <EventDialoog event={evBewerk} aantal={ev.events.length} onSluit={() => setEvBewerk(null)} onKlaar={() => {
+        // Een verwijderd event laat zijn plannen los: die staan daarna onder Zonder event.
+        const id = evBewerk.id; setEvBewerk(null);
+        laadEvents().then((n) => { setEv(n); if (!n.events.some((e) => e.id === id)) setPlannen((l) => l.map((x) => (x.event_id === id ? { ...x, event_id: null } : x))); });
+      }} />}
     </div>
   );
 }
