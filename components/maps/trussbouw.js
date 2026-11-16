@@ -119,6 +119,7 @@ export function trussKnopen(stukken, B = TRUSS_B) {
 export function hoekSoort(rs) {
   const n = rs.length; const vert = rs.filter((r) => Math.abs(r[2]) > 0.5).length;
   const tegen = rs.some((a, i) => rs.some((b, j) => j > i && a[0] * b[0] + a[1] * b[1] + a[2] * b[2] < -0.98));
+  if (n === 2 && tegen) return 'Koppelblok recht';
   if (n === 2) { const c = rs[0][0] * rs[1][0] + rs[0][1] * rs[1][1] + rs[0][2] * rs[1][2]; const g = Math.round((Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI); return Math.abs(g - 90) < 3 ? 'Hoekblok 2-weg 90°' : `Hoekblok 2-weg ${g}°`; }
   if (n === 3) return tegen && !vert ? 'T-blok 3-weg' : tegen ? 'T-blok 3-weg (met poot)' : 'Hoekblok 3-weg';
   if (n === 4) return !vert ? 'Kruisblok 4-weg' : 'Hoekblok 4-weg';
@@ -210,12 +211,126 @@ export function schaalTruss(alle, ids, u, as, nieuw, lengtes = TRUSS_LENGTES, ka
   return { stukken: uit, erbij, zet, E0, E1: E0 + D };
 }
 
+
+// ---------- Samenhang: wat hangt aan wat ----------
+const richt = (s) => (s.op ? [0, 0, 1] : [Math.cos(s.r), Math.sin(s.r), 0]);
+const inp = (p, d) => p[0] * d[0] + p[1] * d[1] + p[2] * d[2];
+// Afstand van punt p tot de as van stuk x, aan beide kanten m verlengd.
+function totAs(p, x, m = 0) {
+  const d = richt(x); const t = Math.max(-m, Math.min(x.L + m, inp([p[0] - x.a[0], p[1] - x.a[1], p[2] - x.a[2]], d)));
+  return Math.hypot(p[0] - x.a[0] - d[0] * t, p[1] - x.a[1] - d[1] * t, p[2] - x.a[2] - d[2] * t);
+}
+// Twee stukken hangen aan elkaar: een uiteinde (of het blok erachter) van het ene raakt de as van het andere.
+function raakt(x, y, H) {
+  const pt = (s) => { const d = richt(s); const e = eindPt(s); return [s.a, e, s.a.map((v, k) => v - d[k] * H), e.map((v, k) => v + d[k] * H)]; };
+  return pt(x).some((p) => totAs(p, y, H) < 0.03) || pt(y).some((p) => totAs(p, x, H) < 0.03);
+}
+// Alle stukken die (rechtstreeks of via andere) aan F vastzitten: ids.
+export function trussDeel(alle, F, B = TRUSS_B) {
+  const H = B / 2; const uit = new Set([F.id]); const rij = [F];
+  while (rij.length) { const x = rij.pop(); for (const y of alle) if (!uit.has(y.id) && raakt(x, y, H)) { uit.add(y.id); rij.push(y); } }
+  return uit;
+}
+const nId = () => Math.random().toString(36).slice(2, 9);
+const somOk = (delen, L) => Math.abs(delen.reduce((a, x) => a + x, 0) - L) < 0.011;
+
+// Een blok zetten in stuk F op afstand t van het begin. Regel van het snijvlak: alles wat aan F vasthangt en voorbij
+// het vlak ligt schuift een blokbreedte op; elk stuk dat evenwijdig door het vlak loopt (de andere poot van een
+// portaal, de overstaande ligger van een kubus) krijgt daar ook een blok. Zo blijft alles op de vloer en gesloten.
+export function splitsTruss(alle, F, t, B = TRUSS_B, lengtes = TRUSS_LENGTES) {
+  const d = richt(F); const c0 = inp(F.a, d) + t; const deel = trussDeel(alle, F, B); const uit = []; const erbij = {}; let mee = 0;
+  for (const s of alle) {
+    if (!deel.has(s.id)) { uit.push(s); continue; }
+    const ds = richt(s); const sg = inp(ds, d); const ca = inp(s.a, d); const ce = inp(eindPt(s), d); const lo = Math.min(ca, ce); const hi = Math.max(ca, ce);
+    const schuif = (p) => [r3(p[0] + d[0] * B), r3(p[1] + d[1] * B), r3(p[2] + d[2] * B)];
+    if (Math.abs(sg) < 0.99) { uit.push(lo > c0 + B / 2 + 0.01 ? { ...s, a: schuif(s.a) } : s); continue; } // dwars: aan het blok zelf blijft staan
+    if (lo >= c0 - 0.01) { uit.push({ ...s, a: schuif(s.a) }); continue; }
+    if (hi <= c0 + 0.01) { uit.push(s); continue; }
+    const ta = sg > 0 ? c0 - ca : ca - c0; const d1 = opdelen(ta, lengtes); const d2 = opdelen(s.L - ta, lengtes);
+    if (ta < 0.49 || s.L - ta < 0.49 || !somOk(d1, ta) || !somOk(d2, s.L - ta)) return { fout: `Hier past geen blok: een stuk van ${fmt(s.L)} m loopt er ${s.id === F.id ? '' : 'evenwijdig '}door en is niet in te huren lengtes rond het blok te verdelen.` };
+    const delen = []; let o = 0; const basis = sg > 0 ? s.a : schuif(s.a);
+    for (const L of d1) { delen.push({ ...s, id: delen.length ? nId() : s.id, L, a: [basis[0] + ds[0] * o, basis[1] + ds[1] * o, basis[2] + ds[2] * o].map(r3) }); o += L; }
+    o = ta + (sg > 0 ? B : 0); const b2 = sg > 0 ? s.a : [s.a[0], s.a[1], s.a[2]];
+    for (const L of d2) { delen.push({ ...s, id: nId(), L, a: [b2[0] + ds[0] * o, b2[1] + ds[1] * o, b2[2] + ds[2] * o].map(r3) }); o += L; }
+    uit.push(...delen); erbij[s.id] = delen.slice(1).map((x) => x.id); if (s.id !== F.id) mee += 1;
+  }
+  return { lijst: uit, erbij, mee };
+}
+
+// Een stuk langer of korter maken: wat erachter hangt schuift mee en stukken die evenwijdig naast het midden van F
+// lopen (de andere poot, de overstaande ligger) worden even veel langer of korter.
+export function rekTruss(alle, F, nieuwL, B = TRUSS_B, lengtes = TRUSS_LENGTES) {
+  const D = nieuwL - F.L; if (Math.abs(D) < 0.001) return null;
+  const d = richt(F); const mid = inp(F.a, d) + F.L / 2; const deel = trussDeel(alle, F, B); const uit = []; const erbij = {};
+  const schuif = (p) => [r3(p[0] + d[0] * D), r3(p[1] + d[1] * D), r3(p[2] + d[2] * D)];
+  for (const s of alle) {
+    if (!deel.has(s.id)) { uit.push(s); continue; }
+    if (s.id === F.id) { uit.push({ ...s, L: nieuwL }); continue; }
+    const ds = richt(s); const sg = inp(ds, d); const ca = inp(s.a, d); const ce = inp(eindPt(s), d); const lo = Math.min(ca, ce); const hi = Math.max(ca, ce);
+    if (lo > mid + 0.001) { uit.push({ ...s, a: schuif(s.a) }); continue; }
+    if (hi < mid + 0.001 || Math.abs(sg) < 0.99) { uit.push(s); continue; }
+    const L = Math.round((s.L + D) * 100) / 100; const dl = opdelen(Math.max(0, L), lengtes);
+    if (L < STAP - 0.001 || !somOk(dl, L)) return { fout: `Zo kan het niet: een stuk van ${fmt(s.L)} m dat ernaast loopt zou ${fmt(Math.max(0, L))} m moeten worden.` };
+    const basis = sg > 0 ? s.a : schuif(s.a); let o = 0;
+    const delen = dl.map((Li, i) => { const p = [basis[0] + ds[0] * o, basis[1] + ds[1] * o, basis[2] + ds[2] * o].map(r3); o += Li; return { ...s, id: i === 0 ? s.id : nId(), L: Li, a: p }; });
+    uit.push(...delen); if (delen.length > 1) erbij[s.id] = delen.slice(1).map((x) => x.id);
+  }
+  return { lijst: uit, erbij };
+}
+
+// Een recht blok (tussen twee stukken in elkaars verlengde) wegnemen: wat erachter hangt schuift een blokbreedte
+// terug. Loopt er een ander stuk ononderbroken naast, dan schuift enkel de rest van die ene lijn.
+export function sluitBlok(alle, p, B = TRUSS_B) {
+  const H = B / 2; let P = null; let d = null;
+  for (const s of alle) { const ds = richt(s); const e = eindPt(s); if (!P && Math.hypot(...e.map((v, k) => v + ds[k] * H - p[k])) < 0.04) { P = s; d = ds; } }
+  if (!P) { // beide stukken wijzen van het blok weg of ernaartoe: neem er één als vast
+    for (const s of alle) { const ds = richt(s); if (Math.hypot(...s.a.map((v, k) => v - ds[k] * H - p[k])) < 0.04) { if (!P) { P = s; d = ds.map((v) => -v); } } }
+  }
+  if (!P || !d) return null;
+  const c0 = inp(p, d) - H; const deel = trussDeel(alle, P, B);
+  const info = alle.filter((s) => deel.has(s.id)).map((s) => { const ca = inp(s.a, d); const ce = inp(eindPt(s), d); return { s, lo: Math.min(ca, ce), hi: Math.max(ca, ce), par: Math.abs(inp(richt(s), d)) > 0.99 }; });
+  const doorloop = info.some((x) => x.par && x.lo < c0 - 0.01 && x.hi > c0 + B + 0.01);
+  const opLijn = (s) => { const v = [s.a[0] - p[0], s.a[1] - p[1], s.a[2] - p[2]]; const t = inp(v, d); return Math.hypot(v[0] - d[0] * t, v[1] - d[1] * t, v[2] - d[2] * t) < 0.03; };
+  const mee = new Set(info.filter((x) => x.lo >= c0 + B - 0.02 && (!doorloop || (x.par && opLijn(x.s)))).map((x) => x.s.id));
+  if (!mee.size) return null;
+  return { lijst: alle.map((s) => (mee.has(s.id) ? { ...s, a: [r3(s.a[0] - d[0] * B), r3(s.a[1] - d[1] * B), r3(s.a[2] - d[2] * B)] } : s)), lijn: doorloop };
+}
+
+// Wat onmogelijk is: staanders die de vloer niet raken, stukken die in elkaar zitten, een blok zonder dwarsstuk.
+// Geeft ook welke staanders dragen (gegrond: tot op de vloer, eventueel via een stuk eronder).
+export function trussFouten(st, knopen, B = TRUSS_B) {
+  const H = B / 2; const meld = []; const oud = st.some((s) => s.op && Math.abs(s.a[2]) < 0.01); const vloer = oud ? 0 : -H;
+  const gegrond = new Set(st.filter((s) => s.op && s.a[2] < 0.01).map((s) => s.i));
+  for (let ronde = 0; ronde < 30; ronde++) {
+    let erbij = false;
+    for (const s of st) {
+      if (!s.op || gegrond.has(s.i)) continue;
+      const opStaander = st.some((g) => g.op && gegrond.has(g.i) && g.e[2] <= s.a[2] + 0.02 && totAs(s.a, g, B + 0.02) < 0.03);
+      const opLigger = st.some((g) => !g.op && (totAs(s.a, g, H) < 0.03 || totAs([s.a[0], s.a[1], s.a[2] - H], g, H) < 0.03));
+      if (opStaander || opLigger) { gegrond.add(s.i); erbij = true; }
+    }
+    if (!erbij) break;
+  }
+  for (const s of st) if (s.op && !gegrond.has(s.i)) meld.push({ soort: 'fout', tekst: `Staander van ${fmt(s.L)} m raakt de vloer niet: de onderkant hangt op ${fmt(s.a[2] - vloer)} m, zonder stuk eronder.`, ids: [s.id], fix: { soort: 'zak', id: s.id, naam: 'Laat zakken' } });
+  for (let i = 0; i < st.length; i++) for (let j = i + 1; j < st.length; j++) {
+    const [k, g] = st[i].L <= st[j].L ? [st[i], st[j]] : [st[j], st[i]]; const dk = richt(k);
+    if ([0.15, 0.5, 0.85].some((f) => totAs(k.a.map((v, n) => v + dk[n] * k.L * f), g) < 0.05)) meld.push({ soort: 'fout', tekst: `Twee stukken zitten in elkaar (${fmt(st[i].L)} m en ${fmt(st[j].L)} m): haal er één weg of verplaats het.`, ids: [st[i].id, st[j].id] });
+  }
+  const echt = knopen.filter((k) => k.hoek && k.soort !== 'Koppelblok recht');
+  for (const k of knopen) {
+    if (!k.hoek || k.soort !== 'Koppelblok recht') continue; const d = k.richtingen[0];
+    if (echt.some((e) => Math.abs(inp(e.p, d) - inp(k.p, d)) < 0.03)) continue; // hoort bij een dwarsligger op dezelfde plek
+    meld.push({ soort: 'let', tekst: `Blok van ${Math.round(B * 100)} cm tussen twee stukken in elkaars verlengde, zonder dwarsstuk. Het maakt die lijn ${Math.round(B * 100)} cm langer dan de rest.`, ids: k.stukken.map((i) => st.find((s) => s.i === i)?.id).filter(Boolean), fix: { soort: 'blok', p: k.p, naam: 'Blok wegnemen' } });
+  }
+  return { meldingen: meld, gegrond };
+}
+
 // ---------- Analyse: overspanningen, uitkragingen, losse torens ----------
 // Een ligger rust op een steunpunt waar een staand stuk eronder aansluit (een toren, via een hoekblok of rechtstreeks).
 // Tussen twee steunpunten = overspanning; voorbij het laatste = uitkraging. Liggers op de vloer tellen niet.
 export function trussAnalyse(stukken, T = TRUSS_TYPES[0]) {
   const H = T.B / 2; const st = stukken.map((s, i) => ({ ...s, i: s.i ?? i, e: s.e || eindPt(s) }));
-  const knopen = trussKnopen(st, T.B); const max = maxOverspanning(T);
+  const knopen = trussKnopen(st, T.B); const max = maxOverspanning(T); const F = trussFouten(st, knopen, T.B); const gegrond = F.gegrond;
   const lig = st.filter((s) => !s.op && s.a[2] > H + 0.05);
   // Lijnen: liggende stukken op één rechte (zelfde richting, zelfde hoogte, op elkaar aansluitend, ook door een blok).
   const lijnen = []; const gezien = new Set();
@@ -230,11 +345,11 @@ export function trussAnalyse(stukken, T = TRUSS_TYPES[0]) {
   }
   const steunOp = (L) => {
     const pts = [];
-    for (const k of knopen) { if (!k.hoek) continue; const tk = L.t(k.p); if (tk < L.a - H - 0.02 || tk > L.b + H + 0.02) continue; if (Math.abs(k.p[2] - L.z) > 0.03) continue; const af = Math.abs((k.p[0] - L.s.a[0]) * -L.u[1] + (k.p[1] - L.s.a[1]) * L.u[0]); if (af > 0.03) continue; if (k.richtingen.some((r) => r[2] > 0.5)) pts.push(tk); }
-    for (const s of st) if (s.op) { const top = s.e; if (Math.abs(top[2] - L.z) < 0.03 || Math.abs(top[2] + H - L.z) < 0.03) { const tk = L.t(top); const af = Math.abs((top[0] - L.s.a[0]) * -L.u[1] + (top[1] - L.s.a[1]) * L.u[0]); if (af < 0.03 && tk >= L.a - H - 0.02 && tk <= L.b + H + 0.02 && !pts.some((x) => Math.abs(x - tk) < 0.05)) pts.push(tk); } }
+    for (const k of knopen) { if (!k.hoek) continue; const tk = L.t(k.p); if (tk < L.a - H - 0.02 || tk > L.b + H + 0.02) continue; if (Math.abs(k.p[2] - L.z) > 0.03) continue; const af = Math.abs((k.p[0] - L.s.a[0]) * -L.u[1] + (k.p[1] - L.s.a[1]) * L.u[0]); if (af > 0.03) continue; if (k.stukken.some((i, n) => k.richtingen[n][2] > 0.5 && gegrond.has(i))) pts.push(tk); }
+    for (const s of st) if (s.op && gegrond.has(s.i)) { const top = s.e; if (Math.abs(top[2] - L.z) < 0.03 || Math.abs(top[2] + H - L.z) < 0.03) { const tk = L.t(top); const af = Math.abs((top[0] - L.s.a[0]) * -L.u[1] + (top[1] - L.s.a[1]) * L.u[0]); if (af < 0.03 && tk >= L.a - H - 0.02 && tk <= L.b + H + 0.02 && !pts.some((x) => Math.abs(x - tk) < 0.05)) pts.push(tk); } }
     return [...new Set(pts.map((x) => Math.round(x * 100) / 100))].sort((a, b) => a - b);
   };
-  const overspanningen = []; const meldingen = [];
+  const overspanningen = []; const meldingen = [...F.meldingen];
   for (const L of lijnen) {
     const sp = steunOp(L); const lengte = L.b - L.a;
     if (!sp.length) { meldingen.push({ soort: 'let', tekst: `Ligger van ${fmt(lengte)} m op ${fmt(L.z + H)} m zonder steun eronder. Hangt hij aan motoren, dan gelden de afstanden tussen de ophangpunten.`, ids: [L.s.id] }); continue; }

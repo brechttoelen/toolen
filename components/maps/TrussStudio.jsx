@@ -11,7 +11,7 @@ import { DoekBeeld, PLAATSINGEN, STARTEN } from './doekbeeld';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { wandPunten } from './WandStudio';
-import { trussStukken, naarTrussOpslag, trussKnopen, trussTelling, portaal, kubus, toren, opdelen, TRUSS_B, TRUSS_LENGTES, trussKader, kaderMaat, schaalTruss, TRUSS_TYPES, trussTypeVoor, trussAnalyse, belastingBij, maxOverspanning } from './trussbouw';
+import { trussStukken, naarTrussOpslag, trussKnopen, trussTelling, portaal, kubus, toren, opdelen, TRUSS_B, TRUSS_LENGTES, trussKader, kaderMaat, schaalTruss, TRUSS_TYPES, trussTypeVoor, trussAnalyse, belastingBij, maxOverspanning, splitsTruss, rekTruss, sluitBlok } from './trussbouw';
 import { publiekeUrl } from './db';
 import dynamic from 'next/dynamic';
 import { webglKan } from './StellingStudio';
@@ -434,25 +434,18 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
     return [P(s0), P(s1)];
   };
   // erbij: { oudId: [nieuwe ids] } — een opgedeeld stuk: doeken erop blijven over alle delen hangen.
-  const bewaar = (lijst, erbij = {}, dl = doekLijst) => { const ids = new Set(lijst.map((x) => x.id)); const np = ankerVoor(lijst); zetT({ ...t0, stukken: naarTrussOpslag(np, lijst), doeken: dl.map((d) => { const l0 = d.stukken || [d.stuk]; const l1 = [...new Set(l0.flatMap((x) => [x, ...(erbij[x] || [])]))]; return { ...d, stukken: l1.filter((x) => ids.has(x)) }; }).filter((d) => d.stukken.length) }, np); };
+  const bewaar = (lijst, erbij = {}, dl = doekLijst, volg = true) => {
+    const ids = new Set(lijst.map((x) => x.id)); const np = ankerVoor(lijst); const oud = new Map(stukken.map((x) => [x.id, x])); const nw = new Map(lijst.map((x) => [x.id, x]));
+    // Een getekend doek hangt aan zijn stuk: schuift dat stuk in de hoogte, dan gaat het doek mee.
+    const mee = (d) => { if (!volg || d.s0 == null) return d; const o = oud.get(d.stuk); const n = nw.get(d.stuk); const dz = o && n ? n.a[2] - o.a[2] : 0; return Math.abs(dz) > 0.0005 ? { ...d, z0: Math.round((d.z0 + dz) * 1000) / 1000, z1: Math.round((d.z1 + dz) * 1000) / 1000 } : d; };
+    zetT({ ...t0, stukken: naarTrussOpslag(np, lijst), doeken: dl.map((d) => { const l0 = d.stukken || [d.stuk]; const l1 = [...new Set(l0.flatMap((x) => [x, ...(erbij[x] || [])]))]; return { ...mee(d), stukken: l1.filter((x) => ids.has(x)) }; }).filter((d) => d.stukken.length) }, np);
+  };
   // Een stuk opdelen op afstand t van het begin (bv. 3 m → 1 m + 2 m) met een T-blok ertussen: het tweede deel en alles
   // wat er verderop aan vast zit, schuift een blokbreedte op (de constructie wordt zoveel langer, zoals in het echt).
   const deelOp = (lijst, F, t) => {
-    const d = F.op ? [0, 0, 1] : [Math.cos(F.r), Math.sin(F.r), 0]; const B = B2 * 2;
-    let o = 0; const deel1 = opdelen(t).map((L, k) => { const a = [F.a[0] + d[0] * o, F.a[1] + d[1] * o, F.a[2] + d[2] * o]; o += L; return { ...F, id: k ? nieuwId() : F.id, L, a }; });
-    o = t + B; const deel2 = opdelen(F.L - t).map((L) => { const a = [F.a[0] + d[0] * o, F.a[1] + d[1] * o, F.a[2] + d[2] * o]; o += L; return { ...F, id: nieuwId(), L, a }; });
-    // Wat hangt er aan het einde van F (niet via F zelf)? Dat schuift mee, tenzij het rondloopt naar het begin.
-    const eF = eindVan(F); const rond = (x) => x.map((v) => Math.round(v * 100) / 100).join(',');
-    const punten = (x) => { const dx = x.op ? [0, 0, 1] : [Math.cos(x.r), Math.sin(x.r), 0]; const e = eindVan(x); return [x.a, e, x.a.map((v, k) => v - dx[k] * B2), e.map((v, k) => v + dx[k] * B2)].map(rond); };
-    const ander = lijst.filter((x) => x.id !== F.id); const naar = new Set(); const rij = [];
-    const startP = new Set([eF, eF.map((v, k) => v + d[k] * B2)].map(rond)); const beginP = new Set([F.a, F.a.map((v, k) => v - d[k] * B2)].map(rond));
-    for (const x of ander) if (punten(x).some((q) => startP.has(q))) { naar.add(x.id); rij.push(x); }
-    let lus = false;
-    while (rij.length) { const x = rij.shift(); const px = punten(x); if (px.some((q) => beginP.has(q))) lus = true; for (const y of ander) if (!naar.has(y.id) && punten(y).some((q) => px.includes(q))) { naar.add(y.id); rij.push(y); } }
-    const schuif = !lus; const nieuw = [...deel1, ...deel2];
-    const rest = lijst.flatMap((x) => (x.id === F.id ? nieuw : schuif && naar.has(x.id) ? [{ ...x, a: [x.a[0] + d[0] * B, x.a[1] + d[1] * B, x.a[2] + d[2] * B] }] : [x]));
-    if (lus) setTip('Let op: het frame is gesloten; door het T-blok klopt de lus niet meer. Pas de lengte aan.');
-    return { lijst: rest, erbij: { [F.id]: nieuw.slice(1).map((x) => x.id) } };
+    const r = splitsTruss(lijst, F, t, B2 * 2, lengtes); if (r.fout) return r;
+    if (r.mee) setTip(`Ook ${r.mee === 1 ? 'het stuk' : `de ${r.mee} stukken`} ernaast ${r.mee === 1 ? 'kreeg' : 'kregen'} op dezelfde plek een blok, zodat alles even lang blijft.`);
+    return r;
   };
   const metOpdeling = (lijst, p) => (p?.deel ? deelOp(lijst, lijst.find((x) => x.id === p.deel.id) || p.deel, p.deel.t) : { lijst, erbij: {} });
   const zetDoeken = (l) => zetT({ ...t0, doeken: l });
@@ -473,7 +466,7 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
       return { ...d, stuk: nF.id, s0: r3(Math.min(sv(a), sv(b))), s1: r3(Math.max(sv(a), sv(b))), z0: r3(Math.min(a[2], b[2])), z1: r3(Math.max(a[2], b[2])) };
     });
     setSel((l) => l.flatMap((id) => (nieuwOp.has(id) ? [id, ...(res.erbij[id] || [])] : res.erbij[id] || [])).filter((id, k, l2) => l2.indexOf(id) === k));
-    bewaar(res.stukken, res.erbij, dl);
+    bewaar(res.stukken, res.erbij, dl, false);
   };
   const dk = selDoek ? doekLijst.find((d) => d.id === selDoek) : null;
   const doekMap = new Map(ontwerpen.map((d) => [d.id, d]));
@@ -611,13 +604,13 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
     const p = zoekPlek(F.L, F.op, F.r, muis, hulp, new Set(groep.map((x) => x.id)));
     const nieuw = plaatsing(groep, p);
     if (fase === 'sleep') { setSpook(nieuw); setTip(p.tip || TIP[p.soort]); return; }
-    setSpook(null); setTip(''); const m = new Map(nieuw.map((x) => [x.id, x])); const od = metOpdeling(stukken.map((x) => m.get(x.id) || x), p); bewaar(od.lijst, od.erbij); if (!sel.includes(i) && !p.deel) setSel([i]); else if (p.deel) setSel([]);
+    setSpook(null); setTip(''); const m = new Map(nieuw.map((x) => [x.id, x])); const od = metOpdeling(stukken.map((x) => m.get(x.id) || x), p); if (od.fout) { setTip(od.fout); return; } bewaar(od.lijst, od.erbij); if (!sel.includes(i) && !p.deel) setSel([i]); else if (p.deel) setSel([]);
   };
   const onKlik = (i, muis, hulp, meer) => {
     if (plaats && schrijven) {
       const g = plaats.groep; const p = zoekPlek(g[0].L, g[0].op, plaats.rVrij, muis, hulp, new Set());
       const nieuw = plaatsing(g, p).map((x) => ({ ...x, id: nieuwId(), spook: false }));
-      const od = metOpdeling([...stukken, ...nieuw], p); bewaar(od.lijst, od.erbij); setSpook(null);
+      const od = metOpdeling([...stukken, ...nieuw], p); if (od.fout) { setTip(od.fout); return; } bewaar(od.lijst, od.erbij); setSpook(null);
       if (g.length > 1 || plaats.vorm) { stop(); setSel(nieuw.map((_, j) => stukken.length + j)); }
       return;
     }
@@ -627,6 +620,15 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
   };
   const wijzigSel = (fn) => { if (!gekozen.length) return; const m = new Map(fn(gekozen).map((x) => [x.id, x])); bewaar(stukken.map((x) => m.get(x.id) || x)); };
   const weg = () => { if (!gekozen.length) return; const ids = new Set(sel); bewaar(stukken.filter((x) => !ids.has(x.i))); setSel([]); };
+  const zetLengte = (F, L) => { const r = rekTruss(stukken, F, L, B2 * 2, lengtes); if (!r) return; if (r.fout) { setTip(r.fout); return; } bewaar(r.lijst, r.erbij); };
+  const herstel = (fix) => {
+    if (fix.soort === 'blok') { const r = sluitBlok(stukken, fix.p, B2 * 2); if (!r) { setTip('Dit blok kan niet weg.'); return; } bewaar(r.lijst); setSel([]); setTip(r.lijn ? 'Blok weg: enkel de rest van deze lijn schoof op, want ernaast loopt een stuk door.' : 'Blok weg: wat erachter hing schoof mee.'); return; }
+    if (fix.soort === 'zak') {
+      const F = stukken.find((x) => x.id === fix.id); if (!F) return; let z = stukken.some((x) => x.op && Math.abs(x.a[2]) < 0.01) ? 0 : -B2;
+      for (const g of stukken) if (g.op && g.id !== F.id && Math.hypot(g.a[0] - F.a[0], g.a[1] - F.a[1]) < 0.03 && eindVan(g)[2] <= F.a[2] + 0.01) z = Math.max(z, eindVan(g)[2]);
+      bewaar(stukken.map((x) => (x.id === F.id ? { ...x, a: [x.a[0], x.a[1], z] } : x))); setSel([]);
+    }
+  };
   const kopieer = () => { if (gekozen.length) begin(gekozen.map((x, k) => ({ ...x, id: `__n${k}` })), { vorm: true }); };
 
   useEffect(() => {
@@ -729,7 +731,12 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
               <div className="fm-kop" style={{ marginTop: 8 }}>Overspanningen</div>
               {analyse.overspanningen.map((o, k) => <div key={k} className={`fm-tr-span${o.L > analyse.max ? ' fout' : ''}`}><b>{getal(o.L)} m</b><span>{o.bel ? `max ${o.bel.udl} kg/m verdeeld of ${o.bel.cpl} kg in het midden` : 'buiten de tabel'}</span></div>)}
             </>}
-            {analyse.meldingen.map((m, k) => <button key={k} type="button" className={`fm-melding ${m.soort === 'fout' ? 'fout' : ''}`} style={{ textAlign: 'left', border: 0, cursor: 'pointer', width: '100%', marginTop: 6 }} onClick={() => setSel(stukken.filter((x) => m.ids.includes(x.id)).map((x) => x.i))}>{m.tekst}</button>)}
+            {analyse.meldingen.map((m, k) => (
+              <div key={k} style={{ marginTop: 6 }}>
+                <button type="button" className={`fm-melding ${m.soort === 'fout' ? 'fout' : ''}`} title="Toon de stukken" style={{ textAlign: 'left', border: 0, cursor: 'pointer', width: '100%' }} onClick={() => setSel(stukken.filter((x) => m.ids.includes(x.id)).map((x) => x.i))}>{m.tekst}</button>
+                {m.fix && schrijven && <button type="button" className="fm-knop klein" style={{ marginTop: 4 }} onClick={() => herstel(m.fix)}>{m.fix.naam}</button>}
+              </div>
+            ))}
             <div className="fm-sub" style={{ marginTop: 6 }}>Belasting volgens {TY.bron}: enkelvoudige overspanning, statisch, eigen gewicht inbegrepen. Indicatief: de leverancier of een rigger rekent na.</div>
           </div>
           {maatKader && schrijven && (
@@ -753,7 +760,7 @@ export default function TrussStudio({ it, el, schrijven, onZet, onSluit, doeken:
                 <>
                   {st1 && (
                     <div className="fm-segment fm-ws-tabs" role="group" aria-label="Lengte" style={{ flexWrap: 'wrap' }}>
-                      {lengtes.map((L) => <button key={L} className={st1.L === L ? 'aan' : ''} onClick={() => wijzigSel((l) => l.map((x) => ({ ...x, L })))}>{getal(L)}</button>)}
+                      {lengtes.map((L) => <button key={L} className={st1.L === L ? 'aan' : ''} onClick={() => zetLengte(st1, L)}>{getal(L)}</button>)}
                     </div>
                   )}
                   <div className="fm-ws-acties">
