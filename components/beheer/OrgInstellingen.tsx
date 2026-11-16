@@ -6,11 +6,13 @@ import { MODULES, ROLLEN, statusVan, pakketVan, rolNaam, datum } from "@/lib/pak
 import { Toegang, ToegangBewerken, ToegangKiezer, WerkplekKiezer, werkplekNamen } from "./Toegang";
 
 type Ik = { id: string; rol: string; organisatie: { id: string; slug: string; naam: string } };
-type Lid = { user_id: string; email: string; naam: string | null; rol: string; actief: boolean; sinds: string; ik: boolean; event_ids: string[] | null; mfa: boolean; werkplekken: string[] | null };
+type Lid = { user_id: string; email: string; naam: string | null; rol: string; actief: boolean; sinds: string; ik: boolean; event_ids: string[] | null; mfa: boolean; werkplekken: string[] | null; hub: string | null };
+type HubLid = { email: string; naam: string | null; rol: string; status: string | null };
+type Hub = { brug?: boolean; sleutel?: boolean; fout?: string; leden?: HubLid[] } | null;
 type Uitn = { id: string; email: string; naam: string | null; rol: string; event_ids: string[] | null; werkplekken: string[] | null; geldig_tot: string; verstuurd_op: string | null };
 type Ev = { id: string; naam: string; datum: string | null };
 type Org = { id: string; naam: string; kort: string | null; adres: string | null; ondernemingsnummer: string | null; land: string;
-  status: string; pakket: string; plaatsen: number; lezers_max: number; modules: string[]; proef_tot: string | null };
+  status: string; pakket: string; plaatsen: number; lezers_max: number; modules: string[]; proef_tot: string | null; sso?: string[] };
 type Gebruik = { plaatsen: number; plaatsen_max: number; lezers: number; lezers_max: number };
 
 const db = () => sb().schema("maps");
@@ -58,6 +60,8 @@ export default function OrgInstellingen() {
 
   const beheer = ik?.rol === "eigenaar" || ik?.rol === "beheerder";
   const eigenaar = ik?.rol === "eigenaar";
+  const [hub, setHub] = useState<Hub>(null);
+  const viaHub = (org?.sso || []).includes("brug");
 
   async function laad() {
     const { data: w } = await db().rpc("ik");
@@ -73,6 +77,10 @@ export default function OrgInstellingen() {
       db().rpc("plaatsen_in_gebruik", { p_org: id }),
     ]);
     setLeden((l.data || []) as Lid[]); setUitn((u.data || []) as Uitn[]); setOrg(o.data as Org); setGebruik(g.data as Gebruik);
+    // Toegang via het toegangsbeheer van de organisatie (de hub): wie heeft daar een rol?
+    if (((o.data as Org | null)?.sso || []).includes("brug") && ["eigenaar", "beheerder"].includes(me.rol)) {
+      fetch(`/api/brug/leden?org=${encodeURIComponent(me.organisatie.slug)}`).then((r) => r.json()).then((j) => setHub(j as Hub)).catch(() => setHub(null));
+    }
     db().from("events").select("id, naam, datum").eq("organisatie_id", id).order("datum", { ascending: false, nullsFirst: false }).then((r: { data: unknown }) => setEvents((r.data || []) as Ev[]));
   }
   useEffect(() => { laad(); }, []);
@@ -186,6 +194,7 @@ export default function OrgInstellingen() {
             </div>
           )}
 
+          {viaHub && <p className="t-sub" style={{ margin: "0 0 10px" }}>Leden met <span className="t-pil blauw">Hub</span> melden zich aan via de hub. Hun rol en toegang beheer je daar: een wijziging hier wordt bij hun volgende aanmelding overschreven.</p>}
           <div className="t-kaart" style={{ overflowX: "auto" }}>
             <table className="t-tabel">
               <thead><tr><th>Naam</th><th>Rol</th><th>Toegang</th><th>Tweestap</th><th>Sinds</th>{beheer && <th style={{ width: 1 }} />}</tr></thead>
@@ -196,7 +205,7 @@ export default function OrgInstellingen() {
                   return (<Fragment key={l.user_id}>
                     <tr style={l.actief ? undefined : { opacity: 0.55 }}>
                       <td>
-                        <div style={{ fontWeight: 500 }}>{l.naam || l.email}{l.ik && <span className="t-stil" style={{ fontWeight: 400 }}> (jij)</span>}</div>
+                        <div style={{ fontWeight: 500 }}>{l.naam || l.email}{l.ik && <span className="t-stil" style={{ fontWeight: 400 }}> (jij)</span>}{l.hub && <span className="t-pil blauw" style={{ marginLeft: 8 }} title={`Meldt zich aan via de hub. Laatst op ${datum(l.hub)}. Rol en toegang komen uit de hub.`}>Hub</span>}</div>
                         {l.naam && <div className="t-stil" style={{ fontSize: 12.5 }}>{l.email}</div>}
                       </td>
                       <td>
@@ -212,7 +221,7 @@ export default function OrgInstellingen() {
                         {werkplekNamen(l.werkplekken) && <div className="t-stil" style={{ fontSize: 12.5 }}>Wijzigt enkel: {werkplekNamen(l.werkplekken)}</div>}
                         {magRol && beperkbaar && (events.length > 0 || l.rol === "bewerker") && <button className="t-knop klein" style={{ marginLeft: 8 }} onClick={() => setToegangVan(toegangVan === l.user_id ? null : l.user_id)}>{toegangVan === l.user_id ? "Sluiten" : "Wijzigen"}</button>}
                       </td>
-                      <td>{l.mfa ? <span className="t-pil ok">Aan</span> : <span className="t-pil">Nog niet</span>}</td>
+                      <td>{l.mfa ? <span className="t-pil ok">Aan</span> : l.hub ? <span className="t-pil ok" title="Aanmelden via de hub gebeurt met Microsoft, met de tweede stap van daar.">Via Microsoft</span> : <span className="t-pil">Nog niet</span>}</td>
                       <td className="t-stil" style={{ whiteSpace: "nowrap" }}>{datum(l.sinds)}</td>
                       {beheer && (
                         <td style={{ whiteSpace: "nowrap" }}>
@@ -236,6 +245,28 @@ export default function OrgInstellingen() {
               </tbody>
             </table>
           </div>
+          {viaHub && beheer && hub?.brug && (() => {
+            const gekend = new Set(leden.map((l) => (l.email || "").toLowerCase()));
+            const wacht = (hub.leden || []).filter((h) => !gekend.has(h.email));
+            if (!hub.sleutel) return <p className="t-sub" style={{ margin: "10px 0 0" }}>Wie in de hub toegang heeft maar zich nog niet aanmeldde, staat hier nog niet: daarvoor is de sleutel van de hub nodig op de server.</p>;
+            if (hub.fout) return <p className="t-melding fout" style={{ marginTop: 10 }}>{hub.fout}</p>;
+            if (!wacht.length) return <p className="t-sub" style={{ margin: "10px 0 0" }}>Iedereen met toegang in de hub heeft zich al aangemeld.</p>;
+            return (
+              <div className="t-kaart" style={{ overflowX: "auto", marginTop: 14 }}>
+                <table className="t-tabel">
+                  <thead><tr><th>Toegang in de hub, nog niet aangemeld</th><th>Rol</th></tr></thead>
+                  <tbody>
+                    {wacht.map((h) => (
+                      <tr key={h.email}>
+                        <td><div style={{ fontWeight: 500 }}>{h.naam || h.email}</div>{h.naam && <div className="t-stil" style={{ fontSize: 12.5 }}>{h.email}</div>}</td>
+                        <td>{rolNaam(h.rol)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
 
           {uitn.length > 0 && (
             <div>

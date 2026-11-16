@@ -27,6 +27,7 @@ type BrugGebruiker = { id?: string; email?: string; user_metadata?: { full_name?
 export type BrugWie = { email: string; naam: string; rol: "beheerder" | "bewerker" | "lezer" | null };
 
 const ROL: Record<string, "beheerder" | "bewerker" | "lezer"> = { superadmin: "beheerder", admin: "beheerder", editor: "bewerker", viewer: "lezer" };
+export const hubRolNaar = (rol: string): "beheerder" | "bewerker" | "lezer" => ROL[rol] || "lezer";
 
 // De rol van de aangemelde gebruiker voor de app in het toegangsbeheer, gelezen met zijn eigen sessie (hij ziet enkel
 // zijn eigen toegang). Zelfde regel als daar: een eigen rol gaat voor, anders de hoogste rol van zijn groepen.
@@ -55,7 +56,7 @@ async function hubRol(brug: Brug, token: string, uid: string): Promise<"beheerde
     }
   }
   if (!rol) return null;
-  return ROL[rol] || "lezer";
+  return hubRolNaar(rol);
 }
 
 // Wissel de code in bij het project van de brug. Geeft terug wie zich met Microsoft aanmeldde (en zijn rol, als de brug
