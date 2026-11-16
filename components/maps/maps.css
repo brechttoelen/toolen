@@ -2527,4 +2527,3 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm input[type=search]:focus { outline: 2px solid #108aed; outline-offset: -1px; border-color: transparent; }
 /* "Laatst gewijzigd" staat onderaan het paneel, niet meer boven de naam. */
 .fm-eigenschappen > .fm-geschiedenis { border-bottom: 0; border-top: 1px solid var(--fm-rand); margin-top: auto; flex: none; }
-.fm-seizoen-punt:hover .naam b { text-decoration: underline; }
