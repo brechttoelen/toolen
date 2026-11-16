@@ -24,14 +24,16 @@ export function pkce() {
 }
 
 type BrugGebruiker = { id?: string; email?: string; user_metadata?: { full_name?: string; name?: string }; identities?: { provider?: string; identity_data?: { email?: string } }[] };
-export type BrugWie = { email: string; naam: string; rol: "beheerder" | "bewerker" | "lezer" | null };
+export type BrugWie = { email: string; naam: string; rol: ToolenRol | null };
 
-const ROL: Record<string, "beheerder" | "bewerker" | "lezer"> = { superadmin: "beheerder", admin: "beheerder", editor: "bewerker", viewer: "lezer" };
-export const hubRolNaar = (rol: string): "beheerder" | "bewerker" | "lezer" => ROL[rol] || "lezer";
+export type ToolenRol = "eigenaar" | "beheerder" | "bewerker" | "lezer";
+// Rollen van de hub naar Toolen. Een rol die Toolen niet kent, telt als lezer.
+const ROL: Record<string, ToolenRol> = { superadmin: "eigenaar", admin: "beheerder", editor: "bewerker", viewer: "lezer" };
+export const hubRolNaar = (rol: string): ToolenRol => ROL[rol] || "lezer";
 
 // De rol van de aangemelde gebruiker voor de app in het toegangsbeheer, gelezen met zijn eigen sessie (hij ziet enkel
 // zijn eigen toegang). Zelfde regel als daar: een eigen rol gaat voor, anders de hoogste rol van zijn groepen.
-async function hubRol(brug: Brug, token: string, uid: string): Promise<"beheerder" | "bewerker" | "lezer" | null> {
+async function hubRol(brug: Brug, token: string, uid: string): Promise<ToolenRol | null> {
   const lees = async <T>(pad: string): Promise<T[]> => {
     const r = await fetch(`${brug.url}/rest/v1/${pad}`, { cache: "no-store", headers: { apikey: brug.sleutel, authorization: `Bearer ${token}` } });
     if (!r.ok) throw new Error(`hub ${r.status}`);
