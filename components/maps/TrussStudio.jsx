@@ -139,7 +139,7 @@ function draaiGroep(groep, graden) {
   return groep.map((m) => { const d = [m.a[0] - c[0], m.a[1] - c[1]]; return { ...m, a: [c[0] + d[0] * co - d[1] * si, c[1] + d[0] * si + d[1] * co, m.a[2]], r: m.r + dr }; });
 }
 
-function Zicht({ stukken, doeken = [], doekMap = new Map(), selDoek = null, zwart, hoek, kantel, sel = [], spook = null, zoom = 1, mini = false, vast, onKlik, onDraai, onSleep, onZoom, onDoekKlik, tekenDoek = false, onTeken , passTik = 0, onDoekWijzig = null, maatK = null, onKader = null, plaatsen = false }) {
+export function Zicht({ stukken, doeken = [], doekMap = new Map(), selDoek = null, zwart, hoek, kantel, sel = [], spook = null, zoom = 1, mini = false, vast, onKlik, onDraai, onSleep, onZoom, onDoekKlik, tekenDoek = false, onTeken , passTik = 0, onDoekWijzig = null, maatK = null, onKader = null, plaatsen = false, blokGrijp = false }) {
   const ref = useRef(null); const [maat, setMaat] = useState({ w: 600, h: 400 }); const sleep = useRef(null);
   // Verschuiven (rechts of middelste muisknop slepen, twee vingers op de trackpad); Passend zet het terug.
   const [schuif, setSchuif] = useState([0, 0]); const schuifRef = useRef(schuif); schuifRef.current = schuif;
@@ -231,7 +231,7 @@ function Zicht({ stukken, doeken = [], doekMap = new Map(), selDoek = null, zwar
   const knoopRicht = (k) => { let r = null; for (const i of k.stukken) { const g = alle[i]; if (g && !g.op) { r = g.r; break; } } if (r == null) for (const i of k.stukken) { const g = alle[i]; if (g) { r = g.r; break; } } if (r == null) r = a0; return [Math.cos(r), Math.sin(r)]; };
   const blok = (k, idx) => {
     const p = k.p; const [c, sn] = knoopRicht(k); const pts = []; for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) { const u = x * B2 * 1.05; const v = y * B2 * 1.05; pts.push(S([p[0] + u * c - v * sn, p[1] + u * sn + v * c, p[2] + z * B2 * 1.05])); }
-    return <polygon key={`k${idx}`} points={P2(omhul(pts.map((q) => q.slice(0, 2))))} fill={K.blok} stroke={K.blokZij} strokeWidth={lw(0.01)} pointerEvents="none" />;
+    return <polygon key={`k${idx}`} points={P2(omhul(pts.map((q) => q.slice(0, 2))))} fill={K.blok} stroke={K.blokZij} strokeWidth={lw(0.01)} pointerEvents={blokGrijp ? undefined : 'none'} data-stuk={blokGrijp ? k.stukken[0] : undefined} style={blokGrijp ? { cursor: 'grab' } : undefined} />;
   };
   const voet = (k, idx) => { const p = k.p; const [c, sn] = knoopRicht(k); const q = [[-0.3, -0.3], [0.3, -0.3], [0.3, 0.3], [-0.3, 0.3]].map(([x, y]) => S([p[0] + x * c - y * sn, p[1] + x * sn + y * c, -B2])); return <polygon key={`v${idx}`} points={P2(q)} fill={K.blokZij} stroke={K.buis} strokeWidth={lw(0.008)} pointerEvents="none" />; };
   // Doek onder een liggend stuk (banner of de opening van een portaal), voor = rechts van de richting.

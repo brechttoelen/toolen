@@ -49,7 +49,7 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 const rnd = (v) => Math.round(v * 100) / 100;
 
 // Ankerstelsel van de lijn (pts in meter).
-function anker(pts) {
+export function anker(pts) {
   const o = pts[0] || [0, 0]; const q = pts[1] || [o[0] + 1, o[1]]; const a0 = Math.atan2(q[1] - o[1], q[0] - o[0]);
   return {
     naarWereld: (p) => [o[0] + p[0] * Math.cos(a0) - p[1] * Math.sin(a0), o[1] + p[0] * Math.sin(a0) + p[1] * Math.cos(a0)],
