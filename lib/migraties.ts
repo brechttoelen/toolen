@@ -38,4 +38,5 @@ export const MIGRATIES: { naam: string; handmatig?: boolean; vervangen?: boolean
   { naam: "0035_doeken_event_bewerkers" },
   { naam: "0036_leveranciers_uit_collecties" },
   { naam: "0037_bewaartermijn_en_kaartbronnen" },
+  { naam: "0038_sso_brug" },
 ];

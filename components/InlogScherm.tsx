@@ -9,7 +9,7 @@ import { geldigeSlug, subdomein } from "@/lib/org";
 import Inlogkader from "./Inlogkader";
 import type { Huisstijl } from "@/lib/huisstijl";
 
-type Info = { code: string; naam: string | null; sso: ("azure" | "google")[] };
+type Info = { code: string; naam: string | null; sso: ("azure" | "google" | "brug")[] };
 const ALGEMEEN = "Bedrijfscode, e-mailadres of wachtwoord klopt niet.";
 const ONTHOUD = "toolen_code";
 
@@ -103,6 +103,13 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
     if (error) setFout(error.message);
   }
 
+  // Microsoft via de eigen omgeving van het bedrijf (brug): de server regelt de aanmelding, zie app/auth/brug.
+  function brug() {
+    const c = code.trim().toLowerCase();
+    try { localStorage.setItem(ONTHOUD, c); } catch {}
+    window.location.href = `/auth/brug/start?code=${encodeURIComponent(c)}&verder=${encodeURIComponent(doel(c))}`;
+  }
+
   const link = { border: 0, background: "none", padding: 0, color: "var(--t-blauw-donker)", cursor: "pointer", font: "inherit", fontSize: 13.5 } as const;
 
   if (modus !== "inloggen") {
@@ -163,6 +170,7 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
             </div>
             <div className="t-stapel" style={{ gap: 10 }}>
               {info.sso.includes("azure") && <button type="button" className="t-knop" style={{ height: 46, fontSize: 14.5 }} onClick={() => sso("azure")}>Verder met Microsoft</button>}
+              {info.sso.includes("brug") && !info.sso.includes("azure") && <button type="button" className="t-knop" style={{ height: 46, fontSize: 14.5 }} onClick={brug}>Verder met Microsoft</button>}
               {info.sso.includes("google") && <button type="button" className="t-knop" style={{ height: 46, fontSize: 14.5 }} onClick={() => sso("google")}>Verder met Google</button>}
             </div>
           </>

@@ -13,6 +13,8 @@ export async function mfaStap(supabase: SupabaseClient<any, any, any>, altijd = 
     const methodes = (data.currentAuthenticationMethods || []) as unknown as (string | { method: string })[];
     const sso = methodes.some((m) => (typeof m === "string" ? m : m.method) === "oauth");
     if (!altijd && sso) return null;
+    // Aangemeld via de Microsoft-koppeling van het eigen bedrijf (brug): telt als SSO.
+    if (!altijd) { const { data: brug } = await supabase.rpc("is_brug_sessie"); if (brug === true) return null; }
     return data.nextLevel === "aal2" ? "code" : "instellen";
   } catch {
     return null;
