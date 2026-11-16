@@ -114,6 +114,30 @@ const PLAAT_LEG = [
 
 // Lagen voor het sleepvoorbeeld: dezelfde lagen als de kaart, op eigen bronnen. Eén keer bij het laden
 // (68 lagen toevoegen tijdens de eerste sleep gaf een hapering).
+// Vloerstukken van een tent (terras, podium naast de tent) horen bij de tent: hun hoekpunten, en één omtrek
+// rond de stukken als ze buiten de tent uitsteken. Zo zit de vloer mee in de selectie en in wat oplicht.
+function stukPunten(tent, items) {
+  if (!tent?.velden?.tent?.stukken?.length) return [];
+  const pts = [];
+  for (const x of items) if (x.velden?.tentStuk?.tent === tent.id && x.geometrie?.type === 'Polygon') for (const q of x.geometrie.coordinates[0]) pts.push(q);
+  return pts;
+}
+const stukOmtrekCache = new WeakMap();
+function stukOmtrek(tent, items) {
+  const pts = stukPunten(tent, items);
+  if (pts.length < 3) return null;
+  const sleutel = `${pts.length}:${pts[0][0]}:${pts[0][1]}:${pts[pts.length - 1][0]}:${pts[pts.length - 1][1]}`;
+  const c = stukOmtrekCache.get(tent);
+  if (c && c.sleutel === sleutel) return c.g;
+  let g = null;
+  try {
+    const h = turf.convex(turf.multiPoint(pts));
+    if (h && !(tent.geometrie?.type === 'Polygon' && turf.booleanWithin(h, turf.buffer(tent.geometrie, 0.05, { units: 'meters' })))) g = h.geometry;
+  } catch { g = null; }
+  stukOmtrekCache.set(tent, { sleutel, g });
+  return g;
+}
+
 function zorgVoorSleepLagen(map) {
   if (map.getSource('fm-sleep-v')) return;
   const leeg = { type: 'FeatureCollection', features: [] };
@@ -1964,22 +1988,37 @@ export default function Editor({ planId }) {
         const bij = e.originalEvent?.ctrlKey || e.originalEvent?.metaKey || e.originalEvent?.shiftKey || (selectieRef.current || []).length > 1;
         if (!s.schrijven || s.gereedschap !== 'selecteer' || s.brandPenseel || e.originalEvent?.buttons) { setZweef(null); licht(null); return; }
         // Zelfde regel als selecteren (hit.js): wat oplicht, is wat je met een klik selecteert.
-        const id = hitOp(map, e.point, s.items)?.id;
-        if (!id || id === s.geselecteerd) { setZweef(null); licht(null); zetCursor(map, 'licht', id ? 'move' : ''); return; }
+        const raak = hitOp(map, e.point, s.items); const id = raak?.id;
+        if (!id || id === s.geselecteerd || (s.extra || []).includes(id)) { setZweef(null); licht(null); zetCursor(map, 'licht', id ? 'move' : ''); return; }
         zetCursor(map, 'licht', 'pointer');
-        if (bij) setZweef(null); else setZweef((z) => (z?.id === id ? z : { id, x: e.point.x, y: e.point.y }));
-        licht(id);
+        // Een groep (bv. tenten die tegen elkaar staan) selecteer je als geheel: dan licht ook het geheel op, met één kaartje.
+        // Voor gekoppelde tenten is dat het kaartje van de grootste tent, waar je ook zweeft.
+        const leden = raak.groep_id && !s.iso ? s.items.filter((x) => x.groep_id === raak.groep_id) : [raak];
+        let kaartId = id;
+        if (leden.length > 1) {
+          const tenten = leden.filter((x) => x.velden?.tent && x.geometrie?.type === 'Polygon');
+          if (tenten.length) kaartId = tenten.reduce((a, b) => (geo.oppervlakte(b.geometrie) > geo.oppervlakte(a.geometrie) ? b : a)).id;
+        }
+        const groep = leden.length > 1 ? leden.map((x) => x.id) : null;
+        if (bij) setZweef(null); else setZweef((z) => (z?.id === kaartId ? z : { id: kaartId, x: e.point.x, y: e.point.y, groep }));
+        licht(leden);
       });
     };
     // Oplichten van het item onder de muis, zodat je ziet wat je gaat selecteren.
     let vorigLicht = null;
-    const licht = (id) => {
-      if (id === vorigLicht) return;
-      vorigLicht = id;
-      const it = id ? st.current.items.find((x) => x.id === id) : null;
-      // Zoals het getekend is: met de bochten, niet de rechte tussen de punten.
-      const gl = it?.geometrie ? geo.buig(it.geometrie, it.parameters?.bogen) : null;
-      const data = { type: 'FeatureCollection', features: gl ? [{ type: 'Feature', geometry: gl.type === 'Polygon' ? { type: 'LineString', coordinates: gl.coordinates[0] } : gl, properties: {} }] : [] };
+    const licht = (leden) => {
+      const sleutel = leden ? leden.map((x) => x.id).join() : null;
+      if (sleutel === vorigLicht) return;
+      vorigLicht = sleutel;
+      const features = [];
+      const lijn = (g) => features.push({ type: 'Feature', geometry: g.type === 'Polygon' ? { type: 'LineString', coordinates: g.coordinates[0] } : g, properties: {} });
+      for (const it of leden || []) {
+        if (!it?.geometrie) continue;
+        // Zoals het getekend is: met de bochten, niet de rechte tussen de punten.
+        lijn(geo.buig(it.geometrie, it.parameters?.bogen));
+        const vloer = stukOmtrek(it, st.current.items); if (vloer) lijn(vloer);
+      }
+      const data = { type: 'FeatureCollection', features };
       if (map.getSource('fm-licht')) map.getSource('fm-licht').setData(data);
       else {
         map.addSource('fm-licht', { type: 'geojson', data });
@@ -3443,6 +3482,8 @@ export default function Editor({ planId }) {
     const map = mapRef.current;
     if (!map || !kaartKlaar) return;
     const f = items.filter((x) => extra.includes(x.id) && x.geometrie).map((x) => ({ type: 'Feature', geometry: x.geometrie.type === 'Point' ? x.geometrie : { type: 'LineString', coordinates: ((g) => (g.type === 'LineString' ? g.coordinates : g.coordinates[0]))(geo.buig(x.geometrie, x.parameters?.bogen)) }, properties: { p: x.geometrie.type === 'Point' } }));
+    // Vloer die buiten een geselecteerde tent uitsteekt (terras, podium): mee omlijnd, ze hoort bij de tent.
+    for (const x of items) if ((x.id === geselecteerd || extra.includes(x.id)) && x.velden?.tent?.stukken?.length) { const g = stukOmtrek(x, items); if (g) f.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: g.coordinates[0] }, properties: { p: false } }); }
     const data = { type: 'FeatureCollection', features: f };
     if (map.getSource('fm-selectie')) map.getSource('fm-selectie').setData(data);
     else {
@@ -3450,7 +3491,7 @@ export default function Editor({ planId }) {
       map.addLayer({ id: 'fm-selectie-l', type: 'line', source: 'fm-selectie', filter: ['!', ['get', 'p']], paint: { 'line-color': '#1d1d1b', 'line-width': 2, 'line-dasharray': [2, 1.5] } });
       map.addLayer({ id: 'fm-selectie-p', type: 'circle', source: 'fm-selectie', filter: ['get', 'p'], paint: { 'circle-radius': 12, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#1d1d1b', 'circle-stroke-width': 2 } });
     }
-  }, [extra, items, kaartKlaar]);
+  }, [extra, geselecteerd, items, kaartKlaar]);
 
   // ---------- Vaste aansluitingen: register van stroomkasten over alle evenementen ----------
   // Bewaarde kaarttegels (ook voor exports): de service worker van Toolen Maps.
@@ -3633,7 +3674,7 @@ export default function Editor({ planId }) {
         if (k) {
           // Greep haaks op de lange as van het geheel (zoals bij één item), net buiten de rand:
           // bij een schuin liggende groep staat ze dan naast de groep in plaats van ergens boven het kader.
-          const pts = []; const extraVan = (x) => (x.velden?.stelling ? stellingPunten(x) : []);
+          const pts = []; const extraVan = (x) => (x.velden?.stelling ? stellingPunten(x) : x.velden?.tent?.stukken?.length ? stukPunten(x, st.current.items) : []);
           for (const x of lijst) {
             const g = x.geometrie; const cs = g.type === 'Point' ? [g.coordinates] : g.type === 'LineString' ? g.coordinates : g.coordinates[0];
             for (const q of [...cs, ...extraVan(x)]) { pts.push(map.project(q)); if (pts.length > 4000) break; }
@@ -5267,7 +5308,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
             );
           })()}
           {binnenZweef && !binnen ? <BinnenPreview hostId={binnenZweef.host} x={binnenZweef.x} y={binnenZweef.y} items={items} elementenMap={elementenMap} />
-            : zweef && (items.find((x) => x.id === zweef.id)?.velden?.binnenplan && !binnen ? <BinnenPreview hostId={zweef.id} x={zweef.x} y={zweef.y} items={items} elementenMap={elementenMap} /> : <ZweefKaartje zweef={zweef} items={items} elementenMap={elementenMap} lagenMap={lagenMap} plan={plan} />)}
+            : zweef && (items.find((x) => x.id === zweef.id)?.velden?.binnenplan && !binnen && items.some((x) => x.velden?.binnen?.host === zweef.id) ? <BinnenPreview hostId={zweef.id} x={zweef.x} y={zweef.y} items={items} elementenMap={elementenMap} /> : <ZweefKaartje zweef={zweef} items={items} elementenMap={elementenMap} lagenMap={lagenMap} plan={plan} />)}
           {overgang && <div className={`fm-overgang ${overgang}`} aria-hidden="true" />}
           {binnenScherm && (() => {
             const host = items.find((x) => x.id === binnenScherm.host);

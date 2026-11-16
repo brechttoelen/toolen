@@ -28,6 +28,10 @@ export default function ZweefKaartje({ zweef, items, elementenMap, lagenMap, pla
   if (el?.eigenschappen?.doek && el.eigenschappen.doek !== 'geen') maat = `${maat} · doek ${zi.velden?.doek_naam || el.eigenschappen.doek}${zi.velden?.doek_kant ? ` (${zi.velden.doek_kant})` : ''}`;
   if (tbt) maat = `${maat}${Object.entries(tbt).map(([k, n]) => ` · ${n} ${toebehorenNaam(el, k).toLowerCase()}`).join('')}`;
   const extra = [maat, mt.capaciteit ? `± ${mt.capaciteit.toLocaleString('nl-BE')} pers.` : '', p.rot ? `${Math.round(p.rot)}°` : '', sv?.rol === 'verbruiker' && sv.kw ? `${sv.kw} kW` : '', zi.vergrendeld ? 'vergrendeld' : ''].filter(Boolean).join(' · ');
+  // Gekoppelde tenten (een groep): één kaartje voor het geheel, met de andere tenten erbij en alles samen in 3D.
+  const andere = (zweef.groep || []).filter((id) => id !== zi.id).map((id) => items.find((x) => x.id === id)).filter((x) => x && !x.velden?.tentStuk)
+    .map((x) => ({ id: x.id, naam: x.naam || elementenMap.get(x.element_id)?.naam || 'Item', maat: x.parameters?.breedte && x.parameters?.diepte ? `${r1(x.parameters.breedte)} × ${r1(x.parameters.diepte)} m` : '' })).slice(0, 6);
+  const vloerStuks = zi.velden?.tent?.stukken?.length ? items.filter((x) => x.velden?.tentStuk?.tent === zi.id).length : 0;
   return (
     <div className="fm-zweef" style={{ left: zweef.x + 14, top: zweef.y + 14, ...(heeft3d(zi, el) ? { maxWidth: 266 } : {}) }}>
       <strong>{isSign(zi) ? `Punt ${zi.velden.sign.nr}${zi.velden.sign.straat ? ` · ${zi.velden.sign.straat}` : ''}` : zi.naam || el?.naam || 'Zonder naam'}</strong>
@@ -38,7 +42,9 @@ export default function ZweefKaartje({ zweef, items, elementenMap, lagenMap, pla
       {el && zi.naam && zi.naam !== el.naam && <span>{el.naam}</span>}
       {extra && <span>{extra}</span>}
       {lg && <span className="laag"><i style={{ background: lg.kleur || '#686D76' }} />{lg.naam}</span>}
-      {heeft3d(zi, el) && <div className="fm-zweef-3d"><Mini3D it={zi} el={el} elementenMap={elementenMap} /></div>}
+      {andere.map((x) => <span key={x.id}>+ {x.naam}{x.maat ? ` · ${x.maat}` : ''}</span>)}
+      {vloerStuks > 0 && <span>{vloerStuks} {vloerStuks === 1 ? 'vloerstuk' : 'vloerstukken'} buiten de tent</span>}
+      {heeft3d(zi, el) && <div className="fm-zweef-3d"><Mini3D it={zi} el={el} elementenMap={elementenMap} items={zweef.groep || vloerStuks ? items : null} /></div>}
       {zi.velden?.attesten?.length > 0 && (() => { const st0 = zi.velden.attesten.map((a) => attestStatus(a)).sort((a, b) => ['vervallen', 'bijna', 'onbekend', 'geldig'].indexOf(a.code) - ['vervallen', 'bijna', 'onbekend', 'geldig'].indexOf(b.code))[0]; return <span>Attest: {st0.code === 'geldig' ? 'in orde' : st0.code === 'bijna' ? 'bijna vervallen' : st0.code === 'vervallen' ? 'vervallen' : 'geen datum'}</span>; })()}
     </div>
   );
