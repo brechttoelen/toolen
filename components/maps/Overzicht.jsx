@@ -2,7 +2,7 @@
 
 // Overzicht: het startscherm van Toolen Maps. Komende events met een voorbeeld van hun plan,
 // de seizoenslijn, wat aandacht vraagt en wie nu bezig is.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './maps.css';
 import { maps, sb, foutTekst, wieBenIk, magSchrijven } from './db';
 import { startLobby } from './live';
@@ -130,27 +130,45 @@ export default function Overzicht() {
     return [...m.values()].map((x) => ({ ...x, plan: p, kleur: g?.kleur }));
   });
 
-  // Seizoenslijn: komende events binnen 12 maanden.
+  // Seizoenslijn: van deze maand tot en met de maand van het laatste event (hoogstens 12 maanden vooruit).
+  // Elk event staat op zijn datum, met zijn naam ernaast; namen die elkaar zouden raken, schuiven een regel lager.
+  const lijnRef = useRef(null);
+  const [lijnB, setLijnB] = useState(1000);
+  useEffect(() => {
+    const el = lijnRef.current; if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => setLijnB(el.clientWidth || 1000)); ro.observe(el); setLijnB(el.clientWidth || 1000);
+    return () => ro.disconnect();
+  }, [komend.length]);
   const lijn = useMemo(() => {
     const l = komend.filter((g) => dagenTot(g.datum) <= 366);
     if (!l.length) return null;
-    const t0 = new Date(`${l[0].datum.slice(0, 7)}-01T12:00:00`);
+    const nu = new Date(`${vandaag}T12:00:00`);
+    const t0 = new Date(nu.getFullYear(), nu.getMonth(), 1, 12);
     const laatste = new Date(`${l[l.length - 1].datum}T12:00:00`);
     const t1 = new Date(laatste.getFullYear(), laatste.getMonth() + 1, 1, 12);
     const span = t1 - t0;
     const pos = (d) => ((new Date(`${d}T12:00:00`) - t0) / span) * 100;
     const maanden = [];
-    for (let m = new Date(t0); m < t1; m = new Date(m.getFullYear(), m.getMonth() + 1, 1, 12)) maanden.push({ naam: MAAND_KORT[m.getMonth()], x: ((m - t0) / span) * 100 });
-    const rijen = [-1, -1, -1, -1];
+    for (let m = new Date(t0); m < t1; m = new Date(m.getFullYear(), m.getMonth() + 1, 1, 12)) {
+      const eind = new Date(m.getFullYear(), m.getMonth() + 1, 1, 12);
+      maanden.push({ naam: MAAND_KORT[m.getMonth()], jaar: m.getMonth() === 0 || +m === +t0 ? m.getFullYear() : null, x: ((m - t0) / span) * 100, b: ((eind - m) / span) * 100 });
+    }
+    // Regels: de naam staat rechts van het punt, of links als ze rechts niet meer past.
+    const eind = []; // per regel: tot waar (px) ze bezet is
     const punten = l.map((g) => {
-      const x = pos(g.datum);
-      let rij = rijen.findIndex((r) => x - r > 14);
-      if (rij < 0) rij = 0;
-      rijen[rij] = x;
-      return { g, x, rij };
+      const x = pos(g.datum); const px = (x / 100) * lijnB;
+      const dag = eventDatum(g.datum);
+      const breed = 22 + g.naam.length * 7.3 + dag.length * 6.1 + 14;
+      const links = px + breed > lijnB && px - breed > 0;
+      const van = links ? px - breed : px - 8; const tot = links ? px + 8 : px + breed;
+      // Tot zes events: elk op een eigen regel, als een trap in de tijd. Meer: regels delen waar het past.
+      let rij = l.length <= 6 ? eind.length : eind.findIndex((e) => van > e + 10);
+      if (rij < 0 || rij === eind.length) { rij = eind.length; eind.push(0); }
+      eind[rij] = tot;
+      return { g, x, rij, links, dag };
     });
-    return { maanden, punten };
-  }, [komend]);
+    return { maanden, punten, rijen: Math.max(1, eind.length), nu: pos(vandaag) };
+  }, [komend, lijnB, vandaag]);
 
   const gezocht = zoek.trim().toLowerCase();
   const treffers = gezocht ? plannen.filter((p) => [p.naam, p.editie_naam, p.locatie].join(' ').toLowerCase().includes(gezocht)).slice(0, 8) : [];
@@ -246,20 +264,27 @@ export default function Overzicht() {
               <span style={sub}>{komend.length} {komend.length === 1 ? 'event' : 'events'} · {komend.reduce((t, g) => t + g.plannen.length, 0)} plannen{eersteStart != null ? ` · Eerste start over ${eersteStart} ${eersteStart === 1 ? 'dag' : 'dagen'}` : ''}</span>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              <div style={{ position: 'relative', minWidth: 720, height: 160, margin: '0 12px' }}>
-                <div style={{ position: 'absolute', left: 0, right: 0, top: 64, height: 4, background: '#E3E8EF', borderRadius: 2 }} />
-                {lijn.maanden.map((m) => (
-                  <span key={m.naam + m.x}>
-                    <span style={{ position: 'absolute', left: `${m.x}%`, top: 56, width: 2, height: 20, background: '#CFD7E3' }} />
-                    <span style={{ position: 'absolute', left: `${m.x}%`, top: 140, fontSize: 11.5, color: 'var(--t-tekst-2)', fontWeight: 500 }}>{m.naam}</span>
+              <div ref={lijnRef} style={{ position: 'relative', minWidth: 720, height: 34 + lijn.rijen * 30 + 6 }}>
+                {lijn.maanden.map((m, i) => (
+                  <span key={m.naam + m.x} style={{ position: 'absolute', left: `${m.x}%`, width: `${m.b}%`, top: 0, bottom: 0, borderLeft: i ? '1px solid #E9EDF2' : 0, boxSizing: 'border-box' }}>
+                    <span style={{ display: 'block', padding: `0 0 0 ${i ? 8 : 0}px`, fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--t-tekst-2)', whiteSpace: 'nowrap' }}>{m.naam}{m.jaar ? <span style={{ fontWeight: 400 }}> {m.jaar}</span> : null}</span>
                   </span>
                 ))}
-                {lijn.punten.map(({ g, x, rij }) => (
-                  <a key={g.id} href={g.plannen[0] ? `/maps/${g.plannen[0].id}` : '/maps/plannen'} title={`${g.naam} · ${eventDatum(g.datum)}`} style={{ color: 'var(--t-tekst)', textDecoration: 'none' }}>
-                    <span style={{ position: 'absolute', left: `${x}%`, top: 58, width: 16, height: 16, marginLeft: -8, borderRadius: '50%', background: g.kleur, border: '3px solid #fff', boxShadow: `0 0 0 1px ${g.kleur}`, boxSizing: 'border-box' }} />
-                    <span style={{ position: 'absolute', left: `${x}%`, top: [6, 32, 86, 112][rij], transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: 600, background: '#fff', borderBottom: `3px solid ${g.kleur}`, padding: '2px 4px' }}>{g.naam}</span>
-                  </a>
-                ))}
+                <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, top: 24, height: 1, background: '#D9DFE8' }} />
+                <span title="Vandaag" style={{ position: 'absolute', left: `${lijn.nu}%`, top: 19, width: 11, height: 11, marginLeft: -5.5, borderRadius: '50%', background: '#fff', border: '2px solid var(--t-tekst)', boxSizing: 'border-box' }} />
+                {lijn.punten.map(({ g, x, rij, links, dag }) => {
+                  const y = 34 + rij * 30;
+                  return (
+                    <a key={g.id} href={g.plannen[0] ? `/maps/${g.plannen[0].id}` : '/maps/plannen'} title={`${g.naam} · ${dag}`} className="fm-seizoen-punt" style={{ color: 'var(--t-tekst)', textDecoration: 'none' }}>
+                      <span aria-hidden="true" style={{ position: 'absolute', left: `${x}%`, top: 25, height: y - 25 + 9, width: 1, background: '#D9DFE8' }} />
+                      <span aria-hidden="true" style={{ position: 'absolute', left: `${x}%`, top: y + 4, width: 11, height: 11, marginLeft: -5, borderRadius: '50%', background: g.kleur }} />
+                      <span className="naam" style={{ position: 'absolute', top: y, height: 20, display: 'flex', alignItems: 'baseline', gap: 7, whiteSpace: 'nowrap', background: '#fff', padding: '0 6px', zIndex: 1, ...(links ? { right: `calc(${100 - x}% + 8px)`, flexDirection: 'row-reverse' } : { left: `calc(${x}% + 8px)` }) }}>
+                        <b style={{ fontSize: 13, fontWeight: 600 }}>{g.naam}</b>
+                        <span style={{ fontSize: 12, color: 'var(--t-tekst-2)' }}>{dag}</span>
+                      </span>
+                    </a>
+                  );
+                })}
               </div>
             </div>
           </section>
