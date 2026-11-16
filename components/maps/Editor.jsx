@@ -138,6 +138,14 @@ function stukOmtrek(tent, items) {
   return g;
 }
 
+// Is er binnen iets ingericht (meer dan de ene lege ruimte die elk binnenplan vanzelf heeft)? Pas dan toont het
+// zweefkaartje de plattegrond; anders het gewone kaartje met de 3D.
+function binnenIngericht(hostId, items) {
+  let ruimtes = 0;
+  for (const x of items) if (x.velden?.binnen?.host === hostId) { if (!x.velden.ruimte) return true; ruimtes += 1; if (ruimtes > 1) return true; }
+  return false;
+}
+
 function zorgVoorSleepLagen(map) {
   if (map.getSource('fm-sleep-v')) return;
   const leeg = { type: 'FeatureCollection', features: [] };
@@ -5308,7 +5316,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
             );
           })()}
           {binnenZweef && !binnen ? <BinnenPreview hostId={binnenZweef.host} x={binnenZweef.x} y={binnenZweef.y} items={items} elementenMap={elementenMap} />
-            : zweef && (items.find((x) => x.id === zweef.id)?.velden?.binnenplan && !binnen && items.some((x) => x.velden?.binnen?.host === zweef.id) ? <BinnenPreview hostId={zweef.id} x={zweef.x} y={zweef.y} items={items} elementenMap={elementenMap} /> : <ZweefKaartje zweef={zweef} items={items} elementenMap={elementenMap} lagenMap={lagenMap} plan={plan} />)}
+            : zweef && (items.find((x) => x.id === zweef.id)?.velden?.binnenplan && !binnen && binnenIngericht(zweef.id, items) ? <BinnenPreview hostId={zweef.id} x={zweef.x} y={zweef.y} items={items} elementenMap={elementenMap} /> : <ZweefKaartje zweef={zweef} items={items} elementenMap={elementenMap} lagenMap={lagenMap} plan={plan} />)}
           {overgang && <div className={`fm-overgang ${overgang}`} aria-hidden="true" />}
           {binnenScherm && (() => {
             const host = items.find((x) => x.id === binnenScherm.host);
