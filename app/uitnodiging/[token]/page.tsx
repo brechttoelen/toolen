@@ -2,11 +2,12 @@ import { supabaseServer } from "@/lib/supabase/server";
 import Inlogkader from "@/components/Inlogkader";
 import Aanvaarden, { AccountMaken } from "./Aanvaarden";
 import { huisstijlVan } from "@/lib/huisstijlServer";
+import { brugVoor } from "@/lib/ssoBrug";
 
 export const metadata = { title: "Uitnodiging" };
 
 const ROL: Record<string, string> = { eigenaar: "eigenaar", beheerder: "beheerder", bewerker: "bewerker", lezer: "lezer" }; // midden in een zin
-type Info = { email: string; naam: string | null; rol: string; organisatie: string; slug: string; geldig: boolean; aanvaard: boolean; account: boolean; door: string | null } | null;
+type Info = { email: string; naam: string | null; rol: string; organisatie: string; slug: string; geldig: boolean; aanvaard: boolean; account: boolean; door: string | null; sso?: string[] } | null;
 
 export default async function Uitnodiging({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -15,6 +16,8 @@ export default async function Uitnodiging({ params }: { params: Promise<{ token:
   const info = data as Info;
   const ik = auth.user?.email?.toLowerCase();
   const huisstijl = info?.slug ? await huisstijlVan(info.slug) : null;
+  // Organisatie met Microsoft via de eigen omgeving (brug): dat kan ook, zonder wachtwoord.
+  const brug = !!info?.slug && (info.sso || []).includes("brug") && !!brugVoor(info.slug);
 
   return (
     <Inlogkader huisstijl={huisstijl}>
@@ -32,6 +35,15 @@ export default async function Uitnodiging({ params }: { params: Promise<{ token:
               {info.door ? `${info.door} nodigt je uit` : "Je bent uitgenodigd"} als {ROL[info.rol] || info.rol} in Toolen Maps.
             </p>
             <p className="t-stil" style={{ fontSize: 13.5 }}>Bedrijfscode <strong>{info.slug.toUpperCase()}</strong> · {info.email}</p>
+            {brug && !ik && (
+              <div style={{ marginTop: 24 }}>
+                <a className="t-knop hoofd" style={{ height: 46, fontSize: 14.5, display: "flex", width: "100%" }} href={`/auth/brug/start?code=${info.slug}`}>Verder met Microsoft</a>
+                <p className="t-stil" style={{ fontSize: 12.5, margin: "8px 0 0", lineHeight: 1.5 }}>Met je account van {info.organisatie}, zonder wachtwoord. Je rol komt dan uit het toegangsbeheer van {info.organisatie}.</p>
+                <div className="t-stil" style={{ margin: "22px 0 0", fontSize: 13, display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ flex: 1, height: 1, background: "var(--t-rand-2)" }} />{info.account ? "Of met je wachtwoord" : "Of maak een account met een wachtwoord"}<span style={{ flex: 1, height: 1, background: "var(--t-rand-2)" }} />
+                </div>
+              </div>
+            )}
             <div style={{ marginTop: 24 }}>
               {ik && ik !== info.email.toLowerCase() ? (
                 <p className="t-melding fout">Je bent ingelogd als {auth.user?.email}. Deze uitnodiging is voor {info.email}: log uit en open de link opnieuw.</p>
