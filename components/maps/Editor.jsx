@@ -82,6 +82,7 @@ import { tdModusVoor, draaiItem, maatVan, lokaalNaarKaart, draaiRond } from './i
 import ZoekBalk from './ZoekBalk';
 import HoekVeld from './HoekVeld';
 import ZweefKaartje from './ZweefKaartje';
+import ToolenLader from './ToolenLader';
 import SelectieInfo from './SelectieInfo';
 import BinnenPreview from './BinnenPreview';
 import BinnenScherm from './BinnenScherm';
@@ -4549,7 +4550,7 @@ export default function Editor({ planId }) {
     return bericht || undefined;
   };
   // ---------- Weergave ----------
-  if (laden) return <div className="fm" style={{ padding: 40 }}>Plan laden…</div>;
+  if (laden) return <ToolenLader tekst="Plan laden…" />;
   if (fout && !plan) return <div className="fm" style={{ padding: 40, maxWidth: 640 }}><div className="fm-melding fout">{fout}</div><p><a className="fm-knop" href="/maps/plannen">Terug naar de plannen</a></p></div>;
 
   // Bronnen voor Ctrl K.

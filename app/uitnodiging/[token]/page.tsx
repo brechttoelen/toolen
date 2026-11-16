@@ -2,7 +2,8 @@ import { supabaseServer } from "@/lib/supabase/server";
 import Inlogkader from "@/components/Inlogkader";
 import Aanvaarden, { AccountMaken } from "./Aanvaarden";
 import { huisstijlVan } from "@/lib/huisstijlServer";
-import { brugVoor } from "@/lib/ssoBrug";
+import { brugVoor, hubHeeft } from "@/lib/ssoBrug";
+import { enkelViaBrug } from "@/lib/brugDomein";
 
 export const metadata = { title: "Uitnodiging" };
 
@@ -18,6 +19,8 @@ export default async function Uitnodiging({ params }: { params: Promise<{ token:
   const huisstijl = info?.slug ? await huisstijlVan(info.slug) : null;
   // Organisatie met Microsoft via de eigen omgeving (brug): dat kan ook, zonder wachtwoord.
   const brug = !!info?.slug && (info.sso || []).includes("brug") && !!brugVoor(info.slug);
+  // Een adres van de organisatie zelf, of iemand met toegang in haar toegangsbeheer: enkel Microsoft, geen wachtwoord.
+  const enkelMs = brug && !!info && (enkelViaBrug(info.slug, info.email) || (await hubHeeft(info.slug, info.email)));
 
   return (
     <Inlogkader huisstijl={huisstijl}>
@@ -39,12 +42,12 @@ export default async function Uitnodiging({ params }: { params: Promise<{ token:
               <div style={{ marginTop: 24 }}>
                 <a className="t-knop hoofd" style={{ height: 46, fontSize: 14.5, display: "flex", width: "100%" }} href={`/auth/brug/start?code=${info.slug}`}>Verder met Microsoft</a>
                 <p className="t-stil" style={{ fontSize: 12.5, margin: "8px 0 0", lineHeight: 1.5 }}>Met je account van {info.organisatie}, zonder wachtwoord. Je rol komt dan uit het toegangsbeheer van {info.organisatie}.</p>
-                <div className="t-stil" style={{ margin: "22px 0 0", fontSize: 13, display: "flex", alignItems: "center", gap: 10 }}>
+                {!enkelMs && <div className="t-stil" style={{ margin: "22px 0 0", fontSize: 13, display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ flex: 1, height: 1, background: "var(--t-rand-2)" }} />{info.account ? "Of met je wachtwoord" : "Of maak een account met een wachtwoord"}<span style={{ flex: 1, height: 1, background: "var(--t-rand-2)" }} />
-                </div>
+                </div>}
               </div>
             )}
-            <div style={{ marginTop: 24 }}>
+            {!(enkelMs && !ik) && <div style={{ marginTop: 24 }}>
               {ik && ik !== info.email.toLowerCase() ? (
                 <p className="t-melding fout">Je bent ingelogd als {auth.user?.email}. Deze uitnodiging is voor {info.email}: log uit en open de link opnieuw.</p>
               ) : ik ? (
@@ -57,7 +60,7 @@ export default async function Uitnodiging({ params }: { params: Promise<{ token:
               ) : (
                 <AccountMaken token={token} email={info.email} naam={info.naam} slug={info.slug} />
               )}
-            </div>
+            </div>}
           </>
         )}
       </div>

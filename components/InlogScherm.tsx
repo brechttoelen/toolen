@@ -6,6 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { veiligVerder } from "@/lib/verder";
 import { orgAdres } from "@/lib/adres";
 import { geldigeSlug, subdomein } from "@/lib/org";
+import { enkelViaBrug } from "@/lib/brugDomein";
 import Inlogkader from "./Inlogkader";
 import type { Huisstijl } from "@/lib/huisstijl";
 
@@ -110,6 +111,9 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
     window.location.href = `/auth/brug/start?code=${encodeURIComponent(c)}&verder=${encodeURIComponent(doel(c))}`;
   }
 
+  // Een adres van de organisatie zelf bij een organisatie met de brug: enkel Microsoft, geen wachtwoord.
+  const enkelMs = !beheer && !!info?.sso?.includes("brug") && enkelViaBrug(code.trim(), email);
+
   const link = { border: 0, background: "none", padding: 0, color: "var(--t-blauw-donker)", cursor: "pointer", font: "inherit", fontSize: 13.5 } as const;
 
   if (modus !== "inloggen") {
@@ -139,7 +143,7 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
       <div>
         <h2 className="t-titel" style={{ fontSize: 28, marginBottom: 6 }}>Inloggen</h2>
         <p className="t-sub" style={{ marginBottom: 22 }}>{beheer ? "Platformbeheer van Toolen." : vast && info?.naam ? <>Bij <strong>{info.naam}</strong></> : "Met de bedrijfscode uit je uitnodiging."}</p>
-        <form onSubmit={inloggen} className="t-stapel" style={{ gap: 12 }}>
+        <form onSubmit={enkelMs ? (e) => { e.preventDefault(); brug(); } : inloggen} className="t-stapel" style={{ gap: 12 }}>
           {!vast && !beheer && (
             <label><span className="t-label">Bedrijfscode</span>
               <input className="t-veld" style={{ height: 44, textTransform: "uppercase", letterSpacing: ".04em" }} required value={code} onChange={(e) => setCode(e.target.value.replace(/\s/g, ""))}
@@ -150,7 +154,13 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
           <label><span className="t-label">E-mailadres</span>
             <input ref={emailRef} className="t-veld" style={{ height: 44 }} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="naam@bedrijf.be" autoComplete="username" />
           </label>
-          <label>
+          {enkelMs && (
+            <>
+              <button type="submit" className="t-knop hoofd" style={{ height: 46, fontSize: 14.5, marginTop: 4 }}>Verder met Microsoft</button>
+              <p className="t-stil" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>Met een adres van {info?.naam || "je bedrijf"} meld je aan met je Microsoft-account, zonder wachtwoord.</p>
+            </>
+          )}
+          {!enkelMs && <label>
             <span className="t-label" style={{ display: "flex", justifyContent: "space-between" }}>Wachtwoord
               <button type="button" style={{ ...link, fontSize: 12.5 }} onClick={() => { setModus("vergeten"); setFout(""); }}>Wachtwoord vergeten?</button>
             </span>
@@ -158,12 +168,12 @@ export default function InlogScherm({ huisstijl = null }: { huisstijl?: Huisstij
               <input className="t-veld" style={{ height: 44, paddingRight: 74, width: "100%" }} type={zien ? "text" : "password"} required value={wachtwoord} onChange={(e) => setWachtwoord(e.target.value)} autoComplete="current-password" />
               <button type="button" onClick={() => setZien(!zien)} aria-pressed={zien} style={{ ...link, position: "absolute", right: 12, top: 0, height: 44, fontSize: 12.5 }}>{zien ? "Verbergen" : "Tonen"}</button>
             </span>
-          </label>
-          <button type="submit" className="t-knop hoofd" style={{ height: 46, fontSize: 14.5, marginTop: 4 }} disabled={bezig}>{bezig ? "Bezig…" : "Inloggen"}</button>
+          </label>}
+          {!enkelMs && <button type="submit" className="t-knop hoofd" style={{ height: 46, fontSize: 14.5, marginTop: 4 }} disabled={bezig}>{bezig ? "Bezig…" : "Inloggen"}</button>}
         </form>
         {fout && <p className="t-melding fout" style={{ marginTop: 16 }} role="alert">{fout}</p>}
 
-        {!beheer && !!info?.sso?.length && (
+        {!beheer && !enkelMs && !!info?.sso?.length && (
           <>
             <div className="t-stil" style={{ margin: "22px 0 12px", fontSize: 13, display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ flex: 1, height: 1, background: "var(--t-rand-2)" }} />Of met het account van je werk<span style={{ flex: 1, height: 1, background: "var(--t-rand-2)" }} />

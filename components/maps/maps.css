@@ -2527,3 +2527,12 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm input[type=search]:focus { outline: 2px solid #108aed; outline-offset: -1px; border-color: transparent; }
 /* "Laatst gewijzigd" staat onderaan het paneel, niet meer boven de naam. */
 .fm-eigenschappen > .fm-geschiedenis { border-bottom: 0; border-top: 1px solid var(--fm-rand); margin-top: auto; flex: none; }
+
+/* Lader met het beeldmerk van Toolen (plan openen). */
+.fm-lader { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: #F4F6F9; color: var(--fm-grijs); font-size: 13.5px; }
+.fm-lader svg { border-radius: 16px; box-shadow: 0 10px 30px rgba(2, 32, 86, .22); }
+.fm-lader-draai { transform-box: view-box; transform-origin: 16px 16px; animation: fm-lader-draai 5.6s cubic-bezier(.65, 0, .35, 1) infinite; }
+.fm-lader-ruit { transform-box: fill-box; transform-origin: center; animation: fm-lader-ruit 1.4s ease-in-out infinite; }
+@keyframes fm-lader-ruit { 0%, 55%, 100% { transform: translate(0, 0) scale(1); } 28% { transform: translate(var(--dx), var(--dy)) scale(.62); } }
+@keyframes fm-lader-draai { 0%, 10% { transform: rotate(0); } 25%, 35% { transform: rotate(90deg); } 50%, 60% { transform: rotate(180deg); } 75%, 85% { transform: rotate(270deg); } 100% { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fm-lader-draai, .fm-lader-ruit { animation: none; } }

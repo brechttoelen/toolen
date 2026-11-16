@@ -91,3 +91,21 @@ export async function brugWie(brug: Brug, code: string, geheim: string): Promise
     await fetch(`${brug.url}/auth/v1/logout?scope=local`, { method: "POST", cache: "no-store", headers: { apikey: brug.sleutel, authorization: `Bearer ${token}` } }).catch(() => {});
   }
 }
+
+// Heeft dit adres een rol in het toegangsbeheer van de organisatie? Enkel te weten met de sleutel van de app
+// (TOOLEN_BRUG_SLEUTEL_<CODE>); zonder sleutel of bij een fout: onbekend (false).
+export async function hubHeeft(slug: string, email: string): Promise<boolean> {
+  const brug = brugVoor(slug);
+  const sleutel = (process.env[`TOOLEN_BRUG_SLEUTEL_${slug.toUpperCase().replace(/-/g, "_")}`] || "").trim();
+  if (!brug?.hubApp || !sleutel || !email) return false;
+  try {
+    const r = await fetch(`${brug.url}/rest/v1/rpc/app_role_for_email`, {
+      method: "POST", cache: "no-store",
+      headers: { apikey: brug.sleutel, authorization: `Bearer ${brug.sleutel}`, "content-type": "application/json" },
+      body: JSON.stringify({ p_slug: brug.hubApp, p_email: email, p_key: sleutel }),
+    });
+    if (!r.ok) return false;
+    const rol = await r.json();
+    return typeof rol === "string" && !!rol && rol !== "geen";
+  } catch { return false; }
+}
