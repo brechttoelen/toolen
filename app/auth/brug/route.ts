@@ -4,7 +4,7 @@ import { adminIngesteld, supabaseAdmin } from "@/lib/supabase/admin";
 import { basisAdres } from "@/lib/server";
 import { geldigeSlug, HOOFDDOMEIN } from "@/lib/org";
 import { veiligVerder } from "@/lib/verder";
-import { BRUG_COOKIE, BRUG_PAD, brugEmail, brugVoor } from "@/lib/ssoBrug";
+import { BRUG_COOKIE, BRUG_PAD, brugVoor, brugWie, type BrugWie } from "@/lib/ssoBrug";
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +22,33 @@ export async function GET(req: NextRequest) {
   if (!code || !staat.g || !brug) return mis("Aanmelden met Microsoft is niet gelukt. Probeer opnieuw.");
   if (!adminIngesteld()) return mis("Aanmelden met Microsoft is hier nog niet ingesteld.");
 
-  let email: string | null = null;
-  try { email = await brugEmail(brug, code, staat.g); } catch { email = null; }
-  if (!email) return mis("Aanmelden met Microsoft is niet gelukt. Probeer opnieuw.");
+  let wie: BrugWie | null = null;
+  try { wie = await brugWie(brug, code, staat.g); } catch { wie = null; }
+  if (!wie) return mis("Aanmelden met Microsoft is niet gelukt. Probeer opnieuw.");
 
   const admin = supabaseAdmin();
-  const { data: lid } = await admin.rpc("brug_lid", { p_email: email, p_slug: slug });
-  const l = lid as { user_id: string; email: string; organisatie_id: string; naam: string } | null;
+  type Lid = { user_id: string | null; email: string; organisatie_id: string; naam: string } | null;
+  let l: Lid = null;
+  if (brug.hubApp) {
+    // Het toegangsbeheer van de organisatie beslist: geen rol daar = geen toegang hier.
+    if (!wie.rol) {
+      await admin.rpc("brug_lid_uit", { p_email: wie.email, p_slug: slug });
+      return mis(`Je hebt in ${brug.hubNaam || "het toegangsbeheer van je bedrijf"} geen toegang tot Toolen Maps. Vraag ze daar aan.`);
+    }
+    const zet = () => admin.rpc("brug_lid_zetten", { p_email: wie!.email, p_slug: slug, p_rol: wie!.rol });
+    let r = await zet();
+    if (!r.error && r.data && !(r.data as Lid)!.user_id) {
+      // Eerste keer: een account zonder wachtwoord (aanmelden gaat via Microsoft).
+      const { error } = await admin.auth.admin.createUser({ email: wie.email, email_confirm: true, user_metadata: wie.naam ? { full_name: wie.naam } : {} });
+      if (error) return mis("Je account kon niet aangemaakt worden. Probeer opnieuw.");
+      r = await zet();
+    }
+    if (r.error) return mis(/plaatsen|lezers/i.test(r.error.message) ? r.error.message : "Aanmelden is niet gelukt. Probeer opnieuw.");
+    l = r.data as Lid;
+  } else {
+    const { data: lid } = await admin.rpc("brug_lid", { p_email: wie.email, p_slug: slug });
+    l = lid as Lid;
+  }
   if (!l?.user_id) return mis("Dit Microsoft-account heeft hier geen toegang. Vraag de beheerder van je bedrijf om je uit te nodigen met dit e-mailadres.");
 
   // Eigen sessie voor dit lid: een eenmalige aanmeldcode die de server meteen zelf inwisselt (er vertrekt geen mail).
