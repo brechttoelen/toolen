@@ -3489,7 +3489,9 @@ export default function Editor({ planId }) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !kaartKlaar) return;
-    const f = items.filter((x) => extra.includes(x.id) && x.geometrie).map((x) => ({ type: 'Feature', geometry: x.geometrie.type === 'Point' ? x.geometrie : { type: 'LineString', coordinates: ((g) => (g.type === 'LineString' ? g.coordinates : g.coordinates[0]))(geo.buig(x.geometrie, x.parameters?.bogen)) }, properties: { p: x.geometrie.type === 'Point' } }));
+    // Een groep is één geheel: ook het eerst gekozen lid krijgt dezelfde omlijning als de rest.
+    const heleGroep = !iso && extra.length > 0 && !!items.find((x) => x.id === geselecteerd)?.groep_id;
+    const f = items.filter((x) => (extra.includes(x.id) || (heleGroep && x.id === geselecteerd)) && x.geometrie).map((x) => ({ type: 'Feature', geometry: x.geometrie.type === 'Point' ? x.geometrie : { type: 'LineString', coordinates: ((g) => (g.type === 'LineString' ? g.coordinates : g.coordinates[0]))(geo.buig(x.geometrie, x.parameters?.bogen)) }, properties: { p: x.geometrie.type === 'Point' } }));
     // Vloer die buiten een geselecteerde tent uitsteekt (terras, podium): mee omlijnd, ze hoort bij de tent.
     for (const x of items) if ((x.id === geselecteerd || extra.includes(x.id)) && x.velden?.tent?.stukken?.length) { const g = stukOmtrek(x, items); if (g) f.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: g.coordinates[0] }, properties: { p: false } }); }
     const data = { type: 'FeatureCollection', features: f };
@@ -3499,7 +3501,7 @@ export default function Editor({ planId }) {
       map.addLayer({ id: 'fm-selectie-l', type: 'line', source: 'fm-selectie', filter: ['!', ['get', 'p']], paint: { 'line-color': '#1d1d1b', 'line-width': 2, 'line-dasharray': [2, 1.5] } });
       map.addLayer({ id: 'fm-selectie-p', type: 'circle', source: 'fm-selectie', filter: ['get', 'p'], paint: { 'circle-radius': 12, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#1d1d1b', 'circle-stroke-width': 2 } });
     }
-  }, [extra, geselecteerd, items, kaartKlaar]);
+  }, [extra, geselecteerd, items, kaartKlaar, iso]);
 
   // ---------- Vaste aansluitingen: register van stroomkasten over alle evenementen ----------
   // Bewaarde kaarttegels (ook voor exports): de service worker van Toolen Maps.
@@ -4676,6 +4678,9 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
       case 'vastzetten': wijzigItem(it.id, { vergrendeld: !it.vergrendeld }); setTimeout(syncTd, 0); break;
       case 'iso': if (it.groep_id) { setIso(it.groep_id); setGeselecteerd(null); setExtra([]); } break;
       case 'groep-naam': if (it.groep_id) vraagGroepNaam(it.groep_id); break;
+      case 'groep-teken': if (it.groep_id) openTekenscherm(sel); break;
+      case 'groep-draai': multiActie(arg < 0 ? 'draai-' : 'draai+'); break;
+      case 'groep-dupliceren': multiActie('dupliceren'); break;
       case 'groeperen': if (selectie.length > 1) multiActie('groeperen'); else setMelding('Selecteer eerst meerdere items (Shift + klik) om te groeperen.'); break;
       case 'degroeperen': multiActie('degroeperen'); break;
       case 'verleng': setVerleng({ id: it.id, kant: null }); setGereedschap('verleng'); break;
@@ -5498,7 +5503,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
               </div>
             </div>
           )}
-          {schrijven && selectie.length > 1 && (
+          {schrijven && selectie.length > 1 && !(groepSel && !iso && eigenschappenOpen) && (
             <div className="fm-contextbalk" role="toolbar" aria-label="Acties voor de selectie">
               <span className="naam">{groepSel ? `${groepNaam(items.find((x) => x.id === selectie[0])?.groep_id) || 'Groep'} · ${selectie.length} items` : `${selectie.length} geselecteerd`}</span>
               {groepSel && <button title="De groep een naam geven (de onderdelen zelf krijgen geen naam)" onClick={() => vraagGroepNaam(items.find((x) => x.id === selectie[0])?.groep_id)}>Naam…</button>}

@@ -313,9 +313,25 @@ export function PaneelKop({ std = null, item, el, elementen, lagen, fasen, items
           <datalist id="fm-herkomsten">{herkomsten.map((v) => <option key={v} value={v}>{levertHier.has(v) ? `levert ${el?.categorie}` : ""}</option>)}</datalist>
         </label>
       )}
-      {(item.groep_id || item.vergrendeld || slot) && (
+      {item.groep_id && !iso && schrijven && (
+        <div className="fm-groepblok">
+          <div className="kop">
+            <button type="button" className="naam" title="De groep een naam geven" onClick={() => onActie('groep-naam')}>{groepNaam || 'Groep zonder naam'}</button>
+            <span className="fm-sub">{groepAantal} items · beweegt als geheel</span>
+          </div>
+          <div className="knoppen">
+            <button type="button" className="fm-knop klein zwart" title="Enkel deze groep bewerken; de rest van het plan blijft zichtbaar als achtergrond (ook: dubbelklik)" onClick={() => onActie('iso')}>Groep bewerken</button>
+            <button type="button" className="fm-knop klein" title="De groep recht op een raster bewerken, met maten" onClick={() => onActie('groep-teken')}>Tekenscherm</button>
+            <button type="button" className="fm-knop klein" title="Geheel 15° linksom draaien" aria-label="Geheel 15° linksom draaien" onClick={() => onActie('groep-draai', -1)}><Icoon naam="draailinks" maat={14} /></button>
+            <button type="button" className="fm-knop klein" title="Geheel 15° rechtsom draaien" aria-label="Geheel 15° rechtsom draaien" onClick={() => onActie('groep-draai', 1)}><Icoon naam="draairechts" maat={14} /></button>
+            <button type="button" className="fm-knop klein" title="De hele groep dupliceren" onClick={() => onActie('groep-dupliceren')}>Dupliceren</button>
+            <button type="button" className="fm-knop klein" title="De items weer los van elkaar selecteren" onClick={() => onActie('degroeperen')}>Opheffen</button>
+          </div>
+        </div>
+      )}
+      {((item.groep_id && (iso || !schrijven)) || item.vergrendeld || slot) && (
         <div className="fm-kopchips">
-          {item.groep_id && <button type="button" className="fm-chip" title="Groep: klik om de groep apart te bewerken" onClick={() => onActie('iso')}>{groepNaam || 'Groep'} · {groepAantal} items</button>}
+          {item.groep_id && (iso || !schrijven) && <span className="fm-chip" style={{ cursor: 'default' }}>{groepNaam || 'Groep'} · {groepAantal} items</span>}
           {item.vergrendeld && <button type="button" className="fm-chip" title="Vastgezet: klik om los te maken" onClick={() => onActie('vastzetten')}><Icoon naam="slot" maat={11} /> vast</button>}
           {slot && <span className="fm-chip rood">{slot}</span>}
         </div>

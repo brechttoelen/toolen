@@ -1516,6 +1516,11 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-kiesmenu .kop { font-size: 10.5px; color: var(--fm-grijs); padding: 6px 12px 2px; text-transform: uppercase; letter-spacing: .04em; }
 .fm-kiesmenu button.diep { padding-left: 22px; }
 .fm-kiesmenu button.aan { font-weight: 600; background: var(--fm-aan-bg); }
+.fm-groepblok { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding: 8px; background: var(--fm-aan-bg); }
+.fm-groepblok .kop { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.fm-groepblok .naam { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--fm-zwart); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-groepblok .naam:hover { text-decoration: underline; }
+.fm-groepblok .knoppen { display: flex; flex-wrap: wrap; gap: 4px; }
 .fm-kopchips { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 2px; }
 .fm-chip { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; font-size: 11px; background: var(--fm-aan-bg); color: var(--fm-grijs); border: 0; cursor: pointer; }
 .fm-chip:hover { color: var(--fm-zwart); }
