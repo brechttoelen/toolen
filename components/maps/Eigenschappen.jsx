@@ -622,7 +622,11 @@ export default function Eigenschappen(props) {
             <button className="fm-knop klein zwart" onClick={binnenplan.open}>{binnenplan.aantal ? `Binnenplan openen · ${binnenplan.aantal} items` : 'Binnenplan maken'}</button>
             <Info>Een binnenplan per verdieping, met een grondplan (PDF of foto) als onderlegger om over te tekenen. Wat je erin zet, telt mee in de stuklijst maar staat niet op de gewone kaart.</Info>
           </div>
-        ) : binnenplan.ruimte && (
+        ) : null)}
+        {binnenplan && magModule('binnen') && binnenplan.open && velden.binnenplan && !ro && item.geometrie?.type === 'Polygon' && (
+          <button type="button" className="fm-knop klein" title="Het binnenplan van dit object weghalen: het label ▦ verdwijnt en het object is weer een gewoon item" onClick={() => onMenu?.('binnen-weg')}>Binnenplan weghalen</button>
+        )}
+        {binnenplan && magModule('binnen') && (binnenplan.open ? null : binnenplan.ruimte && (
           <label className="fm-vink" title="Wat in deze ruimte staat, wordt in de stuklijst per ruimte geteld"><input type="checkbox" checked={!!velden.ruimte} disabled={ro} onChange={(e) => onWijzig({ velden: { ...velden, ruimte: e.target.checked || undefined } })} />Dit is een ruimte (bv. Perszaal)</label>
         ))}
     </>

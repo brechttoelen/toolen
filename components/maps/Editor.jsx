@@ -4679,6 +4679,22 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
       case 'vastzetten': wijzigItem(it.id, { vergrendeld: !it.vergrendeld }); setTimeout(syncTd, 0); break;
       case 'iso': if (it.groep_id) { setIso(it.groep_id); setGeselecteerd(null); setExtra([]); } break;
       case 'groep-naam': if (it.groep_id) vraagGroepNaam(it.groep_id); break;
+      case 'binnen-weg': {
+        // Binnenplan van een object (tent, unit, gebouw) weghalen: wat erin staat gaat mee naar de prullenbak,
+        // de grondplannen (onderleggers) van dat binnenplan verdwijnen.
+        if (!it.velden?.binnenplan) break;
+        const binnenItems = st.current.items.filter((x) => x.velden?.binnen?.host === it.id);
+        const ol = (st.current.plan?.instellingen?.onderleggers || []).filter((o) => o.binnen?.host === it.id);
+        if (binnenItems.length || ol.length) {
+          const wat = [binnenItems.length ? `${binnenItems.length} ${binnenItems.length === 1 ? 'item' : 'items'} in het binnenplan` : '', ol.length ? `${ol.length} ${ol.length === 1 ? 'grondplan' : 'grondplannen'}` : ''].filter(Boolean).join(' en ');
+          if (!await bevestig(`Binnenplan weghalen? ${wat.charAt(0).toUpperCase() + wat.slice(1)} ${binnenItems.length + ol.length === 1 ? 'gaat' : 'gaan'} mee weg. Het object zelf blijft staan.`, { ok: 'Weghalen', gevaar: true })) break;
+        }
+        if (binnenItems.length) verwijderItems(binnenItems.map((x) => x.id));
+        if (ol.length) wijzigPlanRef.current?.({ instellingen: { ...(st.current.plan?.instellingen || {}), onderleggers: (st.current.plan?.instellingen?.onderleggers || []).filter((o) => o.binnen?.host !== it.id) } });
+        { const { binnenplan: _weg, ...rest } = it.velden || {}; wijzigItem(it.id, { velden: rest }); }
+        setMelding('Binnenplan weggehaald.');
+        break;
+      }
       case 'groep-teken': if (it.groep_id) openTekenscherm(sel); break;
       case 'groep-draai': multiActie(arg < 0 ? 'draai-' : 'draai+'); break;
       case 'groep-dupliceren': multiActie('dupliceren'); break;
@@ -5321,7 +5337,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
               </div>
             );
           })()}
-          {binnenZweef && !binnen ? <BinnenPreview hostId={binnenZweef.host} x={binnenZweef.x} y={binnenZweef.y} items={items} elementenMap={elementenMap} />
+          {binnenZweef && !binnen && binnenIngericht(binnenZweef.host, items) ? <BinnenPreview hostId={binnenZweef.host} x={binnenZweef.x} y={binnenZweef.y} items={items} elementenMap={elementenMap} />
             : zweef && (items.find((x) => x.id === zweef.id)?.velden?.binnenplan && !binnen && binnenIngericht(zweef.id, items) ? <BinnenPreview hostId={zweef.id} x={zweef.x} y={zweef.y} items={items} elementenMap={elementenMap} /> : <ZweefKaartje zweef={zweef} items={items} elementenMap={elementenMap} lagenMap={lagenMap} plan={plan} />)}
           {overgang && <div className={`fm-overgang ${overgang}`} aria-hidden="true" />}
           {binnenScherm && (() => {
