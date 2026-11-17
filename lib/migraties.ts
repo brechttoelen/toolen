@@ -53,4 +53,5 @@ export const MIGRATIES: { naam: string; handmatig?: boolean; vervangen?: boolean
   { naam: "0050_fiche_module_in_policies" },
   { naam: "0051_fiche_overnemen_en_delen" },
   { naam: "0052_fiche_aan_voor_flcs" },
+  { naam: "0053_plan_vennootschappen_created_at" },
 ];
