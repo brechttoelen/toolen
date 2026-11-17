@@ -135,7 +135,7 @@ export const getalTekst = (n) => (n == null ? '' : String(Number(n)).replace('.'
 export function itemLeverancier(item, elementen, leveranciers, std = null) {
   if (item.leverancier_id) return item.leverancier_id;
   const el = elementen.get ? elementen.get(item.element_id) : null;
-  const naam = String(String(item.velden?.herkomst || '').trim() || el?.leverancier || (std && el?.categorie ? std[el.categorie] || '' : '')).trim().toLowerCase();
+  const naam = String(String(item.velden?.herkomst || '').trim() || el?.leverancier).trim().toLowerCase();
   if (!naam) return null;
   return leveranciers.find((l) => l.naam.trim().toLowerCase() === naam)?.id || null;
 }

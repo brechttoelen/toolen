@@ -20,8 +20,7 @@ export default function FicheSelectieBlok({ items, plan, schrijven, titelStandaa
   const [lev, setLev] = useState({ id: '', soort: 'levering', k: 'start:-2', uur: '' });
   useEffect(() => { maps().from('leveranciers').select('id, naam').order('naam').then((r) => setLevs(r.data || [])); }, []);
   // Leveranciers van de geselecteerde items (zoals het materiaalscherm: herkomst, element, standaard van het plan).
-  const std = plan?.instellingen?.leveranciers || {};
-  const levNaam = (i) => { const el = elementenMap?.get?.(i.element_id); return String(String(i.velden?.herkomst || '').trim() || el?.leverancier || (el?.categorie ? std[el.categorie] || '' : '')).trim(); };
+  const levNaam = (i) => { const el = elementenMap?.get?.(i.element_id); return String(String(i.velden?.herkomst || '').trim() || el?.leverancier).trim(); };
   const perLev = new Map(); for (const i of items) { const n = levNaam(i); if (n) perLev.set(n, (perLev.get(n) || 0) + 1); }
   const levKeuze = [...perLev.entries()].map(([n, a]) => ({ l: levs.find((x) => x.naam.trim().toLowerCase() === n.toLowerCase()), n, a })).filter((x) => x.l);
   const sleutel = ids.join(',');

@@ -948,9 +948,9 @@ export const heeftZijden = (el) => isTotem(el) || !!trussDoek(el) || isFrame(el)
 export const isPaneel = (d) => d?.eigenschappen?.drager === 'totem';
 export const isVlag = (el) => !!el?.eigenschappen?.vlag;
 // Wie levert dit item op dit event (gemeente, FLCS, Delrue …): per item in te stellen, anders de leverancier van het element.
-// Geleverd door: eigen keuze op het item, anders de vaste leverancier van het element, anders de standaardleverancier
-// van het plan voor die categorie (plan.instellingen.leveranciers = { categorie: leverancier }).
-export const herkomstVan = (it, el, std = null) => String(it?.velden?.herkomst || '').trim() || el?.leverancier || (std && el?.categorie ? std[el.categorie] || '' : '');
+// Geleverd door: eigen keuze op het item, anders de vaste leverancier van het element. Standaardleveranciers per
+// categorie bestaan niet meer (migratie 0055 zette ze om naar een keuze op de items); de parameter blijft voor bestaande aanroepen.
+export const herkomstVan = (it, el, std = null) => String(it?.velden?.herkomst || '').trim() || el?.leverancier || ''; // eslint-disable-line no-unused-vars
 // Heras waarin een beachvlag aan een staander geklemd kan worden (90 % van de vlaggen).
 export const isVlagHek = (el) => el?.tekenwijze === 'lijn' && !el?.eigenschappen?.drape && Number(el.eenheid_m) > 0 && (!!el.eigenschappen?.doek || !!el.eigenschappen?.vlaghouder || /heras|bouwhek|werfhek/i.test(el.naam || ''));
 // Vlaggen in een hekkenlijn: velden.vlaggen[i] = ontwerp aan de eerste staander van hek i.

@@ -43,7 +43,9 @@ function LevVeld({ waarde, placeholder, opties, uit, onKies, label }) {
 }
 
 export default function MateriaalScherm({ verborgen = false, plan, items, elementenMap, lagenMap, fasen, actieveFase, schrijven, onWijzigItems, onStd, onToon, onSluit }) {
-  const std = plan?.instellingen?.leveranciers || {};
+  // Geen standaardleveranciers per categorie meer: elk item heeft een eigen keuze (velden.herkomst), anders de
+  // vaste leverancier van het element. Toewijzen gaat per regel of in één keer via de selectie.
+  const std = {};
   const levLijst = useLeveranciers();
   const levInfo = useMemo(() => new Map(levLijst.map((l) => [l.naam, l])), [levLijst]);
   const [groep, setGroep] = useState('lev');
@@ -157,7 +159,6 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
         <TerugKnop onClick={onSluit} />
         <strong>Materiaal</strong><span className="fm-mat-sub">{plan?.naam}{fase ? ` · ${fase.naam}` : ' · alle fasen'}</span>
         <span style={{ flex: 1 }} />
-        <button className={`fm-knop${stdOpen ? ' zwart' : ''}`} onClick={() => setStdOpen((x) => !x)}>Standaardleveranciers</button>
         <a className="fm-knop" href="/maps/leveranciers" target="_blank" rel="noreferrer">Leverancierslijst</a>
         <ExportKnop label="Alles exporteren" opties={[['Excel (.xlsx), blad per leverancier', allesXlsx], ['PDF', allesPdf]]} />
       </div>
@@ -202,7 +203,6 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
                     {schrijven && (() => { const alle = rs.length > 0 && rs.every((r) => sel.has(regelSleutel(r))); return <input type="checkbox" checked={alle} onChange={() => kiesGroep(rs, !alle)} aria-label={`Alles van ${g} selecteren`} />; })()}
                     <h3>{g}</h3>
                     {groep === 'lev' && stdVoor(g).map((c) => <span key={c} className="fm-tag groen">standaard voor {c}</span>)}
-                    {groep === 'cat' && (std[g] ? <span className="fm-tag groen">standaard: {std[g]}</span> : <span className="fm-tag">geen standaard</span>)}
                     <span className="fm-mat-tot">{getal(n)} st.{m ? ` · ${getal(m)} m` : ''}</span>
                     {groep === 'lev' && levInfo.get(g) && (() => { const l = levInfo.get(g); const d = [l.contactpersoon, l.email, l.telefoon].filter(Boolean); return d.length ? <span className="fm-mat-contact">{d.map((x) => <span key={x}>{x}</span>)}</span> : <a className="fm-mat-contact leeg" href="/maps/leveranciers" target="_blank" rel="noreferrer">contact aanvullen</a>; })()}
                     <span style={{ flex: 1 }} />

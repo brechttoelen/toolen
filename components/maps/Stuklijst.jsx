@@ -248,7 +248,7 @@ export function berekenStuklijst(items, elementen, lagen, actieveFase = null, st
         const deel = o.element_id ? elementen.get(o.element_id) : null;
         const hoeveel = n * (Number(o.aantal) || 1);
         if (!hoeveel || (!deel && !o.naam)) continue;
-        const hkO = (deel && (deel.leverancier || (std && deel.categorie ? std[deel.categorie] || '' : ''))) || herkomstVan(it, el, std);
+        const hkO = deel?.leverancier || herkomstVan(it, el, std);
         const s3 = deel ? `${deel.id}|h:${hkO}` : `vrij|${o.naam}|h:${hkO}`;
         const r3 = perElement.get(s3) || { naam: deel ? deel.naam : o.naam, categorie: deel ? deel.categorie : el.categorie, leverancier: hkO, artikel_id: deel?.artikel_id || null, aantal: 0, meter: 0, tekenwijze: deel?.tekenwijze === 'lijn' ? 'punt' : (deel?.tekenwijze || 'punt') };
         r3.aantal += hoeveel;
@@ -259,7 +259,7 @@ export function berekenStuklijst(items, elementen, lagen, actieveFase = null, st
       for (const [id, hoeveel] of Object.entries(it.velden?.inrichting || {})) {
         const deel = elementen.get(id);
         if (!deel || !(hoeveel > 0)) continue;
-        const hkI = deel.leverancier || (std && deel.categorie ? std[deel.categorie] || '' : '') || herkomstVan(it, el, std);
+        const hkI = deel.leverancier || herkomstVan(it, el, std);
         const s5 = `${deel.id}|h:${hkI}`;
         const r5 = perElement.get(s5) || { naam: deel.naam, categorie: deel.categorie, leverancier: hkI, artikel_id: deel.artikel_id || null, aantal: 0, meter: 0, tekenwijze: deel.tekenwijze === 'lijn' ? 'punt' : deel.tekenwijze };
         r5.aantal += hoeveel;
