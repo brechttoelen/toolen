@@ -78,3 +78,17 @@ describe('schermen van de fiche renderen zonder fouten', () => {
     expect(html).toContain('Gigant');
   });
 });
+
+import FicheSelectieBlok from '../components/fiche/SelectieBlok';
+import FicheItemBlok from '../components/fiche/ItemBlok';
+describe('fiche op de kaart', () => {
+  const f = fiche(true);
+  it('selectieblok toont de knop voor alle items', () => {
+    const html = renderToString(<FicheSelectieBlok items={f.items.map((x) => ({ ...x, plan_id: f.plan.id }))} plan={f.plan} schrijven />);
+    expect(html.replace(/<!-- -->/g, '')).toContain('Taak maken voor 2 items');
+  });
+  it('itemblok biedt de hele groep aan', () => {
+    const html = renderToString(<FicheItemBlok item={{ ...f.items[1], plan_id: f.plan.id }} plan={f.plan} schrijven groepAantal={3} groepNaam="Trailers" />);
+    expect(html.replace(/<!-- -->/g, '')).toContain('Voor de hele groep (3 items)');
+  });
+});

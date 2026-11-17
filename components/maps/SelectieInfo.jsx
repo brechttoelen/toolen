@@ -8,11 +8,13 @@ import { maten, isHekElement } from './stijl';
 import { schoorTussen } from './verstevig';
 import { LaagOpties } from './laagOpties';
 import { stroomVan } from './stroom';
+import FicheSelectieBlok from '../fiche/SelectieBlok';
+import { heeftModule } from './merk';
 
 const SOORT = { punt: 'Punt', lijn: 'Lijn', vlak: 'Vlak', rechthoek: 'Rechthoek', cirkel: 'Cirkel', tekst: 'Tekst', notitie: 'Notitie', veelhoek: 'Veelhoek', ellips: 'Ellips', sector: 'Kijkhoek', afstand: 'Maatlijn' };
 const g1 = (v) => (Math.round(v * 10) / 10).toLocaleString('nl-BE');
 
-export default function SelectieInfo({ sel, lagen, lagenMap, fasen, elementenMap, schrijven, onWijzig, onVerwijder, onSluit, onKies, onMaak }) {
+export default function SelectieInfo({ sel, lagen, lagenMap, fasen, elementenMap, schrijven, onWijzig, onVerwijder, onSluit, onKies, onMaak, plan = null }) {
   const [herkomst, setHerkomst] = useState('');
   const [schoor, setSchoor] = useState({ om: 5, patroon: 'zigzag' });
   // Twee nadarlijnen geselecteerd: schuine dranghekken ertussen om ze te verstevigen.
@@ -144,6 +146,7 @@ export default function SelectieInfo({ sel, lagen, lagenMap, fasen, elementenMap
             {slot > 0 && <div className="fm-sub">{slot} vergrendeld: die blijven ongewijzigd.</div>}
           </div>
         )}
+        {heeftModule('fiche') && sel[0]?.plan_id && <FicheSelectieBlok items={sel} plan={plan} schrijven={schrijven} />}
       </div>
     </aside>
   );

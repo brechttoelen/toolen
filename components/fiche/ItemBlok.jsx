@@ -7,12 +7,13 @@ import Blok from '../maps/blok';
 import { maps, foutTekst } from '../maps/db';
 import { label, uurKort } from './dagen';
 
-export default function FicheItemBlok({ item, plan, schrijven }) {
+export default function FicheItemBlok({ item, plan, schrijven, groepAantal = 0, groepNaam = '' }) {
   const [taken, setTaken] = useState([]);
   const [lev, setLev] = useState([]);
   const [levId, setLevId] = useState(item.leverancier_id || '');
   const [fout, setFout] = useState('');
   const [titel, setTitel] = useState('');
+  const [heleGroep, setHeleGroep] = useState(true);
   const laad = async () => {
     const of = [`item_id.eq.${item.id}`, item.laag_id && `laag_id.eq.${item.laag_id}`, item.groep_id && `groep_id.eq.${item.groep_id}`].filter(Boolean).join(',');
     const k = await maps().from('taak_koppelingen').select('taak_id, soort').or(of);
@@ -35,7 +36,9 @@ export default function FicheItemBlok({ item, plan, schrijven }) {
     if (n.error) return setFout(foutTekst(n.error));
     const [a, b] = await Promise.all([
       maps().from('taak_dagen').insert({ taak_id: n.data.id, anker: 'start', dag: -1 }),
-      maps().from('taak_koppelingen').insert({ taak_id: n.data.id, soort: 'item', item_id: item.id, label: item.naam || null }),
+      maps().from('taak_koppelingen').insert(item.groep_id && groepAantal > 1 && heleGroep
+        ? { taak_id: n.data.id, soort: 'groep', groep_id: item.groep_id, label: `${groepNaam || item.naam || 'groep'} (${groepAantal})` }
+        : { taak_id: n.data.id, soort: 'item', item_id: item.id, label: item.naam || null }),
     ]);
     if (a.error || b.error) return setFout(foutTekst(a.error || b.error));
     setTitel(''); laad();
@@ -49,6 +52,7 @@ export default function FicheItemBlok({ item, plan, schrijven }) {
         </a>
       ))}
       {!taken.length && <div className="fm-sub">Nog geen taken over dit item.</div>}
+      {schrijven && item.groep_id && groepAantal > 1 && <label className="fm-vink"><input type="checkbox" checked={heleGroep} onChange={() => setHeleGroep(!heleGroep)} />Voor de hele groep ({groepAantal} items)</label>}
       {schrijven && <div style={{ display: 'flex', gap: 6 }}><input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder={`Plaatsen ${item.naam || 'item'}`} aria-label="Nieuwe taak" style={{ flex: 1, minWidth: 0 }} /><button className="fm-knop klein" onClick={maakTaak}>Taak maken</button></div>}
       <label className="fm-veld">Leverancier van dit item
         <select value={levId} disabled={!schrijven} onChange={(e) => zetLev(e.target.value)}>

@@ -5629,7 +5629,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
         )}
         {(() => { slotInfo.current = item ? { slot: slotVan(item.id), kijkers: anderen.filter((a) => a.selectie?.includes(item.id) && !(a.bewerkt === item.id && Date.now() - (a.actief || 0) < 30000)) } : { slot: null, kijkers: [] }; return null; })()}
         {eigenschappenOpen && veelSel && (
-          <SelectieInfo sel={items.filter((x) => selectie.includes(x.id))} lagen={lagen} lagenMap={lagenMap} fasen={fasen} elementenMap={elementenMap} schrijven={schrijven}
+          <SelectieInfo plan={plan} sel={items.filter((x) => selectie.includes(x.id))} lagen={lagen} lagenMap={lagenMap} fasen={fasen} elementenMap={elementenMap} schrijven={schrijven}
             onWijzig={(id, patch) => { wijzigItem(id, patch); setTimeout(syncTd, 0); }} onVerwijder={(ids) => ids.length && verwijderItems(ids)}
             onSluit={() => { setGeselecteerd(null); setExtra([]); }} onKies={(ids) => { setGeselecteerd(ids[0]); setExtra(ids.slice(1)); }}
             onMaak={(lijst) => { const n = lijst.map((x) => maakItem(x)); try { tdRef.current?.addFeatures(n.map((x) => tdFeature(x))); } catch { setTimeout(syncTd, 0); } setMelding?.(`${n.length} schuine hekken geplaatst`); }} />
