@@ -149,3 +149,13 @@ Zie `docs/BOUWPLAN-projectfiche.md`. Nieuwe tabellen voor de fiche per site (pla
 Elke tabel krijgt dezelfde regels via `maps.fiche_tabel()`: lezen als lezer, schrijven als bewerker, binnen de events van het lid, schrijven enkel met de module `fiche`. Geld (offertes, facturen, budget, cateringprijzen) enkel voor eigenaars, beheerders en leden met `leden.financieel`.
 Lezers wijzigen enkel de status van hun eigen taakdagen via `maps.taakdag_status()`.
 Getest met `test_0043_fiche.sql` (10 controles, alle geslaagd op 17 nov 2026).
+
+## 0051 · Fiche overnemen en delen
+
+`maps.fiche_overnemen(van, naar)` neemt de fiche mee naar een gekopieerd plan (items via `items.bron_item_id`, lagen op naam). Gebeurt vanzelf bij Nieuw plan → kopie van een bestaand plan, of met de knop in de tab Info.
+`maps.deel_link_taken(token)` geeft de taken van de persoon achter een deellink, zonder login.
+Getest met `test_0051_fiche_stroom.sql`.
+
+## 0052 · Fiche aan voor Flanders Classics
+
+Zet de module `fiche` aan voor flcs bij de eerste uitrol.

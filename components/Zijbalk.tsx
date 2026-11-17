@@ -23,6 +23,7 @@ type Props = {
   huisstijl?: Huisstijl;
   feedback?: boolean;
   branding?: boolean;
+  fiche?: boolean;
   children: React.ReactNode;
 };
 
@@ -30,7 +31,8 @@ const ROL: Record<string, string> = { eigenaar: "Eigenaar", beheerder: "Beheerde
 const PAKKET: Record<string, string> = { proef: "Proef", event: "Event", pro: "Pro", organisatie: "Organisatie", maatwerk: "Maatwerk" };
 
 // De editor, de opbouwmodus en de export krijgen het volledige scherm.
-const VOL_SCHERM = /\/maps\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(\/|$)/i;
+// Het plan zelf is volledig scherm; de projectfiche van een plan (/maps/<id>/fiche) houdt de zijbalk.
+const VOL_SCHERM = /\/maps\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(\/(?!fiche)|$)/i;
 
 function initialen(naam?: string | null, email?: string | null) {
   const delen = (naam || email || "?").trim().split(/[\s.@]+/).filter(Boolean);
@@ -38,7 +40,7 @@ function initialen(naam?: string | null, email?: string | null) {
 }
 
 // Schil van Toolen Maps binnen een organisatie: navy kolom links, licht werkvlak rechts.
-export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, platform, plaatsen, melding, extra, huisstijl = null, feedback = false, branding = false, children }: Props) {
+export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, platform, plaatsen, melding, extra, huisstijl = null, feedback = false, branding = false, fiche = false, children }: Props) {
   const pad = usePathname() || "";
   const [orgOpen, setOrgOpen] = useState(false);
   const [ikOpen, setIkOpen] = useState(false);
@@ -64,6 +66,7 @@ export default function Zijbalk({ organisatie, organisaties, gebruiker, rol, pla
     { href: "/maps/bibliotheek", tekst: "Bibliotheek" },
     ...(branding ? [{ href: "/maps/branding", tekst: "Branding" }] : []),
     { href: "/maps/leveranciers", tekst: "Leveranciers" },
+    ...(fiche ? [{ href: "/maps/taken", tekst: "Mijn taken" }] : []),
   ];
 
   async function uitloggen() {

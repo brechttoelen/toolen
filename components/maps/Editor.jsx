@@ -4582,6 +4582,7 @@ export default function Editor({ planId }) {
       ['Volledig scherm', () => setVolScherm((v) => !v), ''],
       ...WERKRUIMTES.map((w) => [`Werkruimte ${w.naam}`, () => kiesWerkruimte(w.id), `alt ${w.toets}`]),
       [uitgebreid ? 'Eenvoudige weergave' : 'Alle opties tonen', () => setUitgebreid(!uitgebreid), 'uitgebreid eenvoudig'],
+      ...(heeftModule('fiche') ? [['Projectfiche', () => { window.location.href = `/maps/${planId}/fiche`; }, 'planning taken leveranciers laadlijst catering budget']] : []),
       ...(heeftModule('terrein') ? [['Opbouwmodus (gsm)', () => { window.location.href = `/maps/${planId}/opbouw`; }, '']] : []),
     ];
     acties.forEach(([titel, doe, extra], k) => r.push({ groep: 'Acties', titel, doe, extra, standaard: k < 8 }));
@@ -4884,6 +4885,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
         </div>
         <FeedbackKnop />
         <button className="fm-knop fm-ikoon" title="Volledig scherm: panelen verbergen" aria-label="Volledig scherm" aria-pressed={volScherm} onClick={() => setVolScherm((v) => !v)}><Icoon naam="scherm" maat={16} /></button>
+        {heeftModule('fiche') && <a className="fm-knop" href={`/maps/${planId}/fiche`} title="Projectfiche van deze site: planning, leveranciers, laadlijst, catering, budget" style={{ textDecoration: 'none' }}>Fiche</a>}
         <span className="fm-scheiding" aria-hidden />
         <button className="fm-knop rood" title="Deellinks en PDF's per ontvanger, en snel exporteren" onClick={() => setDialoog('delen')}>{exportBezig || <><span className="fm-lang">Delen en exporteren</span><span className="fm-kort">Delen</span></>}</button>
       </header>

@@ -10,6 +10,7 @@ import { Avatar } from './Aanwezigheid';
 import { AppDialogen } from './dialoog';
 import { NieuwPlan } from './PlannenLijst';
 import EventDialoog from './EventDialoog';
+import { heeftModule } from './merk';
 import { laadEvents, groepeer, eventDatum, dagenTot } from './events';
 
 function wieIn(state) {
@@ -157,6 +158,7 @@ export default function Overzicht() {
                       ))}
                       {g.plannen.length > 4 && <a className="tm-ev-meer" href="/maps/plannen">Nog {g.plannen.length - 4} {g.plannen.length - 4 === 1 ? 'plan' : 'plannen'}</a>}
                       {!g.plannen.length && <span className="tm-ev-leeg">Nog geen plan voor dit event.</span>}
+                      {heeftModule('fiche') && g.plannen.length > 0 && <span className="tm-ev-meer" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>Fiche: {g.plannen.slice(0, 4).map((p) => <a key={p.id} href={`/maps/${p.id}/fiche`}>{p.naam}</a>)}</span>}
                     </div>
                     <div className="tm-ev-voet">
                       {g.plannen.length > 0 && <div className="tm-ev-balk" aria-label={`${def} van ${g.plannen.length} plannen definitief`}>{g.plannen.map((p, i) => <span key={p.id} className={i < def ? 'aan' : ''} />)}</div>}

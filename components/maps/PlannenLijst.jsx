@@ -10,6 +10,7 @@ import { STANDAARD_LAGEN, STANDAARD_FASEN } from './stijl';
 import { regioVan } from './geo';
 import { laadEvents, maakEvent, kleurVoor, eventDatum, groepeer } from './events';
 import EventDialoog from './EventDialoog';
+import { heeftModule } from './merk';
 
 const nieuwId = () => crypto.randomUUID();
 
@@ -33,7 +34,7 @@ async function kopieerInhoud(bronId, doelId) {
   const lagen = (l.data || []).map((x) => { const id = nieuwId(); laagMap.set(x.id, id); return { ...x, id, plan_id: doelId }; });
   const fasen = (f.data || []).map((x) => { const id = nieuwId(); faseMap.set(x.id, id); return { ...x, id, plan_id: doelId }; });
   const items = (i.data || []).map(({ created_at, updated_at, geplaatst_op, geplaatst_door, ...x }) => ({
-    ...x, id: nieuwId(), plan_id: doelId, laag_id: laagMap.get(x.laag_id) || null,
+    ...x, id: nieuwId(), bron_item_id: x.id, plan_id: doelId, laag_id: laagMap.get(x.laag_id) || null,
     fase_ids: x.fase_ids ? x.fase_ids.map((y) => faseMap.get(y)).filter(Boolean) : null,
   }));
   if (lagen.length) { const r = await maps().from('lagen').insert(lagen); if (r.error) throw r.error; }
@@ -74,9 +75,12 @@ export function NieuwPlan({ plannen, onSluit, startEvent = '' }) {
       const { data: plan, error } = await maps().from('plannen').insert({
         naam: v.naam.trim(), editie_naam: event?.naam || v.editie.trim() || null, ...(event ? { event_id: event.id } : {}), locatie: v.plaats ? v.plaats.naam.split(',').slice(0, 2).join(',') : (bron?.locatie || null),
         centrum, zoom: bron?.zoom || 17, basiskaart: bron?.basiskaart || 'luchtfoto', titelblok: bron?.titelblok || {}, aangemaakt_door: wie?.id || null,
+        ...(bron ? { vorig_plan_id: bron.id } : {}), ...(event?.datum ? { wedstrijd_van: event.datum, wedstrijd_tot: event.einddatum || event.datum } : {}),
       }).select().single();
       if (error) throw error;
       if (bron) await kopieerInhoud(bron.id, plan.id);
+      // De projectfiche (taken, leveranciers, laadlijst, catering) gaat mee, op dezelfde dag tegenover de wedstrijd.
+      if (bron && heeftModule('fiche')) { const r = await maps().rpc('fiche_overnemen', { p_van: bron.id, p_naar: plan.id }); if (r.error) console.warn('Fiche overnemen:', r.error.message); }
       else {
         const lagen = STANDAARD_LAGEN.map((l, i) => ({ plan_id: plan.id, naam: l.naam, kleur: l.kleur, stijl: l.stijl || {}, volgorde: i }));
         const r1 = await maps().from('lagen').insert(lagen);

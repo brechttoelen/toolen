@@ -51,4 +51,6 @@ export const MIGRATIES: { naam: string; handmatig?: boolean; vervangen?: boolean
   { naam: "0048_fiche_laadlijst_catering_notities" },
   { naam: "0049_fiche_flcs_start" },
   { naam: "0050_fiche_module_in_policies" },
+  { naam: "0051_fiche_overnemen_en_delen" },
+  { naam: "0052_fiche_aan_voor_flcs" },
 ];

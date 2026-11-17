@@ -11,6 +11,8 @@ import { vereenvoudigLijn } from './uitwisseling';
 import Info from './info';
 import { brugCfg, brugMaten, brugStukken } from './rennersbrug';
 import Blok from './blok';
+import FicheItemBlok from '../fiche/ItemBlok';
+import { heeftModule } from './merk';
 import { LaagOpties } from './laagOpties';
 import { vraagTekst } from './dialoog';
 import { Fragment, useEffect, useRef, useState } from 'react';
@@ -1197,6 +1199,7 @@ export default function Eigenschappen(props) {
           <AttestenBewerken item={item} planId={item.plan_id} ro={ro} onZet={(l) => zetVeld('attesten', l)} />
         </Blok>
       )}
+      {heeftModule('fiche') && item.plan_id && <FicheItemBlok item={item} plan={plan} schrijven={schrijven} />}
       <Blok titel="Planning en notitie" open={!!(item.notitie || velden.opbouw || velden.afbraak || velden.verantwoordelijke)}>
         <div className="fm-raster2">
           <Veld label="Plaatsen" waarde={velden.opbouw} onBewaar={(v) => zetVeld('opbouw', v || null)} uitgeschakeld={ro} placeholder="za 06:00" />

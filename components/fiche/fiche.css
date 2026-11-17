@@ -1,0 +1,123 @@
+/* Projectfiche per site. Bouwt op toolen.css (tokens, t-knop, t-veld, t-pil, t-tabs, t-melding). */
+.pf { flex: 1; min-width: 0; background: var(--t-vlak); font-family: var(--font-sans); font-size: 13.5px; color: var(--t-tekst); display: flex; flex-direction: column; position: relative; }
+.pf button { font: inherit; }
+.pf-kop { background: #fff; border-bottom: 1px solid var(--t-rand); padding: 18px 28px 0; display: flex; flex-direction: column; gap: 6px; position: sticky; top: 0; z-index: 20; }
+.pf-kruimel { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--t-tekst-2); }
+.pf-kruimel a { color: var(--t-blauw-donker); font-weight: 500; text-decoration: none; }
+.pf-kruimel a:hover { text-decoration: underline; }
+.pf-kopregel { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.pf-kopregel .t-titel { flex: 1 1 320px; font-size: 28px; margin: 0; }
+.pf-meta { font-size: 13.5px; color: var(--t-tekst-2); }
+.pf-kop .t-tabs { margin: 8px 0 0; border-bottom: 0; overflow-x: auto; scrollbar-width: none; }
+.pf-kop .t-tabs button { white-space: nowrap; }
+.pf-romp { padding: 20px 28px 48px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box; width: 100%; }
+.pf-rij { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pf-vul { flex: 1; }
+.pf-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.pf-raster.vier { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.pf-kaart { background: #fff; border: 1px solid var(--t-rand); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.pf-kaartkop { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pf-kaartkop h2 { margin: 0; font-family: var(--font-titel); font-stretch: 112%; font-size: 18px; font-weight: 700; flex: 1; }
+.pf-cijfer { display: flex; flex-direction: column; gap: 2px; }
+.pf-cijfer b { font-family: var(--font-titel); font-stretch: 112%; font-weight: 700; font-size: 24px; font-variant-numeric: tabular-nums; }
+.pf-cijfer span { font-size: 12.5px; color: var(--t-tekst-2); }
+.pf-link { all: unset; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--t-blauw-donker); }
+.pf-link:hover { text-decoration: underline; }
+.pf-link:focus-visible { outline: 2px solid var(--t-blauw); outline-offset: 2px; border-radius: 3px; }
+.pf-stil { color: var(--t-tekst-2); }
+.pf-klein { font-size: 12.5px; }
+.pf-let { color: var(--t-let-op); }
+.pf-fout { color: var(--t-fout); }
+.pf-ok { color: #1B7F4F; }
+.pf-lijstknop { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--t-rand); border-radius: 8px; background: var(--t-vlak); }
+.pf-lijstknop:hover { border-color: var(--t-rand-2); background: #fff; }
+.pf-lijstknop b { font-weight: 600; }
+.pf-lijstknop span { font-size: 12.5px; color: var(--t-tekst-2); }
+.pf-seg { display: inline-flex; gap: 2px; background: var(--t-vlak-2); padding: 3px; border-radius: 8px; }
+.pf-seg button { border: 0; background: transparent; color: var(--t-tekst-2); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13.5px; }
+.pf-seg button.aan { background: #fff; color: var(--t-tekst); font-weight: 500; box-shadow: 0 1px 2px rgba(2,32,86,.08); }
+.pf-chiprij { display: flex; gap: 4px; flex-wrap: wrap; }
+.pf-chip { all: unset; box-sizing: border-box; cursor: pointer; height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid var(--t-rand-2); background: #fff; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
+.pf-chip.aan { background: var(--t-navy); border-color: var(--t-navy); color: #fff; }
+.pf-chip:focus-visible { outline: 2px solid var(--t-blauw); outline-offset: 2px; }
+.pf-zoek { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; background: #fff; border: 1px solid var(--t-rand-2); border-radius: 10px; flex: 0 1 280px; }
+.pf-zoek input { all: unset; flex: 1; font-size: 13.5px; }
+.pf-zoek:focus-within { border-color: var(--t-blauw); box-shadow: 0 0 0 3px var(--t-blauw-zacht); }
+
+/* Tabellen: eigen scrollvak, kop en groepsrijen blijven staan, totaal onderaan ook. */
+.pf-tabvak { background: #fff; border: 1px solid var(--t-rand); border-radius: 12px; overflow: auto; max-height: calc(100vh - 260px); min-height: 120px; }
+.pf-tabel { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+.pf-tabel th { position: sticky; top: 0; z-index: 3; background: #fff; text-align: left; padding: 10px; font-size: 12px; font-weight: 600; color: var(--t-tekst-2); white-space: nowrap; border-bottom: 1px solid var(--t-rand); }
+.pf-tabel td { padding: 9px 10px; border-top: 1px solid #EEF1F5; vertical-align: top; }
+.pf-tabel tr:first-child td { border-top: 0; }
+.pf-tabel th:first-child, .pf-tabel td:first-child { padding-left: 16px; }
+.pf-tabel .getal { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pf-tabel tbody tr:hover td { background: #FAFBFD; }
+.pf-tabel tr.gekozen td { background: var(--t-blauw-zacht); }
+.pf-tabel tr.prog td { background: #F3F0FF; }
+.pf-tabel tr.prog small { color: #5F3DC4; }
+.pf-tabel tr.groep td { position: sticky; top: 37px; z-index: 2; background: var(--t-vlak); font-size: 12.5px; font-weight: 600; color: var(--t-tekst-2); padding: 7px 16px; border-top: 1px solid var(--t-rand); }
+.pf-tabel tr.groep.let-op td { background: var(--t-let-op-zacht); color: var(--t-let-op); }
+.pf-tabel tfoot td { position: sticky; bottom: 0; z-index: 3; background: #FAFBFD; border-top: 1px solid var(--t-rand); font-weight: 600; }
+.pf-tabel td small { display: block; font-size: 12.5px; color: var(--t-tekst-2); }
+.pf-tabel td b { font-weight: 600; }
+.pf-tabel .vastlinks { position: sticky; left: 0; z-index: 1; background: #fff; }
+.pf-tabel th.vastlinks { z-index: 4; }
+.pf-tabel tr.klaar .wat { text-decoration: line-through; color: var(--t-tekst-2); }
+.pf-rijknop { all: unset; cursor: pointer; font-weight: 600; color: var(--t-tekst); }
+.pf-rijknop:hover { color: var(--t-blauw-donker); text-decoration: underline; }
+.pf-rijknop:focus-visible { outline: 2px solid var(--t-blauw); outline-offset: 2px; border-radius: 3px; }
+.pf-cel { width: 64px; height: 28px; box-sizing: border-box; border: 1px solid transparent; border-radius: 6px; background: transparent; text-align: right; font: inherit; font-variant-numeric: tabular-nums; padding: 0 6px; color: inherit; }
+.pf-cel.breed { width: 100%; text-align: left; }
+.pf-cel:hover { border-color: var(--t-rand-2); }
+.pf-cel:focus { border-color: var(--t-blauw); background: #fff; outline: 0; }
+.pf-koppel { all: unset; cursor: pointer; display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px dashed var(--t-rand-2); color: var(--t-tekst-2); font-size: 12.5px; }
+.pf-koppel:hover { border-color: var(--t-blauw); color: var(--t-blauw-donker); }
+.pf-voorstel { all: unset; box-sizing: border-box; cursor: pointer; height: 26px; padding: 0 8px; border-radius: 6px; border: 1px dashed var(--t-blauw); color: var(--t-blauw-donker); font-size: 12px; display: inline-flex; align-items: center; }
+.pf-voorstel:hover { background: var(--t-blauw-zacht); }
+
+/* Status in de tabel */
+.pf-status { position: relative; display: inline-flex; align-items: center; }
+.pf-status select { appearance: none; -webkit-appearance: none; border: 0; height: 24px; padding: 0 22px 0 10px; border-radius: 12px; font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; background: var(--t-vlak-2); color: var(--t-tekst-2); }
+.pf-status select.ok { background: var(--t-ok-zacht); color: #1B7F4F; }
+.pf-status select.blauw { background: var(--t-blauw-zacht); color: var(--t-blauw-donker); }
+.pf-status select.let-op { background: var(--t-let-op-zacht); color: var(--t-let-op); }
+.pf-status select:focus-visible { outline: 2px solid var(--t-blauw); outline-offset: 2px; }
+.pf-status svg { position: absolute; right: 8px; pointer-events: none; color: inherit; }
+
+/* Selectiebalk */
+.pf-bulk { position: sticky; top: 0; z-index: 6; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--t-navy); color: #fff; padding: 8px 10px 8px 16px; border-radius: 10px; box-shadow: var(--t-schaduw-zweef); }
+.pf-bulk b { font-weight: 600; margin-right: 6px; }
+.pf-bulk .sep { width: 1px; height: 22px; background: rgba(255,255,255,.2); margin: 0 4px; }
+.pf-bknop { all: unset; box-sizing: border-box; cursor: pointer; height: 30px; padding: 0 10px; border-radius: 6px; color: #fff; font-size: 13px; display: inline-flex; align-items: center; }
+.pf-bknop:hover { background: rgba(255,255,255,.12); }
+.pf-bknop:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.pf-bsel { height: 30px; border-radius: 6px; border: 0; padding: 0 8px; font: inherit; font-size: 13px; background: rgba(255,255,255,.12); color: #fff; }
+.pf-bsel option { color: #0E1A33; }
+
+/* Paneel rechts */
+.pf-achter { position: fixed; inset: 0; background: rgba(2,32,86,.22); z-index: 80; display: flex; justify-content: flex-end; }
+.pf-paneel { width: 480px; max-width: 100%; height: 100%; background: #fff; box-shadow: var(--t-schaduw-zweef); display: flex; flex-direction: column; }
+.pf-paneelkop { padding: 18px 20px 14px; border-bottom: 1px solid var(--t-rand); display: flex; gap: 12px; align-items: flex-start; }
+.pf-paneelkop h2 { margin: 2px 0 0; font-family: var(--font-titel); font-stretch: 112%; font-size: 20px; font-weight: 700; flex: 1; }
+.pf-paneelromp { flex: 1; overflow: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 18px; }
+.pf-paneelvoet { padding: 12px 20px; border-top: 1px solid var(--t-rand); display: flex; gap: 8px; align-items: center; }
+.pf-blok { display: flex; flex-direction: column; gap: 8px; }
+.pf-blok > b { font-size: 14px; font-weight: 600; }
+.pf-velden { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.pf-velden label, .pf-veld { display: flex; flex-direction: column; min-width: 0; }
+.pf-velden .t-veld, .pf-veld .t-veld { width: 100%; box-sizing: border-box; }
+.pf-sluit { all: unset; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; color: var(--t-tekst-2); }
+.pf-sluit:hover { background: var(--t-vlak-2); color: var(--t-tekst); }
+.pf-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--t-navy); color: #fff; padding: 10px 16px; border-radius: 10px; box-shadow: var(--t-schaduw-zweef); z-index: 90; font-size: 13.5px; max-width: 80vw; }
+.pf-leeg { padding: 20px; color: var(--t-tekst-2); }
+.pf-open { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; padding: 16px; background: #F7FBFF; }
+.pf-open h3 { margin: 0 0 6px; font-size: 13.5px; font-weight: 600; }
+.pf-veldrij { display: grid; grid-template-columns: 110px 1fr; gap: 6px 10px; align-items: center; }
+.pf-veldrij > span:first-child { font-size: 12.5px; color: var(--t-tekst-2); }
+.pf-not.klaar .tekst { text-decoration: line-through; color: var(--t-tekst-2); }
+@media (max-width: 760px) {
+  .pf-kop { padding: 14px 16px 0; }
+  .pf-romp { padding: 14px 16px 40px; }
+  .pf-kopregel .t-titel { font-size: 22px; }
+}

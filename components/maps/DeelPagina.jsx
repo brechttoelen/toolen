@@ -4,6 +4,7 @@
 // Een oude link zonder onderdelen toont gewoon de kaart.
 import { useState } from 'react';
 import DeelWeergave from './DeelWeergave';
+import DeelTaken from '../fiche/DeelTaken';
 import { publiekeUrl } from './db';
 
 const T = {
@@ -23,6 +24,7 @@ export default function DeelPagina({ token }) {
   const toonBalk = info && (info.lijst.length > 1 || info.pdf?.pad);
   return (
     <>
+      <DeelTaken token={token} />
       <DeelWeergave key={deel || '-'} token={token} deel={deel} onData={(d) => setInfo(d ? { lijst: d.onderdelen || [], huidig: d.deel || null, pdf: d.pdf || null, taal: d.link?.opties?.taal } : null)} />
       {toonBalk && (
         <nav className="fm-deelbalk" aria-label={t.delen}>

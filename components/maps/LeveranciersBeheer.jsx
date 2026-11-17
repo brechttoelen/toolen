@@ -10,8 +10,8 @@ import { AppDialogen, bevestig } from './dialoog';
 import './maps.css';
 
 const REGIOS = ['O-VL', 'W-VL', 'ANT', 'VB', 'LIM'];
-const SOORTEN = [['extern', 'Leverancier'], ['eigen', 'Eigen materiaal'], ['stad', 'Stad of gemeente']];
-const LEEG = { naam: '', soort: 'extern', categorieen: [], regios: [], gemeente: '', contactpersoon: '', email: '', email2: '', telefoon: '', projecten: '', opmerkingen: '', actief: true };
+const SOORTEN = [['extern', 'Leverancier'], ['eigen', 'Eigen materiaal'], ['stad', 'Stad of gemeente'], ['dienst', 'Dienst'], ['partner', 'Partner']];
+const LEEG = { naam: '', soort: 'extern', categorieen: [], regios: [], gemeente: '', contactpersoon: '', email: '', email2: '', telefoon: '', projecten: '', opmerkingen: '', btw: '', adres: '', factuur_email: '', website: '', actief: true };
 
 export default function LeveranciersBeheer() {
   const [lijst, setLijst] = useState(null);
@@ -43,7 +43,7 @@ export default function LeveranciersBeheer() {
   const kies = async (l) => { await bewaarNu(); setGekozen(l ? l.id : 'nieuw'); setVorm(l ? { ...LEEG, ...l } : { ...LEEG }); setFout(''); setMelding(''); setStatus(''); };
   const zet = (patch) => { if (!('naam' in patch)) vuil.current = true; setVorm((v) => ({ ...v, ...patch })); };
   const wissel = (k, w) => { vuil.current = true; setVorm((v) => ({ ...v, [k]: v[k].includes(w) ? v[k].filter((x) => x !== w) : [...v[k], w] })); };
-  const velden = (v) => { const rij = { soort: v.soort, categorieen: v.categorieen, regios: v.regios, actief: v.actief !== false }; for (const k of ['gemeente', 'contactpersoon', 'email', 'email2', 'telefoon', 'projecten', 'opmerkingen']) rij[k] = String(v[k] || '').trim() || null; return rij; };
+  const velden = (v) => { const rij = { soort: v.soort, categorieen: v.categorieen, regios: v.regios, actief: v.actief !== false }; for (const k of ['gemeente', 'contactpersoon', 'email', 'email2', 'telefoon', 'projecten', 'opmerkingen', 'btw', 'adres', 'factuur_email', 'website']) rij[k] = String(v[k] || '').trim() || null; return rij; };
   const vormRef = useRef(vorm); vormRef.current = vorm;
   const bewaarNu = async () => {
     clearTimeout(timer.current);
@@ -144,7 +144,14 @@ export default function LeveranciersBeheer() {
               <label className="fm-veld">Telefoon<input value={vorm.telefoon || ''} disabled={!schrijven} onChange={(e) => zet({ telefoon: e.target.value })} /></label>
               <label className="fm-veld">Projecten<input value={vorm.projecten || ''} disabled={!schrijven} onChange={(e) => zet({ projecten: e.target.value })} placeholder="bv. CX, RVV, GW" /></label>
             </div>
+            <div className="fm-raster2">
+              <label className="fm-veld">Btw-nummer<input value={vorm.btw || ''} disabled={!schrijven} onChange={(e) => zet({ btw: e.target.value })} placeholder="BE 0…" /></label>
+              <label className="fm-veld">Factuurmail<input type="email" value={vorm.factuur_email || ''} disabled={!schrijven} onChange={(e) => zet({ factuur_email: e.target.value })} /></label>
+              <label className="fm-veld">Adres<input value={vorm.adres || ''} disabled={!schrijven} onChange={(e) => zet({ adres: e.target.value })} /></label>
+              <label className="fm-veld">Website<input value={vorm.website || ''} disabled={!schrijven} onChange={(e) => zet({ website: e.target.value })} /></label>
+            </div>
             <label className="fm-veld">Opmerkingen<textarea rows={3} value={vorm.opmerkingen || ''} disabled={!schrijven} onChange={(e) => zet({ opmerkingen: e.target.value })} /></label>
+            {gekozen !== 'nieuw' && vorm.id && <ContactPersonen leverancierId={vorm.id} schrijven={schrijven} />}
             <label className="fm-vink"><input type="checkbox" checked={vorm.actief !== false} disabled={!schrijven} onChange={(e) => zet({ actief: e.target.checked })} /> Actief (te kiezen in plannen en bibliotheek)</label>
             {gekozen !== 'nieuw' && <span className="fm-sub">{gebruik.get(vorm.naam) || 0} elementen in de bibliotheek van deze leverancier. Een nieuwe naam past de bibliotheek, de plannen en hun standaardleveranciers mee aan.</span>}
             {schrijven && (
@@ -158,6 +165,45 @@ export default function LeveranciersBeheer() {
           </aside>
         )}
       </div>
+    </div>
+  );
+}
+
+// Contactpersonen van een leverancier (maps.personen). Een persoon kan op een site een rol krijgen in de projectfiche.
+function ContactPersonen({ leverancierId, schrijven }) {
+  const [lijst, setLijst] = useState([]);
+  const [n, setN] = useState({ naam: '', functie: '', telefoon: '', email: '' });
+  const [fout, setFout] = useState('');
+  useEffect(() => { maps().from('personen').select('*').eq('leverancier_id', leverancierId).order('naam').then((r) => { if (r.error) setFout(foutTekst(r.error)); else setLijst(r.data || []); }); }, [leverancierId]);
+  const toe = async () => {
+    if (!n.naam.trim()) return;
+    const r = await maps().from('personen').insert({ leverancier_id: leverancierId, naam: n.naam.trim(), functie: n.functie.trim() || null, telefoon: n.telefoon.trim() || null, email: n.email.trim() || null }).select().single();
+    if (r.error) return setFout(foutTekst(r.error));
+    setLijst((l) => [...l, r.data]); setN({ naam: '', functie: '', telefoon: '', email: '' });
+  };
+  const weg = async (p) => {
+    if (!await bevestig(`Contact "${p.naam}" verwijderen? Ook zijn rollen in de projectfiches verdwijnen.`, { ok: 'Verwijderen', gevaar: true })) return;
+    const r = await maps().from('personen').delete().eq('id', p.id);
+    if (r.error) return setFout(foutTekst(r.error));
+    setLijst((l) => l.filter((x) => x.id !== p.id));
+  };
+  return (
+    <div className="fm-veld">Contactpersonen
+      {lijst.map((p) => (
+        <div key={p.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #EEF1F5' }}>
+          <span style={{ flex: 1 }}><b>{p.naam}</b><span className="fm-sub" style={{ display: 'block' }}>{[p.functie, p.telefoon, p.email].filter(Boolean).join(' · ')}</span></span>
+          {schrijven && <button className="fm-knop klein" onClick={() => weg(p)}>Weg</button>}
+        </div>
+      ))}
+      {!lijst.length && <span className="fm-sub">Nog geen contactpersonen.</span>}
+      {schrijven && <div className="fm-raster2" style={{ marginTop: 6 }}>
+        <input placeholder="Naam" aria-label="Naam" value={n.naam} onChange={(e) => setN({ ...n, naam: e.target.value })} />
+        <input placeholder="Functie" aria-label="Functie" value={n.functie} onChange={(e) => setN({ ...n, functie: e.target.value })} />
+        <input placeholder="Telefoon" aria-label="Telefoon" value={n.telefoon} onChange={(e) => setN({ ...n, telefoon: e.target.value })} />
+        <input placeholder="E-mail" aria-label="E-mail" value={n.email} onChange={(e) => setN({ ...n, email: e.target.value })} />
+        <button className="fm-knop klein" onClick={toe}>Contact toevoegen</button>
+      </div>}
+      {fout && <div className="fm-melding fout">{fout}</div>}
     </div>
   );
 }
