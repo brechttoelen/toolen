@@ -10,7 +10,7 @@ import { STANDAARD_LAGEN, STANDAARD_FASEN } from './stijl';
 import { regioVan } from './geo';
 import { laadEvents, maakEvent, kleurVoor, eventDatum, groepeer } from './events';
 import EventDialoog from './EventDialoog';
-import { heeftModule } from './merk';
+import { heeftModule, planStart } from './merk';
 
 const nieuwId = () => crypto.randomUUID();
 
@@ -90,7 +90,7 @@ export function NieuwPlan({ plannen, onSluit, startEvent = '' }) {
           if (r2.error) throw r2.error;
         }
       }
-      window.location.href = `/maps/${plan.id}`;
+      window.location.href = planStart(plan.id);
     } catch (e) {
       setFout(foutTekst(e));
       setBezig(false);
@@ -402,7 +402,7 @@ export default function PlannenLijst() {
                       return (
                         <tr key={p.id} className="t-plrij">
                           <td>
-                            {p.verwijderd_op ? <b>{p.naam}</b> : <a href={`/maps/${p.id}`}>{p.naam}</a>}
+                            {p.verwijderd_op ? <b>{p.naam}</b> : <a href={planStart(p.id)}>{p.naam}</a>}
                             <small>{p.locatie || '\u00a0'}</small>
                           </td>
                           {!perEvent && <td className="stil">{evNaam.get(p.event_id) || p.editie_naam || 'Zonder event'}</td>}
@@ -430,7 +430,7 @@ export default function PlannenLijst() {
                                 </button>
                                 {menuVan === p.id && (
                                   <div className="t-menu" style={{ right: 0, left: 'auto', top: 'calc(100% + 4px)', minWidth: 240 }}>
-                                    <a href={`/maps/${p.id}`}>Openen</a>
+                                    {heeftModule('fiche') ? <><a href={`/maps/${p.id}/fiche`}>Fiche openen</a><a href={`/maps/${p.id}`}>Plan openen</a></> : <a href={`/maps/${p.id}`}>Openen</a>}
                                     {ev.ok && (
                                       <label className="t-plmenu-veld">Event
                                         <select className="t-veld" value={p.event_id || ''} onChange={(e) => { koppel(p, e.target.value); setMenuVan(null); }}>
@@ -457,7 +457,7 @@ export default function PlannenLijst() {
         </section>
         {kaartAan && !prullenbak && (
           <section style={{ flex: '1 1 420px', minHeight: 480, position: 'relative', borderLeft: '1px solid var(--t-rand)', background: '#EDF0F4' }}>
-            <PlannenKaart plannen={lijst} kleurVan={kleurVan} onKies={(id) => { window.location.href = `/maps/${id}`; }} />
+            <PlannenKaart plannen={lijst} kleurVan={kleurVan} onKies={(id) => { window.location.href = planStart(id); }} />
           </section>
         )}
       </div>

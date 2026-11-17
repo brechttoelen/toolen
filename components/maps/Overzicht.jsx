@@ -10,7 +10,7 @@ import { Avatar } from './Aanwezigheid';
 import { AppDialogen } from './dialoog';
 import { NieuwPlan } from './PlannenLijst';
 import EventDialoog from './EventDialoog';
-import { heeftModule } from './merk';
+import { planStart } from './merk';
 import { laadEvents, groepeer, eventDatum, dagenTot } from './events';
 
 function wieIn(state) {
@@ -111,7 +111,7 @@ export default function Overzicht() {
             </label>
             {treffers.length > 0 && (
               <div className="t-menu" style={{ left: 0, right: 0, top: 'calc(100% + 4px)' }}>
-                {treffers.map((p) => <a key={p.id} href={`/maps/${p.id}`}><span style={{ flex: 1 }}>{p.naam}</span><span className="t-stil" style={{ fontSize: 12 }}>{p.editie_naam}</span></a>)}
+                {treffers.map((p) => <a key={p.id} href={planStart(p.id)}><span style={{ flex: 1 }}>{p.naam}</span><span className="t-stil" style={{ fontSize: 12 }}>{p.editie_naam}</span></a>)}
               </div>
             )}
           </div>
@@ -150,7 +150,7 @@ export default function Overzicht() {
                     </div>
                     <div className="tm-ev-plannen">
                       {g.plannen.slice(0, 4).map((p) => (
-                        <a key={p.id} className="tm-ev-blok" href={`/maps/${p.id}`}>
+                        <a key={p.id} className="tm-ev-blok" href={planStart(p.id)}>
                           <span className="naam">{p.naam}</span>
                           <span className="meta">{p.items?.[0]?.count ?? 0} items · v{p.versie || 1}</span>
                           <span className={`t-pil ${p.status === 'definitief' ? 'ok' : ''}`}>{p.status === 'definitief' ? 'Definitief' : 'Concept'}</span>
@@ -158,7 +158,6 @@ export default function Overzicht() {
                       ))}
                       {g.plannen.length > 4 && <a className="tm-ev-meer" href="/maps/plannen">Nog {g.plannen.length - 4} {g.plannen.length - 4 === 1 ? 'plan' : 'plannen'}</a>}
                       {!g.plannen.length && <span className="tm-ev-leeg">Nog geen plan voor dit event.</span>}
-                      {heeftModule('fiche') && g.plannen.length > 0 && <span className="tm-ev-meer" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>Fiche: {g.plannen.slice(0, 4).map((p) => <a key={p.id} href={`/maps/${p.id}/fiche`}>{p.naam}</a>)}</span>}
                     </div>
                     <div className="tm-ev-voet">
                       {g.plannen.length > 0 && <div className="tm-ev-balk" aria-label={`${def} van ${g.plannen.length} plannen definitief`}>{g.plannen.map((p, i) => <span key={p.id} className={i < def ? 'aan' : ''} />)}</div>}

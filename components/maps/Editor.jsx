@@ -4784,7 +4784,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
   return (
     <div className="fm fm-editor" onClick={() => { if (menu) setMenu(null); if (uitklap) setUitklap(null); }}>
       <header className={`fm-topbalk fm-wr-${werkruimte}`}>
-        <a className="fm-terug" href="/maps/plannen" aria-label="Terug naar de plannen"><Icoon naam="terug" /></a>
+        <a className="fm-terug" href={heeftModule('fiche') ? `/maps/${planId}/fiche` : '/maps/plannen'} aria-label={heeftModule('fiche') ? 'Terug naar de fiche' : 'Terug naar de plannen'} title={heeftModule('fiche') ? 'Terug naar de fiche' : 'Terug naar de plannen'}><Icoon naam="terug" /></a>
         <div className="fm-titel">
           <small style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{planEvent && <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: planEvent.kleur, flex: 'none' }} />}{planEvent?.naam || plan.editie_naam || 'Eventplan'}{plan.locatie ? ` · ${plan.locatie}` : ''}</small>
           <strong>{plan.naam}</strong>

@@ -15,4 +15,6 @@ export function heeftModule(id) { return !organisatie || !Array.isArray(organisa
 export const MODULE_NAAM = { stroom: 'Stroom', signalisatie: 'Signalisatie', stelling: 'Stellingbouwer 3D', branding: 'Branding', veiligheid: 'Veiligheid',
   binnen: 'Binnenplan', groot: 'Groot formaat', terrein: 'Terrein', leveranciers: 'Leveranciers', integraties: 'Integraties', huisstijl: 'Huisstijl', feedback: 'Feedback', mobiel: 'Gsm-app', fiche: 'Projectfiche' };
 export const nietInPakket = (id) => `${MODULE_NAAM[id] || id} zit niet in het pakket van ${organisatie?.naam || 'je organisatie'}.`;
+// Startpunt van een plan: de projectfiche als de module er is, anders de kaart.
+export const planStart = (id) => (heeftModule('fiche') ? `/maps/${id}/fiche` : `/maps/${id}`);
 export function merkKort() { return organisatie?.kort || organisatie?.naam || PRODUCT; }
