@@ -1,6 +1,8 @@
 #!/bin/sh
 # Vercel "Ignored Build Step": exit 0 = niet bouwen, exit 1 = wel bouwen.
 # Niet bouwen als sinds de vorige uitrol enkel databankmigraties (db/), documentatie of tests veranderden.
+# Werktakken (alles behalve main) nooit bouwen: tussentijdse pushes zijn enkel een back-up.
+[ -n "$VERCEL_GIT_COMMIT_REF" ] && [ "$VERCEL_GIT_COMMIT_REF" != "main" ] && { echo "Werktak $VERCEL_GIT_COMMIT_REF: niet bouwen."; exit 0; }
 vorige="$VERCEL_GIT_PREVIOUS_SHA"
 [ -z "$vorige" ] && exit 1
 # Opnieuw uitrollen van dezelfde versie (bv. na een nieuwe omgevingsvariabele): altijd bouwen.

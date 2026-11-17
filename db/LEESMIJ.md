@@ -142,3 +142,10 @@ In Supabase (Authentication):
 - Zichtbaar enkel met de module `huisstijl`. Logo's in de bucket onder `huisstijl/<organisatie>/` als PNG.
 - `maps.huisstijl(slug)` en `maps.huisstijl_deellink(token)` zijn publiek (inlogscherm, deellink).
 - Test: `test_0013.sql`.
+
+## 0043–0050 · Projectfiche
+
+Zie `docs/BOUWPLAN-projectfiche.md`. Nieuwe tabellen voor de fiche per site (plan): personen, vennootschappen, team per site, leveranciers per site met leveringen, offertes, facturen en budget, taken met een regel per dag, laadlijst, catering en notities.
+Elke tabel krijgt dezelfde regels via `maps.fiche_tabel()`: lezen als lezer, schrijven als bewerker, binnen de events van het lid, schrijven enkel met de module `fiche`. Geld (offertes, facturen, budget, cateringprijzen) enkel voor eigenaars, beheerders en leden met `leden.financieel`.
+Lezers wijzigen enkel de status van hun eigen taakdagen via `maps.taakdag_status()`.
+Getest met `test_0043_fiche.sql` (10 controles, alle geslaagd op 17 nov 2026).

@@ -43,4 +43,12 @@ export const MIGRATIES: { naam: string; handmatig?: boolean; vervangen?: boolean
   { naam: "0040_leden_via_hub" },
   { naam: "0041_uitnodiging_met_brug" },
   { naam: "0042_brug_superadmin_eigenaar" },
+  { naam: "0043_fiche_basis" },
+  { naam: "0044_fiche_leveranciers_personen" },
+  { naam: "0045_fiche_sites_vennootschappen" },
+  { naam: "0046_fiche_site_leveranciers" },
+  { naam: "0047_fiche_taken" },
+  { naam: "0048_fiche_laadlijst_catering_notities" },
+  { naam: "0049_fiche_flcs_start" },
+  { naam: "0050_fiche_module_in_policies" },
 ];
