@@ -50,6 +50,9 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
   const [lev, setLev] = useState(null); // null = alle, '' = zonder leverancier
   const [zoek, setZoek] = useState('');
   const [open, setOpen] = useState(() => new Set());
+  // Meervoudige selectie van regels: in één keer aan een leverancier toewijzen.
+  const [sel, setSel] = useState(() => new Map()); // regelsleutel -> ids
+  const [bulkLev, setBulkLev] = useState('');
   // Scrollpositie onthouden: terug van "Toon op kaart" sta je op dezelfde plek.
   const lijstRef = useRef(null); const scrollRef = useRef(0);
   useLayoutEffect(() => { if (!verborgen && lijstRef.current) lijstRef.current.scrollTop = scrollRef.current; }, [verborgen]);
@@ -119,6 +122,11 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
   const levVoorCat = (cat) => [...new Set([...leveranciersVoor(levLijst, cat).map((l) => l.naam), ...[...elementenMap.values()].filter((e) => e.categorie === cat && e.leverancier).map((e) => e.leverancier), ...levLijst.filter((l) => l.soort !== 'extern').map((l) => l.naam), ...VASTE(), ...(std[cat] ? [std[cat]] : [])])].sort((a, b) => a.localeCompare(b, 'nl'));
 
   const wissel = (k) => setOpen((o) => { const n = new Set(o); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const kiesRegel = (k, ids) => setSel((m) => { const n = new Map(m); if (n.has(k)) n.delete(k); else n.set(k, ids); return n; });
+  const kiesGroep = (rs, aan) => setSel((m) => { const n = new Map(m); for (const r of rs) { const k = regelSleutel(r); if (aan) n.set(k, [...(r.ids || [])]); else n.delete(k); } return n; });
+  const selIds = [...new Set([...sel.values()].flat())];
+  const selStuks = () => rijen.filter((r) => sel.has(regelSleutel(r))).reduce((t, r) => t + r.aantal, 0);
+  const wijsToe = (v) => { if (!selIds.length) return; zetHerkomst(selIds, v, !!v); setSel(new Map()); setBulkLev(''); };
   // Bestellijst (wat) en leverlijst (wat, waar, wanneer) per leverancier, als Excel of PDF.
   const planTekst = `${plan?.naam || ''}${fase ? ` · ${fase.naam}` : ' · alle fasen'}`;
   const contactTekst = (naam) => { const l = levInfo.get(naam); return l ? [l.contactpersoon, l.email, l.telefoon].filter(Boolean).join(' · ') : ''; };
@@ -172,6 +180,17 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
             <span style={{ flex: 1 }} />
             <input type="search" className="fm-mat-zoek" placeholder="Zoek materiaal" aria-label="Zoek materiaal" value={zoek} onChange={(e) => setZoek(e.target.value)} />
           </div>
+          {schrijven && sel.size > 0 && (
+            <div className="fm-mat-werk" role="toolbar" aria-label="Selectie toewijzen" style={{ background: 'var(--t-navy, #022056)', color: '#fff' }}>
+              <b>{sel.size} {sel.size === 1 ? 'regel' : 'regels'} · {getal(selStuks())} st.</b>
+              <span>Geleverd door</span>
+              <span style={{ color: 'var(--t-tekst, #0E1A33)' }}><LevVeld label="Leverancier voor de selectie" waarde={bulkLev} placeholder="kies of typ een leverancier" uit={false} onKies={(v) => { setBulkLev(v); if (v) wijsToe(v); }} /></span>
+              <button className="fm-knop klein" onClick={() => wijsToe('')} title="Eigen keuze weghalen: de leverancier van het element of de standaard per categorie geldt weer">Terug naar standaard</button>
+              <button className="fm-knop klein" onClick={() => onToon(selIds, `${sel.size} regels`)}>Toon op kaart</button>
+              <span style={{ flex: 1 }} />
+              <button className="fm-knop klein" onClick={() => setSel(new Map())}>Selectie wissen</button>
+            </div>
+          )}
           <div className="fm-mat-lijst" ref={lijstRef} onScroll={(e) => { if (!verborgen) scrollRef.current = e.currentTarget.scrollTop; }}>
             {!lijst.length && <div className="fm-sub" style={{ padding: 16 }}>{s.elementen.length ? 'Niets gevonden voor deze keuze.' : 'Nog geen materiaal uit de bibliotheek in dit plan.'}</div>}
             {lijst.map(([g, rs]) => {
@@ -180,6 +199,7 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
               return (
                 <section key={g} className="fm-mat-groep">
                   <div className="fm-mat-gkop">
+                    {schrijven && (() => { const alle = rs.length > 0 && rs.every((r) => sel.has(regelSleutel(r))); return <input type="checkbox" checked={alle} onChange={() => kiesGroep(rs, !alle)} aria-label={`Alles van ${g} selecteren`} />; })()}
                     <h3>{g}</h3>
                     {groep === 'lev' && stdVoor(g).map((c) => <span key={c} className="fm-tag groen">standaard voor {c}</span>)}
                     {groep === 'cat' && (std[g] ? <span className="fm-tag groen">standaard: {std[g]}</span> : <span className="fm-tag">geen standaard</span>)}
@@ -199,7 +219,7 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
                         return (
                           <Fragment key={k}>
                             <tr className={`fm-mat-rij${af ? ' af' : ''}${isOpen ? ' open' : ''}`} onClick={() => wissel(k)} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) wissel(k); }} aria-expanded={isOpen}>
-                              <td><span className="fm-mat-pijl" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>{r.naam}
+                              <td>{schrijven && metEl.length > 0 && <input type="checkbox" style={{ marginRight: 8 }} checked={sel.has(k)} onClick={(e) => e.stopPropagation()} onChange={() => kiesRegel(k, rIds)} aria-label={`${r.naam} selecteren`} />}<span className="fm-mat-pijl" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>{r.naam}
                                 {af > 0 && <span className="fm-tag oranje" title={`De standaard voor ${xs.find((x) => x.af)?.el.categorie} is ${xs.find((x) => x.af)?.sd}`}>wijkt af van de standaard</span>}
                                 {viaStd && <span className="fm-tag">via standaard</span>}</td>
                               <td>{groep === 'lev' ? r.categorie : metEl.length ? <LevVeld label={`Geleverd door voor ${r.naam}`} waarde={r.leverancier} placeholder={ZONDER} uit={!schrijven} onKies={(v) => zetHerkomst(rIds, v)} /> : r.leverancier || '—'}</td>
