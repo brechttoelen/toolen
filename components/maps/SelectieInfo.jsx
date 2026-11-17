@@ -146,7 +146,7 @@ export default function SelectieInfo({ sel, lagen, lagenMap, fasen, elementenMap
             {slot > 0 && <div className="fm-sub">{slot} vergrendeld: die blijven ongewijzigd.</div>}
           </div>
         )}
-        {heeftModule('fiche') && sel[0]?.plan_id && <FicheSelectieBlok items={sel} plan={plan} schrijven={schrijven} />}
+        {heeftModule('fiche') && sel[0]?.plan_id && <FicheSelectieBlok items={sel} plan={plan} schrijven={schrijven} elementenMap={elementenMap} />}
       </div>
     </aside>
   );

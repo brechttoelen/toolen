@@ -34,9 +34,9 @@ export function useFiche(planId) {
     const plan = p.data;
     const vragen = [
       plan.event_id ? maps().from('events').select('*').eq('id', plan.event_id).maybeSingle() : Promise.resolve({ data: null }),
-      alles(() => maps().from('items').select('id, naam, soort, laag_id, groep_id, element_id, velden, leverancier_id, plek_id, plan_id, verborgen').eq('plan_id', planId)),
-      plan.plek_id ? alles(() => maps().from('items').select('id, naam, soort, laag_id, groep_id, element_id, velden, leverancier_id, plek_id, plan_id, verborgen').eq('plek_id', plan.plek_id).is('plan_id', null)) : Promise.resolve({ data: [] }),
-      maps().from('lagen').select('id, naam, map, kleur, volgorde').eq('plan_id', planId).order('volgorde'),
+      alles(() => maps().from('items').select('*').eq('plan_id', planId)),
+      plan.plek_id ? alles(() => maps().from('items').select('*').eq('plek_id', plan.plek_id).is('plan_id', null)) : Promise.resolve({ data: [] }),
+      maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
       wieBenIk(),
       maps().rpc('mag_financieel', { p_org: plan.organisatie_id }),
       maps().rpc('plan_leveranciers', { p_plan: planId }),
@@ -48,7 +48,7 @@ export function useFiche(planId) {
     const elIds = [...new Set([...(it.data || []), ...(plek.data || [])].map((x) => x.element_id).filter(Boolean))];
     const bib = [];
     for (let k = 0; k < elIds.length; k += 200) {
-      const b = await maps().from('bibliotheek').select('id, naam, categorie, leverancier, leverancier_id').in('id', elIds.slice(k, k + 200));
+      const b = await maps().from('bibliotheek').select('*').in('id', elIds.slice(k, k + 200));
       if (!b.error) bib.push(...(b.data || []));
     }
     const d = {};
@@ -61,6 +61,14 @@ export function useFiche(planId) {
     });
   }, [planId]);
   useEffect(() => { laad(); }, [laad]);
+  // Terug naar dit tabblad (bv. na het materiaalscherm of de kaart in een ander tabblad): opnieuw laden,
+  // zodat wijzigingen aan items, leveranciers en standaarden meteen in de fiche staan.
+  useEffect(() => {
+    let laatst = Date.now();
+    const terug = () => { if (document.visibilityState === 'visible' && Date.now() - laatst > 5000) { laatst = Date.now(); laad(); } };
+    document.addEventListener('visibilitychange', terug); window.addEventListener('focus', terug);
+    return () => { document.removeEventListener('visibilitychange', terug); window.removeEventListener('focus', terug); };
+  }, [laad]);
 
   const zet = (t, f) => setSt((s) => ({ ...s, d: { ...s.d, [t]: f(s.d[t] || []) } }));
 
@@ -122,11 +130,12 @@ export const euro = (n) => (n == null || n === '' || !Number.isFinite(Number(n))
 export const getal = (s) => { if (s === '' || s == null) return null; let t = String(s).trim().replace(/[€\s]/g, ''); if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.'); const n = Number(t); return t !== '' && Number.isFinite(n) ? n : null; };
 export const getalTekst = (n) => (n == null ? '' : String(Number(n)).replace('.', ','));
 
-// Leverancier van een item: overschrijving > herkomst > leverancier van het element (op naam).
-export function itemLeverancier(item, elementen, leveranciers) {
+// Leverancier van een item: overschrijving > herkomst > leverancier van het element > standaard van het plan
+// per categorie (zoals het materiaalscherm).
+export function itemLeverancier(item, elementen, leveranciers, std = null) {
   if (item.leverancier_id) return item.leverancier_id;
   const el = elementen.get ? elementen.get(item.element_id) : null;
-  const naam = String(item.velden?.herkomst || el?.leverancier || '').trim().toLowerCase();
+  const naam = String(String(item.velden?.herkomst || '').trim() || el?.leverancier || (std && el?.categorie ? std[el.categorie] || '' : '')).trim().toLowerCase();
   if (!naam) return null;
   return leveranciers.find((l) => l.naam.trim().toLowerCase() === naam)?.id || null;
 }

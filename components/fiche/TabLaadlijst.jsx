@@ -53,7 +53,7 @@ export default function TabLaadlijst({ f }) {
   const eigen = new Set(f.d.leveranciers.filter((l) => /^(flcs|flanders classics|eigen)$/i.test(l.naam.trim())).map((l) => l.id));
   const voorstellen = new Map();
   for (const i of f.items) {
-    const lid = itemLeverancier(i, el, f.d.leveranciers); if (!lid || (!bronVanLev.has(lid) && !eigen.has(lid))) continue;
+    const lid = itemLeverancier(i, el, f.d.leveranciers, f.plan.instellingen?.leveranciers); if (!lid || (!bronVanLev.has(lid) && !eigen.has(lid))) continue;
     const naam = el.get(i.element_id)?.naam || i.naam; if (!naam) continue;
     const k = `${lid}|${naam}`; const x = voorstellen.get(k) || { lid, naam, n: 0, bron: bronVanLev.get(lid) || null }; x.n++; voorstellen.set(k, x);
   }

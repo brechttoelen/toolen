@@ -4,25 +4,37 @@
 // leveringen en ophalingen met leverpunt, offertes en facturen. Excel per leverancier.
 import { useMemo, useState } from 'react';
 import { StatusKeuze, Bewaarveld, Bewaartekst, Kiezer, Chips, Zoek, TabNotities } from './gedeeld';
-import { opId, euro, getal, getalTekst, itemLeverancier } from './data';
+import { opId, euro, getal, getalTekst } from './data';
 import { dagLijst, dagNaam, uitSleutel, uurKort, leesUur } from './dagen';
 import { maakXlsx, bewaarBestand } from '../maps/tabelExport';
+import { berekenStuklijst } from '../maps/Stuklijst';
 import { bevestig } from '../maps/dialoog';
 
 export const STATUS_LEV = [['nog_niets', 'Nog niets'], ['inschatting', 'Inschatting'], ['offerte_gevraagd', 'Offerte gevraagd'], ['offerte', 'Offerte ontvangen'], ['bevestigd', 'Bevestigd'], ['gefactureerd', 'Gefactureerd'], ['afgesloten', 'Afgesloten']];
 const STATUS_OFF = [['gevraagd', 'Gevraagd'], ['ontvangen', 'Ontvangen'], ['goedgekeurd', 'Goedgekeurd'], ['afgewezen', 'Afgewezen']];
 const STATUS_FAC = [['ontvangen', 'Ontvangen'], ['goedgekeurd', 'Goedgekeurd'], ['betaald', 'Betaald'], ['betwist', 'Betwist']];
 
-// Materiaal per leverancier uit het plan: aantal items per naam.
-export function materiaalVan(f, levId) {
-  const el = opId(f.elementen);
-  const tel = new Map();
-  for (const i of f.items) {
-    if (itemLeverancier(i, el, f.d.leveranciers) !== levId) continue;
-    const naam = el.get(i.element_id)?.naam || i.naam || 'Item';
-    tel.set(naam, (tel.get(naam) || 0) + 1);
-  }
-  return [...tel.entries()].sort((a, b) => b[1] - a[1]);
+// Materiaal per leverancier uit het plan, met dezelfde telling als het materiaalscherm (stuks en meter,
+// standaardleverancier per categorie). Optioneel enkel voor een deel van de items (een levering).
+export function materiaalVan(f, levId, deel = null) {
+  const naam = (f.d.leveranciers.find((l) => l.id === levId)?.naam || '').trim().toLowerCase();
+  if (!naam) return [];
+  const els = new Map((f.elementen || []).map((e) => [e.id, e]));
+  const lagen = new Map((f.lagen || []).map((l) => [l.id, l]));
+  const std = f.plan?.instellingen?.leveranciers || {};
+  const items = (deel || f.items).filter((i) => !i.vast);
+  let s;
+  try { s = berekenStuklijst(items, els, lagen, null, std); } catch { return []; }
+  return (s.elementen || []).filter((r) => String(r.leverancier || '').trim().toLowerCase() === naam)
+    .map((r) => ({ naam: r.naam, aantal: r.aantal || 0, meter: r.meter || 0, ids: [...(r.ids || [])] }))
+    .sort((a, b) => b.aantal - a.aantal);
+}
+export const matTekst = (m) => m.map((r) => `${r.aantal} × ${r.naam}${r.meter ? ` (${Math.round(r.meter * 10) / 10} m)` : ''}`).join(', ');
+// Items van een levering: gekozen items, anders gekozen lagen, anders alles.
+export function itemsVanLevering(f, l) {
+  if (l.item_ids?.length) { const s = new Set(l.item_ids); return f.items.filter((i) => s.has(i.id)); }
+  if (l.laag_ids?.length) { const s = new Set(l.laag_ids); return f.items.filter((i) => s.has(i.laag_id)); }
+  return null;
 }
 export const somVan = (lijst, veld = 'bedrag_excl') => lijst.reduce((a, x) => a + (Number(x[veld]) || 0), 0);
 
@@ -65,10 +77,10 @@ export default function TabLeveranciers({ f }) {
     return { naam: r.lev.naam, rijen: [
       [r.lev.naam, f.plan.naam],
       [],
-      ['Wat', 'Aantal'], ...mat.map(([n, a]) => [n, a]), ...(r.x.materiaal ? [[r.x.materiaal, '']] : []),
+      ['Wat', 'Aantal', 'Meter'], ...mat.map((m) => [m.naam, m.aantal, m.meter ? Math.round(m.meter * 10) / 10 : '']), ...(r.x.materiaal ? [[r.x.materiaal, '', '']] : []),
       [],
-      ['Levering of ophaling', 'Dag', 'Van', 'Tot', 'Leverpunt', 'Wat'],
-      ...r.lv.map((l) => [l.soort === 'ophaling' ? 'Ophaling' : 'Levering', dagNaam(f.plan, l.anker, l.dag), uurKort(l.uur_van), uurKort(l.uur_tot), (l.leverpunt_item_id && f.items.find((i) => i.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst || '', l.wat || '']),
+      ['Levering of ophaling', 'Dag', 'Van', 'Tot', 'Leverpunt', 'Wat', 'Materiaal'],
+      ...r.lv.map((l) => { const d = itemsVanLevering(f, l); return [l.soort === 'ophaling' ? 'Ophaling' : 'Levering', dagNaam(f.plan, l.anker, l.dag), uurKort(l.uur_van), uurKort(l.uur_tot), (l.leverpunt_item_id && f.items.find((i) => i.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst || '', l.wat || '', d ? matTekst(materiaalVan(f, r.x.leverancier_id, d)) : 'Alles']; }),
     ] };
   };
   const exportAlles = async () => {
@@ -131,11 +143,27 @@ function LevOpen({ f, r, onExcel }) {
   const mat = materiaalVan(f, x.leverancier_id);
   const contacten = (f.d.personen || []).filter((p) => p.leverancier_id === x.leverancier_id);
   const lijst = dagLijst(f.plan, [...(f.d.taak_dagen || []), ...(f.d.leveringen || []), { anker: 'start', dag: -10 }, { anker: 'einde', dag: 5 }]);
-  const [nl, setNl] = useState({ soort: 'levering', k: 'start:-1', uur: '', tot: '', wat: '', punt: '' });
+  const [nl, setNl] = useState({ soort: 'levering', k: 'start:-1', uur: '', tot: '', wat: '', punt: '', lagen: [] });
   const voegLevToe = async () => {
     const d = uitSleutel(nl.k); const u = leesUur(nl.uur); const t = leesUur(nl.tot);
-    await f.voegToe('leveringen', { site_leverancier_id: x.id, soort: nl.soort, ...d, uur_van: u, uur_tot: t, wat: nl.wat.trim() || null, leverpunt_item_id: nl.punt || null });
-    setNl({ ...nl, uur: '', tot: '', wat: '' });
+    await f.voegToe('leveringen', { site_leverancier_id: x.id, soort: nl.soort, ...d, uur_van: u, uur_tot: t, wat: nl.wat.trim() || null, leverpunt_item_id: nl.punt || null, laag_ids: nl.lagen });
+    setNl({ ...nl, uur: '', tot: '', wat: '', lagen: [] });
+  };
+  // Lagen waarin materiaal van deze leverancier ligt, met de telling per laag.
+  const ids = new Set(mat.flatMap((m) => m.ids));
+  const lagenMet = (f.lagen || []).map((lg) => { const it = f.items.filter((i) => i.laag_id === lg.id && ids.has(i.id)); return { lg, n: it.length, mat: it.length ? materiaalVan(f, x.leverancier_id, it) : [] }; }).filter((y) => y.n);
+  // Dekking: welk materiaal zit nog in geen enkele levering (enkel als er leveringen voor een deel zijn).
+  const leveringen = r.lv.filter((l) => l.soort === 'levering');
+  const dekking = leveringen.length && leveringen.every((l) => itemsVanLevering(f, l)) ? (() => {
+    const gedekt = new Set(leveringen.flatMap((l) => itemsVanLevering(f, l).map((i) => i.id)));
+    const rest = f.items.filter((i) => ids.has(i.id) && !gedekt.has(i.id));
+    return { rest: rest.length ? materiaalVan(f, x.leverancier_id, rest) : [] };
+  })() : null;
+  const laagNaam = new Map((f.lagen || []).map((l) => [l.id, l.naam]));
+  const deelTekst = (l) => {
+    if (l.item_ids?.length) return `selectie op de kaart: ${matTekst(materiaalVan(f, x.leverancier_id, itemsVanLevering(f, l))) || `${l.item_ids.length} items`}`;
+    if (l.laag_ids?.length) return `${l.laag_ids.map((id) => laagNaam.get(id) || '?').join(', ')}: ${matTekst(materiaalVan(f, x.leverancier_id, itemsVanLevering(f, l)))}`;
+    return 'alles';
   };
   const vennootschappen = (f.d.vennootschappen || []);
   const standaardV = (f.d.plan_vennootschappen || []).find((v) => v.standaard)?.vennootschap_id || null;
@@ -165,7 +193,9 @@ function LevOpen({ f, r, onExcel }) {
       </div>
       <div className="pf-blok">
         <h3>Materiaal</h3>
-        {mat.length ? <ul style={{ margin: 0, paddingLeft: 18 }}>{mat.map(([n, a]) => <li key={n}>{a} × {n}</li>)}</ul> : <span className="pf-stil">Niets van deze leverancier op de kaart.</span>}
+        {mat.length ? <ul style={{ margin: 0, paddingLeft: 18 }}>{mat.map((m) => <li key={m.naam}>{m.aantal} × {m.naam}{m.meter ? <span className="pf-stil"> · {Math.round(m.meter * 10) / 10} m</span> : null}</li>)}</ul> : <span className="pf-stil">Niets van deze leverancier op de kaart.</span>}
+        {dekking && dekking.rest.length > 0 && <div className="t-melding let-op">Nog in geen enkele levering: {matTekst(dekking.rest)}</div>}
+        {dekking && !dekking.rest.length && <div className="t-melding ok">Alle materiaal zit in een levering.</div>}
         <label className="pf-veld"><span className="t-label">Ook (niet op de kaart)</span><Bewaartekst waarde={x.materiaal || ''} uit={!s} label="Ander materiaal" rijen={2} onBewaar={(v) => f.wijzig('site_leveranciers', x.id, { materiaal: v.trim() || null })} /></label>
       </div>
       <div className="pf-blok">
@@ -173,7 +203,8 @@ function LevOpen({ f, r, onExcel }) {
         {r.lv.map((l) => (
           <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 4, padding: '6px 0', borderBottom: '1px solid #E3E8EF' }}>
             <span><b style={{ fontWeight: 600 }}>{l.soort === 'ophaling' ? 'Ophaling' : 'Levering'} · {dagNaam(f.plan, l.anker, l.dag)}{l.uur_van ? ` · ${uurKort(l.uur_van)}${l.uur_tot ? `–${uurKort(l.uur_tot)}` : ''}` : ''}</b>
-              <small className="pf-stil" style={{ display: 'block' }}>{[(l.leverpunt_item_id && f.items.find((i) => i.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst, l.wat].filter(Boolean).join(' · ') || 'Geen leverpunt'}</small></span>
+              <small className="pf-stil" style={{ display: 'block' }}>{[(l.leverpunt_item_id && f.items.find((i) => i.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst, l.wat].filter(Boolean).join(' · ') || 'Geen leverpunt'}</small>
+              <small style={{ display: 'block' }}>Materiaal: {deelTekst(l)}</small></span>
             {s && <button className="t-knop klein stil" onClick={() => f.wis('leveringen', l.id)}>Weg</button>}
           </div>
         ))}
@@ -188,6 +219,9 @@ function LevOpen({ f, r, onExcel }) {
           </div>
           <label className="pf-veld"><span className="t-label">Leverpunt op de kaart</span><select className="t-veld" value={nl.punt} onChange={(e) => setNl({ ...nl, punt: e.target.value })}><option value="">Geen</option>{f.items.filter((i) => i.naam).sort((a, b) => a.naam.localeCompare(b.naam)).map((i) => <option key={i.id} value={i.id}>{i.naam}</option>)}</select></label>
           <label className="pf-veld"><span className="t-label">Wat</span><input className="t-veld" value={nl.wat} onChange={(e) => setNl({ ...nl, wat: e.target.value })} placeholder="3 trailers schuine hekken" /></label>
+          {lagenMet.length > 1 && <div className="pf-veld"><span className="t-label">Welk materiaal · leeg is alles</span>
+            {lagenMet.map(({ lg, mat: m }) => <label key={lg.id} className="pf-rij" style={{ gap: 6, alignItems: 'flex-start', flexWrap: 'nowrap' }}><input type="checkbox" style={{ marginTop: 3 }} checked={nl.lagen.includes(lg.id)} onChange={() => setNl({ ...nl, lagen: nl.lagen.includes(lg.id) ? nl.lagen.filter((y) => y !== lg.id) : [...nl.lagen, lg.id] })} /><span><b style={{ fontWeight: 500 }}>{lg.naam}</b><small className="pf-stil" style={{ display: 'block' }}>{matTekst(m)}</small></span></label>)}
+            <span className="pf-stil pf-klein">Per stuk kiezen: selecteer de items op de kaart en maak daar de levering.</span></div>}
           <button className="t-knop klein hoofd" style={{ alignSelf: 'flex-start' }} onClick={voegLevToe}>Toevoegen</button>
         </>}
       </div>

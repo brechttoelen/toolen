@@ -92,3 +92,18 @@ describe('fiche op de kaart', () => {
     expect(html.replace(/<!-- -->/g, '')).toContain('Voor de hele groep (3 items)');
   });
 });
+
+import { materiaalVan, itemsVanLevering } from '../components/fiche/TabLeveranciers';
+describe('materiaal per leverancier', () => {
+  it('telt via de standaardleverancier per categorie, zoals het materiaalscherm', () => {
+    const f = fiche(true);
+    f.plan.instellingen.leveranciers = { Grondbescherming: 'Delrue' };
+    f.elementen.push({ id: 'plaat', naam: 'Rijplaat', categorie: 'Grondbescherming', tekenwijze: 'schaal' });
+    f.items.push({ id: 'p1', naam: 'Plaat', element_id: 'plaat', laag_id: 'L1', velden: {}, geometrie: { type: 'Point', coordinates: [3, 51] }, parameters: {} },
+      { id: 'p2', naam: 'Plaat', element_id: 'plaat', laag_id: 'L2', velden: {}, geometrie: { type: 'Point', coordinates: [3, 51] }, parameters: {} });
+    const alles = materiaalVan(f, f.d.leveranciers[0].id);
+    expect(alles.find((r) => r.naam === 'Rijplaat')?.aantal).toBe(2);
+    const deel = itemsVanLevering(f, { laag_ids: ['L1'] });
+    expect(materiaalVan(f, f.d.leveranciers[0].id, deel).find((r) => r.naam === 'Rijplaat')?.aantal).toBe(1);
+  });
+});

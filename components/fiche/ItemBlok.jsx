@@ -27,7 +27,10 @@ export default function FicheItemBlok({ item, plan, schrijven, groepAantal = 0, 
 
   const zetLev = async (v) => {
     setLevId(v);
-    const r = await maps().from('items').update({ leverancier_id: v || null }).eq('id', item.id);
+    // Zelfde plek als de leverancier in de eigenschappen en het materiaalscherm: velden.herkomst (op naam), plus de sleutel.
+    const naam = lev.find((l) => l.id === v)?.naam || null;
+    const velden = { ...(item.velden || {}) }; if (naam) velden.herkomst = naam; else delete velden.herkomst;
+    const r = await maps().from('items').update({ leverancier_id: v || null, velden }).eq('id', item.id);
     if (r.error) setFout(foutTekst(r.error));
   };
   const maakTaak = async () => {
