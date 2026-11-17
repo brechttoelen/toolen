@@ -92,13 +92,13 @@ export function berekenStuklijst(items, elementen, lagen, actieveFase = null, st
         }
         const tb0 = toebehorenTelling(it, el);
         for (const [k, n] of Object.entries(tb0 || {})) {
-          const s2 = `${el.id}|tb|${k}`;
-          const r2 = perElement.get(s2) || { naam: `${toebehorenNaam(el, k)} · ${el.naam}`, categorie: el.categorie, leverancier: el.leverancier || '', artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
+          const hkTb = herkomstVan(it, el, std); const s2 = `${el.id}|tb|${k}|h:${hkTb}`;
+          const r2 = perElement.get(s2) || { naam: `${toebehorenNaam(el, k)} · ${el.naam}`, categorie: el.categorie, leverancier: hkTb, artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
           r2.aantal += n; perElement.set(s2, r2);
           if (toebehorenVan(el).find((x) => x.k === k)?.soort === 'driehoek') {
             // Elke steundriehoek: twee extra hekken.
-            const s3 = `${el.id}|driehoek`;
-            const r3 = perElement.get(s3) || { naam: `${el.naam} · in steundriehoeken`, categorie: el.categorie, leverancier: el.leverancier || '', artikel_id: el.artikel_id || null, aantal: 0, meter: 0, tekenwijze: 'punt' };
+            const s3 = `${el.id}|driehoek|h:${hkTb}`;
+            const r3 = perElement.get(s3) || { naam: `${el.naam} · in steundriehoeken`, categorie: el.categorie, leverancier: hkTb, artikel_id: el.artikel_id || null, aantal: 0, meter: 0, tekenwijze: 'punt' };
             r3.aantal += 2 * n; perElement.set(s3, r3);
           }
         }
@@ -162,8 +162,8 @@ export function berekenStuklijst(items, elementen, lagen, actieveFase = null, st
         for (const [l, k] of Object.entries(t.stukken)) { r.kabels[l] = (r.kabels[l] || 0) + k; r.aantal += k; }
         r.meter += st.reduce((a, x) => a + x.L, 0); perElement.set(sleutel, r);
         for (const [naam, k] of [...Object.entries(t.hoeken).map(([n, k2]) => [`${n} ${TY.kort}`, k2]), [`Baseplate ${TY.kort}`, t.voet]]) {
-          if (!k) continue; const s4 = `${el.id}|x|${naam}`;
-          const r4 = perElement.get(s4) || { naam, categorie: el.categorie, leverancier: el.leverancier || '', artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
+          if (!k) continue; const hkX = herkomstVan(it, el, std); const s4 = `${el.id}|x|${naam}|h:${hkX}`;
+          const r4 = perElement.get(s4) || { naam, categorie: el.categorie, leverancier: hkX, artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
           r4.aantal += k; perElement.set(s4, r4);
         }
         for (const d of it.velden.truss.doeken || []) for (const id of [d.voor, d.achter]) {
@@ -212,8 +212,8 @@ export function berekenStuklijst(items, elementen, lagen, actieveFase = null, st
       // Hoekstukken en uiteinden (torens, voeten) van een truss.
       const extra = (naam, n) => {
         if (!n) return;
-        const s4 = `${el.id}|x|${naam}`;
-        const r4 = perElement.get(s4) || { naam, categorie: el.categorie, leverancier: el.leverancier || '', artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
+        const hkX = herkomstVan(it, el, std); const s4 = `${el.id}|x|${naam}|h:${hkX}`;
+        const r4 = perElement.get(s4) || { naam, categorie: el.categorie, leverancier: hkX, artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
         r4.aantal += n; perElement.set(s4, r4);
       };
       // Halve platen aan de rand (vloer in verband) apart, als het element er een naam voor heeft.
@@ -248,8 +248,9 @@ export function berekenStuklijst(items, elementen, lagen, actieveFase = null, st
         const deel = o.element_id ? elementen.get(o.element_id) : null;
         const hoeveel = n * (Number(o.aantal) || 1);
         if (!hoeveel || (!deel && !o.naam)) continue;
-        const s3 = deel ? `${deel.id}|` : `vrij|${o.naam}`;
-        const r3 = perElement.get(s3) || { naam: deel ? deel.naam : o.naam, categorie: deel ? deel.categorie : el.categorie, leverancier: deel?.leverancier || '', artikel_id: deel?.artikel_id || null, aantal: 0, meter: 0, tekenwijze: deel?.tekenwijze === 'lijn' ? 'punt' : (deel?.tekenwijze || 'punt') };
+        const hkO = (deel && (deel.leverancier || (std && deel.categorie ? std[deel.categorie] || '' : ''))) || herkomstVan(it, el, std);
+        const s3 = deel ? `${deel.id}|h:${hkO}` : `vrij|${o.naam}|h:${hkO}`;
+        const r3 = perElement.get(s3) || { naam: deel ? deel.naam : o.naam, categorie: deel ? deel.categorie : el.categorie, leverancier: hkO, artikel_id: deel?.artikel_id || null, aantal: 0, meter: 0, tekenwijze: deel?.tekenwijze === 'lijn' ? 'punt' : (deel?.tekenwijze || 'punt') };
         r3.aantal += hoeveel;
         r3.via = { ...(r3.via || {}), [el.naam]: (r3.via?.[el.naam] || 0) + hoeveel };
         perElement.set(s3, r3);
@@ -258,21 +259,22 @@ export function berekenStuklijst(items, elementen, lagen, actieveFase = null, st
       for (const [id, hoeveel] of Object.entries(it.velden?.inrichting || {})) {
         const deel = elementen.get(id);
         if (!deel || !(hoeveel > 0)) continue;
-        const s5 = `${deel.id}|`;
-        const r5 = perElement.get(s5) || { naam: deel.naam, categorie: deel.categorie, leverancier: deel.leverancier || '', artikel_id: deel.artikel_id || null, aantal: 0, meter: 0, tekenwijze: deel.tekenwijze === 'lijn' ? 'punt' : deel.tekenwijze };
+        const hkI = deel.leverancier || (std && deel.categorie ? std[deel.categorie] || '' : '') || herkomstVan(it, el, std);
+        const s5 = `${deel.id}|h:${hkI}`;
+        const r5 = perElement.get(s5) || { naam: deel.naam, categorie: deel.categorie, leverancier: hkI, artikel_id: deel.artikel_id || null, aantal: 0, meter: 0, tekenwijze: deel.tekenwijze === 'lijn' ? 'punt' : deel.tekenwijze };
         r5.aantal += hoeveel;
         r5.via = { ...(r5.via || {}), [el.naam]: (r5.via?.[el.naam] || 0) + hoeveel };
         perElement.set(s5, r5);
       }
       const tb = toebehorenTelling(it, el);
       for (const [k, n] of Object.entries(tb || {})) {
-        const s2 = `${el.id}|tb|${k}`;
-        const r2 = perElement.get(s2) || { naam: `${toebehorenNaam(el, k)} · ${el.naam}`, categorie: el.categorie, leverancier: el.leverancier || '', artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
+        const hkTb = herkomstVan(it, el, std); const s2 = `${el.id}|tb|${k}|h:${hkTb}`;
+        const r2 = perElement.get(s2) || { naam: `${toebehorenNaam(el, k)} · ${el.naam}`, categorie: el.categorie, leverancier: hkTb, artikel_id: null, aantal: 0, meter: 0, tekenwijze: 'punt' };
         r2.aantal += n; perElement.set(s2, r2);
         if (toebehorenVan(el).find((x) => x.k === k)?.soort === 'driehoek') {
           // Elke steundriehoek: twee extra hekken.
-          const s3 = `${el.id}|driehoek`;
-          const r3 = perElement.get(s3) || { naam: `${el.naam} · in steundriehoeken`, categorie: el.categorie, leverancier: el.leverancier || '', artikel_id: el.artikel_id || null, aantal: 0, meter: 0, tekenwijze: 'punt' };
+          const s3 = `${el.id}|driehoek|h:${hkTb}`;
+          const r3 = perElement.get(s3) || { naam: `${el.naam} · in steundriehoeken`, categorie: el.categorie, leverancier: hkTb, artikel_id: el.artikel_id || null, aantal: 0, meter: 0, tekenwijze: 'punt' };
           r3.aantal += 2 * n; perElement.set(s3, r3);
         }
       }
