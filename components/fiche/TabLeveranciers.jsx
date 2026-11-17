@@ -29,6 +29,27 @@ export function materiaalVan(f, levId, deel = null) {
     .map((r) => ({ naam: r.naam, aantal: r.aantal || 0, meter: r.meter || 0, ids: [...(r.ids || [])] }))
     .sort((a, b) => b.aantal - a.aantal);
 }
+// Leveranciers met materiaal op de kaart, met de telling van de materiaallijst (ook toebehoren en standaarden).
+const opKaartCache = new WeakMap();
+export function leveranciersOpKaart(f) {
+  if (opKaartCache.has(f.items)) return opKaartCache.get(f.items);
+  const els = new Map((f.elementen || []).map((e) => [e.id, e]));
+  const lagen = new Map((f.lagen || []).map((l) => [l.id, l]));
+  let rijen = [];
+  try { rijen = berekenStuklijst(f.items.filter((i) => !i.vast), els, lagen, null, f.plan?.instellingen?.leveranciers || {}).elementen || []; } catch { rijen = []; }
+  const perNaam = new Map(); for (const r of rijen) { const n = String(r.leverancier || '').trim().toLowerCase(); if (n) perNaam.set(n, (perNaam.get(n) || 0) + (r.aantal || 0)); }
+  const uit = new Map(); for (const l of f.d.leveranciers || []) { const n = perNaam.get(l.naam.trim().toLowerCase()); if (n) uit.set(l.id, n); }
+  opKaartCache.set(f.items, uit);
+  return uit;
+}
+// Een leverancier op de site is 'betrokken' als er meer is dan een automatische toevoeging: materiaal op de kaart,
+// een levering, offerte of factuur, een status, afspraak, aanspreekpunt of opmerking.
+export function betrokken(f, x, opKaart = leveranciersOpKaart(f)) {
+  return opKaart.has(x.leverancier_id) || x.status !== 'nog_niets' || !!(x.wat || x.materiaal || x.opmerking || x.aanspreekpunt_id)
+    || (f.d.leveringen || []).some((l) => l.site_leverancier_id === x.id) || (f.d.offertes || []).some((o) => o.site_leverancier_id === x.id)
+    || (f.d.facturen || []).some((o) => o.site_leverancier_id === x.id) || (f.d.budgetposten || []).some((b) => b.site_leverancier_id === x.id)
+    || (f.d.taken || []).some((t) => t.wie_leverancier_id === x.leverancier_id);
+}
 export const matTekst = (m) => m.map((r) => `${r.aantal} × ${r.naam}${r.meter ? ` (${Math.round(r.meter * 10) / 10} m)` : ''}`).join(', ');
 // Items van een levering: gekozen items, anders gekozen lagen, anders alles.
 export function itemsVanLevering(f, l) {
@@ -46,7 +67,10 @@ export default function TabLeveranciers({ f }) {
   const levMap = opId(f.d.leveranciers);
   const sl = f.d.site_leveranciers || [];
   const opSite = new Set(sl.map((x) => x.leverancier_id));
-  const uitPlan = (f.planLev || []).filter((x) => !opSite.has(x.leverancier_id));
+  const opKaart = leveranciersOpKaart(f);
+  const uitPlan = [...opKaart.keys()].filter((id) => !opSite.has(id)).map((id) => ({ leverancier_id: id }));
+  const nietMeer = sl.filter((x) => !opKaart.has(x.leverancier_id));
+  const weg = nietMeer.filter((x) => !betrokken(f, x, opKaart));
   const fin = f.financieel;
 
   const rijen = useMemo(() => sl.map((x) => {
@@ -97,6 +121,12 @@ export default function TabLeveranciers({ f }) {
           <button className="t-knop klein" onClick={allesUitPlan}>Toevoegen</button>
         </div>
       )}
+      {weg.length > 0 && f.schrijven && (
+        <div className="t-melding let-op pf-rij">
+          <span style={{ flex: 1 }}>{weg.length} {weg.length === 1 ? 'leverancier heeft' : 'leveranciers hebben'} geen materiaal meer op de kaart en verder niets op deze site: {weg.map((x) => levMap.get(x.leverancier_id)?.naam).filter(Boolean).join(', ')}.</span>
+          <button className="t-knop klein" onClick={() => f.wis('site_leveranciers', weg.map((x) => x.id))}>Weghalen</button>
+        </div>
+      )}
       <div className="pf-rij">
         <Zoek waarde={zoek} onChange={setZoek} placeholder="Zoek een leverancier" />
         <Chips waarde={filter} onChange={setFilter} opties={['Alle', ...(fin ? ['Nog geen offerte', 'Factuur wijkt af'] : []), 'Zonder levering'].map((x) => [x, x])} />
@@ -121,7 +151,7 @@ export default function TabLeveranciers({ f }) {
               const isOpen = open === r.x.id;
               return [
                 <tr key={r.x.id} className={isOpen ? 'gekozen' : ''}>
-                  <td><button className="pf-rijknop" onClick={() => setOpen(isOpen ? null : r.x.id)} aria-expanded={isOpen}>{r.lev.naam}</button><small>{r.x.wat || r.lev.categorieen?.join(', ') || ''}</small></td>
+                  <td><button className="pf-rijknop" onClick={() => setOpen(isOpen ? null : r.x.id)} aria-expanded={isOpen}>{r.lev.naam}</button><small>{r.x.wat || r.lev.categorieen?.join(', ') || ''}{!opKaart.has(r.x.leverancier_id) && <span className="t-pil" style={{ marginLeft: 6 }}>niet op de kaart</span>}</small></td>
                   <td>{lev.length ? lev.map(kort).join(', ') : <span className="pf-stil">–</span>}</td>
                   <td>{oph.length ? oph.map(kort).join(', ') : lev.length ? <span className="pf-let">niet ingevuld</span> : <span className="pf-stil">–</span>}</td>
                   <td><StatusKeuze waarde={r.x.status} opties={STATUS_LEV} uit={!f.schrijven} label={`Status ${r.lev.naam}`} onChange={(v) => f.wijzig('site_leveranciers', r.x.id, { status: v })} /></td>

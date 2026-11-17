@@ -5,6 +5,7 @@
 // Een persoon hoort bij een organisatie uit de stamlijst; de site bewaart enkel rol en toegang.
 import { useState } from 'react';
 import { opId } from './data';
+import { leveranciersOpKaart, betrokken } from './TabLeveranciers';
 import { Bewaarveld, Zoek, TabNotities } from './gedeeld';
 import { maps, foutTekst } from '../maps/db';
 import { bevestig, toonTekst } from '../maps/dialoog';
@@ -50,7 +51,9 @@ export default function TabContacten({ f }) {
   const sleep = async (r, d) => { const i = rollen.indexOf(r); const j = i + d; if (j < 0 || j >= rollen.length) return; await f.wijzig('site_rollen', r.id, { volgorde: j }); await f.wijzig('site_rollen', rollen[j].id, { volgorde: i }); };
 
   // Contactpersonen van de leveranciers op deze site.
-  const opSite = new Set((f.d.site_leveranciers || []).map((x) => x.leverancier_id));
+  // Leveranciers die nu echt op deze site zitten: materiaal op de kaart, of iets afgesproken in de fiche.
+  const opKaart = leveranciersOpKaart(f);
+  const opSite = new Set([...opKaart.keys(), ...(f.d.site_leveranciers || []).filter((x) => betrokken(f, x, opKaart)).map((x) => x.leverancier_id)]);
   const cq = czoek.trim().toLowerCase();
   const perLev = [...opSite].map((id) => ({ l: lev.get(id), p: (f.d.personen || []).filter((x) => x.leverancier_id === id && (!cq || `${x.naam} ${x.functie || ''} ${lev.get(id)?.naam || ''}`.toLowerCase().includes(cq))) }))
     .filter((g) => g.l && (g.p.length || !cq)).sort((a, b) => a.l.naam.localeCompare(b.l.naam));
