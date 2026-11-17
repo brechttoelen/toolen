@@ -4,6 +4,7 @@
 // Alle tabellen staan in het schema maps; de rechten zitten in de databank (RLS).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { maps, foutTekst, wieBenIk, magSchrijven } from '../maps/db';
+import { herkomstVan } from '../maps/stijl';
 
 export const PLAN_TABELLEN = ['site_leveranciers', 'leveringen', 'offertes', 'facturen', 'budgetposten', 'taken', 'taak_dagen', 'taak_koppelingen',
   'programma', 'laadregels', 'cateringregels', 'catering_prijzen', 'notities', 'site_rollen', 'plan_vennootschappen'];
@@ -135,7 +136,7 @@ export const getalTekst = (n) => (n == null ? '' : String(Number(n)).replace('.'
 export function itemLeverancier(item, elementen, leveranciers, std = null) {
   if (item.leverancier_id) return item.leverancier_id;
   const el = elementen.get ? elementen.get(item.element_id) : null;
-  const naam = String(String(item.velden?.herkomst || '').trim() || el?.leverancier).trim().toLowerCase();
+  const naam = herkomstVan(item, el).trim().toLowerCase();
   if (!naam) return null;
   return leveranciers.find((l) => l.naam.trim().toLowerCase() === naam)?.id || null;
 }

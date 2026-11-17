@@ -10,7 +10,7 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import { berekenStuklijst, stuklijstRijen, leverlijstRijen } from './Stuklijst';
 import { heeftModule } from './merk';
 import { maakXlsx, maakPdf, bewaarBestand } from './tabelExport';
-import { herkomstVan, maten } from './stijl';
+import { herkomstVan, maten, GEEN_LEV } from './stijl';
 import { useLeveranciers, juisteNaam, zorgLeverancier, leveranciersVoor } from './leveranciers';
 import { sorteerCategorieen, ZONDER_LEVERANCIER } from './categorieen';
 
@@ -83,7 +83,7 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
   const info = (id) => {
     const it = itemMap.get(id); const el = it?.element_id ? elementenMap.get(it.element_id) : null;
     if (!it) return null;
-    const eigen = String(it.velden?.herkomst || '').trim();
+    const ruw = String(it.velden?.herkomst || '').trim(); const eigen = ruw === GEEN_LEV ? '' : ruw;
     const sd = el?.categorie ? std[el.categorie] : '';
     return { it, el, eigen, wie: herkomstVan(it, el, std), viaStd: !eigen && !el?.leverancier && !!sd, af: !eigen && !!el?.leverancier && !!sd && el.leverancier !== sd, sd };
   };
@@ -94,8 +94,11 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
       const x = info(id); if (!x?.el) continue;
       const vanzelf = x.el.leverancier || x.sd || '';
       const w = juisteNaam(waarde, levLijst);
-      const doel = !w ? '' : !expliciet && w === vanzelf ? '' : w;
-      if (doel !== x.eigen) patches.push([id, { velden: { ...(x.it.velden || {}), herkomst: doel || null } }]);
+      // Leeg kiezen = echt geen leverancier. Heeft het element een vaste leverancier, dan leggen we dat vast met '-',
+      // anders komt die vaste leverancier meteen terug.
+      const doel = !w ? (x.el.leverancier ? GEEN_LEV : '') : !expliciet && w === vanzelf ? '' : w;
+      const nu = String(x.it.velden?.herkomst || '').trim();
+      if (doel !== nu) patches.push([id, { velden: { ...(x.it.velden || {}), herkomst: doel || null } }]);
     }
     if (patches.length) { onWijzigItems(patches); if (waarde) zorgLeverancier(waarde); }
   };
@@ -236,7 +239,7 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
                                       <span className="n">{x.it.naam || x.el?.naam || 'Item'}</span>
                                       <span className="fm-sub">{lagenMap.get(x.it.laag_id)?.naam || 'Zonder laag'}</span>
                                       <span className="fm-sub r">{x.el?.tekenwijze === 'lijn' && mm.lengte ? `${getal(mm.lengte, 1)} m${mm.stuks != null ? ` · ${mm.stuks} st.` : ''}` : mm.stuks > 1 ? `${mm.stuks} st.` : ''}</span>
-                                      {x.el ? <LevVeld label={`Geleverd door voor ${x.it.naam || x.el.naam}`} waarde={x.eigen} placeholder={x.el.leverancier || x.sd || ZONDER} uit={!schrijven} onKies={(v) => zetHerkomst([x.it.id], v)} /> : <span />}
+                                      {x.el ? <LevVeld label={`Geleverd door voor ${x.it.naam || x.el.naam}`} waarde={x.eigen} placeholder={String(x.it.velden?.herkomst || '').trim() === GEEN_LEV ? ZONDER : x.el.leverancier || x.sd || ZONDER} uit={!schrijven} onKies={(v) => zetHerkomst([x.it.id], v)} /> : <span />}
                                       <button className="fm-knop klein" onClick={() => onToon([x.it.id], x.it.naam || x.el?.naam || 'Item')}>Toon</button>
                                     </div>
                                   ); })}
@@ -287,12 +290,11 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
                   <span>{[...g.namen].slice(0, 4).join(', ')}{g.namen.size > 4 ? ' …' : ''}</span>
                   <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <button className="fm-knop klein" onClick={() => onToon([...g.ids], `${g.cat} zonder leverancier`)}>Toon op kaart</button>
-                    {schrijven && <button className="fm-knop klein" onClick={() => setStdOpen(true)}>Standaard kiezen</button>}
                   </span>
                 </div>
               ))}
               {!aandacht.af.length && !aandacht.geen.length && <div className="fm-mat-kaart"><b>Alles toegewezen</b><span>Elk stuk materiaal heeft een leverancier.</span></div>}
-              <div className="fm-sub" style={{ marginTop: 6 }}>Klik een regel open om te zien uit welke items ze bestaat. Leverancier wisselen kan per regel of per item; leeg laten = de standaard.</div>
+              <div className="fm-sub" style={{ marginTop: 6 }}>Klik een regel open om te zien uit welke items ze bestaat. Leverancier wisselen kan per regel, per item of voor een selectie; leegmaken = zonder leverancier.</div>
             </>
           )}
         </aside>

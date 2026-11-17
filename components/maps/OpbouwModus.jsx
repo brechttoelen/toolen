@@ -281,7 +281,7 @@ export default function OpbouwModus({ planId }) {
                 <strong style={{ flex: 1, fontSize: 15 }}>{i.naam || el?.naam || i.soort}{isSign(i) ? ` (punt ${i.velden.sign.nr})` : ''}</strong>
                 {d != null && <span className="fm-sub">{d < 1000 ? `${getal(d, 0)} m` : `${getal(d / 1000, 1)} km`}</span>}
               </div>
-              <div className="fm-sub">{[laag?.naam, m, i.velden?.herkomst ? `van ${i.velden.herkomst}` : '', i.velden?.opbouw ? `plaatsen ${i.velden.opbouw}` : ''].filter(Boolean).join(' · ')}</div>
+              <div className="fm-sub">{[laag?.naam, m, i.velden?.herkomst && i.velden.herkomst !== '-' ? `van ${i.velden.herkomst}` : '', i.velden?.opbouw ? `plaatsen ${i.velden.opbouw}` : ''].filter(Boolean).join(' · ')}</div>
               {i.notitie && <div style={{ fontSize: 13 }}>{i.notitie}</div>}
               {isVlag(el) && i.velden?.ontwerp && <div className="fm-sub">Vlag: {elMap.get(i.velden.ontwerp)?.naam || '?'}</div>}
               {Array.isArray(i.velden?.vlaggen) && i.velden.vlaggen.some(Boolean) && <div className="fm-sub">Vlaggen aan de staander van: {i.velden.vlaggen.map((id, k) => (id ? `hek ${k + 1} ${elMap.get(id)?.naam || '?'}` : null)).filter(Boolean).join(' · ')}</div>}

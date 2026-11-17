@@ -105,7 +105,7 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
   const materialen = useMemo(() => {
     if (!data) return [];
     const els = new Map((data.elementen || []).map((e) => [e.id, e]));
-    const its = (data.items || []).map((i) => ({ ...i, velden: { ...(i.velden || {}), herkomst: i.herkomst || null } }));
+    const its = (data.items || []).map((i) => ({ ...i, velden: { ...(i.velden || {}), herkomst: i.herkomst && i.herkomst !== '-' ? i.herkomst : null } }));
     return berekenStuklijst(its, els, new Map()).elementen;
   }, [data]);
   const herkomsten = useMemo(() => {
