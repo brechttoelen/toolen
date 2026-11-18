@@ -997,10 +997,10 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-deel-wat .fm-segment button { height: 32px; padding: 0 14px; }
 .fm-deel-wat select { height: 32px; min-width: 220px; border: 1px solid #DADDE3; border-radius: 0; padding: 0 10px; font: inherit; font-size: 13px; background: #fff; color: var(--fm-zwart); }
 
-/* ---------- Binnenplan in een deel-link op gsm ---------- */
+/* ---------- Binnenplan in een deel-link op gsm en tablet (staand) ---------- */
 .fm-bs-greep { display: none; }
 .fm-binnenscherm.lezen .fm-bs-doek { touch-action: none; }
-@media (max-width: 760px) {
+@media (max-width: 1024px) {
   .fm-binnenscherm.lezen { height: 100dvh; }
   /* Kop in drie regels: event (klein), gebouw (groot), daaronder verdiepingen en knoppen. Niets valt nog buiten beeld. */
   .fm-binnenscherm.lezen .fm-bs-kop { flex-wrap: wrap; overflow: visible; gap: 6px 8px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; min-height: 0; }
@@ -1058,6 +1058,12 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
   .fm-fotogroot-balk { padding-bottom: calc(12px + env(safe-area-inset-bottom)); overflow-x: auto; }
   .fm-fotogroot-balk > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
   .fm-fotogroot-balk .fm-knop { flex-shrink: 0; height: 36px; }
+}
+@media (min-width: 700px) and (max-width: 1024px) {
+  .fm-binnenscherm.lezen .fm-bs-links, .fm-binnenscherm.lezen .fm-bs-rechts { left: auto; right: 16px; width: 420px; max-height: 70dvh; border-radius: 14px 14px 0 0; }
+  .fm-binnenscherm.lezen.lijst-open .fm-bs-links { max-height: 70dvh; }
+  .fm-binnenscherm.lezen .fm-bs-zweef.rechts { right: auto; left: 16px; bottom: 16px; }
+  .fm-bs-meethint { right: auto; max-width: 420px; }
 }
 @keyframes fm-blad-op { from { transform: translateY(24px); opacity: .4; } to { transform: none; opacity: 1; } }
 

@@ -141,6 +141,8 @@ const sectiesVan = (pts, e) => {
 };
 const zaalNaam = (t) => String(t || '').replace(/\s*\([^)]*m²\)\s*$/, '').trim();
 
+// Leesweergave (deel-link) op gsm en tablet in staande stand: onderbladen in plaats van drie kolommen.
+const SMAL_MAX = 1024;
 export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen, verd, onVerd, onNieuweVerdieping, onderlegger, items, elementen, elementenMap, schrijven,
   onMaak, onWijzig, onVerwijder, onGrondplan, onPassen, onOnderlegger, onSluit, onMaakElement, onWijzigElement, onHost, fasen = [], actieveFase = null, onFase, onOngedaan, doeken = [], taal = 'nl', fotosVast = null, merk = null, autoPdf = false, onPdfKlaar, beginCamera = null, beginCameraBeeld = null, onDeelCamera = null,
   stroom = null, vast = [], onKabelBuiten = null, planInfo = null, fiche = false, beginSel = null, beginPaneel = null }) {
@@ -330,7 +332,7 @@ export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen,
     const k = kaderVan(delen) || [-15, -10, 15, 10];
     const b = Math.max(6, k[2] - k[0]) * 1.08; const h = Math.max(4, k[3] - k[1]) * 1.08;
     // Gsm (deel-link): het blad onderaan (de greep) bedekt 64 px; het plan in het vrije deel erboven passen.
-    const smal = !schrijven && typeof window !== 'undefined' && window.innerWidth <= 760; const vrij = smal ? Math.max(120, maat.h - 64) : maat.h;
+    const smal = !schrijven && typeof window !== 'undefined' && window.innerWidth <= SMAL_MAX; const vrij = smal ? Math.max(120, maat.h - 64) : maat.h;
     const sc = Math.min(maat.w / b, vrij / h);
     setBeeld({ cx: (k[0] + k[2]) / 2, cy: (k[1] + k[3]) / 2 - (maat.h - vrij) / 2 / sc, s: sc });
   };
@@ -338,7 +340,7 @@ export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen,
   const B = beeld || { cx: 0, cy: 0, s: 20 };
   // Deel-link op gsm: onderaan ligt een blad over de tekening, en in het overzicht (ver uitgezoomd) is het plan
   // te klein voor punten, tekstjes en losse meubels: dan tonen en raken we enkel de ruimtes.
-  const gsmLees = !schrijven && typeof window !== 'undefined' && window.innerWidth <= 760;
+  const gsmLees = !schrijven && typeof window !== 'undefined' && window.innerWidth <= SMAL_MAX;
   const overzicht = gsmLees && B.s < 7;
   const naarScherm = ([x, y]) => [(x - B.cx) * B.s + maat.w / 2, (B.cy - y) * B.s + maat.h / 2];
   const naarWereld = (e) => { const r = svgRef.current.getBoundingClientRect(); return [B.cx + (e.clientX - r.left - maat.w / 2) / B.s, B.cy - (e.clientY - r.top - maat.h / 2) / B.s]; };
@@ -829,7 +831,7 @@ export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen,
   // Kleinste zaal rond een punt.
   tikRef.current = (w) => {
     // In het overzicht op gsm kiest een tik de ruimte (en zoomt erop in); pas ingezoomd raak je een meubel of punt.
-    const smal = !schrijven && typeof window !== 'undefined' && window.innerWidth <= 760; const ver = smal && (beeldRef.current?.s || 20) < 7;
+    const smal = !schrijven && typeof window !== 'undefined' && window.innerWidth <= SMAL_MAX; const ver = smal && (beeldRef.current?.s || 20) < 7;
     if (modus === 'meet') { klikModus(w); return; }
     const r = ruimteBij(w); const it = ver && r ? null : raak(w);
     setGebouwKaart(false); setLijstOpen(false);
@@ -1298,7 +1300,7 @@ export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen,
   const zoomOp = (r) => {
     const k = kaderVan([puntenVan(lokaalVan(r).geometrie)]); if (!k) return; const b = Math.max(3, k[2] - k[0]) * 1.4; const h = Math.max(3, k[3] - k[1]) * 1.4;
     // Gsm (deel-link): het onderblad bedekt de onderkant, dus de zaal in het bovenste deel tonen.
-    const blad = !schrijven && typeof window !== 'undefined' && window.innerWidth <= 760;
+    const blad = !schrijven && typeof window !== 'undefined' && window.innerWidth <= SMAL_MAX;
     const zicht = blad ? maat.h * 0.36 : maat.h; const sc = Math.min(maat.w / b, zicht / h);
     setBeeld({ cx: (k[0] + k[2]) / 2, cy: (k[1] + k[3]) / 2 - (blad ? (maat.h / 2 - zicht / 2 - 8) / sc : 0), s: sc });
   };
