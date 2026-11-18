@@ -452,7 +452,7 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
                       </>)}
                     </td>
                   </tr>,
-                  kaartRij === x.id && <tr key={`${x.id}-kaart`} className="pf-kaartrij"><td colSpan={8}><RijKaart plan={f.plan} items={f.items} ids={x.ids || []} onSluit={() => setKaartRij(null)} /></td></tr>,
+                  kaartRij === x.id && <tr key={`${x.id}-kaart`} className="pf-kaartrij"><td colSpan={8}><RijKaart plan={f.plan} items={f.items} lagen={f.lagen} elementen={f.elementen} ids={x.ids || []} onSluit={() => setKaartRij(null)} /></td></tr>,
                 ];
               })}
             </tbody>

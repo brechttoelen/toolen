@@ -12,7 +12,7 @@ const midden = (g) => { const p = punten(g); if (!p.length) return null; return 
 const fc = (items) => ({ type: 'FeatureCollection', features: items.filter((i) => i.geometrie?.type).map((i) => ({ type: 'Feature', id: i.id, properties: { id: i.id }, geometry: i.geometrie })) });
 
 async function maakKaart(plan) {
-  const [mod, og] = await Promise.all([import('maplibre-gl'), import('../maps/ondergronden')]);
+  const [mod, og, stijl] = await Promise.all([import('maplibre-gl'), import('../maps/ondergronden'), import('../maps/stijl')]);
   const maplibregl = mod.default?.Map ? mod.default : mod;
   og.registreerProtocollen();
   try { og.kiesFotoVl(plan.instellingen); } catch { /* standaard luchtfoto */ }
@@ -22,20 +22,22 @@ async function maakKaart(plan) {
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
   const klaar = new Promise((ok) => map.once('load', () => {
     const leeg = { type: 'FeatureCollection', features: [] };
-    map.addSource('pf-alle', { type: 'geojson', data: leeg }); map.addSource('pf-kies', { type: 'geojson', data: leeg }); map.addSource('pf-plek', { type: 'geojson', data: leeg });
-    map.addLayer({ id: 'pf-alle-lijn', type: 'line', source: 'pf-alle', filter: ['!=', ['geometry-type'], 'Point'], paint: { 'line-color': '#ffffff', 'line-width': 1, 'line-opacity': 0.75 } });
-    map.addLayer({ id: 'pf-alle-punt', type: 'circle', source: 'pf-alle', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 2.5, 'circle-color': '#ffffff', 'circle-opacity': 0.75 } });
-    map.addLayer({ id: 'pf-kies-vlak', type: 'fill', source: 'pf-kies', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': '#FF7A00', 'fill-opacity': 0.45 } });
-    map.addLayer({ id: 'pf-kies-lijn', type: 'line', source: 'pf-kies', filter: ['!=', ['geometry-type'], 'Point'], paint: { 'line-color': '#FF7A00', 'line-width': 4 } });
-    map.addLayer({ id: 'pf-kies-punt', type: 'circle', source: 'pf-kies', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 8, 'circle-color': '#FF7A00', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
+    // Het plan zelf, getekend zoals in de kaarteditor (zelfde lagen en stijlen).
+    map.addSource('fm-vormen', { type: 'geojson', data: leeg }); map.addSource('fm-labels', { type: 'geojson', data: leeg });
+    for (const l of stijl.kaartLagen(start[1])) { try { map.addLayer(l); } catch (e) { console.warn('kaartlaag', l.id, e); } }
+    // Daarbovenop: de elementen van de regel, oranje omlijnd.
+    map.addSource('pf-kies', { type: 'geojson', data: leeg }); map.addSource('pf-plek', { type: 'geojson', data: leeg });
+    map.addLayer({ id: 'pf-kies-vlak', type: 'fill', source: 'pf-kies', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': '#FF7A00', 'fill-opacity': 0.12 } });
+    map.addLayer({ id: 'pf-kies-lijn', type: 'line', source: 'pf-kies', filter: ['!=', ['geometry-type'], 'Point'], paint: { 'line-color': '#FF7A00', 'line-width': 3 } });
     // Ring rond het midden van elk element: ook een klein of smal element valt meteen op.
     map.addLayer({ id: 'pf-plek-ring', type: 'circle', source: 'pf-plek', paint: { 'circle-radius': 18, 'circle-color': '#FF7A00', 'circle-opacity': 0.18, 'circle-stroke-color': '#FF7A00', 'circle-stroke-width': 2.5 } });
+    try { og.klapBronvermeldingIn(map); } catch { /* blijft open */ }
     ok();
   }));
-  return { map, doos, klaar, markers: [], maplibregl };
+  return { map, doos, klaar, markers: [], maplibregl, stijl, getekend: null };
 }
 
-export default function RijKaart({ plan, items, ids, onSluit }) {
+export default function RijKaart({ plan, items, lagen = [], elementen = [], ids, onSluit }) {
   const gast = useRef(null);
   const [stand, setStand] = useState('laden');
   const gekozen = useMemo(() => { const s = new Set(ids); return items.filter((i) => s.has(i.id) && i.geometrie?.type); }, [items, ids]);
@@ -48,8 +50,15 @@ export default function RijKaart({ plan, items, ids, onSluit }) {
         if (!gedeeld) gedeeld = await maakKaart(plan);
         const k = gedeeld; await k.klaar; if (weg || !gast.current) return;
         gast.current.appendChild(k.doos); k.map.resize();
-        const s = new Set(ids);
-        k.map.getSource('pf-alle').setData(fc(items.filter((i) => !s.has(i.id) && !i.vast)));
+        if (k.getekend !== items) {
+          // Eén keer per stand van het plan: alle items met hun echte tekening.
+          const lagenMap = new Map(lagen.map((l) => [l.id, l])); const elMap = new Map(elementen.map((e) => [e.id, e]));
+          const verborgen = new Set(lagen.filter((l) => l.zichtbaar === false).map((l) => l.id));
+          const { vormen, labels } = k.stijl.naarGeojson(items.filter((i) => !i.velden?.binnen), lagenMap, elMap, { verborgenLagen: verborgen, verbergElementen: plan.instellingen?.verborgen_elementen });
+          k.stijl.zorgVoorPatronen(k.map, vormen.features, labels.features);
+          k.map.getSource('fm-vormen').setData(vormen); k.map.getSource('fm-labels').setData(labels);
+          k.getekend = items;
+        }
         k.map.getSource('pf-kies').setData(fc(gekozen));
         k.map.getSource('pf-plek').setData({ type: 'FeatureCollection', features: gekozen.map((i) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: midden(i.geometrie) } })).filter((x) => x.geometry.coordinates) });
         k.markers.forEach((m) => m.remove()); k.markers = [];
