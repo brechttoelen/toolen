@@ -44,6 +44,8 @@ import { hitOp } from './hit';
 import LaagChip from './LaagChip';
 import Tekenscherm from './Tekenscherm';
 import BibliotheekPaneel from './BibliotheekPaneel';
+import KaartBestellingen from '../fiche/KaartBestellingen';
+import { zetKaartStand } from '../fiche/kaartStand';
 import Stuklijst, { berekenStuklijst } from './Stuklijst';
 import Eigenschappen, { PlanAlgemeen } from './Eigenschappen';
 import PopupInhoud, { NavKnoppen } from './PopupInhoud';
@@ -4160,6 +4162,8 @@ export default function Editor({ planId }) {
 
   // Huismateriaal (van een locatie, zie BinnenScherm) hoort niet in de gewone bibliotheek.
   const zonderHuis = useMemo(() => elementen.filter((e) => !e.eigenschappen?.huis && e.actief !== false), [elementen]);
+  // Fiche op de kaart (bestellingen): de blokken tellen met wat de kaart nu toont.
+  useEffect(() => { if (heeftModule('fiche') && plan) zetKaartStand({ plan, items, lagen, elementen: [...elementenMap.values()] }); }, [plan, items, lagen, elementenMap]);
   // ---------- Lagen en plan ----------
   const markeerLaag = (id) => laagBezig.current.set(id, Date.now() + 2500);
   const wijzigLaag = useCallback(async (id, patch) => {
@@ -5039,7 +5043,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
             </button>
           )}
           <hr />
-          {[...PANELEN.slice(0, 2), ...(uitgebreid || tab === 'draaiboek' ? [['draaiboek', 'Draaiboek', 'lijstje']] : []), ...PANELEN.slice(2)]
+          {[...PANELEN.slice(0, 2), ...(heeftModule('fiche') && !binnen ? [['bestellingen', 'Bestellingen', 'lijstje']] : []), ...(uitgebreid || tab === 'draaiboek' ? [['draaiboek', 'Draaiboek', 'lijstje']] : []), ...PANELEN.slice(2)]
             .filter(([id]) => (id !== 'stroom' || heeftModule('stroom')) && (id !== 'sign' || heeftModule('signalisatie')))
             .map(([id, label, ic]) => {
             // Materiaal opent het volledige materiaalscherm (geen zijpaneel).
@@ -5155,6 +5159,11 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
               {tab === 'bibliotheek' && (
                 <BibliotheekPaneel std={levStd} gebruikt={gebruiktInPlan} startCat={binnen ? 'Binnenruimte' : ({ stroom: 'Elektriciteit', veiligheid: 'Veiligheid', branding: 'Doeken en drukwerk' }[werkruimte] || wr.bibCat || null)} elementen={zonderHuis} gekozen={gekozenElement} schrijven={schrijven}
                   onKies={(el) => { setGekozenElement(el); setGereedschap('element'); }} />
+              )}
+              {tab === 'bestellingen' && (
+                <KaartBestellingen planId={planId} schrijven={schrijven}
+                  onKiesItems={(ids) => { setGeselecteerd(ids[0] || null); setExtra(ids.slice(1)); const it = items.find((x) => x.id === ids[0]); if (it && ids.length === 1) zoomNaar(it); }}
+                  onPlaats={(el) => { setGekozenElement(el); setGereedschap('element'); }} />
               )}
               {tab === 'controle' && (
                 <ControlePaneel plan={plan} lagen={lagen} items={items} elementenMap={elementenMap} lagenMap={lagenMap} fasen={fasen} schrijven={schrijven} onPlan={wijzigPlan} onKiesItem={kiesItemOpKaart} openBlok={controleBlok} vast={vast} deel="meldingen" onRegels={() => toonPlan('regels')} />

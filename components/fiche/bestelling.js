@@ -215,3 +215,27 @@ export async function splitsPerLocatie(f, sl, rij) {
   if (r.id) await f.wis('bestelregels', r.id);
   return nieuw.length;
 }
+
+// ---- Leverfiche: de bestelling zoals de leverancier ze krijgt ----
+// regel = { aantal, eenheid, wat, opmerking, groep, locatie, lev, oph } met lev/oph = { anker, dag, uur_van, uur_tot } of null.
+export function leverficheRegels(f, sl) {
+  const lv = new Map((f.d.leveringen || []).map((l) => [l.id, l]));
+  return bestelRijen(f, sl).rijen.map((x) => ({ aantal: x.besteld, eenheid: x.r.eenheid || 'st', wat: x.r.wat, opmerking: x.r.opmerking || '', groep: x.r.groep || '', locatie: locatieTekst(f, x.r),
+    lev: lv.get(x.r.levering_id) || null, oph: lv.get(x.r.ophaling_id) || null }));
+}
+// Gegroepeerd per levermoment (vroegste eerst, zonder levering achteraan), daarbinnen per locatie.
+export function leverficheGroepen(plan, regels) {
+  const per = new Map();
+  for (const r of regels) { const k = r.lev ? momentKort(plan, r.lev) : ''; if (!per.has(k)) per.set(k, { lev: r.lev, rijen: [] }); per.get(k).rijen.push(r); }
+  return [...per.values()].sort((a, b) => (!a.lev ? 1 : !b.lev ? -1 : volgorde(plan, a.lev, b.lev) || uurKort(a.lev.uur_van).localeCompare(uurKort(b.lev.uur_van))))
+    .map((g) => ({ titel: g.lev ? `Levering ${momentLang(plan, g.lev)}` : 'Levering nog af te spreken', rijen: g.rijen.sort((a, b) => (a.locatie || '').localeCompare(b.locatie || '')) }));
+}
+// "zaterdag 23 januari 2027 · 08:00–12:00" of het D-label zonder wedstrijddag.
+export function momentLang(plan, l) {
+  if (!l) return '';
+  const d = datumVan(plan, l.anker, l.dag);
+  const u = uurKort(l.uur_van);
+  const dag = d ? d.toLocaleDateString('nl-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : label(plan, l.anker, l.dag);
+  return `${dag}${u ? ` · ${u}${l.uur_tot ? `–${uurKort(l.uur_tot)}` : ''}` : ''}`;
+}
+export const aantalTekst = (r) => (r.aantal == null ? '' : `${new Intl.NumberFormat('nl-BE', { maximumFractionDigits: 1 }).format(Number(r.aantal))}${r.eenheid === 'm' ? ' m' : ''}`);

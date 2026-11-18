@@ -8,6 +8,7 @@ import { herkomstVan } from '../maps/stijl';
 import { dagNaam, label, uitSleutel, sleutel as dagSleutel, uurKort, leesUur } from './dagen';
 import { DagKiezer } from './gedeeld';
 import './fiche.css';
+import { BestelBlok } from './KaartBestellingen';
 
 export default function FicheSelectieBlok({ items, plan, schrijven, titelStandaard = '', elementenMap = null }) {
   const ids = useMemo(() => items.map((x) => x.id), [items]);
@@ -78,6 +79,7 @@ export default function FicheSelectieBlok({ items, plan, schrijven, titelStandaa
   };
   if (!planId) return null;
   return (
+    <><BestelBlok planId={planId} items={items} />
     <div className="fm-sectie" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div className="fm-mat-lab">Taken in de fiche</div>
       {gekoppeld.map((t) => (
@@ -111,6 +113,6 @@ export default function FicheSelectieBlok({ items, plan, schrijven, titelStandaa
         <button className="fm-knop klein" onClick={maakLevering}>{lev.soort === 'ophaling' ? 'Ophaling' : 'Levering'} maken</button>
       </>}
       {melding && <div className="fm-sub">{melding}</div>}
-    </div>
+    </div></>
   );
 }

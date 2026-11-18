@@ -86,9 +86,10 @@ export const TEKEN_DELEN = [
   { naam: 'Punten en tekst', tools: ['punt', 'tekst', 'notitie', 'binnenlocatie'] },
 ];
 
-export const PANEELNAAM = { tekenen: 'Tekenen', bouwers: 'Bouwers', lagen: 'Lagen', bibliotheek: 'Bibliotheek', lijsten: 'Lijsten', materiaal: 'Materiaal', stuklijst: 'Materiaal', stroom: 'Elektriciteit', sign: 'Signalisatie', draaiboek: 'Draaiboek', controle: 'Controle', plan: 'Plan', veiligheid: 'Veiligheid', branding: 'Branding' };
+export const PANEELNAAM = { bestellingen: 'Bestellingen', tekenen: 'Tekenen', bouwers: 'Bouwers', lagen: 'Lagen', bibliotheek: 'Bibliotheek', lijsten: 'Lijsten', materiaal: 'Materiaal', stuklijst: 'Materiaal', stroom: 'Elektriciteit', sign: 'Signalisatie', draaiboek: 'Draaiboek', controle: 'Controle', plan: 'Plan', veiligheid: 'Veiligheid', branding: 'Branding' };
 
 export const PANEELTIP = {
+  bestellingen: 'Bestellingen uit de fiche: per leverancier wat besteld is en hoeveel er al op de kaart staat',
   bibliotheek: 'Tenten, hekken, podia… kies een element en zet het op de kaart',
   lagen: 'Lagen tonen, verbergen, vergrendelen en hun stijl instellen',
   stroom: 'Elektriciteit: bronnen, kasten, kabels en verbruik',

@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import Blok from '../maps/blok';
 import { maps, foutTekst } from '../maps/db';
+import { BestelBlok } from './KaartBestellingen';
 import { label, uurKort } from './dagen';
 
 export default function FicheItemBlok({ item, plan, schrijven, groepAantal = 0, groepNaam = '' }) {
@@ -57,6 +58,7 @@ export default function FicheItemBlok({ item, plan, schrijven, groepAantal = 0, 
       {!taken.length && <div className="fm-sub">Nog geen taken over dit item.</div>}
       {schrijven && item.groep_id && groepAantal > 1 && <label className="fm-vink"><input type="checkbox" checked={heleGroep} onChange={() => setHeleGroep(!heleGroep)} />Voor de hele groep ({groepAantal} items)</label>}
       {schrijven && <div style={{ display: 'flex', gap: 6 }}><input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder={`Plaatsen ${item.naam || 'item'}`} aria-label="Nieuwe taak" style={{ flex: 1, minWidth: 0 }} /><button className="fm-knop klein" onClick={maakTaak}>Taak maken</button></div>}
+      <BestelBlok planId={item.plan_id} items={[item]} />
       <label className="fm-veld">Leverancier van dit item
         <select value={levId} disabled={!schrijven} onChange={(e) => zetLev(e.target.value)}>
           <option value="">Zoals de bibliotheek</option>

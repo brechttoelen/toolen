@@ -8,7 +8,7 @@ import { StatusKeuze, Bewaarveld, Bewaartekst, Kiezer, Keuze, DagKiezer, Chips, 
 import { opId, euro, getal, getalTekst } from './data';
 import { uurKort, leesUur, volgorde } from './dagen';
 import { STATUS_LEV, EENHEDEN, materiaalVan, leveranciersOpKaart, betrokken, matTekst, itemsVanLevering, somVan,
-  bestelRijen, samenvatting, stand, momentKort, locatieTekst, regelsVan, maakEcht, zetMoment, zetVast, splitsPerLocatie } from './bestelling';
+  bestelRijen, samenvatting, stand, momentKort, locatieTekst, regelsVan, maakEcht, zetMoment, zetVast, splitsPerLocatie, leverficheRegels } from './bestelling';
 import { maakXlsx, bewaarBestand } from '../maps/tabelExport';
 import { maps } from '../maps/db';
 import { bevestig } from '../maps/dialoog';
@@ -55,7 +55,8 @@ function excelBlad(f, lev, sl) {
 }
 
 export default function TabLeveranciers({ f }) {
-  const [open, setOpen] = useState(null);
+  // ?lev=<id> opent meteen die bestelling (link vanop de kaart).
+  const [open, setOpen] = useState(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('lev') : null));
   const [filter, setFilter] = useState('Alle');
   const [zoek, setZoek] = useState('');
   const [suggesties, setSuggesties] = useState([]);
@@ -207,6 +208,8 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
   const [groeperen, setGroeperen] = useState('geen');
   const [nieuw, setNieuw] = useState('');
   const [bezig, setBezig] = useState(false);
+  const [kolom, setKolom] = useState('geplaatst');   // laatste kolom: geplaatst op de kaart of geleverd op het terrein
+  const [plak, setPlak] = useState(null);
   const lvMap = opId(f.d.leveringen);
   const lagen = f.lagen || [];
   const gekozen = b.rijen.filter((x) => sel.has(x.id));
@@ -265,6 +268,33 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
     const n = regelsVan(f, sl.id).length;
     await f.voegToe('bestelregels', b.nietBesteld.map((m, i) => ({ site_leverancier_id: sl.id, wat: m.naam, kaart_naam: m.naam, kaart_sleutel: m.sleutel, aantal: m.aantal, volgorde: n + i })));
   });
+  // Plakken uit Excel: één regel per lijn, kolommen Aantal, Wat, Groep, Locatie, Opmerking (tab of puntkomma).
+  const plakToe = () => metBezig(async () => {
+    const n = regelsVan(f, sl.id).length; const nieuw = [];
+    for (const lijn of String(plak || '').split(/\r?\n/)) {
+      const c = lijn.split(lijn.includes('\t') ? '\t' : ';').map((x) => x.trim());
+      if (!c.some(Boolean)) continue;
+      let aantal = getal(c[0]); let rest = c;
+      if (aantal != null) rest = c.slice(1); else if (/^aantal$/i.test(c[0])) continue;
+      const wat = rest[0]; if (!wat) continue;
+      const m = losMat.find((x) => x.naam.toLowerCase() === wat.toLowerCase() && !nieuw.some((y) => y.kaart_sleutel === x.sleutel));
+      nieuw.push({ site_leverancier_id: sl.id, wat: m ? m.naam : wat, kaart_naam: m ? m.naam : null, kaart_sleutel: m ? m.sleutel : null, aantal, groep: rest[1] || null, ...locatiePatch(rest[2]), opmerking: rest[3] || null, volgorde: n + nieuw.length });
+    }
+    if (!nieuw.length) { f.meld('Geen regels herkend. Verwacht per lijn: aantal, wat, groep, locatie, opmerking.'); return; }
+    if (await f.voegToe('bestelregels', nieuw)) { f.meld(`${nieuw.length} ${nieuw.length === 1 ? 'regel' : 'regels'} toegevoegd.`); setPlak(null); }
+  });
+  const leverfichePdf = async () => {
+    const { maakLeverfichePdf } = await import('./leverfichePdf');
+    maakLeverfichePdf({ plan: f.plan, leverancier: lev.naam, organisatie: null, wat: sl.wat, regels: leverficheRegels(f, sl), vast: b.vast }).save(`Leverfiche ${lev.naam} ${f.plan.naam}.pdf`);
+  };
+  const deelAdres = sl.deel_token && typeof window !== 'undefined' ? `${window.location.origin}/d/l/${sl.deel_token}` : '';
+  const deel = () => metBezig(async () => {
+    if (!b.vast) { f.meld('Zet de bestelling eerst vast: een deellink toont enkel een vaste bestelling.'); return; }
+    let token = sl.deel_token;
+    if (!token) { const a = new Uint8Array(24); window.crypto.getRandomValues(a); token = [...a].map((x) => x.toString(16).padStart(2, '0')).join(''); if (!(await f.wijzig('site_leveranciers', sl.id, { deel_token: token }))) return; }
+    const adres = `${window.location.origin}/d/l/${token}`;
+    try { await navigator.clipboard.writeText(adres); f.meld('Link naar de leverfiche gekopieerd.'); } catch { f.meld(adres); }
+  });
   const wisLev = async () => { if (await bevestig(`${lev.naam} van deze site halen? De bestelling, leveringen, offertes en facturen van deze site verdwijnen mee.`, { ok: 'Weghalen', gevaar: true })) { await f.wis('site_leveranciers', sl.id); terug(); } };
 
   // Groeperen: zelfde regels, andere volgorde, met een kopregel per groep.
@@ -311,6 +341,8 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
           <span className="pf-stil pf-klein">Groeperen</span>
           <Seg waarde={groeperen} onChange={setGroeperen} label="Groeperen" opties={[['geen', 'Geen'], ['groep', 'Groep'], ['locatie', 'Locatie'], ['levering', 'Levering']]} />
           <button className="t-knop klein" onClick={onExcel}>Excel</button>
+          <button className="t-knop klein" onClick={leverfichePdf}>Leverfiche (PDF)</button>
+          {s && <button className="t-knop klein" disabled={bezig} onClick={deel} title="Link zonder login voor de leverancier: toont altijd de laatste stand van de vastgezette bestelling">{sl.deel_token ? 'Deellink kopiëren' : 'Deellink'}</button>}
           {s && <button className={`t-knop klein ${b.vast ? '' : 'hoofd'}`} disabled={bezig} onClick={() => metBezig(() => zetVast(f, sl, !b.vast))} title={b.vast ? 'De aantallen volgen opnieuw wat er op de kaart staat (regels zonder aantal).' : 'Elke regel krijgt het aantal dat nu op de kaart staat. Daarna zie je het verschil.'}>{b.vast ? 'Weer laten meelopen' : 'Bestelling vastzetten'}</button>}
         </div>
         <div className="pf-kopvelden">
@@ -359,7 +391,7 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
           <table className="pf-tabel pf-bestel" style={{ minWidth: 880 }}>
             <thead><tr>
               <th style={{ width: 30 }}>{s && <input type="checkbox" checked={alleAan} onChange={() => setSel(alleAan ? new Set() : new Set(b.rijen.map((x) => x.id)))} aria-label="Alles selecteren" />}</th>
-              <th className="getal" style={{ width: 104 }}>Aantal</th><th>Wat</th><th style={{ width: 120 }}>Groep</th><th style={{ width: 180 }}>Locatie</th><th style={{ width: 250 }}>Periode · levering → ophaling</th><th style={{ width: 170 }}>Geplaatst</th>
+              <th className="getal" style={{ width: 104 }}>Aantal</th><th>Wat</th><th style={{ width: 120 }}>Groep</th><th style={{ width: 180 }}>Locatie</th><th style={{ width: 250 }}>Periode · levering → ophaling</th><th style={{ width: 180 }}><button className={`pf-kolknop ${kolom === 'geplaatst' ? 'aan' : ''}`} onClick={() => setKolom('geplaatst')} title="Hoeveel staat er op de kaart">Geplaatst</button><button className={`pf-kolknop ${kolom === 'geleverd' ? 'aan' : ''}`} onClick={() => setKolom('geleverd')} title="Ontvangst op het terrein afvinken">Geleverd</button></th>
             </tr></thead>
             <tbody>
               {!b.rijen.length && <tr><td colSpan={7} className="pf-leeg">Nog geen regels. Materiaal van {lev.naam} op de kaart komt hier vanzelf; voeg hieronder toe wat je niet tekent.</td></tr>}
@@ -391,11 +423,19 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
                       </button>
                     </td>
                     <td>
+                      {kolom === 'geleverd' ? (x.besteld == null ? <span className="pf-stil">–</span> : (
+                        <span className="pf-rij" style={{ gap: 4, flexWrap: 'nowrap' }}>
+                          <Veld klasse="pf-cel" style={{ width: 56 }} waarde={getalTekst(r.geleverd)} placeholder="0" uit={!s} label={`Geleverd ${r.wat}`} onBewaar={(v) => zet(x, { geleverd: getal(v) })} />
+                          <span className={Number(r.geleverd || 0) >= x.besteld ? 'pf-ok' : 'pf-stil'} style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>/ {cijfer(x.besteld)}</span>
+                          {s && Number(r.geleverd || 0) < x.besteld && <button className="t-knop klein stil" onClick={() => zet(x, { geleverd: x.besteld })} title="Alles geleverd" aria-label={`Alles geleverd: ${r.wat}`}>✓</button>}
+                        </span>
+                      )) : (<>
                       {x.vrij
                         ? (s && losMat.length > 0
                           ? <select className="pf-eenheid" style={{ maxWidth: 150 }} value="" onChange={(e) => { const m = losMat.find((y) => y.sleutel === e.target.value); if (m) f.wijzig('bestelregels', r.id, { kaart_naam: m.naam, kaart_sleutel: m.sleutel }); }} aria-label="Koppelen aan materiaal op de kaart"><option value="">niet getekend</option>{losMat.map((m) => <option key={m.sleutel} value={m.sleutel}>koppel: {m.naam}</option>)}</select>
                           : <span className="pf-stil">niet getekend</span>)
                         : x.besteld == null ? <span className="pf-stil">{cijfer(x.geplaatst)} op de kaart</span> : <Balk n={x.geplaatst} tot={x.besteld} st={x.volgt ? 'volgt' : st} />}
+                      </>)}
                     </td>
                   </tr>
                 );
@@ -407,7 +447,15 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
           <div className="pf-rij">
             <input className="t-veld" style={{ flex: '0 1 340px' }} value={nieuw} onChange={(e) => setNieuw(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && voegRegelToe()} list={`${lijstId}-wat`} placeholder="Regel toevoegen: wat bestel je?" aria-label="Nieuwe regel" />
             <button className="t-knop klein" disabled={!nieuw.trim() || bezig} onClick={voegRegelToe}>+ Regel</button>
+            <button className="t-knop klein" onClick={() => setPlak(plak == null ? '' : null)}>Plakken uit Excel</button>
             <span className="pf-stil pf-klein">Staat het niet op de kaart, dan blijft het een vrije regel (machines, verbruik, transport).</span>
+          </div>
+        )}
+        {s && plak != null && (
+          <div className="pf-actie" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+            <span className="pf-klein">Plak rijen uit Excel. Kolommen in deze volgorde: <b>Aantal · Wat · Groep · Locatie · Opmerking</b>. Enkel Wat is verplicht.</span>
+            <textarea className="t-veld" style={{ minHeight: 110, padding: 8, fontFamily: 'inherit' }} autoFocus value={plak} onChange={(e) => setPlak(e.target.value)} aria-label="Rijen uit Excel" placeholder={'2\tM30-4 met sideshift\tParcours\tMateriaaldepot\tnummerplaat'} />
+            <div className="pf-rij"><button className="t-knop klein hoofd" disabled={bezig || !plak.trim()} onClick={plakToe}>Regels toevoegen</button><button className="t-knop klein stil" onClick={() => setPlak(null)}>Annuleren</button></div>
           </div>
         )}
         <datalist id={`${lijstId}-lagen`}>{lagen.map((l) => <option key={l.id} value={l.naam} />)}</datalist>
@@ -426,6 +474,7 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
             {losseMomenten.map((l) => <span key={l.id} className="t-pil" style={{ marginRight: 6 }}>{l.soort === 'ophaling' ? 'Ophaling' : 'Levering'} {momentKort(f.plan, l)}{l.wat ? ` · ${l.wat}` : ''}{s && <button className="pf-link" style={{ marginLeft: 6 }} onClick={() => f.wis('leveringen', l.id)} aria-label="Moment wissen">✕</button>}</span>)}
           </div>
         )}
+        {s && sl.deel_token && <div className="pf-klein pf-rij"><span className="pf-stil">Deellink voor {lev.naam}:</span><a className="pf-link" href={deelAdres} target="_blank" rel="noreferrer">{deelAdres}</a><button className="pf-link" onClick={() => f.wijzig('site_leveranciers', sl.id, { deel_token: null })}>Intrekken</button>{!b.vast && <span className="pf-let">toont niets zolang de bestelling niet vaststaat</span>}</div>}
         {sl.materiaal && <label className="pf-veld"><span className="t-label">Vroegere vrije lijst (zet dit om in regels)</span><Bewaartekst waarde={sl.materiaal || ''} uit={!s} label="Ander materiaal" rijen={2} onBewaar={(v) => f.wijzig('site_leveranciers', sl.id, { materiaal: v.trim() || null })} /></label>}
       </section>
 
