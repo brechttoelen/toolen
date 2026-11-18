@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+const sleutelRef = (ids) => ids.join(',');
 let gedeeld = null;   // { map, doos, klaar: Promise, markers: [] }
 
 const punten = (g, uit = []) => { const loop = (c) => { if (typeof c?.[0] === 'number') uit.push(c); else for (const x of c || []) loop(x); }; if (g) loop(g.coordinates); return uit; };
@@ -40,6 +41,9 @@ async function maakKaart(plan) {
 
 export default function RijKaart({ plan, items, lagen = [], elementen = [], ids, onSluit }) {
   const gast = useRef(null);
+  const vak = useRef(null);
+  // Bij het openen meeschuiven tot de onderkant van de luchtfoto in beeld staat.
+  useEffect(() => { const t = setTimeout(() => vak.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 60); return () => clearTimeout(t); }, [sleutelRef(ids)]);
   const [stand, setStand] = useState('laden');
   const gekozen = useMemo(() => { const s = new Set(ids); return items.filter((i) => s.has(i.id) && i.geometrie?.type); }, [items, ids]);
   const sleutel = ids.join(',');
@@ -92,7 +96,7 @@ export default function RijKaart({ plan, items, lagen = [], elementen = [], ids,
 
   const naar = (i) => { const c = gedeeld?.plek?.get(i.id) || midden(i.geometrie); if (c && gedeeld) gedeeld.map.flyTo({ center: c, zoom: Math.max(gedeeld.map.getZoom(), 19), duration: 500 }); };
   return (
-    <div className="pf-rijkaart">
+    <div className="pf-rijkaart" ref={vak}>
       <div className="kaart" ref={gast}>{stand !== 'ok' && <span className="stand">{stand === 'laden' ? 'Kaart laden…' : stand === 'leeg' ? 'Deze regel heeft geen elementen met een plaats op de kaart.' : 'De kaart kon niet laden.'}</span>}</div>
       <div className="lijst">
         <div className="pf-rij" style={{ flexWrap: 'nowrap' }}><b style={{ flex: 1, fontWeight: 600 }}>{gekozen.length} {gekozen.length === 1 ? 'element' : 'elementen'}</b><button className="pf-sluit" onClick={onSluit} aria-label="Kaart sluiten">✕</button></div>

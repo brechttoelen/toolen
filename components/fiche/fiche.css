@@ -184,7 +184,7 @@
 .pf-tel b { font-weight: 600; }
 /* Luchtfoto onder een rij */
 .pf-tabel tr.pf-kaartrij td { padding: 0 0 12px; background: #fff !important; }
-.pf-rijkaart { display: grid; grid-template-columns: minmax(0, 1fr) 240px; height: 340px; border: 1px solid var(--t-rand); border-radius: 10px; overflow: hidden; }
+.pf-rijkaart { scroll-margin: 16px 0 16px; display: grid; grid-template-columns: minmax(0, 1fr) 240px; height: 340px; border: 1px solid var(--t-rand); border-radius: 10px; overflow: hidden; }
 .pf-rijkaart .kaart { position: relative; background: #1b2430; min-width: 0; }
 .pf-rijkaart .kaart .stand { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 13px; z-index: 2; pointer-events: none; padding: 16px; text-align: center; }
 .pf-rijkaart .lijst { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-left: 1px solid var(--t-rand); min-height: 0; }
