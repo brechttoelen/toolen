@@ -58,6 +58,25 @@ const boogPunten = (a, b, h, n = 16) => {
   return uit;
 };
 const boogHoogte = (a, b, p) => { const dx = b[0] - a[0]; const dy = b[1] - a[1]; const L = Math.hypot(dx, dy) || 1; return (dx * (p[1] - a[1]) - dy * (p[0] - a[0])) / L; };
+// Vorm als hoekpunten + bochten per zijde (zoals de tekenaar van de kaart). De geometrie zelf is de uitgerekende
+// lijn; de hoekpunten en bochten (lokaal.knopen) blijven bewaard zodat je de bocht later weer verschuift.
+const knopenNaarGeo = (kn) => {
+  const n = kn.pts.length; const seg = kn.open ? n - 1 : n; const uit = [kn.pts[0]];
+  for (let i = 0; i < seg; i++) { const a = kn.pts[i]; const b = kn.pts[(i + 1) % n]; const h = Number(kn.bogen?.[i]) || 0; uit.push(...(h ? boogPunten(a, b, h).slice(1) : [b])); }
+  return kn.open ? { type: 'LineString', coordinates: uit } : { type: 'Polygon', coordinates: [uit] };
+};
+const boogTop = (a, b, h) => { const dx = b[0] - a[0]; const dy = b[1] - a[1]; const L = Math.hypot(dx, dy) || 1; return [a[0] + dx / 2 - (dy / L) * h, a[1] + dy / 2 + (dx / L) * h]; };
+// Hoekpunten van een lokale vorm: de bewaarde knopen als ze nog bij de geometrie passen, anders de punten zelf.
+const knopenVan = (lok) => {
+  const g = lok?.geometrie; if (!g || (g.type !== 'Polygon' && g.type !== 'LineString')) return null;
+  const open = g.type === 'LineString'; const ring = open ? g.coordinates : g.coordinates[0];
+  const kn = lok.knopen;
+  if (kn?.pts?.length >= (open ? 2 : 3) && !!kn.open === open) {
+    const t = knopenNaarGeo(kn); const r2 = open ? t.coordinates : t.coordinates[0];
+    if (r2.length === ring.length && Math.hypot(r2[0][0] - ring[0][0], r2[0][1] - ring[0][1]) < 0.01 && Math.hypot(r2[r2.length - 1][0] - ring[ring.length - 1][0], r2[r2.length - 1][1] - ring[ring.length - 1][1]) < 0.01) return kn;
+  }
+  return { pts: open ? ring : ring.slice(0, -1), bogen: {}, open };
+};
 const kaderVan = (lijst) => { let k = null; for (const c of lijst) for (const [x, y] of c) k = k ? [Math.min(k[0], x), Math.min(k[1], y), Math.max(k[2], x), Math.max(k[3], y)] : [x, y, x, y]; return k; };
 const ZAAL_LAAG = /^(zalen|ruimtes?|zones?)$/i;
 // Pad in meter (de wereldgroep schaalt en spiegelt; lijndiktes met non-scaling-stroke).
@@ -259,7 +278,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     const par = { ...(extra.parameters || {}) };
     if (lok.midden) par.midden = T.naarGeo(lok.midden);
     if (lok.rot != null) par.rot = r3((((lok.rot + T.rot) % 360) + 360) % 360);
-    return { geometrie: g, parameters: par, lokaal: { geometrie: lok.geometrie, midden: lok.midden || null, rot: lok.rot ?? null } };
+    return { geometrie: g, parameters: par, lokaal: { geometrie: lok.geometrie, midden: lok.midden || null, rot: lok.rot ?? null, ...(lok.knopen ? { knopen: lok.knopen } : {}) } };
   };
   const bewaarLokaal = (it, lok) => {
     const n = naarItem(lok, { parameters: it.parameters });
@@ -473,10 +492,11 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     const x = onMaak({ soort: 'element', element_id: el.id, geometrie: n.geometrie, parameters: {}, velden: { binnen: { host: host.id, verd, lokaal: n.lokaal } } });
     if (x) setSel([x.id]); // meteen de eigenschappen (bv. de frames van een frame-wand)
   };
-  const verschuif = (lok, dx, dy) => ({ geometrie: mapG(lok.geometrie, ([x, y]) => [r3(x + dx), r3(y + dy)]), midden: lok.midden ? [r3(lok.midden[0] + dx), r3(lok.midden[1] + dy)] : null, rot: lok.rot });
+  const verschuif = (lok, dx, dy) => ({ geometrie: mapG(lok.geometrie, ([x, y]) => [r3(x + dx), r3(y + dy)]), midden: lok.midden ? [r3(lok.midden[0] + dx), r3(lok.midden[1] + dy)] : null, rot: lok.rot, ...(lok.knopen?.pts ? { knopen: { ...lok.knopen, pts: lok.knopen.pts.map(([x, y]) => [r3(x + dx), r3(y + dy)]) } } : {}) });
   const gedraaid = (lok, g) => {
     const c = lok.midden || (() => { const k = kaderVan([puntenVan(lok.geometrie)]); return [(k[0] + k[2]) / 2, (k[1] + k[3]) / 2]; })();
-    return { geometrie: mapG(lok.geometrie, ([x, y]) => { const q = draai([x - c[0], y - c[1]], g); return [r3(c[0] + q[0]), r3(c[1] + q[1])]; }), midden: lok.midden, rot: lok.rot != null ? ((((lok.rot + g) % 360) + 360) % 360) : null };
+    const rd = ([x, y]) => { const q = draai([x - c[0], y - c[1]], g); return [r3(c[0] + q[0]), r3(c[1] + q[1])]; };
+    return { geometrie: mapG(lok.geometrie, rd), midden: lok.midden, rot: lok.rot != null ? ((((lok.rot + g) % 360) + 360) % 360) : null, ...(lok.knopen?.pts ? { knopen: { ...lok.knopen, pts: lok.knopen.pts.map(rd) } } : {}) };
   };
   // Vergrendeld = niet verschuiven, draaien, vervormen of wissen (zoals op de kaart).
   const isVergrendeld = (id) => !!inrichting.find((x) => x.id === id)?.vergrendeld;
@@ -721,7 +741,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   });
   // Draaigreep boven de selectie (zoals op de kaart): midden en schermpositie van de greep.
   const draaiGreep = () => {
-    if (!schrijven || kiesEl || modus || !sel.length || (vormZaal && sel.length === 1)) return null;
+    if (!schrijven || kiesEl || modus || !sel.length) return null;
     const lijst = inrichting.filter((x) => sel.includes(x.id)); if (!lijst.length || lijst.some((x) => x.vergrendeld)) return null;
     const loks = lijst.map((x) => (voorlopig?.[x.id] || lokaalVan(x)));
     if (lijst.length === 1 && loks[0].geometrie.type === 'Point') return null; // een punt of tekst alleen: niets te draaien
@@ -871,16 +891,21 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     }
     // Hoekpunt of middenpunt van de gekozen zaal vastnemen.
     if (schrijven && vormIt) {
-      // Hoekpunten van een zaal of een getekende lijn/vlak: slepen, middenpunt = punt erbij, dubbelklik = weg.
-      const g0 = lokaalVan(vormIt).geometrie; const open = g0.type === 'LineString'; const ring = puntenVan(g0); const [mx, my] = naarScherm(w);
-      const geo2 = (r) => (open ? { type: 'LineString', coordinates: r } : { type: 'Polygon', coordinates: [r] });
-      const nHoek = open ? ring.length : ring.length - 1;
-      for (let i = 0; i < nHoek; i++) { const [x, y] = naarScherm(ring[i]); if (Math.hypot(x - mx, y - my) < 8) { if (e.detail >= 2 && nHoek > (open ? 2 : 3)) { const r = (open ? ring : ring.slice(0, -1)).filter((_, j) => j !== i); bewaarLokaal(vormIt, { ...lokaalVan(vormIt), geometrie: geo2(open ? r : [...r, r[0]]) }); return; } sleep.current = { hoek: i, ring, open }; return; } }
-      // Bolletje op het midden: slepen = dit stuk buigen; dubbelklik = een extra hoekpunt (dat je daarna versleept).
-      for (let i = 0; i < ring.length - 1; i++) { const m = [(ring[i][0] + ring[i + 1][0]) / 2, (ring[i][1] + ring[i + 1][1]) / 2]; const [x, y] = naarScherm(m); if (Math.hypot(x - mx, y - my) < 8) {
-        if (e.detail >= 2) { const r = [...ring.slice(0, i + 1), [r3(m[0]), r3(m[1])], ...ring.slice(i + 1)]; bewaarLokaal(vormIt, { ...lokaalVan(vormIt), geometrie: geo2(r) }); setMelding('Hoekpunt toegevoegd: versleep het vierkantje.'); return; }
-        sleep.current = { boog: i, ring, open }; return;
-      } }
+      // Hoekpunten van een zaal of een getekende lijn/vlak: slepen; bolletje midden op een zijde slepen = bocht;
+      // dubbelklik op het bolletje = hoekpunt erbij; dubbelklik op een hoek = weg; Alt-klik op het bolletje = weer recht.
+      const l0 = lokaalVan(vormIt); const kn = knopenVan(l0); const [mx, my] = naarScherm(w);
+      if (kn) {
+        const n = kn.pts.length; const seg = kn.open ? n - 1 : n;
+        for (let i = 0; i < n; i++) { const [x, y] = naarScherm(kn.pts[i]); if (Math.hypot(x - mx, y - my) < 8) {
+          if (e.detail >= 2 && n > (kn.open ? 2 : 3)) { const bg = {}; for (const [k, v] of Object.entries(kn.bogen || {})) { const j = Number(k); if (j < i - 1) bg[j] = v; else if (j > i) bg[j - 1] = v; } const k2 = { ...kn, pts: kn.pts.filter((_, j) => j !== i), bogen: bg }; bewaarLokaal(vormIt, { ...l0, geometrie: knopenNaarGeo(k2), knopen: k2 }); return; }
+          sleep.current = { hoek: i, kn }; return;
+        } }
+        for (let i = 0; i < seg; i++) { const a = kn.pts[i]; const b = kn.pts[(i + 1) % n]; const h = Number(kn.bogen?.[i]) || 0; const [x, y] = naarScherm(boogTop(a, b, h)); if (Math.hypot(x - mx, y - my) < 8) {
+          if (e.altKey) { const bg = { ...(kn.bogen || {}) }; delete bg[i]; const k2 = { ...kn, bogen: bg }; bewaarLokaal(vormIt, { ...l0, geometrie: knopenNaarGeo(k2), knopen: k2 }); return; }
+          if (e.detail >= 2) { const top = boogTop(a, b, h).map(r3); const bg = {}; for (const [k, v] of Object.entries(kn.bogen || {})) { const j = Number(k); if (j < i) bg[j] = v; else if (j > i) bg[j + 1] = v; } const k2 = { ...kn, pts: [...kn.pts.slice(0, i + 1), top, ...kn.pts.slice(i + 1)], bogen: bg }; bewaarLokaal(vormIt, { ...l0, geometrie: knopenNaarGeo(k2), knopen: k2 }); setMelding('Hoekpunt toegevoegd: versleep het vierkantje.'); return; }
+          sleep.current = { boog: i, kn }; return;
+        } }
+      }
     }
     const dg = draaiGreep();
     if (dg) { const [mx, my] = naarScherm(w); if (Math.hypot(dg.greep[0] - mx, dg.greep[1] - my) < 10) { sleep.current = { draai: true, c: dg.c, a0: Math.atan2(w[1] - dg.c[1], w[0] - dg.c[0]), ids: sel, orig: Object.fromEntries(inrichting.filter((x) => sel.includes(x.id)).map((x) => [x.id, lokaalVan(x)])), bewogen: false }; return; } }
@@ -952,19 +977,19 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     if (!s && !kiesEl && !modus) { const h = raak(w); const r = svgRef.current?.getBoundingClientRect(); setZweefIt(h && r ? { id: h.id, x: e.clientX - r.left, y: e.clientY - r.top } : null); } else if (zweefIt) setZweefIt(null);
     if (!s) { const dg = draaiGreep(); const [mx, my] = naarScherm(w); const op = dg && Math.hypot(dg.greep[0] - mx, dg.greep[1] - my) < 10; if (svgRef.current) svgRef.current.style.cursor = op ? 'grab' : kiesEl || ruimteKlik || modus ? 'crosshair' : 'default'; }
     if (s?.pan) { if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > 3) s.bewogen = true; setBeeld({ ...s.b, cx: s.b.cx - (e.clientX - s.x) / s.b.s, cy: s.b.cy + (e.clientY - s.y) / s.b.s }); return; }
-    if (s?.boog != null && vormIt) {
-      const a = s.ring[s.boog]; const b = s.ring[s.boog + 1];
-      const pts = boogPunten(a, b, boogHoogte(a, b, w));
-      const r = [...s.ring.slice(0, s.boog + 1), ...pts.slice(1, -1), ...s.ring.slice(s.boog + 1)];
-      s.nieuw = r; s.bewogen = true;
-      setVoorlopig({ [vormIt.id]: { ...lokaalVan(vormIt), geometrie: s.open ? { type: 'LineString', coordinates: r } : { type: 'Polygon', coordinates: [r] } } });
+    if (s?.boog != null && vormIt && s.kn) {
+      const n = s.kn.pts.length; const a = s.kn.pts[s.boog]; const b = s.kn.pts[(s.boog + 1) % n];
+      let h = boogHoogte(a, b, w); if (Math.abs(h) < 4 / B.s) h = 0; // dicht bij de koorde = recht
+      const k2 = { ...s.kn, bogen: { ...(s.kn.bogen || {}), [s.boog]: r3(h) } }; if (!h) delete k2.bogen[s.boog];
+      s.nieuw = k2; s.bewogen = true;
+      setVoorlopig({ [vormIt.id]: { ...lokaalVan(vormIt), geometrie: knopenNaarGeo(k2), knopen: k2 } });
       return;
     }
-    if (s?.hoek != null && vormIt) {
+    if (s?.hoek != null && vormIt && s.kn) {
       const q = e.altKey ? p : vangPunt(w, p);
-      const r = s.ring.map((c, i) => (i === s.hoek || (!s.open && s.hoek === 0 && i === s.ring.length - 1) ? q : c));
-      s.nieuw = r; s.bewogen = true;
-      setVoorlopig({ [vormIt.id]: { ...lokaalVan(vormIt), geometrie: s.open ? { type: 'LineString', coordinates: r } : { type: 'Polygon', coordinates: [r] } } });
+      const k2 = { ...s.kn, pts: s.kn.pts.map((c, i) => (i === s.hoek ? q : c)) };
+      s.nieuw = k2; s.bewogen = true;
+      setVoorlopig({ [vormIt.id]: { ...lokaalVan(vormIt), geometrie: knopenNaarGeo(k2), knopen: k2 } });
       return;
     }
     if (s?.kader) { s.tot = w; setKaderSel([s.kader, w]); return; }
@@ -999,8 +1024,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     const s = sleep.current; sleep.current = null;
     if (hulp.length) setHulp([]); if (afst.length && !kiesEl) setAfst([]);
     if (s?.pan && !s.bewogen && s.klik) { const r = ruimteBij(s.klik); setActieveRuimte(r?.id || null); return; }
-    if (s?.boog != null) { if (s.nieuw && vormIt) { const l = lokaalVan(vormIt); bewaarLokaal(vormIt, { ...l, geometrie: s.open ? { type: 'LineString', coordinates: s.nieuw } : { type: 'Polygon', coordinates: [s.nieuw] } }); } setTimeout(() => setVoorlopig(null), 0); return; }
-    if (s?.hoek != null) { if (s.nieuw && vormIt) { const l = lokaalVan(vormIt); bewaarLokaal(vormIt, { ...l, geometrie: s.open ? { type: 'LineString', coordinates: s.nieuw } : { type: 'Polygon', coordinates: [s.nieuw] } }); } setTimeout(() => setVoorlopig(null), 0); return; }
+    if (s?.boog != null || s?.hoek != null) { if (s.nieuw && vormIt) { const l = lokaalVan(vormIt); bewaarLokaal(vormIt, { ...l, geometrie: knopenNaarGeo(s.nieuw), knopen: s.nieuw }); } setTimeout(() => setVoorlopig(null), 0); return; }
     if (s?.kader) {
       setKaderSel(null);
       const [a, b] = [s.kader, s.tot]; const x0 = Math.min(a[0], b[0]); const x1 = Math.max(a[0], b[0]); const y0 = Math.min(a[1], b[1]); const y1 = Math.max(a[1], b[1]);
@@ -1389,8 +1413,8 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
         : modus === 'zaal' ? (punten.length ? 'Klik de andere hoek' : 'Klik een hoek van de ruimte')
           : modus === 'schaal' ? (punten.length ? 'Klik het tweede punt' : 'Klik twee punten waarvan je de afstand kent')
             : kiesEl ? `${kiesEl.naam} · klik om te plaatsen${kiesEl.tekenwijze === 'lijn' ? ' · dubbelklik = klaar' : ' · Shift + klik = meer plaatsen'}`
-              : vormIt && sel.includes(vormIt.id) ? 'Hoekjes slepen · bolletje op een zijde slepen = buigen, dubbelklik = hoek erbij · dubbelklik op een hoek = weg · Esc = klaar'
-              : sel.length && schrijven ? 'Slepen = verschuiven · Alt = kopie · bolletje = draaien (Shift 15°) · Ctrl C/V' : vormIt ? 'Hoekjes slepen · bolletje op een zijde slepen = buigen, dubbelklik = hoek erbij · dubbelklik op een hoek = weg' : '';
+              : vormIt && sel.includes(vormIt.id) ? 'Hoekjes slepen · bolletje slepen = bocht (Alt-klik = weer recht) · dubbelklik op het bolletje = hoek erbij · dubbelklik op een hoek = weg · bovenste bolletje = draaien'
+              : sel.length && schrijven ? 'Slepen = verschuiven · Alt = kopie · bolletje = draaien (Shift 15°) · Ctrl C/V' : vormIt ? 'Hoekjes slepen · bolletje slepen = bocht (Alt-klik = weer recht) · dubbelklik op het bolletje = hoek erbij' : '';
   const toonSetup = !onderlegger && !zonder && !laden && !ruimtes.length && !inrichting.length;
   // Een tafel van het huis wordt een instelbare tafel (vorm, stoelen) die naar het huiselement verwijst.
   const num = (v) => { const x = Number(String(v).replace(',', '.')); return x > 0 ? x : null; };
@@ -2373,10 +2397,10 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                   </text>
                 );
               })}
-              {schrijven && vormIt && !kiesEl && !modus && (() => { const g0 = lokaalVan(vormIt).geometrie; const open = g0.type === 'LineString'; const ring = puntenVan(g0); const k = (vormIt.velden?.ruimte && functieNu(vormIt)?.kleur) || vormIt.stijl?.kleur || '#2563EB'; return (
+              {schrijven && vormIt && !kiesEl && !modus && (() => { const kn = knopenVan(lokaalVan(vormIt)); if (!kn) return null; const n = kn.pts.length; const seg = kn.open ? n - 1 : n; const k = (vormIt.velden?.ruimte && functieNu(vormIt)?.kleur) || vormIt.stijl?.kleur || '#2563EB'; return (
                 <g>
-                  {ring.slice(0, -1).map((c, i) => { const m = [(c[0] + ring[i + 1][0]) / 2, (c[1] + ring[i + 1][1]) / 2]; const [x, y] = naarScherm(m); return <circle key={`m${i}`} cx={x} cy={y} r={4.5} fill="#fff" stroke={k} strokeWidth={1.5}><title>Sleep om dit stuk te buigen · dubbelklik voor een extra hoekpunt</title></circle>; })}
-                  {(open ? ring : ring.slice(0, -1)).map((c, i) => { const [x, y] = naarScherm(c); return <rect key={`h${i}`} x={x - 4.5} y={y - 4.5} width={9} height={9} fill="#fff" stroke={k} strokeWidth={1.5} />; })}
+                  {Array.from({ length: seg }, (_, i) => { const a = kn.pts[i]; const b = kn.pts[(i + 1) % n]; const h = Number(kn.bogen?.[i]) || 0; const [x, y] = naarScherm(boogTop(a, b, h)); return <circle key={`m${i}`} cx={x} cy={y} r={4.5} fill={h ? '#7C3AED' : '#fff'} stroke={h ? '#7C3AED' : k} strokeWidth={1.5} />; })}
+                  {kn.pts.map((c, i) => { const [x, y] = naarScherm(c); return <rect key={`h${i}`} x={x - 4.5} y={y - 4.5} width={9} height={9} fill="#fff" stroke={k} strokeWidth={1.5} />; })}
                 </g>
               ); })()}
               {plusjes().map((x) => (
