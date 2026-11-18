@@ -8,7 +8,7 @@ import { StatusKeuze, Bewaarveld, Bewaartekst, Kiezer, Keuze, DagKiezer, Chips, 
 import { opId, euro, getal, getalTekst } from './data';
 import { uurKort, leesUur, volgorde } from './dagen';
 import { STATUS_LEV, EENHEDEN, materiaalVan, leveranciersOpKaart, betrokken, matTekst, itemsVanLevering, somVan,
-  bestelRijen, samenvatting, stand, momentKort, locatieTekst, regelsVan, maakEcht, zetMoment, zetVast, splitsPerLocatie, leverficheRegels } from './bestelling';
+  bestelRijen, samenvatting, stand, momentKort, locatieTekst, namenTekst, regelsVan, maakEcht, zetMoment, zetVast, splitsPerLocatie, leverficheRegels } from './bestelling';
 import { maakXlsx, bewaarBestand } from '../maps/tabelExport';
 import { maps } from '../maps/db';
 import { bevestig } from '../maps/dialoog';
@@ -49,7 +49,7 @@ function excelBlad(f, lev, sl) {
     [lev.naam, f.plan.naam, b.vast ? 'Vastgezet' : 'Loopt mee met de kaart'],
     [],
     ['Aantal', 'Eenheid', 'Wat', 'Groep', 'Locatie', 'Levering', 'Ophaling', 'Opmerking', 'Op de kaart'],
-    ...b.rijen.map((x) => [x.besteld ?? '', eenheidNaam(x.r.eenheid), x.r.wat, x.r.groep || '', locatieTekst(f, x.r), momentKort(f.plan, lv.get(x.r.levering_id)), momentKort(f.plan, lv.get(x.r.ophaling_id)), x.r.opmerking || '', x.vrij ? '' : x.geplaatst]),
+    ...b.rijen.map((x) => [x.besteld ?? '', eenheidNaam(x.r.eenheid), x.r.wat, x.r.groep || '', locatieTekst(f, x.r), momentKort(f.plan, lv.get(x.r.levering_id)), momentKort(f.plan, lv.get(x.r.ophaling_id)), [namenTekst(x.namen, 40), x.r.opmerking].filter(Boolean).join(' · '), x.vrij ? '' : x.geplaatst]),
     ...(sl.materiaal ? [[], [sl.materiaal]] : []),
   ] };
 }
@@ -412,6 +412,7 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
                     <td><div className="pf-watcel">
                       <Veld klasse="pf-cel breed wat" waarde={r.wat} uit={!s} label="Wat" onBewaar={(v) => v.trim() && zet(x, { wat: v.trim() })} />
                       <Veld klasse="pf-cel breed sub" waarde={r.opmerking || ''} uit={!s} label={`Opmerking bij ${r.wat}`} placeholder={s ? 'opmerking' : ''} onBewaar={(v) => zet(x, { opmerking: v.trim() || null })} />
+                      {x.namen?.length > 0 && <small title={x.namen.join(', ')}>{namenTekst(x.namen)}</small>}
                       {x.weg && <small className="pf-let">staat niet meer op de kaart{s && <> · <button className="pf-link" onClick={() => f.wijzig('bestelregels', r.id, { kaart_naam: null, kaart_sleutel: null })}>loskoppelen</button></>}</small>}
                       {!x.vrij && !x.weg && x.kaartNaam !== r.wat && <small>op de kaart: {x.kaartNaam}</small>}
                     </div></td>

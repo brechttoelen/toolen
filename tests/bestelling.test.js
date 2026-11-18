@@ -26,6 +26,10 @@ describe('bestelling tegenover de kaart', () => {
     expect(b.rijen[0]).toMatchObject({ geplaatst: 4, weg: false, kaartNaam: 'Betonplaat' });
     expect(b.nietBesteld).toEqual([]);
   });
+  it('toont de namen van de items bij de regel', () => {
+    const f = fiche(); f.items[0].naam = 'CAM 2'; f.items[1].naam = 'CAM 1'; f.items[2].naam = 'Betonplaat';
+    expect(bestelRijen(f, sl(false)).rijen[0].namen).toEqual(['CAM 1', 'CAM 2', 'Plaat']);
+  });
   it('loopt mee: materiaal van de kaart staat er vanzelf, zonder verschil', () => {
     const b = bestelRijen(fiche(), sl(false));
     expect(b.rijen).toHaveLength(1);

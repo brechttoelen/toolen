@@ -97,6 +97,13 @@ export function bestelRijen(f, sl) {
     }
     return k;
   };
+  // Namen die de items op de kaart kregen (bv. CAM 1, CAM 2): staan als vanzelf bij de regel.
+  const itemOp = new Map(f.items.map((i) => [i.id, i])); const elOp = new Map((f.elementen || []).map((e) => [e.id, e]));
+  const namenVan = (ids) => {
+    const uit = new Set();
+    for (const id of ids || []) { const it = itemOp.get(id); const n = String(it?.naam || '').trim(); if (n && n !== elOp.get(it.element_id)?.naam) uit.add(n); }
+    return [...uit].sort((a, b) => a.localeCompare(b, 'nl', { numeric: true }));
+  };
   const rijen = regels.map((x, i) => {
     const r = x.r;
     if (!x.k) return { id: r.id, r, vrij: true, besteld: num(r.aantal), geplaatst: null, volgt: false };
@@ -110,12 +117,13 @@ export function bestelRijen(f, sl) {
     }
     const volgt = r.aantal == null;
     const m = mat.get(x.k);
-    return { id: r.id, r, k: x.k, vrij: false, besteld: volgt ? (vast ? null : g) : Number(r.aantal), geplaatst: g, volgt, weg: !m, kaartNaam: m?.naam || r.kaart_naam };
+    const namen = namenVan(r.locatie_laag_id ? inLaag(r.locatie_laag_id).get(x.k)?.ids : m?.ids);
+    return { id: r.id, r, k: x.k, namen, vrij: false, besteld: volgt ? (vast ? null : g) : Number(r.aantal), geplaatst: g, volgt, weg: !m, kaartNaam: m?.naam || r.kaart_naam };
   });
   const gekoppeld = new Set(regels.map((x) => x.k).filter(Boolean));
   const los = lijst.filter((m) => !gekoppeld.has(m.sleutel));
   const virtueel = vast ? [] : los.map((m) => ({
-    id: `kaart:${m.sleutel}`, k: m.sleutel, virtueel: true, vrij: false, volgt: true, besteld: m.aantal, geplaatst: m.aantal, kaartNaam: m.naam,
+    id: `kaart:${m.sleutel}`, k: m.sleutel, namen: namenVan(m.ids), virtueel: true, vrij: false, volgt: true, besteld: m.aantal, geplaatst: m.aantal, kaartNaam: m.naam,
     r: { id: null, site_leverancier_id: sl.id, wat: m.naam, kaart_naam: m.naam, kaart_sleutel: m.sleutel, eenheid: 'st', aantal: null },
   }));
   return { rijen: [...rijen, ...virtueel], nietBesteld: vast ? los : [], los, vast, mat };
@@ -133,6 +141,8 @@ export function momentKort(plan, l) {
   const u = uurKort(l.uur_van);
   return `${d ? datumTekst(d) : label(plan, l.anker, l.dag)}${u ? ` ${u}` : ''}${l.uur_tot ? `–${uurKort(l.uur_tot)}` : ''}`;
 }
+// "CAM 1, CAM 2, … +3": de namen van de items bij een regel, ingekort.
+export const namenTekst = (namen, max = 12) => (!namen?.length ? '' : namen.slice(0, max).join(', ') + (namen.length > max ? ` +${namen.length - max}` : ''));
 export const locatieTekst = (f, r) => (r.locatie_laag_id && (f.lagen || []).find((l) => l.id === r.locatie_laag_id)?.naam) || r.locatie_tekst || '';
 
 // Eén lijn in de lijst van leveranciers.
@@ -220,7 +230,7 @@ export async function splitsPerLocatie(f, sl, rij) {
 // regel = { aantal, eenheid, wat, opmerking, groep, locatie, lev, oph } met lev/oph = { anker, dag, uur_van, uur_tot } of null.
 export function leverficheRegels(f, sl) {
   const lv = new Map((f.d.leveringen || []).map((l) => [l.id, l]));
-  return bestelRijen(f, sl).rijen.map((x) => ({ aantal: x.besteld, eenheid: x.r.eenheid || 'st', wat: x.r.wat, opmerking: x.r.opmerking || '', groep: x.r.groep || '', locatie: locatieTekst(f, x.r),
+  return bestelRijen(f, sl).rijen.map((x) => ({ aantal: x.besteld, eenheid: x.r.eenheid || 'st', wat: x.r.wat, opmerking: [namenTekst(x.namen, 40), x.r.opmerking].filter(Boolean).join(' · '), groep: x.r.groep || '', locatie: locatieTekst(f, x.r),
     lev: lv.get(x.r.levering_id) || null, oph: lv.get(x.r.ophaling_id) || null }));
 }
 // Gegroepeerd per levermoment (vroegste eerst, zonder levering achteraan), daarbinnen per locatie.
