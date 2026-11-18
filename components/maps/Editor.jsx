@@ -1797,14 +1797,28 @@ export default function Editor({ planId }) {
   const [puntWissen, setPuntWissen] = useState(false);
   const puntWissenRef = useRef(false); puntWissenRef.current = puntWissen;
   useEffect(() => { if (!geselecteerd) setPuntWissen(false); }, [geselecteerd]);
+  // De eerste klik van een dubbelklik kan de selectie al wijzigen (net naast de lijn = deselecteren): onthoud even wat er
+  // net geselecteerd was, zodat de dubbelklik nog op die lijn werkt.
+  const vorigeSel = useRef({ id: null, t: 0 });
+  useEffect(() => () => { vorigeSel.current = { id: geselecteerd, t: Date.now() }; }, [geselecteerd]);
+  const vrijeVorm = (it) => it && it.geometrie && (it.geometrie.type === 'LineString' || (it.geometrie.type === 'Polygon' && !(it.parameters?.breedte && it.parameters?.diepte) && !['cirkel', 'ellips', 'veelhoek', 'sector'].includes(it.soort)));
+  // Zolang een lijn of vlak geselecteerd is (of 'Punten wissen' aan staat), zoomt een dubbelklik niet: die wist een punt.
+  useEffect(() => {
+    const map = mapRef.current; if (!map || !kaartKlaar) return;
+    const it = geselecteerd ? st.current.items.find((x) => x.id === geselecteerd) : null;
+    const uit = puntWissen || (gereedschap === 'selecteer' && schrijven && vrijeVorm(it) && !vastItem(it));
+    if (uit) map.doubleClickZoom.disable();
+    else if (!['verleng', 'route'].includes(gereedschap)) map.doubleClickZoom.enable();
+  }, [geselecteerd, puntWissen, gereedschap, schrijven, kaartKlaar]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !kaartKlaar) return;
-    const vrij = (it) => it && it.geometrie && (it.geometrie.type === 'LineString' || (it.geometrie.type === 'Polygon' && !(it.parameters?.breedte && it.parameters?.diepte) && !['cirkel', 'ellips', 'veelhoek', 'sector'].includes(it.soort)));
-    const wis = (e) => {
+    const vrij = vrijeVorm;
+    const wis = (e, dubbelklik = false) => {
       const s0 = st.current;
       if (!s0.schrijven || s0.gereedschap !== 'selecteer') return false;
-      const it = s0.items.find((x) => x.id === s0.geselecteerd);
+      const selId = s0.geselecteerd || (dubbelklik && Date.now() - vorigeSel.current.t < 600 ? vorigeSel.current.id : null);
+      const it = s0.items.find((x) => x.id === selId);
       if (!vrij(it) || vastItem(it)) return false;
       const g = it.geometrie;
       const ring = g.type === 'LineString' ? g.coordinates : g.coordinates[0].slice(0, -1);
@@ -1816,10 +1830,12 @@ export default function Editor({ planId }) {
       const rest = ring.filter((_, i) => i !== best);
       const nieuw = g.type === 'LineString' ? { type: 'LineString', coordinates: rest } : { type: 'Polygon', coordinates: [[...rest, rest[0]]] };
       zetGeometrie(it.id, nieuw, {});
+      if (s0.geselecteerd !== it.id) setGeselecteerd(it.id);
       setMelding(`Punt gewist (${ring.length - 1} over). Ctrl Z of het pijltje bovenaan zet het terug.`);
       return true;
     };
-    const dubbel = (e) => { if (wis(e)) e.preventDefault(); };
+    // Met 'Punten wissen' aan wist elke klik al een punt: de dubbelklik doet dan niets meer (anders gaan er twee weg).
+    const dubbel = (e) => { if (puntWissenRef.current) { e.preventDefault(); return; } if (wis(e, true)) e.preventDefault(); };
     const klik = (e) => { if (puntWissenRef.current) wis(e); };
     map.on('dblclick', dubbel);
     map.on('click', klik);
