@@ -171,6 +171,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   const [paneel, setPaneel] = useState('ruimtes'); // 'ruimtes' | 'huis' | 'bib' | null
   const [bibSoort, setBibSoort] = useState('meubels'); // in Bibliotheek: snelle meubels of de volledige bibliotheek
   const [menuTop, setMenuTop] = useState(8); // hoogte van het uitklapmenu naast de zijbalk
+  const [kaal, setKaal] = useState(false); // dossier-overzicht: enkel grondplan, ruimtes en hun functie
   const [focusRuimte, setFocusRuimte] = useState(null); // in het dossier: deze ruimte in de verf, de rest bleek
   const [stoelStd, setStoelStd] = useState(undefined); // stoel van het huis bij nieuwe tafels (undefined = de meest gebruikte)
   const levLijst = useLeveranciers();
@@ -1914,10 +1915,11 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       };
       // 1. Overzicht
       const vakW = PB - 2 * M - ZIJ - 6; const vakH = PH - M - 15 - M; const aVak = vakW / vakH;
-      setActieveRuimte(null); setFocusRuimte(null);
+      setActieveRuimte(null); setFocusRuimte(null); setKaal(true);
       const alleK = kaderVan(lijst.map((r) => puntenVan(lokaalVan(r).geometrie)));
       let ov = null;
       if (alleK) { const { cw, ch } = zoomVak(alleK, aVak); await wacht(500); ov = uitsnede(await vangBeeld(), cw, ch); } else { passend(); await wacht(450); ov = await vangBeeld(); }
+      setKaal(false);
       kopTekst(`${naamHost} · ${verdNaam}`, `Overzicht van de ruimtes · ${datum}`);
       if (ov) plaatsBeeld(ov, M, M + 15, vakW, vakH);
       const k0 = kolom(PB - M - ZIJ, M + 18, ZIJ);
@@ -1957,7 +1959,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       const n = doc.getNumberOfPages();
       for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(7); doc.setTextColor(132, 146, 168); doc.text(`${naamHost} · ${verdNaam} · ${i} / ${n}`, PB - M, PH - 4, { align: 'right' }); }
       doc.save(`${naamHost} - ${verdNaam} - ruimtes.pdf`.replace(/[\\/:*?"<>|]+/g, '-'));
-    } catch (e) { setMelding?.(e?.message || 'Dossier maken lukte niet.'); } finally { setFocusRuimte(null); setActieveRuimte(null); passend(); setPdfBezig(false); }
+    } catch (e) { setMelding?.(e?.message || 'Dossier maken lukte niet.'); } finally { setKaal(false); setFocusRuimte(null); setActieveRuimte(null); passend(); setPdfBezig(false); }
   };
 
   // ---------- Tekenen met de tekenaar van de bibliotheek ----------
@@ -2337,7 +2339,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                 : <circle cx={vangAan.p[0]} cy={vangAan.p[1]} r={5 / B.s} fill="none" stroke="#E11D48" strokeWidth={1.5} vectorEffect={NS} pointerEvents="none" />)}
               {ruimteEl}
               {actR && <path d={padW(puntenVan(lokaalVan(actR).geometrie), true)} fill="#2563EB" fillOpacity={0.08} stroke="#2563EB" strokeWidth={2} vectorEffect={NS} pointerEvents="none" />}
-              {itemsEl}
+              {!kaal && itemsEl}
               {/* Rij maken: voorbeeld van de kopieën in stippellijn */}
               {rijVorm && een && lokaalVan(een).midden && (() => {
                 const l = lokaalVan(een); const el = elementenMap.get(een.element_id); const mt = een.velden?.meubel ? maatMeubel(een.velden.meubel) : null;
@@ -2386,14 +2388,14 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
               {zaalLabels.map((z) => {
                 const [x, y] = naarScherm(z.p); const w = z.b * B.s - 10; const h = z.h * B.s;
                 if (w < 24 || h < 14) return null;
-                const fam = svgRef.current ? getComputedStyle(svgRef.current).fontFamily : 'system-ui'; const F1 = `700 12px ${fam}`; const F2 = `500 11px ${fam}`;
-                const n = pasIn(z.naam || '', w, F1); const f = h >= 32 ? pasIn(z.functie || '', w, F2) : '';
+                const fam = svgRef.current ? getComputedStyle(svgRef.current).fontFamily : 'system-ui'; const f1 = kaal ? 10 : 12; const f2 = kaal ? 9 : 11; const F1 = `700 ${f1}px ${fam}`; const F2 = `500 ${f2}px ${fam}`;
+                const n = pasIn(z.naam || '', w, F1); const f = h >= (kaal ? 24 : 32) ? pasIn(z.functie || '', w, F2) : '';
                 if (!n) return null;
                 return (
-                  <text key={z.id} x={x} y={f ? y - 3 : y + 4} textAnchor="middle" className="fm-bs-zaalnaam">
+                  <text key={z.id} x={x} y={f ? y - 3 : y + 4} textAnchor="middle" className="fm-bs-zaalnaam" style={kaal ? { fontSize: f1 } : undefined}>
                     <title>{[z.naam, z.functie].filter(Boolean).join(' · ')}</title>
                     {n}
-                    {f && <tspan x={x} dy="14" className="fm-bs-functie" style={{ fill: z.kleur || undefined }}>{f}</tspan>}
+                    {f && <tspan x={x} dy={kaal ? 12 : 14} className="fm-bs-functie" style={{ fill: z.kleur || undefined, ...(kaal ? { fontSize: f2 } : {}) }}>{f}</tspan>}
                   </text>
                 );
               })}
@@ -2416,7 +2418,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                   <g className="fm-bs-afst teken"><rect x={x2 + 12} y={y2 + 10} width={t.length * 6.8 + 8} height={18} rx={3} /><text x={x2 + 16 + (t.length * 6.8) / 2} y={y2 + 23} textAnchor="middle">{t}</text></g>
                 </g>
               ); })()}
-              {inrichting.filter((it) => lokaalVan(it).geometrie.type === 'Point').map((it) => {
+              {!kaal && inrichting.filter((it) => lokaalVan(it).geometrie.type === 'Point').map((it) => {
                 const el = elementenMap.get(it.element_id); const aan = sel.includes(it.id); const [x, y] = naarScherm(lokaalVan(it).geometrie.coordinates);
                 if (it.soort === 'tekst') { const fs = Number(it.stijl?.tekstgrootte) || 13; const t = it.naam || ''; const w = t.length * fs * 0.58 + 10; return (
                   <g key={it.id}>
@@ -2465,7 +2467,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
               })()}
               {(modus === 'meet' || modus === 'schaal') && (() => { const ab = punten.length === 1 && muis ? [punten[0], muis] : modus === 'meet' ? meting : null; if (!ab) return null; const [x1, y1] = naarScherm(ab[0]); const [x2, y2] = naarScherm(ab[1]); return <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 - 8} textAnchor="middle" className="fm-bs-maat">{getal(Math.hypot(ab[1][0] - ab[0][0], ab[1][1] - ab[0][1]), 2)} m</text>; })()}
               {/* Pijlpunten en maatlijnen (vaste grootte op het scherm) */}
-              {inrichting.filter((it) => !it.element_id && it.soort === 'lijn' && (it.stijl?.pijl || it.stijl?.maat)).map((it) => {
+              {!kaal && inrichting.filter((it) => !it.element_id && it.soort === 'lijn' && (it.stijl?.pijl || it.stijl?.maat)).map((it) => {
                 const c = (voorlopig?.[it.id] || lokaalVan(it)).geometrie.coordinates; if (!c || c.length < 2) return null;
                 const kl = it.stijl?.kleur || '#1d1d1b'; const dk = Math.max(1, Number(it.stijl?.dikte) || 2); const L = 8 + dk * 2.2; const B2 = 4 + dk * 1.2;
                 const kop = (a, b) => { const [x1, y1] = naarScherm(a); const [x2, y2] = naarScherm(b); const d = Math.hypot(x2 - x1, y2 - y1) || 1; const ux = (x2 - x1) / d; const uy = (y2 - y1) / d; return `${x2},${y2} ${x2 - ux * L - uy * B2},${y2 - uy * L + ux * B2} ${x2 - ux * L + uy * B2},${y2 - uy * L - ux * B2}`; };
