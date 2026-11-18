@@ -1211,7 +1211,7 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-bs-stroom { margin: 0 -12px -10px; border-top: 1px solid #E5E7EB; background: #fff; }
 .fm-bs-stroom .fm-paneel-inhoud { overflow: visible; }
 .fm-bs-opmaak { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-top: 1px solid #F1F2F4; }
-.fm-bs-opmaak .fm-bs-veld > span { font-size: 11px; color: #686D76; }
+.fm-bs-opmaak .fm-veld > span { font-size: 11px; color: #686D76; }
 .fm-bs-seg button { min-width: 30px; white-space: nowrap; }
 .fm-bs-kleuren { flex-wrap: wrap; align-items: center; }
 .fm-bs-kleuren input[type=color] { width: 18px; height: 18px; padding: 0; border: 1px solid #DADDE3; border-radius: 50%; background: none; cursor: pointer; }
@@ -2549,3 +2549,33 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-uitgang.zonder-n select:nth-of-type(2) { border-color: #F59E0B; background-color: #FFFBEB; color: #92400E; }
 .fm-uitgang-mono { font-size: 11px; color: var(--fm-grijs); padding-left: 6px; }
 .fm-uitgang .fm-x { height: 24px; width: 22px; border: 0; background: none; cursor: pointer; font-size: 15px; color: #B4123A; padding: 0; }
+
+/* ---------- Binnen-editor in dezelfde indeling als de kaart (bewerken) ---------- */
+.fm-binnenscherm .fm-bs-kop { min-height: 44px; padding: 0 10px; border-bottom: 1px solid var(--fm-rand); gap: 8px; }
+.fm-binnenscherm .fm-rij > .fm-veld, .fm-binnenscherm .fm-rij > label.fm-veld { flex: 1; }
+.fm-binnenscherm .fm-veld select:disabled, .fm-binnenscherm .fm-veld input:disabled { background: var(--fm-bg); }
+.fm-bs-rail { position: relative; flex: none; }
+.fm-bs-rail button .pijltje { position: absolute; right: 6px; bottom: 6px; width: 0; height: 0; border-left: 4px solid transparent; border-bottom: 4px solid currentColor; opacity: .7; }
+.fm-bs-rail .fm-bs-huisknop svg { color: #5FD3B8; }
+.fm-bs-rail .fm-bs-huisknop.aan svg { color: inherit; }
+.fm-binnenscherm:not(.lezen) .fm-bs-links.fm-bs-paneel { width: 256px; flex: none; display: flex; flex-direction: column; padding-bottom: 0; border-right: 1px solid var(--fm-rand); }
+.fm-bs-paneelkop { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--fm-rand); font-size: 12.5px; flex: none; }
+.fm-bs-paneelkop strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-bs-paneelkop .fm-x { border: 0; background: none; cursor: pointer; font-size: 16px; color: var(--fm-grijs); padding: 0 2px; }
+.fm-bs-bibsoort { margin: 8px 12px; display: flex; }
+.fm-bs-bibsoort button { flex: 1; }
+.fm-binnenscherm:not(.lezen) .fm-bs-rechts { width: 320px; border-left: 1px solid var(--fm-rand); }
+.fm-bs-eig { display: flex; flex-direction: column; font-size: 12px; }
+.fm-bs-eig .fm-sectie { gap: 8px; }
+.fm-bs-eig .fm-sectie:empty { display: none; }
+.fm-bs-eigkop .fm-bs-selkop { font-size: 13.5px; font-weight: 700; }
+.fm-bs-acties { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.fm-bs-acties .fm-knop svg { flex: none; }
+.fm-bs-huislabel { align-self: flex-start; background: #E3F4EF; color: #0E6B5C; border: 1px solid #0E7C6B; padding: 1px 6px; font-size: 11px; font-weight: 600; }
+.fm-bs-blokkop { display: flex; justify-content: space-between; align-items: center; width: 100%; border: 0; background: none; padding: 0; cursor: pointer; color: var(--fm-zwart); font: inherit; text-align: left; }
+.fm-bs-rijblok.open { background: #F5F9FE; }
+.fm-bs-rijblok .fm-knop.zwart { align-self: stretch; }
+.fm-binnenscherm:not(.lezen) .fm-bs-voet { min-height: 30px; padding: 0 12px; border-top: 1px solid var(--fm-rand); font-size: 12px; color: var(--t-tekst-2, #4A5A75); font-variant-numeric: tabular-nums; }
+.fm-binnenscherm:not(.lezen) .fm-bs-zweef { border-color: var(--fm-rand2); border-radius: 0; box-shadow: var(--t-schaduw-zweef, 0 1px 2px rgba(0,0,0,.08)); }
+.fm-binnenscherm:not(.lezen) .fm-bs-puntmenu { z-index: 8; }
+.fm-bs-fiche > * { margin: 0; }

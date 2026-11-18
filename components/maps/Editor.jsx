@@ -5367,6 +5367,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
             const zetOl = (patch) => wijzigPlan({ instellingen: { ...(plan.instellingen || {}), onderleggers: (plan.instellingen?.onderleggers || []).map((o) => (o.id === ol.id ? { ...o, ...patch } : o)) } });
             return (
               <BinnenScherm host={host} verdiepingen={vs} verd={verd} onderlegger={ol} items={items} elementen={elementen} elementenMap={elementenMap} schrijven={schrijven}
+                planInfo={plan} fiche={heeftModule('fiche')}
                 onVerd={(v) => setBinnenScherm({ host: host.id, verd: v })}
                 onDeelCamera={schrijven ? async (camId, naam) => {
                   // Live deellink van dit binnenplan die meteen het camerabeeld opent.

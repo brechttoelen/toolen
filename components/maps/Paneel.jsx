@@ -72,7 +72,7 @@ function LaagKiezer({ lagen, laagId, uitgeschakeld, onWijzig }) {
 }
 
 // Fasen: een veld met de gekozen fasen, opent een lijstje met vinkjes (geen vinkje = in alle fasen).
-function FaseKiezer({ fasen, faseIds, uitgeschakeld, onWijzig }) {
+export function FaseKiezer({ fasen, faseIds, uitgeschakeld, onWijzig }) {
   const [open, setOpen, ref] = useOpen();
   const gekozen = fasen.filter((f) => faseIds?.includes(f.id));
   const tekst = !gekozen.length ? 'Alle fasen' : gekozen.map((f) => f.naam).join(', ');

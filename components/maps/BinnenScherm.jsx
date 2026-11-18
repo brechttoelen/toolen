@@ -32,6 +32,10 @@ import { TrussBlok } from './TrussBlok';
 import { binnenTekst, vertaalNaam } from './binnenTaal';
 import { MEUBEL_GROEPEN, tegelMeubel, meubelTekening, maatMeubel, naamMeubel, zitMeubel, autoStoelen, naarMuur } from './meubel';
 import StroomDetail from './StroomDetail';
+import { Icoon } from './iconen';
+import FicheItemBlok from '../fiche/ItemBlok';
+import { FaseKiezer } from './Paneel';
+import { useLeveranciers, juisteNaam, zorgLeverancier } from './leveranciers';
 import { stroomVan, kabelDoelen, kabelTypeVoor, koppelVoeding, KABEL_KLEUR, kabelSpanning } from './stroom';
 import { elKast, elStekkerdoos, elVerwarming, elVerbruiker } from './werkruimtes';
 
@@ -111,14 +115,14 @@ const zaalNaam = (t) => String(t || '').replace(/\s*\([^)]*m²\)\s*$/, '').trim(
 
 export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuweVerdieping, onderlegger, items, elementen, elementenMap, schrijven,
   onMaak, onWijzig, onVerwijder, onGrondplan, onPassen, onOnderlegger, onSluit, onMaakElement, onWijzigElement, onHost, fasen = [], actieveFase = null, onFase, onOngedaan, doeken = [], taal = 'nl', fotosVast = null, merk = null, autoPdf = false, onPdfKlaar, beginCamera = null, beginCameraBeeld = null, onDeelCamera = null,
-  stroom = null, vast = [], onKabelBuiten = null }) {
+  stroom = null, vast = [], onKabelBuiten = null, planInfo = null, fiche = false, beginSel = null }) {
   const tx = binnenTekst(taal); const vn = (n) => vertaalNaam(n, taal);
   const [d, setD] = useState(null); // DXF-gegevens van het grondplan (lijnen in meter)
   const [laden, setLaden] = useState(false);
   const svgRef = useRef(null);
   const [maat, setMaat] = useState({ w: 900, h: 600 });
   const [beeld, setBeeld] = useState(null); // { cx, cy, s } s = px per meter
-  const [sel, setSel] = useState([]);
+  const [sel, setSel] = useState(() => (Array.isArray(beginSel) ? beginSel : []));
   const [kiesEl, setKiesEl] = useState(null);
   const [elRot, setElRot] = useState(0);
   const [muis, setMuis] = useState(null);
@@ -135,7 +139,11 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   const [tekenTool, setTekenTool] = useState('selecteer');
   const [punten, setPunten] = useState([]); // klikken voor meten, zaal tekenen of schaal
   const [meting, setMeting] = useState(null); // laatste meting [a, b]
-  const [tab, setTab] = useState('inrichten');
+  // Linkerpanelen zoals Lagen op de kaart: één tegelijk, via de zijbalk (nog een klik = dicht).
+  const [paneel, setPaneel] = useState('ruimtes'); // 'ruimtes' | 'huis' | 'bib' | null
+  const [bibSoort, setBibSoort] = useState('meubels'); // in Bibliotheek: snelle meubels of de volledige bibliotheek
+  const [menuTop, setMenuTop] = useState(8); // hoogte van het uitklapmenu naast de zijbalk
+  const levLijst = useLeveranciers();
   const [actieveRuimte, setActieveRuimte] = useState(null);
   const [rijVorm, setRijVorm] = useState(null); // { kol, rij, tussen }
   const [menu, setMenu] = useState(false);
@@ -1170,9 +1178,11 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     const tk = g.type === 'Polygon' ? (mb ? tekening(null, lok, 1, meubelTekening(mb)) : (el && metTekening(el).eigenschappen?.tekening ? tekening(el, lok, 1, pasTekeningAan(metTekening(el).eigenschappen.tekening, it, el), it.parameters, it) : tekening(el, lok, 1, null, it.parameters))) : null;
     // Textielframe: voor- (onder) en achterkant (boven) in de kleur van het doek.
     const zijKleur = el && isFrame(el) && lok.midden ? [1, 2].map((k) => { const id = it.velden?.[`paneel_${k}`]; return id ? elementenMap.get(id)?.eigenschappen?.kleur || '#EA580C' : null; }) : null;
+    const vanHuis = !!(it.velden?.binnen?.huis || el?.eigenschappen?.huis);
     return (
       <g key={it.id}>
         {tk}
+        {vanHuis && g.type === 'Polygon' && <path d={pad(puntenVan(g), true)} fill="#0E7C6B" fillOpacity={0.12} stroke="#0E7C6B" strokeWidth={1.5} vectorEffect={NS} pointerEvents="none" />}
         {zijKleur && zijKleur.map((kl, k) => { if (!kl) return null; const b = (Number(it.parameters?.breedte) || Number(el.breedte_m) || 1) / 2; const y = k ? 0.05 : -0.05; const p1 = draai([-b, y], lok.rot || 0); const p2 = draai([b, y], lok.rot || 0); return <path key={`z${k}`} d={padW([[lok.midden[0] + p1[0], lok.midden[1] + p1[1]], [lok.midden[0] + p2[0], lok.midden[1] + p2[1]]])} stroke={kl} strokeWidth={0.06} />; })}
         {!el && !mb ? (
           <path d={pad(puntenVan(g), g.type === 'Polygon')} fill={g.type === 'Polygon' ? (it.stijl?.vulkleur || it.stijl?.kleur || '#2563EB') : 'none'} fillOpacity={g.type === 'Polygon' ? (it.stijl?.vuldekking ?? 0.15) : 0} stroke={aan ? '#2563EB' : (it.stijl?.kleur || '#1d1d1b')} strokeWidth={aan ? 3 : Number(it.stijl?.dikte) || 2} vectorEffect={NS} strokeDasharray={it.stijl?.streep === 'streep' ? '6 4' : it.stijl?.streep === 'stip' ? '0.1 4' : undefined} strokeLinecap={it.stijl?.streep === 'stip' ? 'round' : undefined} />
@@ -1340,7 +1350,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       <button type="button" onClick={() => zet(Math.min(max, waarde + 1))} aria-label={`${label} plus`}>+</button>
     </div>
   );
-  const maatVeld = (label, waarde, zet, key) => <label className="fm-bs-veld">{label}<input key={`${key}${waarde}`} defaultValue={getal(waarde, 2)} onBlur={(e) => { const v = num(e.target.value); if (v && v !== waarde) zet(v); }} onKeyDown={enterBlur} /></label>;
+  const maatVeld = (label, waarde, zet, key) => <label className="fm-veld">{label}<input key={`${key}${waarde}`} defaultValue={getal(waarde, 2)} onBlur={(e) => { const v = num(e.target.value); if (v && v !== waarde) zet(v); }} onKeyDown={enterBlur} /></label>;
   // Instellingen van een meubel: vorm, maat, stoelen per zijde, deurrichting…
   const meubelKaart = (it) => {
     const mb = it.velden.meubel; const zet = (patch) => bewaarMeubel(it, { ...mb, ...patch });
@@ -1382,8 +1392,8 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
           </div>
           {(huisTafels.length > 0 || huisStoelen.length > 0) && (
             <div className="fm-rij">
-              {huisTafels.length > 0 && <label className="fm-bs-veld">Tafel van het huis<select value={it.element_id || ''} onChange={(e) => kiesHuisTafel(it, e.target.value || null)}><option value="">Eigen / gehuurd</option>{huisTafels.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</select></label>}
-              {huisStoelen.length > 0 && <label className="fm-bs-veld">Stoelen van het huis<select value={mb.stoel_huis || ''} onChange={(e) => zet({ stoel_huis: e.target.value || null })}><option value="">Eigen / gehuurd</option>{huisStoelen.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</select></label>}
+              {huisTafels.length > 0 && <label className="fm-veld">Tafel van het huis<select value={it.element_id || ''} onChange={(e) => kiesHuisTafel(it, e.target.value || null)}><option value="">Eigen / gehuurd</option>{huisTafels.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</select></label>}
+              {huisStoelen.length > 0 && <label className="fm-veld">Stoelen van het huis<select value={mb.stoel_huis || ''} onChange={(e) => zet({ stoel_huis: e.target.value || null })}><option value="">Eigen / gehuurd</option>{huisStoelen.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</select></label>}
             </div>
           )}
         </>
@@ -1402,7 +1412,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
           {maatVeld('Gang (m)', mb.gang || 1.2, (v) => zet({ gang: v }), `g${it.id}`)}
         </div>
         <label className="fm-vink"><input type="checkbox" checked={!!mb.tafels} onChange={(e) => zet({ tafels: e.target.checked, rijafstand: e.target.checked ? Math.max(mb.rijafstand || 0.9, 1.2) : mb.rijafstand })} /> Met tafels</label>
-        {huisStoelen.length > 0 && <label className="fm-bs-veld">Stoelen van het huis<select value={mb.stoel_huis || ''} onChange={(e) => zet({ stoel_huis: e.target.value || null })}><option value="">Eigen / gehuurd</option>{huisStoelen.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</select></label>}
+        {huisStoelen.length > 0 && <label className="fm-veld">Stoelen van het huis<select value={mb.stoel_huis || ''} onChange={(e) => zet({ stoel_huis: e.target.value || null })}><option value="">Eigen / gehuurd</option>{huisStoelen.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</select></label>}
       </>
     );
     if (mb.type === 'deur' || mb.type === 'raam') return (
@@ -1420,7 +1430,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
         )}
       </>
     );
-    if (mb.type === 'stoel') return huisStoelen.length > 0 ? <label className="fm-bs-veld">Stoel van het huis<select value={mb.stoel_huis || ''} onChange={(e) => zet({ stoel_huis: e.target.value || null })}><option value="">Eigen / gehuurd</option>{huisStoelen.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</select></label> : null;
+    if (mb.type === 'stoel') return huisStoelen.length > 0 ? <label className="fm-veld">Stoel van het huis<select value={mb.stoel_huis || ''} onChange={(e) => zet({ stoel_huis: e.target.value || null })}><option value="">Eigen / gehuurd</option>{huisStoelen.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</select></label> : null;
     return <div className="fm-rij">{maatVeld('Breedte (m)', mb.b, (v) => zet({ b: v }), `b${it.id}`)}{maatVeld('Diepte (m)', mb.d, (v) => zet({ d: v }), `d${it.id}`)}</div>;
   };
   // Functies van een zaal: altijd, per fase of op data (bv. registratie 's ochtends, diner 's avonds).
@@ -1470,7 +1480,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     const st0 = it.stijl || {}; const zetSt = (patch) => onWijzig(it.id, { stijl: { ...st0, ...patch } });
     const g = lokaalVan(it).geometrie; const lijnIs = g.type === 'LineString'; const vlakIs = g.type === 'Polygon'; const tekstIs = it.soort === 'tekst';
     const seg = (label, waarde, opties, zet) => (
-      <div className="fm-bs-veld"><span>{label}</span>
+      <div className="fm-veld"><span>{label}</span>
         <div className="fm-segment fm-bs-seg" role="group" aria-label={label}>{opties.map(([v, t, tip]) => <button key={String(v)} type="button" title={tip || t} className={waarde === v ? 'aan' : ''} onClick={() => zet(v)}>{t}</button>)}</div>
       </div>
     );
@@ -1484,12 +1494,12 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     return (
       <div className="fm-bs-opmaak">
         <div className="fm-bs-subkop" style={{ padding: 0 }}>Opmaak</div>
-        <div className="fm-bs-veld"><span>{tekstIs ? 'Kleur' : 'Lijn'}</span>{kleuren(st0.kleur || '#1d1d1b', (k) => zetSt({ kleur: k || '#1d1d1b' }))}</div>
+        <div className="fm-veld"><span>{tekstIs ? 'Kleur' : 'Lijn'}</span>{kleuren(st0.kleur || '#1d1d1b', (k) => zetSt({ kleur: k || '#1d1d1b' }))}</div>
         {!tekstIs && seg('Dikte', Number(st0.dikte) || 2, [[1, '1'], [2, '2'], [3, '3'], [5, '5'], [8, '8']], (v) => zetSt({ dikte: v }))}
         {!tekstIs && seg('Stijl', st0.streep || 'vol', [['vol', '———', 'Vol'], ['streep', '- - -', 'Streep'], ['stip', '· · ·', 'Stippel']], (v) => zetSt({ streep: v }))}
         {lijnIs && seg('Pijl', st0.pijl || 'geen', [['geen', 'Geen'], ['eind', '→', 'Pijl op het einde'], ['begin', '←', 'Pijl aan het begin'], ['beide', '↔', 'Pijl aan beide kanten']], (v) => zetSt({ pijl: v === 'geen' ? null : v }))}
         {lijnIs && <label className="fm-vink"><input type="checkbox" checked={!!st0.maat} onChange={(e) => zetSt({ maat: e.target.checked || null })} />Lengte tonen (maatlijn)</label>}
-        {vlakIs && <div className="fm-bs-veld"><span>Vulling</span>{kleuren(st0.vulkleur || st0.kleur || '#2563EB', (k) => zetSt({ vulkleur: k, vuldekking: k ? (st0.vuldekking > 0 ? st0.vuldekking : 0.35) : 0 }), true)}</div>}
+        {vlakIs && <div className="fm-veld"><span>Vulling</span>{kleuren(st0.vulkleur || st0.kleur || '#2563EB', (k) => zetSt({ vulkleur: k, vuldekking: k ? (st0.vuldekking > 0 ? st0.vuldekking : 0.35) : 0 }), true)}</div>}
         {vlakIs && (st0.vuldekking ?? 0.15) > 0 && seg('Dekking', st0.vuldekking ?? 0.15, [[0.15, 'Licht'], [0.35, 'Half'], [0.7, 'Sterk'], [1, 'Vol']], (v) => zetSt({ vuldekking: v }))}
         {tekstIs && seg('Grootte', Number(st0.tekstgrootte) || 13, [[11, 'S'], [13, 'M'], [18, 'L'], [26, 'XL'], [40, 'XXL']], (v) => zetSt({ tekstgrootte: v }))}
         {tekstIs && (
@@ -1537,7 +1547,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
         <div className="fm-bs-functies">
           <div className="fm-bs-subkop" style={{ padding: 0 }}>Doeken</div>
           {ZIJ.map((n, k) => (
-            <label key={k} className="fm-bs-veld">{n}
+            <label key={k} className="fm-veld">{n}
               <select value={it.velden?.[`paneel_${k + 1}`] || ''} disabled={!schrijven} onChange={(e) => onWijzig(it.id, { velden: { ...(it.velden || {}), [`paneel_${k + 1}`]: e.target.value || null } })}>
                 <option value="">Geen doek</option>
                 {lijst.map((d) => <option key={d.id} value={d.id}>{d.naam}</option>)}
@@ -1554,7 +1564,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       <div className="fm-bs-functies">
         <div className="fm-bs-subkop" style={{ padding: 0 }}>Doek per sectie · {n}</div>
         {dk.map((id, k) => (
-          <label key={k} className="fm-bs-veld">Sectie {k + 1}
+          <label key={k} className="fm-veld">Sectie {k + 1}
             <select value={id || ''} disabled={!schrijven} onChange={(e) => { const nl = [...dk]; nl[k] = e.target.value || null; zet(nl); }}>
               <option value="">Gordijn (geen print)</option>
               {lijst.map((d) => <option key={d.id} value={d.id}>{d.naam}</option>)}
@@ -1682,7 +1692,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     };
     const tot = Array.from({ length: n }, (_, i) => lengte(i)).reduce((a, b) => a + b, 0);
     return (
-      <div className="fm-bs-veld" style={{ gap: 4 }}>
+      <div className="fm-veld" style={{ gap: 4 }}>
         <span>{dicht ? `Zijden · omtrek ${getal(tot, 2)} m · ${getal(oppervlakte([...pts, pts[0]]), 2)} m²` : `Lengte ${getal(tot, 2)} m`}</span>
         <div className="fm-bs-zijden">
           {Array.from({ length: n }, (_, i) => <label key={i}><small>{i + 1}</small><input key={`z${it.id}${i}${r3(lengte(i))}`} type="number" step="0.05" min="0.01" defaultValue={r3(lengte(i))} onBlur={(e) => { const v = parseFloat(e.target.value); if (Math.abs(v - lengte(i)) > 0.0005) zetZijde(i, v); }} onKeyDown={enterBlur} /></label>)}
@@ -1922,9 +1932,27 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
         <input ref={bestandRef} type="file" accept=".dxf,.dwg,.pdf,image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { setZonder(false); onGrondplan(f); } }} />
       </div>
       <div className="fm-bs-lijf">
-        <aside className="fm-bs-links">
+        {schrijven && (
+          <nav className="fm-gereedschap fm-bs-rail" aria-label="Gereedschap binnenplan">
+            {[['ruimtes', 'lagen', tx.ruimtes || 'Ruimtes'], ['huis', 'gebouw', 'Van het huis'], ['bib', 'element', 'Bibliotheek']].map(([k, ic, t]) => (
+              <button key={k} type="button" className={`paneelknop${paneel === k ? ' aan' : ''}${k === 'huis' ? ' fm-bs-huisknop' : ''}`} aria-pressed={paneel === k} title={t} onClick={() => setPaneel((x) => (x === k ? null : k))}><Icoon naam={ic} maat={20} /><span>{t}</span></button>
+            ))}
+            <hr />
+            <button type="button" className={!modus && !kiesEl ? 'aan' : ''} title="Selecteren (Esc)" onClick={() => { startModus(null); setKiesEl(null); }}><Icoon naam="selecteer" maat={20} /><span>{tx.selecteren}</span></button>
+            <button type="button" className={modus in TEKEN ? 'aan' : ''} data-menuknop title="Tekenen: lijn, vlak, tekst, zaal …" onClick={(e) => { setMenuTop(e.currentTarget.offsetTop); setPuntMenu(false); setStroomMenu(false); setTekenMenu((x) => !x); }}><Icoon naam="tekenen" maat={20} /><span>{modus in TEKEN ? TEKEN[modus] : 'Tekenen'}</span><i className="pijltje" /></button>
+            <button type="button" className={modus?.startsWith('punt:') && modus !== 'punt:invoer' ? 'aan' : ''} data-menuknop title="Punt: stopcontact, camera, renner …" onClick={(e) => { setMenuTop(e.currentTarget.offsetTop); setTekenMenu(false); setStroomMenu(false); setPuntMenu((x) => !x); }}><Icoon naam="punt" maat={20} /><span>{modus?.startsWith('punt:') && modus !== 'punt:invoer' ? (PUNT[modus.slice(5)]?.kort || PUNT[modus.slice(5)]?.naam) : 'Punt'}</span><i className="pijltje" /></button>
+            {magModule('stroom') && <button type="button" className={stroomAan ? 'aan' : ''} data-menuknop title="Stroom in dit gebouw: invoer, kasten, stekkerdozen, verbruikers en kabels" onClick={(e) => { setMenuTop(e.currentTarget.offsetTop); setTekenMenu(false); setPuntMenu(false); setStroomMenu((x) => (x ? false : true)); }}><Icoon naam="bliksem" maat={20} /><span>{modus === 'kabel' ? 'Kabel' : 'Stroom'}</span><i className="pijltje" /></button>}
+            <button type="button" className={modus === 'meet' ? 'aan' : ''} title="Afstand meten" onClick={() => startModus('meet')}><Icoon naam="meten" maat={20} /><span>{tx.meten}</span></button>
+          </nav>
+        )}
+        {(!schrijven || paneel) && (
+        <aside className={`fm-bs-links${schrijven ? ' fm-bs-paneel' : ''}`}>
+          {(!schrijven || paneel === 'ruimtes') && (
+            <>
+              {schrijven && <div className="fm-paneelkop fm-bs-paneelkop"><strong>{tx.ruimtes} · {ruimtes.length}</strong><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>}
+
           {!schrijven && <button className="fm-bs-greep" aria-expanded={lijstOpen} onClick={() => setLijstOpen((x) => !x)}><span className="fm-bs-greep-streep" aria-hidden="true" /><span className="fm-bs-greep-tekst">{tx.ruimtes} · {ruimtes.length}<span className="fm-sub"> · {inrichting.length} {tx.items}</span></span><span aria-hidden="true">{lijstOpen ? '▾' : '▴'}</span></button>}
-          <div className="fm-lijstkop fm-bs-lijstkop1">{tx.ruimtes} · {ruimtes.length}</div>
+          {!schrijven && <div className="fm-lijstkop fm-bs-lijstkop1">{tx.ruimtes} · {ruimtes.length}</div>}
           {ruimtes.length ? [...ruimtes].sort((a, b) => String(a.naam || '').localeCompare(String(b.naam || ''), 'nl', { numeric: true })).map((r) => {
             const t = perRuimte.get(r.id) || { n: 0, zit: 0 }; const max = Number(r.velden?.max_personen) || 0;
             return (
@@ -1941,7 +1969,107 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
           {telEigen.map(([n, c]) => <div key={n} className="fm-bs-tel"><span title={vn(n)}>{vn(n)}</span><strong>{c}</strong></div>)}
           {telHuis.length > 0 && <div className="fm-bs-subkop">{tx.huis}</div>}
           {telHuis.map(([n, c]) => <div key={n} className="fm-bs-tel"><span title={vn(n)}>{vn(n)}</span><strong>{c}</strong></div>)}
+            </>
+          )}
+          {schrijven && paneel === 'huis' && (
+            <>
+              <div className="fm-paneelkop fm-bs-paneelkop"><strong>Van het huis</strong><span className="fm-sub"> · {naamHost}</span><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
+              <div className="fm-bs-huis">
+              {!huis.length && !huisForm && <div className="fm-sub fm-bs-leegtekst">Wat stelt {naamHost} zelf ter beschikking? Tafels, stoelen, podium… Het blijft bewaard voor volgende plannen en komt niet op onze laadlijst.</div>}
+              {huis.map(huisRij)}
+              {huisForm && (
+                <div className="fm-bs-huisform">
+                  <label className="fm-veld">Naam<input autoFocus value={huisForm.naam} onChange={(e) => setHuisForm({ ...huisForm, naam: e.target.value })} placeholder="bv. Ronde tafel Ø 1,8 m" /></label>
+                  <div className="fm-rij">
+                    <label className="fm-veld">Aantal<input type="number" min="0" value={huisForm.aantal} onChange={(e) => setHuisForm({ ...huisForm, aantal: e.target.value })} /></label>
+                    <label className="fm-veld">Zitplaatsen<input type="number" min="0" value={huisForm.zit} onChange={(e) => setHuisForm({ ...huisForm, zit: e.target.value })} /></label>
+                  </div>
+                  <label className="fm-veld">Vorm
+                    <select value={huisForm.vorm} onChange={(e) => setHuisForm({ ...huisForm, vorm: e.target.value })}>
+                      {huisForm.basis && <option value="basis">Zoals {elementenMap.get(huisForm.basis)?.naam}</option>}
+                      <option value="rond">Rond</option><option value="rechthoek">Rechthoek</option><option value="punt">Punt (bv. beamer)</option>
+                    </select>
+                  </label>
+                  {huisForm.vorm !== 'punt' && huisForm.vorm !== 'basis' && (
+                    <div className="fm-rij">
+                      <label className="fm-veld">{huisForm.vorm === 'rond' ? 'Diameter (m)' : 'Breedte (m)'}<input value={huisForm.b} onChange={(e) => setHuisForm({ ...huisForm, b: e.target.value })} /></label>
+                      {huisForm.vorm === 'rechthoek' && <label className="fm-veld">Diepte (m)<input value={huisForm.d} onChange={(e) => setHuisForm({ ...huisForm, d: e.target.value })} /></label>}
+                    </div>
+                  )}
+                  {!huisForm.id && (
+                    <label className="fm-veld">Op basis van
+                      <select value={huisForm.basis || ''} onChange={(e) => { const el = elementenMap.get(e.target.value); setHuisForm({ ...huisForm, basis: e.target.value || null, vorm: el ? 'basis' : 'rond', naam: huisForm.naam || el?.naam || '', zit: huisForm.zit === '' && el ? zitVan(el) || '' : huisForm.zit }); }}>
+                        <option value="">Geen</option>
+                        {bib.filter((e) => e.categorie === 'Binnenruimte' || /tafel|stoel|podium|bar|scherm|beamer|stand/i.test(e.naam)).map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}
+                      </select>
+                    </label>
+                  )}
+                  <div className="fm-rij"><button className="fm-knop klein zwart" disabled={!huisForm.naam.trim()} onClick={bewaarHuis}>Bewaren</button><button className="fm-knop klein" onClick={() => setHuisForm(null)}>Annuleren</button></div>
+                </div>
+              )}
+              {schrijven && !huisForm && <div style={{ padding: 12 }}><button className="fm-knop vol" style={{ width: '100%' }} onClick={() => setHuisForm({ naam: '', aantal: '', vorm: 'rond', b: '1.8', d: '', zit: '', basis: null })}>Materiaal toevoegen</button></div>}
+            </div>
+            </>
+          )}
+          {schrijven && paneel === 'bib' && (
+            <>
+              <div className="fm-paneelkop fm-bs-paneelkop"><strong>Bibliotheek</strong><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
+              <div className="fm-segment fm-bs-bibsoort">
+                <button type="button" className={bibSoort === 'meubels' ? 'aan' : ''} onClick={() => setBibSoort('meubels')}>Meubels en inrichting</button>
+                <button type="button" className={bibSoort === 'alles' ? 'aan' : ''} onClick={() => setBibSoort('alles')}>Alle elementen</button>
+              </div>
+              {bibSoort === 'meubels' ? (
+                <div className="fm-bs-inrichten">
+              {(() => {
+                const br = bib.filter((e) => isFrame(e) || isDrape(e) || isWand(e)); if (!br.length) return null;
+                return (
+                  <div>
+                    <div className="fm-bs-subkop">Branding</div>
+                    <div className="fm-bs-lijstknoppen">
+                      {br.map((e) => <button key={e.id} className={`fm-bs-lijstknop${kiesEl?.id === e.id ? ' aan' : ''}`} disabled={!schrijven} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}><span className="fm-afkap">{e.naam}</span><small>{e.tekenwijze === 'lijn' ? 'lijn tekenen' : 'klik om te plaatsen'}</small></button>)}
+                    </div>
+                  </div>
+                );
+              })()}
+              {(() => {
+                const tr = bib.filter((e) => /truss/i.test(e.categorie || '') && ['lijn', 'schaal'].includes(e.tekenwijze)); if (!tr.length) return null;
+                return (
+                  <div>
+                    <div className="fm-bs-subkop">Truss</div>
+                    <div className="fm-bs-lijstknoppen">
+                      {tr.map((e) => <button key={e.id} className={`fm-bs-lijstknop${kiesEl?.id === e.id ? ' aan' : ''}`} disabled={!schrijven} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}><span className="fm-afkap">{e.naam}</span><small>{e.tekenwijze === 'lijn' ? 'lijn tekenen' : 'klik om te plaatsen'}</small></button>)}
+                    </div>
+                  </div>
+                );
+              })()}
+              {MEUBEL_GROEPEN.map((g) => (
+                <div key={g.naam}>
+                  <div className="fm-bs-subkop">{g.naam}</div>
+                  <div className="fm-bs-tegels">
+                    {g.items.map((mb, i) => {
+                      const id = `m:${g.naam}:${i}`; const tk = meubelTekening(mb); const z = Math.max(tk.b, tk.h) || 1;
+                      return (
+                        <button key={id} className={`fm-bs-tegel${kiesEl?.id === id ? ' aan' : ''}`} disabled={!schrijven} title={naamMeubel(mb)}
+                          onClick={() => { setKiesEl(kiesEl?.id === id ? null : { id, naam: naamMeubel(mb), tekenwijze: 'schaal', meubel: mb }); setModus(null); setRuimteKlik(false); setSel([]); }}>
+                          <svg viewBox={`${-z / 2 - 0.05} ${-z / 2 - 0.05} ${z + 0.1} ${z + 0.1}`} width="44" height="44" aria-hidden="true"><g transform="scale(1 -1)">
+                            {tk.vlakken.map((v, j) => <path key={j} d={padW(v.r[0], true)} fill={v.vul === '#FAFAF8' ? '#fff' : v.vul} stroke={v.lijn === 'none' ? 'none' : v.lijn} strokeWidth={z / 60} />)}
+                            {tk.lijnen.map((l, j) => <path key={`l${j}`} d={padW(l.c)} fill="none" stroke={l.k} strokeWidth={z / 50} />)}
+                          </g></svg>
+                          <span className="titel">{tegelMeubel(mb)[0]}</span><small>{tegelMeubel(mb)[1]}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+              ) : (
+                <BibliotheekPaneel startCat="Binnenruimte" elementen={bib} gekozen={kiesEl} schrijven={schrijven} onKies={(el) => { setKiesEl(el); setRuimteKlik(false); setModus(null); setSel([]); }} />
+              )}
+            </>
+          )}
         </aside>
+        )}
         <div className="fm-bs-doek-wrap">
           {tekenvel && (
             <Tekenaar ingebed pijlen beginTool={tekenTool} begin={inrichting.filter(getekend).map(naarVorm)} beginSel={tekenSel} beginZicht={{ cx: B.cx, cy: B.cy, z: B.s }} schrijven={schrijven}
@@ -1960,6 +2088,19 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
               {ruimteEl}
               {actR && <path d={padW(puntenVan(lokaalVan(actR).geometrie), true)} fill="#2563EB" fillOpacity={0.08} stroke="#2563EB" strokeWidth={2} vectorEffect={NS} pointerEvents="none" />}
               {itemsEl}
+              {/* Rij maken: voorbeeld van de kopieën in stippellijn */}
+              {rijVorm && een && lokaalVan(een).midden && (() => {
+                const l = lokaalVan(een); const el = elementenMap.get(een.element_id); const mt = een.velden?.meubel ? maatMeubel(een.velden.meubel) : null;
+                const b = mt?.b || Number(een.parameters?.breedte) || Number(el?.breedte_m) || 1; const dd = mt?.h || Number(een.parameters?.diepte) || Number(el?.diepte_m) || 1;
+                const uit = [];
+                for (let j = 0; j < Math.min(rijVorm.rij, 40); j++) for (let i = 0; i < Math.min(rijVorm.kol, 40); i++) {
+                  if (!i && !j) continue;
+                  const o = draai([i * (b + rijVorm.tussen), -j * (dd + rijVorm.tussen)], Number(l.rot) || 0);
+                  const v = verschuif(l, o[0], o[1]); const pts = puntenVan(v.geometrie);
+                  if (pts.length) uit.push(<path key={`rv${i}-${j}`} d={pad(pts, v.geometrie.type === 'Polygon')} fill="#108AED" fillOpacity={0.06} stroke="#108AED" strokeWidth={1.5} strokeDasharray="5 3" vectorEffect={NS} pointerEvents="none" />);
+                }
+                return <g>{uit}</g>;
+              })()}
               {/* Stroom: wie voedt wie (stippellijn) voor het gekozen stroomitem, en de kabel die je aan het trekken bent */}
               {een && isStroomItem(een) && (() => {
                 const s0 = sVan(een); const lijnen = [];
@@ -2112,7 +2253,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
           </svg>
           {!toonSetup && !wachtOpPlan && (
             <>
-              <div className="fm-bs-zweef links">
+              {!schrijven && <div className="fm-bs-zweef links">
                 <button className={!modus ? 'aan' : ''} onClick={() => startModus(null)}>{tx.selecteren}</button>
                 <button className={modus === 'meet' ? 'aan' : ''} onClick={() => startModus('meet')}>{tx.meten}</button>
                 {schrijven && (
@@ -2130,9 +2271,9 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                     <button className={stroomAan ? 'aan' : ''} data-menuknop title="Stroom in dit gebouw: invoer, kasten, stekkerdozen, verbruikers en kabels" onClick={() => setStroomMenu((x) => (x ? false : true))}>{modus === 'kabel' ? 'Kabel' : modus === 'punt:invoer' ? 'Stroominvoer' : 'Stroom'} ▾</button>
                   </span>
                 )}
-              </div>
+              </div>}
               {stroomMenu && (
-                <div className="fm-menu fm-bs-puntmenu fm-bs-stroommenu">
+                <div style={schrijven ? { top: menuTop, left: 8 } : undefined} className="fm-menu fm-bs-puntmenu fm-bs-stroommenu">
                   {stroomMenu === true ? (
                     <>
                       <button onClick={() => { setStroomMenu(false); startModus('punt:invoer'); }}><svg width="22" height="22" aria-hidden="true"><PuntSymbool type="invoer" x={11} y={11} /></svg>Stroominvoer <small>waar de kabel van buiten binnenkomt</small></button>
@@ -2148,7 +2289,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                 </div>
               )}
               {tekenMenu && (
-                <div className="fm-menu fm-bs-puntmenu fm-bs-tekenmenu" onClick={() => setTekenMenu(false)}>
+                <div style={schrijven ? { top: menuTop, left: 8 } : undefined} className="fm-menu fm-bs-puntmenu fm-bs-tekenmenu" onClick={() => setTekenMenu(false)}>
                   <button onClick={() => startModus('lijn')}>Lijn of muur <small>typ een lengte + Enter · Shift = 45°</small></button>
                   <button onClick={() => startModus('pijl')}>Pijl</button>
                   <button onClick={() => startModus('maat')}>Maatlijn <small>vangt op hoeken en randen</small></button>
@@ -2160,7 +2301,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                 </div>
               )}
               {puntMenu && (
-                <div className="fm-menu fm-bs-puntmenu" onClick={() => setPuntMenu(false)}>
+                <div style={schrijven ? { top: menuTop, left: 8 } : undefined} className="fm-menu fm-bs-puntmenu" onClick={() => setPuntMenu(false)}>
                   {PUNT_TYPES.map((t) => <button key={t.k} onClick={() => startModus(`punt:${t.k}`)}><svg width="22" height="22" aria-hidden="true"><PuntSymbool type={t.k} x={11} y={11} /></svg>{t.naam}</button>)}
                 </div>
               )}
@@ -2197,37 +2338,80 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
         <aside className="fm-bs-rechts" style={tekenvel ? { display: 'none' } : undefined}>
           {!schrijven && selItems.length === 1 && leesKaart(selItems[0])}
           {schrijven && selItems.length > 0 && (
-            <div className="fm-bs-selectie">
-              <div className="fm-bs-selkop"><strong className="fm-bs-afkap">{selItems.length === 1 ? (selItems[0].velden?.meubel || selItems[0].element_id || selItems[0].velden?.punt ? omschrijf(selItems[0]).naam : selItems[0].naam || ({ lijn: 'Lijn', vlak: 'Vlak', tekst: 'Tekst', punt: 'Punt' }[selItems[0].soort]) || 'Item') : `${selItems.length} items`}</strong>
+            <div className="fm-bs-eig">
+              <div className="fm-sectie fm-bs-eigkop">
+                <div className="fm-bs-selkop"><strong className="fm-bs-afkap">{selItems.length === 1 ? (selItems[0].velden?.meubel || selItems[0].element_id || selItems[0].velden?.punt ? omschrijf(selItems[0]).naam : selItems[0].naam || ({ lijn: 'Lijn', vlak: 'Vlak', tekst: 'Tekst', punt: 'Punt' }[selItems[0].soort]) || 'Item') : `${selItems.length} items`}</strong>
                 {selItems.length === 1 && (() => { const r = ruimtes.find((x) => { const l = lokaalVan(selItems[0]); const p = l.midden || puntenVan(l.geometrie)[0]; return p && binnenVeelhoek(p, puntenVan(lokaalVan(x).geometrie)); }); return r ? <span className="fm-sub"> · {r.naam}</span> : null; })()}
+                </div>
+                {een && isHuis(een) && <span className="fm-bs-huislabel">Van het huis</span>}
+                <div className="fm-bs-acties">
+                  <button className="fm-knop klein" title="15° linksom" onClick={() => draaiSel(-15)}><Icoon naam="draailinks" maat={14} />15°</button>
+                  <button className="fm-knop klein" title="15° rechtsom" onClick={() => draaiSel(15)}><Icoon naam="draairechts" maat={14} />15°</button>
+                  <button className="fm-knop klein" onClick={() => draaiSel(90)}>90°</button>
+                  <button className="fm-knop klein" title="Kopie ernaast (Ctrl D)" onClick={dupliceer}><Icoon naam="kopie" maat={14} />Kopie</button>
+                  <span style={{ flex: 1 }} />
+                  <button className="fm-knop klein gevaar" onClick={() => { onVerwijder(sel); setSel([]); }}><Icoon naam="prullenbak" maat={14} />Wissen</button>
+                </div>
               </div>
-              {schrijven && (
-                <>
-                  <div className="fm-rij">
-                    <span className="fm-sub">Draaien</span>
-                    <button className="fm-knop klein" onClick={() => draaiSel(-15)}>↺ 15°</button>
-                    <button className="fm-knop klein" onClick={() => draaiSel(15)}>↻ 15°</button>
-                    <button className="fm-knop klein" onClick={() => draaiSel(90)}>90°</button>
-                  </div>
-                  <div className="fm-rij">
-                    <button className="fm-knop klein" onClick={dupliceer}>Dupliceren</button>
-                    {een && lokaalVan(een).midden && <button className={`fm-knop klein${rijVorm ? ' zwart' : ''}`} onClick={() => setRijVorm(rijVorm ? null : { kol: 4, rij: 1, tussen: 0.5 })}>Rij maken</button>}
-                    <span style={{ flex: 1 }} />
-                    <button className="fm-knop klein" style={{ color: '#B4123A' }} onClick={() => { onVerwijder(sel); setSel([]); }}>Wissen</button>
-                  </div>
-                  {rijVorm && een && (
-                    <div className="fm-bs-rijvorm">
-                      <label>Aantal in de breedte<input type="number" min="1" value={rijVorm.kol} onChange={(e) => setRijVorm({ ...rijVorm, kol: Math.max(1, Number(e.target.value) || 1) })} /></label>
-                      <label>Aantal in de diepte<input type="number" min="1" value={rijVorm.rij} onChange={(e) => setRijVorm({ ...rijVorm, rij: Math.max(1, Number(e.target.value) || 1) })} /></label>
-                      <label>Tussenruimte (m)<input type="number" min="0" step="0.1" value={rijVorm.tussen} onChange={(e) => setRijVorm({ ...rijVorm, tussen: Math.max(0, Number(e.target.value) || 0) })} /></label>
-                      <button className="fm-knop klein zwart" onClick={() => rijMaken(rijVorm)}>Plaatsen ({rijVorm.kol * rijVorm.rij})</button>
+              {een && (
+                <div className="fm-sectie">
+                  <div className="fm-kop">Item</div>
+                  {een && (!een.element_id || een.velden?.punt) && !een.velden?.meubel && (
+                    <>
+                      {een.velden?.punt && (
+                        <label className="fm-veld">Soort punt
+                          <select value={een.velden.punt.type} onChange={(e) => { const t = PUNT[e.target.value]; const metEl = t.k === 'stekker' && stekkerEl; const sv = t.k === 'invoer' ? { stroom: { ...(een.velden.stroom || {}), rol: 'kast', invoer: true } } : t.k === 'stroom' ? { stroom: { ...(een.velden.stroom || {}), rol: 'bron', cosphi: een.velden.stroom?.cosphi ?? 1 } } : een.velden.stroom?.invoer ? { stroom: null } : {}; onWijzig(een.id, { soort: metEl ? 'element' : 'punt', element_id: metEl ? stekkerEl.id : null, stijl: { ...(een.stijl || {}), kleur: t.kleur }, velden: { ...een.velden, ...sv, punt: { type: t.k }, binnen: { ...een.velden.binnen, huis: !!t.vast } } }); }}>
+                            {PUNT_TYPES.map((t) => <option key={t.k} value={t.k}>{t.naam}</option>)}
+                          </select>
+                        </label>
+                      )}
+                      {een.velden?.punt?.type === 'renner' && (
+                        <div className="fm-veld"><span>Figuur</span><div className="fm-segment fm-bs-seg">{[[false, 'Man'], [true, 'Vrouw']].map(([v, t]) => <button key={t} type="button" className={!!een.velden.punt.vrouw === v ? 'aan' : ''} onClick={() => onWijzig(een.id, { velden: { ...een.velden, punt: { ...een.velden.punt, vrouw: v || null } } })}>{t}</button>)}</div></div>
+                      )}
+                      {een.velden?.punt?.type === 'renner' && maatVeld('Lengte renner (m)', Number(een.velden.punt.lengte) || 1.87, (v) => onWijzig(een.id, { velden: { ...een.velden, punt: { ...een.velden.punt, lengte: v } } }), `rl${een.id}`)}
+                      {(een.soort === 'tekst' || een.soort !== 'punt') && (
+                        <label className="fm-veld">{een.soort === 'tekst' ? 'Tekst' : 'Naam'}<input key={`nm${een.id}`} defaultValue={een.naam || ''} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (een.naam || '')) onWijzig(een.id, { naam: v || null }); }} onKeyDown={enterBlur} /></label>
+                      )}
+                      {!een.velden?.punt && opmaakKaart(een)}
+                      {getekend(een) && een.soort !== 'tekst' && zijdenKaart(een)}
+                      {een.soort !== 'tekst' && !een.velden?.punt && vormKaart(een)}
+                    </>
+                  )}
+                  {een.element_id && !een.velden?.punt && (
+                    <label className="fm-veld">Naam
+                      <input key={`nme${een.id}`} placeholder={elementenMap.get(een.element_id)?.naam || 'bv. Backdrop podium'} defaultValue={een.naam || ''} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (een.naam || '')) onWijzig(een.id, { naam: v || null }); }} onKeyDown={enterBlur} />
+                    </label>
+                  )}
+                  {een.soort !== 'tekst' && (
+                    <div className="fm-raster2">
+                      <label className="fm-veld">Functie
+                        <input key={`fu${een.id}`} list="fm-objfuncties" placeholder="bv. vergadertafel" defaultValue={een.velden?.functie || ''} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (een.velden?.functie || '')) onWijzig(een.id, { velden: { ...(een.velden || {}), functie: v || null } }); }} onKeyDown={enterBlur} />
+                        <datalist id="fm-objfuncties">{['Vergadertafel', 'Registratie', 'Onthaal', 'Persplaats', 'Catering', 'Bar', 'Buffet', 'Spreker', 'Regie', 'Vertaling', 'Vestiaire', 'Opslag'].map((x) => <option key={x} value={x} />)}</datalist>
+                      </label>
+                      <label className="fm-veld">Opmerking
+                        <input key={`om${een.id}`} defaultValue={een.velden?.opmerking || ''} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (een.velden?.opmerking || '')) onWijzig(een.id, { velden: { ...(een.velden || {}), opmerking: v || null } }); }} onKeyDown={enterBlur} />
+                      </label>
                     </div>
                   )}
+                  {een.element_id && !een.velden?.punt && (isHuis(een)
+                    ? <div className="fm-sub">Geleverd door <b>{naamHost}</b> (van het huis)</div>
+                    : (
+                      <label className="fm-veld">Leverancier
+                        <input key={`lv${een.id}${een.velden?.herkomst || ''}`} list="fm-bs-leveranciers" defaultValue={een.velden?.herkomst && een.velden.herkomst !== '-' ? een.velden.herkomst : ''} placeholder={elementenMap.get(een.element_id)?.leverancier || 'Niet ingevuld'}
+                          onBlur={(e) => { const v = juisteNaam(e.target.value, levLijst); if (v !== (een.velden?.herkomst || '')) { onWijzig(een.id, { velden: { ...(een.velden || {}), herkomst: v || null } }); if (v) zorgLeverancier(v); } }} onKeyDown={enterBlur} />
+                        <datalist id="fm-bs-leveranciers">{levLijst.filter((l) => l.actief !== false).map((l) => <option key={l.id} value={l.naam} />)}</datalist>
+                      </label>
+                    ))}
+                  {fasen.length > 0 && <FaseKiezer fasen={fasen} faseIds={een.fase_ids} onWijzig={(ids) => onWijzig(een.id, { fase_ids: ids })} />}
+                </div>
+              )}
+              {een && (
+                <div className="fm-sectie fm-bs-specifiek">
                   {een?.velden?.meubel && meubelKaart(een)}
                   {een && schrijven && Array.isArray(elementenMap.get(een.element_id)?.eigenschappen?.montages) && (() => {
                     const m = elementenMap.get(een.element_id).eigenschappen.montages; const nu = een.velden?.montage || m[0][0];
                     return (
-                      <div className="fm-bs-veld"><span>Montage</span>
+                      <div className="fm-veld"><span>Montage</span>
                         <div className="fm-segment fm-bs-seg" role="group" aria-label="Montage">{m.map(([k, t]) => <button key={k} type="button" className={nu === k ? 'aan' : ''} onClick={() => onWijzig(een.id, { velden: { ...(een.velden || {}), montage: k } })}>{t}</button>)}</div>
                       </div>
                     );
@@ -2262,48 +2446,29 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                     const el = elementenMap.get(een.element_id); const b = Number(een.parameters?.breedte) || Number(el?.breedte_m) || 1; const dd = Number(een.parameters?.diepte) || Number(el?.diepte_m) || 1;
                     return (
                       <div className="fm-rij">
-                        <label className="fm-bs-veld">Breedte (m)<input key={`b${een.id}${b}`} defaultValue={getal(b, 2)} onBlur={(e) => { const v = num(e.target.value); if (v && v !== b) bewaarMaat(een, v, dd); }} onKeyDown={enterBlur} /></label>
-                        <label className="fm-bs-veld">Diepte (m)<input key={`d${een.id}${dd}`} defaultValue={getal(dd, 2)} onBlur={(e) => { const v = num(e.target.value); if (v && v !== dd) bewaarMaat(een, b, v); }} onKeyDown={enterBlur} /></label>
+                        <label className="fm-veld">Breedte (m)<input key={`b${een.id}${b}`} defaultValue={getal(b, 2)} onBlur={(e) => { const v = num(e.target.value); if (v && v !== b) bewaarMaat(een, v, dd); }} onKeyDown={enterBlur} /></label>
+                        <label className="fm-veld">Diepte (m)<input key={`d${een.id}${dd}`} defaultValue={getal(dd, 2)} onBlur={(e) => { const v = num(e.target.value); if (v && v !== dd) bewaarMaat(een, b, v); }} onKeyDown={enterBlur} /></label>
                       </div>
                     );
                   })()}
-                  {een && (!een.element_id || een.velden?.punt) && !een.velden?.meubel && (
+                </div>
+              )}
+              {een && lokaalVan(een).midden && (
+                <div className={`fm-sectie fm-bs-rijblok${rijVorm ? ' open' : ''}`}>
+                  <button type="button" className="fm-bs-blokkop" aria-expanded={!!rijVorm} onClick={() => setRijVorm(rijVorm ? null : { kol: 4, rij: 1, tussen: 0.5 })}><span className="fm-kop">Rij maken</span><span aria-hidden="true">{rijVorm ? '▾' : '▸'}</span></button>
+                  {rijVorm && (
                     <>
-                      {een.velden?.punt && (
-                        <label className="fm-bs-veld">Soort punt
-                          <select value={een.velden.punt.type} onChange={(e) => { const t = PUNT[e.target.value]; const metEl = t.k === 'stekker' && stekkerEl; const sv = t.k === 'invoer' ? { stroom: { ...(een.velden.stroom || {}), rol: 'kast', invoer: true } } : t.k === 'stroom' ? { stroom: { ...(een.velden.stroom || {}), rol: 'bron', cosphi: een.velden.stroom?.cosphi ?? 1 } } : een.velden.stroom?.invoer ? { stroom: null } : {}; onWijzig(een.id, { soort: metEl ? 'element' : 'punt', element_id: metEl ? stekkerEl.id : null, stijl: { ...(een.stijl || {}), kleur: t.kleur }, velden: { ...een.velden, ...sv, punt: { type: t.k }, binnen: { ...een.velden.binnen, huis: !!t.vast } } }); }}>
-                            {PUNT_TYPES.map((t) => <option key={t.k} value={t.k}>{t.naam}</option>)}
-                          </select>
-                        </label>
-                      )}
-                      {een.velden?.punt?.type === 'renner' && (
-                        <div className="fm-bs-veld"><span>Figuur</span><div className="fm-segment fm-bs-seg">{[[false, 'Man'], [true, 'Vrouw']].map(([v, t]) => <button key={t} type="button" className={!!een.velden.punt.vrouw === v ? 'aan' : ''} onClick={() => onWijzig(een.id, { velden: { ...een.velden, punt: { ...een.velden.punt, vrouw: v || null } } })}>{t}</button>)}</div></div>
-                      )}
-                      {een.velden?.punt?.type === 'renner' && maatVeld('Lengte renner (m)', Number(een.velden.punt.lengte) || 1.87, (v) => onWijzig(een.id, { velden: { ...een.velden, punt: { ...een.velden.punt, lengte: v } } }), `rl${een.id}`)}
-                      {(een.soort === 'tekst' || een.soort !== 'punt') && (
-                        <label className="fm-bs-veld">{een.soort === 'tekst' ? 'Tekst' : 'Naam'}<input key={`nm${een.id}`} defaultValue={een.naam || ''} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (een.naam || '')) onWijzig(een.id, { naam: v || null }); }} onKeyDown={enterBlur} /></label>
-                      )}
-                      {!een.velden?.punt && opmaakKaart(een)}
-                      {getekend(een) && een.soort !== 'tekst' && zijdenKaart(een)}
-                      {een.soort !== 'tekst' && !een.velden?.punt && vormKaart(een)}
+                      <div className="fm-raster3">
+                        <label className="fm-veld">Naast elkaar<input type="number" min="1" value={rijVorm.kol} onChange={(e) => setRijVorm({ ...rijVorm, kol: Math.max(1, Number(e.target.value) || 1) })} /></label>
+                        <label className="fm-veld">Achter elkaar<input type="number" min="1" value={rijVorm.rij} onChange={(e) => setRijVorm({ ...rijVorm, rij: Math.max(1, Number(e.target.value) || 1) })} /></label>
+                        <label className="fm-veld">Tussenruimte (m)<input type="number" min="0" step="0.1" value={rijVorm.tussen} onChange={(e) => setRijVorm({ ...rijVorm, tussen: Math.max(0, Number(e.target.value) || 0) })} /></label>
+                      </div>
+                      <div className="fm-sub">Voorbeeld in stippellijn op het plan{een.velden?.meubel ? ' · stoelen gaan mee' : ''}{isHuis(een) ? ' · telt mee in de voorraad van het huis' : ''}</div>
+                      <button className="fm-knop zwart" onClick={() => rijMaken(rijVorm)}>Plaatsen ({rijVorm.kol * rijVorm.rij})</button>
                     </>
                   )}
-                  {een && een.element_id && !een.velden?.punt && (
-                    <label className="fm-bs-veld">Naam
-                      <input key={`nme${een.id}`} disabled={!schrijven} placeholder={elementenMap.get(een.element_id)?.naam || 'bv. Backdrop podium'} defaultValue={een.naam || ''} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (een.naam || '')) onWijzig(een.id, { naam: v || null }); }} onKeyDown={enterBlur} />
-                    </label>
-                  )}
-                  {een && een.soort !== 'tekst' && (
-                    <label className="fm-bs-veld">Functie
-                      <input key={`fu${een.id}`} list="fm-objfuncties" placeholder="bv. vergadertafel, stekkerblok bar" defaultValue={een.velden?.functie || ''} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (een.velden?.functie || '')) onWijzig(een.id, { velden: { ...(een.velden || {}), functie: v || null } }); }} onKeyDown={enterBlur} />
-                      <datalist id="fm-objfuncties">{['Vergadertafel', 'Registratie', 'Onthaal', 'Persplaats', 'Catering', 'Bar', 'Buffet', 'Spreker', 'Regie', 'Vertaling', 'Vestiaire', 'Opslag'].map((x) => <option key={x} value={x} />)}</datalist>
-                    </label>
-                  )}
-                  {een && (
-                    <label className="fm-bs-veld">Opmerking
-                      <input key={een.id} defaultValue={een.velden?.opmerking || ''} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (een.velden?.opmerking || '')) onWijzig(een.id, { velden: { ...(een.velden || {}), opmerking: v || null } }); }} />
-                    </label>
-                  )}
+                </div>
+              )}
                   {een && isStroomItem(een) && (
                     <div className="fm-bs-stroom">
                       <StroomDetail key={een.id} item={een} el={een.element_id ? elementenMap.get(een.element_id) : null} stroom={stroom} items={items} elementenMap={elementenMap} vast={vast} schrijven={schrijven}
@@ -2312,7 +2477,8 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                         onZet={(patch) => onWijzig(een.id, { velden: { ...(een.velden || {}), stroom: { ...(een.velden?.stroom || {}), ...patch } } })} />
                     </div>
                   )}
-                </>
+              {een && fiche && planInfo && een.plan_id && (
+                <div className="fm-sectie fm-bs-fiche"><FicheItemBlok item={een} plan={planInfo} schrijven={schrijven} /></div>
               )}
             </div>
           )}
@@ -2329,8 +2495,8 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
               <div className="fm-rij"><span>{perRuimte.get(actR.id)?.zit || 0} zitplaatsen geplaatst</span></div>
               {schrijven && (
                 <div className="fm-rij">
-                  <label className="fm-bs-veld" style={{ flex: 1 }}>Naam<input key={`n${actR.id}`} defaultValue={actR.naam || ''} onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== actR.naam) onWijzig(actR.id, { naam: v }); }} /></label>
-                  <label className="fm-bs-veld" style={{ width: 110 }}>Max. personen<input key={`m${actR.id}`} type="number" min="0" defaultValue={actR.velden?.max_personen || ''} onBlur={(e) => { const v = Number(e.target.value) || null; if (v !== (actR.velden?.max_personen || null)) onWijzig(actR.id, { velden: { ...(actR.velden || {}), max_personen: v } }); }} /></label>
+                  <label className="fm-veld" style={{ flex: 1 }}>Naam<input key={`n${actR.id}`} defaultValue={actR.naam || ''} onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== actR.naam) onWijzig(actR.id, { naam: v }); }} /></label>
+                  <label className="fm-veld" style={{ width: 110 }}>Max. personen<input key={`m${actR.id}`} type="number" min="0" defaultValue={actR.velden?.max_personen || ''} onBlur={(e) => { const v = Number(e.target.value) || null; if (v !== (actR.velden?.max_personen || null)) onWijzig(actR.id, { velden: { ...(actR.velden || {}), max_personen: v } }); }} /></label>
                 </div>
               )}
               {functieKaart(actR)}
@@ -2345,96 +2511,6 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
             </div>
           )}
           {!schrijven && !selItems.length && !actR && !gebouwKaart && <div className="fm-sub fm-bs-leegtekst" style={{ padding: 16 }}>{tx.detail}</div>}
-          {schrijven && <div className="fm-segment fm-bs-tabs">
-            <button className={tab === 'inrichten' ? 'aan' : ''} onClick={() => setTab('inrichten')}>Inrichten</button>
-            <button className={tab === 'huis' ? 'aan' : ''} onClick={() => setTab('huis')}>Van het huis</button>
-            <button className={tab === 'bib' ? 'aan' : ''} onClick={() => setTab('bib')}>Bibliotheek</button>
-          </div>}
-          {schrijven && tab === 'inrichten' && (
-            <div className="fm-bs-inrichten">
-              {(() => {
-                const br = bib.filter((e) => isFrame(e) || isDrape(e) || isWand(e)); if (!br.length) return null;
-                return (
-                  <div>
-                    <div className="fm-bs-subkop">Branding</div>
-                    <div className="fm-bs-lijstknoppen">
-                      {br.map((e) => <button key={e.id} className={`fm-bs-lijstknop${kiesEl?.id === e.id ? ' aan' : ''}`} disabled={!schrijven} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}><span className="fm-afkap">{e.naam}</span><small>{e.tekenwijze === 'lijn' ? 'lijn tekenen' : 'klik om te plaatsen'}</small></button>)}
-                    </div>
-                  </div>
-                );
-              })()}
-              {(() => {
-                const tr = bib.filter((e) => /truss/i.test(e.categorie || '') && ['lijn', 'schaal'].includes(e.tekenwijze)); if (!tr.length) return null;
-                return (
-                  <div>
-                    <div className="fm-bs-subkop">Truss</div>
-                    <div className="fm-bs-lijstknoppen">
-                      {tr.map((e) => <button key={e.id} className={`fm-bs-lijstknop${kiesEl?.id === e.id ? ' aan' : ''}`} disabled={!schrijven} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}><span className="fm-afkap">{e.naam}</span><small>{e.tekenwijze === 'lijn' ? 'lijn tekenen' : 'klik om te plaatsen'}</small></button>)}
-                    </div>
-                  </div>
-                );
-              })()}
-              {MEUBEL_GROEPEN.map((g) => (
-                <div key={g.naam}>
-                  <div className="fm-bs-subkop">{g.naam}</div>
-                  <div className="fm-bs-tegels">
-                    {g.items.map((mb, i) => {
-                      const id = `m:${g.naam}:${i}`; const tk = meubelTekening(mb); const z = Math.max(tk.b, tk.h) || 1;
-                      return (
-                        <button key={id} className={`fm-bs-tegel${kiesEl?.id === id ? ' aan' : ''}`} disabled={!schrijven} title={naamMeubel(mb)}
-                          onClick={() => { setKiesEl(kiesEl?.id === id ? null : { id, naam: naamMeubel(mb), tekenwijze: 'schaal', meubel: mb }); setModus(null); setRuimteKlik(false); setSel([]); }}>
-                          <svg viewBox={`${-z / 2 - 0.05} ${-z / 2 - 0.05} ${z + 0.1} ${z + 0.1}`} width="44" height="44" aria-hidden="true"><g transform="scale(1 -1)">
-                            {tk.vlakken.map((v, j) => <path key={j} d={padW(v.r[0], true)} fill={v.vul === '#FAFAF8' ? '#fff' : v.vul} stroke={v.lijn === 'none' ? 'none' : v.lijn} strokeWidth={z / 60} />)}
-                            {tk.lijnen.map((l, j) => <path key={`l${j}`} d={padW(l.c)} fill="none" stroke={l.k} strokeWidth={z / 50} />)}
-                          </g></svg>
-                          <span className="titel">{tegelMeubel(mb)[0]}</span><small>{tegelMeubel(mb)[1]}</small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {!schrijven ? null : tab === 'huis' ? (
-            <div className="fm-bs-huis">
-              {!huis.length && !huisForm && <div className="fm-sub fm-bs-leegtekst">Wat stelt {naamHost} zelf ter beschikking? Tafels, stoelen, podium… Het blijft bewaard voor volgende plannen en komt niet op onze laadlijst.</div>}
-              {huis.map(huisRij)}
-              {huisForm && (
-                <div className="fm-bs-huisform">
-                  <label className="fm-bs-veld">Naam<input autoFocus value={huisForm.naam} onChange={(e) => setHuisForm({ ...huisForm, naam: e.target.value })} placeholder="bv. Ronde tafel Ø 1,8 m" /></label>
-                  <div className="fm-rij">
-                    <label className="fm-bs-veld">Aantal<input type="number" min="0" value={huisForm.aantal} onChange={(e) => setHuisForm({ ...huisForm, aantal: e.target.value })} /></label>
-                    <label className="fm-bs-veld">Zitplaatsen<input type="number" min="0" value={huisForm.zit} onChange={(e) => setHuisForm({ ...huisForm, zit: e.target.value })} /></label>
-                  </div>
-                  <label className="fm-bs-veld">Vorm
-                    <select value={huisForm.vorm} onChange={(e) => setHuisForm({ ...huisForm, vorm: e.target.value })}>
-                      {huisForm.basis && <option value="basis">Zoals {elementenMap.get(huisForm.basis)?.naam}</option>}
-                      <option value="rond">Rond</option><option value="rechthoek">Rechthoek</option><option value="punt">Punt (bv. beamer)</option>
-                    </select>
-                  </label>
-                  {huisForm.vorm !== 'punt' && huisForm.vorm !== 'basis' && (
-                    <div className="fm-rij">
-                      <label className="fm-bs-veld">{huisForm.vorm === 'rond' ? 'Diameter (m)' : 'Breedte (m)'}<input value={huisForm.b} onChange={(e) => setHuisForm({ ...huisForm, b: e.target.value })} /></label>
-                      {huisForm.vorm === 'rechthoek' && <label className="fm-bs-veld">Diepte (m)<input value={huisForm.d} onChange={(e) => setHuisForm({ ...huisForm, d: e.target.value })} /></label>}
-                    </div>
-                  )}
-                  {!huisForm.id && (
-                    <label className="fm-bs-veld">Op basis van
-                      <select value={huisForm.basis || ''} onChange={(e) => { const el = elementenMap.get(e.target.value); setHuisForm({ ...huisForm, basis: e.target.value || null, vorm: el ? 'basis' : 'rond', naam: huisForm.naam || el?.naam || '', zit: huisForm.zit === '' && el ? zitVan(el) || '' : huisForm.zit }); }}>
-                        <option value="">Geen</option>
-                        {bib.filter((e) => e.categorie === 'Binnenruimte' || /tafel|stoel|podium|bar|scherm|beamer|stand/i.test(e.naam)).map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}
-                      </select>
-                    </label>
-                  )}
-                  <div className="fm-rij"><button className="fm-knop klein zwart" disabled={!huisForm.naam.trim()} onClick={bewaarHuis}>Bewaren</button><button className="fm-knop klein" onClick={() => setHuisForm(null)}>Annuleren</button></div>
-                </div>
-              )}
-              {schrijven && !huisForm && <div style={{ padding: 12 }}><button className="fm-knop vol" style={{ width: '100%' }} onClick={() => setHuisForm({ naam: '', aantal: '', vorm: 'rond', b: '1.8', d: '', zit: '', basis: null })}>Materiaal toevoegen</button></div>}
-            </div>
-          ) : tab === 'bib' && (
-            <BibliotheekPaneel startCat="Binnenruimte" elementen={bib} gekozen={kiesEl} schrijven={schrijven} onKies={(el) => { setKiesEl(el); setRuimteKlik(false); setModus(null); setSel([]); }} />
-          )}
         </aside>
       </div>
     </div>
