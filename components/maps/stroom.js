@@ -24,7 +24,7 @@
 
 import { lengte } from './geo';
 import * as turf from '@turf/turf';
-import { alsStroomItem, UITGANG_A } from './vasteAansluitingen';
+import { alsStroomItem, UITGANG_A, netVan } from './vasteAansluitingen';
 
 export const ROLLEN = [['', 'Geen'], ['bron', 'Bron'], ['kast', 'Verdeelkast'], ['verbruiker', 'Verbruiker'], ['kabel', 'Kabel']];
 export const FASEN_EL = [['L1', 'L1'], ['L2', 'L2'], ['L3', 'L3'], ['3F', '3 fasen']];
@@ -220,13 +220,14 @@ export function uitgangenBezetting(uitgangen, knoop) {
   const lijst = (uitgangen || []).filter((u) => u.type);
   if (!lijst.length) return null;
   const kinderen = (knoop?.kinderen || []).map((k) => ({ id: k.id, a: ampereNodig(k.s), mono: isMonoKnoop(k.s) }));
-  const r = lijst.map((u) => ({ type: u.type, aantal: Number(u.aantal) || 1, ampere: UITGANG_A[u.type] || null, mono: UITGANG_MONO.has(u.type), doorlus: !!u.doorlus, bezet: 0, kinderen: [] }));
+  const r = lijst.map((u) => ({ type: u.type, naam: u.naam || '', net: netVan(u), aantal: Number(u.aantal) || 1, ampere: UITGANG_A[u.type] || null, mono: UITGANG_MONO.has(u.type), doorlus: !!u.doorlus, bezet: 0, kinderen: [] }));
   // Elke verbruiker neemt de kleinste passende uitgang die groot genoeg is; de zwaarste eerst.
   for (const k of kinderen.sort((x, y) => y.a - x.a)) {
     // Mono kan enkel op een mono-uitgang (schuko, CEE 16A mono): een 3-fasen-uitgang is geen optie.
     const past = (u) => (k.mono ? u.mono : !u.mono);
     // Geen verloopstukken: de stekker moet op een uitgang van dezelfde stroomsterkte passen; anders een verdeelkast ertussen.
-    const kand = r.filter((u) => u.bezet < u.aantal && (u.ampere || 0) === k.a && past(u))[0];
+    // 3 × 400 V + N eerst; een uitgang op 3 × 230 V (zonder nul) pas als er niets anders vrij is.
+    const kand = r.filter((u) => u.bezet < u.aantal && (u.ampere || 0) === k.a && past(u)).sort((x, y) => (x.net === '3x230') - (y.net === '3x230'))[0];
     if (kand) { kand.bezet += 1; kand.kinderen.push(k.id); }
   }
   return r.map((u) => ({ ...u, vrij: u.aantal - u.bezet }));
@@ -311,7 +312,9 @@ export function berekenStroom(items, elementenMap, { gelijktijdigheid = 0.8, mar
     k.bezetting = uitgangenBezetting(k.s.uitgangen, k);
     if (!k.bezetting) continue;
     for (const c of k.kinderen) {
-      if (uitgangVoorKind(k.bezetting, c.id)) continue;
+      const op = k.bezetting.find((u) => u.kinderen.includes(c.id));
+      if (op?.net === '3x230') meldingen.push({ id: c.item.id, soort: 'waarschuwing', tekst: `${c.naam} hangt op ${op.naam ? `uitgang ${op.naam} van ` : ''}${k.naam}: 3 × 230 V zonder nul. Enkel toestellen en kasten voor 3 × 230 V; een kast die 230 V tussen fase en nul maakt (schuko, CEE mono) krijgt hier geen nul. Een 63 A-uitgang levert zo ± 25 kVA in plaats van 44 kVA.` });
+      if (op) continue;
       const a = ampereNodig(c.s);
       const geenMono = isMonoKnoop(c.s) && !k.bezetting.some((u) => u.mono);
       meldingen.push({ id: c.item.id, soort: 'fout', tekst: geenMono ? `${k.naam} heeft geen mono-uitgang voor ${c.naam}: zet er een verdeeldoos tussen (bv. CEE 32A → schuko).` : `${k.naam}: geen vrije ${isMonoKnoop(c.s) ? 'mono' : `${a} A`}-uitgang voor ${c.naam}. Zet er een verdeelkast met die uitgang tussen (we werken zonder verloopstukken).` });

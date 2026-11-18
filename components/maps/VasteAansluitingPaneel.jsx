@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Info from './info';
 import { bevestig } from './dialoog';
 import { sb, BUCKET, publiekeUrl, foutTekst } from './db';
-import { SOORTEN, SOORT_NAAM, BEHEERDERS, UITGANG_TYPES, kvaVan, gemeenteBij, bewaarVasteAansluiting, uitgangenTekst } from './vasteAansluitingen';
+import { SOORTEN, SOORT_NAAM, BEHEERDERS, UITGANG_TYPES, DRIEFASE_TYPES, NETTEN, netVan, kvaVan, gemeenteBij, bewaarVasteAansluiting, uitgangenTekst } from './vasteAansluitingen';
 import { uitgangenBezetting } from './stroom';
 
 const LEEG = { naam: '', soort: 'straatkast', beheerder: 'stad', gemeente: '', adres: '', uitgangen: [], max_ampere: null, kva: null, sleutel: '', contact: '', ean: '', foto: null, opmerking: '', laatst_gecontroleerd: null, actief: true };
@@ -98,7 +98,7 @@ export default function VasteAansluitingPaneel({ va, knoop = null, schrijven, pr
         </div>
         <div className="fm-raster2">
           <label className="fm-veld">Hoofdzekering (A)<input inputMode="numeric" value={v.max_ampere ?? ''} disabled={ro} onChange={(e) => zet({ max_ampere: getalOf(e.target.value) })} placeholder="bv. 63" /></label>
-          <label className="fm-veld"><span>Vermogen (kVA)<Info>Leeg = afgeleid uit de hoofdzekering (3 fasen, 400 V).</Info></span><input inputMode="numeric" value={v.kva ?? ''} disabled={ro} onChange={(e) => zet({ kva: getalOf(e.target.value) })} placeholder={kva ? `${kva} (afgeleid)` : ''} /></label>
+          <label className="fm-veld"><span>Vermogen (kVA)<Info>Leeg = afgeleid uit de hoofdzekering (3 fasen, 400 V; 230 V als alle uitgangen op 3 × 230 V staan).</Info></span><input inputMode="numeric" value={v.kva ?? ''} disabled={ro} onChange={(e) => zet({ kva: getalOf(e.target.value) })} placeholder={kva ? `${kva} (afgeleid)` : ''} /></label>
         </div>
         <div className="fm-kop">Uitgangen</div>
         {(v.uitgangen || []).map((u, i) => (
@@ -109,6 +109,12 @@ export default function VasteAansluitingPaneel({ va, knoop = null, schrijven, pr
               <option value="">Kies…</option>{UITGANG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
             {!ro && <button className="fm-knop klein gevaar" aria-label="Uitgang weg" onClick={() => zet({ uitgangen: v.uitgangen.filter((_, j) => j !== i) })}>×</button>}
+          </div>
+        ))}
+        {(v.uitgangen || []).map((u, i) => DRIEFASE_TYPES.has(u.type) && (
+          <div key={`n${i}`} style={{ display: 'flex', gap: 4, alignItems: 'center', paddingLeft: 48 }}>
+            <input value={u.naam || ''} disabled={ro} onChange={(e) => zetUitgang(i, { naam: e.target.value || undefined })} placeholder="nr" style={{ width: 52, height: 28 }} aria-label="Nummer of naam van de uitgang" />
+            <select value={netVan(u)} disabled={ro} onChange={(e) => zetUitgang(i, { net: e.target.value === '3x230' ? '3x230' : undefined })} style={{ flex: 1, height: 28 }} aria-label={`Net van uitgang ${i + 1}`}>{NETTEN.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
           </div>
         ))}
         {!ro && <button className="fm-knop klein" style={{ alignSelf: 'flex-start' }} onClick={() => zet({ uitgangen: [...(v.uitgangen || []), { type: 'CEE 32A 3F', aantal: 1 }] })}>+ Uitgang</button>}

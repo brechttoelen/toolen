@@ -26,9 +26,16 @@ export const UITGANG_TYPES = ['CEE 16A mono', 'Schuko', 'CEE 16A 3F', 'CEE 32A 3
 // Ampère per uitgangstype, om vrije uitgangen te matchen met aansluitingen van verbruikers.
 export const UITGANG_A = { 'CEE 16A mono': 16, Schuko: 16, 'CEE 16A 3F': 16, 'CEE 32A 3F': 32, 'CEE 63A': 63, 'CEE 125A': 125, Powerlock: 400 };
 export const KLEUR = '#0E7490';
+// Net van een driefasige uitgang. In België komt naast 3 × 400 V + N nog 3 × 230 V zonder nul voor (oud net,
+// vaak op dezelfde rode CEE-stekker). Daarop werkt niets dat 230 V tussen fase en nul nodig heeft.
+export const DRIEFASE_TYPES = new Set(['CEE 16A 3F', 'CEE 32A 3F', 'CEE 63A', 'CEE 125A', 'Powerlock']);
+export const NETTEN = [['3N400', '3 × 400 V + N'], ['3x230', '3 × 230 V (zonder N)']];
+export const NET_NAAM = Object.fromEntries(NETTEN);
+export const netVan = (u) => (u && DRIEFASE_TYPES.has(u.type) ? (u.net === '3x230' ? '3x230' : '3N400') : null);
 
 // Vermogen van de kast: opgegeven kVA, anders uit de hoofdzekering (3 fasen, 400 V).
-export const kvaVan = (va) => (Number(va.kva) > 0 ? Number(va.kva) : Number(va.max_ampere) > 0 ? Math.round((Math.sqrt(3) * 400 * Number(va.max_ampere)) / 1000) : null);
+const netSpanning = (va) => { const n = (va.uitgangen || []).map(netVan).filter(Boolean); return n.length && n.every((x) => x === '3x230') ? 230 : 400; };
+export const kvaVan = (va) => (Number(va.kva) > 0 ? Number(va.kva) : Number(va.max_ampere) > 0 ? Math.round((Math.sqrt(3) * netSpanning(va) * Number(va.max_ampere)) / 1000) : null);
 
 // Pseudo-item voor stroom.js: dezelfde vorm als een item met velden.stroom.
 export function alsStroomItem(va) {
@@ -38,7 +45,8 @@ export function alsStroomItem(va) {
   };
 }
 
-export const uitgangenTekst = (va) => (va.uitgangen || []).filter((u) => u.type).map((u) => `${u.aantal || 1} × ${u.type}`).join(', ');
+export const uitgangTekst = (u) => `${u.naam ? `${u.naam}: ` : ''}${u.aantal || 1} × ${u.type}${netVan(u) === '3x230' ? ' (3 × 230 V, zonder N)' : ''}`;
+export const uitgangenTekst = (va) => (va.uitgangen || []).filter((u) => u.type).map(uitgangTekst).join(', ');
 
 export function naarGeojsonVa(lijst, { gekozen = null } = {}) {
   return {

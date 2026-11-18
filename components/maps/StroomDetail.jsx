@@ -1,5 +1,6 @@
 'use client';
 
+import { DRIEFASE_TYPES, NETTEN, netVan } from './vasteAansluitingen';
 import { StroomSectie } from './Eigenschappen';
 import { stroomVan, uitgangenBezetting, uitgangVoorKind, isMonoKnoop } from './stroom';
 import { getal } from './geo';
@@ -43,7 +44,7 @@ export default function StroomDetail({ item, el, stroom, items, elementenMap, va
             <div>
               <div className="fm-kop">Uitgangen{s.uitgangenStandaard ? <span className="fm-sub" style={{ fontWeight: 400 }}> · standaard voor {s.kva} kVA</span> : ''}</div>
               {s.ingang && <div className="fm-sub">Ingang {s.ingang}{s.ampere ? ` · ${s.ampere} A` : ''}</div>}
-              {bezetting.map((u, i) => <div key={`${u.type}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12 }}><span>{u.aantal} × {u.type}{u.doorlus ? <span className="fm-sub"> · doorlus</span> : ''}</span><span style={{ color: u.vrij > 0 ? '#686D76' : '#B91C1C', whiteSpace: 'nowrap' }}>{u.bezet ? `${u.bezet} bezet · ` : ''}{u.vrij} vrij</span></div>)}
+              {bezetting.map((u, i) => <div key={`${u.type}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12 }}><span>{u.naam ? <b>{u.naam} · </b> : ''}{u.aantal} × {u.type}{u.net === '3x230' ? <span style={{ color: '#B45309' }}> · 3 × 230 V zonder N</span> : ''}{u.doorlus ? <span className="fm-sub"> · doorlus</span> : ''}</span><span style={{ color: u.vrij > 0 ? '#686D76' : '#B91C1C', whiteSpace: 'nowrap' }}>{u.bezet ? `${u.bezet} bezet · ` : ''}{u.vrij} vrij</span></div>)}
               {s.afzekering && <div className="fm-sub">Afzekering: {s.afzekering}</div>}
             </div>
           ) : s.rol === 'kast' && schrijven ? <div className="fm-sub">Geen uitgangen bekend: vul ze hieronder in (bv. 2 × CEE 32A 3F) om vrije uitgangen te zien.</div> : null}
@@ -105,6 +106,12 @@ function UitgangenVeld({ waarde, onZet, standaard = false, rol = 'kast' }) {
           <span>×</span>
           <select value={u.type || ''} onChange={(e) => zet(i, { type: e.target.value })} style={{ flex: 1, height: 30 }} aria-label="Type"><option value="">Kies…</option>{TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select>
           <button className="fm-knop klein gevaar" aria-label="Uitgang weg" onClick={() => onZet(lijst.filter((_, j) => j !== i))}>×</button>
+        </div>
+      ))}
+      {lijst.map((u, i) => DRIEFASE_TYPES.has(u.type) && (
+        <div key={`n${i}`} style={{ display: 'flex', gap: 4, alignItems: 'center', paddingLeft: 48 }}>
+          <input value={u.naam || ''} onChange={(e) => zet(i, { naam: e.target.value || undefined })} placeholder="nr" style={{ width: 52, height: 28 }} aria-label="Nummer of naam van de uitgang" />
+          <select value={netVan(u)} onChange={(e) => zet(i, { net: e.target.value === '3x230' ? '3x230' : undefined })} style={{ flex: 1, height: 28 }} aria-label={`Net van uitgang ${i + 1}`}>{NETTEN.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
         </div>
       ))}
       <button className="fm-knop klein" style={{ alignSelf: 'flex-start' }} onClick={() => onZet([...lijst, { type: 'CEE 32A 3F', aantal: 1 }])}>+ Uitgang</button>
