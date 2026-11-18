@@ -146,7 +146,14 @@
 .pf-watcel .wat { flex: 1 1 220px; }
 .pf-watcel .sub { flex: 1 1 100%; }
 .pf-watcel .sub:placeholder-shown { display: none; }
-.pf-watcel:focus-within .sub { display: block; }
+.pf-watcel:has(input:focus) .sub { display: block; }
+.pf-pijl { all: unset; box-sizing: border-box; cursor: pointer; width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: var(--t-tekst-2); }
+.pf-pijl:hover { background: var(--t-vlak-2); color: var(--t-tekst); }
+.pf-pijl:focus-visible { outline: 2px solid var(--t-blauw); }
+.pf-pijl svg { transition: transform .12s; }
+.pf-pijl[aria-expanded=true] svg { transform: rotate(90deg); }
+.pf-tabel td.pf-pijlcel { padding-left: 8px; padding-right: 0; }
+.pf-tabel.pf-bestel th:first-child { padding-left: 8px; }
 .pf-watcel small { flex: 1 1 100%; }
 /* Bestelling per leverancier */
 .pf-balk { display: flex; align-items: center; gap: 8px; }
