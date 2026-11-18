@@ -356,7 +356,8 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
         </div>
         <div className="pf-kopvelden">
           <label><span className="t-label">Wat ze leveren</span><Bewaarveld klasse="t-veld" waarde={sl.wat || ''} uit={!s} label="Wat" placeholder="bv. betonplaten" onBewaar={(v) => f.wijzig('site_leveranciers', sl.id, { wat: v.trim() || null })} /></label>
-          <label><span className="t-label">Aanspreekpunt{contact ? ` · ${[contact.telefoon, contact.email].filter(Boolean).join(' · ')}` : ''}</span><Kiezer waarde={sl.aanspreekpunt_id} opties={contacten} leeg={contacten.length ? 'Kies een contact' : 'Nog geen contact bij deze leverancier'} uit={!s} label="Aanspreekpunt" onChange={(v) => f.wijzig('site_leveranciers', sl.id, { aanspreekpunt_id: v })} /></label>
+          <label><span className="t-label">Aanspreekpunt</span><Kiezer waarde={sl.aanspreekpunt_id} opties={contacten} leeg={contacten.length ? 'Kies een contact' : 'Nog geen contact bij deze leverancier'} uit={!s} label="Aanspreekpunt" onChange={(v) => f.wijzig('site_leveranciers', sl.id, { aanspreekpunt_id: v })} />
+            {contact && (contact.telefoon || contact.email) && <span className="pf-contact">{contact.telefoon && <a href={`tel:${contact.telefoon.replace(/[^+\d]/g, '')}`}>{contact.telefoon}</a>}{contact.email && <a href={`mailto:${contact.email}`}>{contact.email}</a>}</span>}</label>
           <label><span className="t-label">Opmerking</span><Bewaarveld klasse="t-veld" waarde={sl.opmerking || ''} uit={!s} label="Opmerking" onBewaar={(v) => f.wijzig('site_leveranciers', sl.id, { opmerking: v.trim() || null })} /></label>
         </div>
 
