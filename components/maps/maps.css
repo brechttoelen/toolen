@@ -2634,3 +2634,9 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 /* Paneel open: zacht gemarkeerd; enkel het actieve gereedschap is wit. */
 .fm-bs-rail .paneelknop.aan, .fm-bs-rail .paneelknop.aan:hover { background: rgba(255,255,255,.16); color: #fff; box-shadow: none; outline: 0; }
 .fm-bs-rail button:focus:not(:focus-visible) { outline: 0; }
+/* Selectie in de linkerpanelen exact zoals de lagen en de bibliotheek op de kaart: enkel de lichte achtergrond.
+   Geen eigen balkje, geen afgeronde focusrand van de browser bij een muisklik (wel bij toetsenbord). */
+.fm-bs-paneel .fm-bs-ruimte.aan, .fm-bs-paneel .fm-bs-elrij.aan, .fm-bs-paneel .fm-bs-huisrij.aan { background: var(--fm-aan-bg); box-shadow: none; border-left: 0; }
+.fm-bs-paneel button:focus { outline: 0; }
+.fm-bs-paneel button:focus-visible { outline: 2px solid var(--fm-zwart); outline-offset: -2px; }
+.fm-bs-paneel .fm-bs-ruimte, .fm-bs-paneel .fm-bs-elrij, .fm-bs-paneel .fm-bs-huisrij { border-radius: 0; }
