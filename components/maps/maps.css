@@ -865,9 +865,10 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-bs-vorm, .fm-bs-klein { width: auto; display: flex; }
 .fm-bs-vorm button, .fm-bs-klein button { flex: 1; padding: 0 6px; }
 .fm-bs-zijden { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
-.fm-bs-teller { display: flex; align-items: center; gap: 4px; font-size: 12px; }
-.fm-bs-teller span { flex: 1; color: var(--fm-grijs); }
-.fm-bs-teller button { width: 24px; height: 24px; border: 1px solid #DADDE3; border-radius: 4px; background: #fff; cursor: pointer; font-size: 14px; line-height: 1; }
+.fm-bs-tellers { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px 12px; }
+.fm-bs-teller { display: flex; align-items: center; gap: 4px; font-size: 12px; min-width: 0; }
+.fm-bs-teller span { flex: 1; min-width: 0; color: var(--fm-grijs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-bs-teller button { flex: none; padding: 0; width: 24px; height: 24px; border: 1px solid #DADDE3; border-radius: 4px; background: #fff; cursor: pointer; font-size: 14px; line-height: 1; }
 .fm-bs-teller b { min-width: 20px; text-align: center; }
 .fm-bs-functie { font-weight: 500; fill: #475569; font-size: 11px; }
 .fm-bs-functie-tag { font-weight: 500; }

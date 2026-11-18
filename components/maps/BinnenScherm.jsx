@@ -1352,7 +1352,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
           </div>
           <div className="fm-bs-subkop" style={{ padding: '2px 0 0' }}>Stoelen · {zitMeubel(mb)}</div>
           {rh ? (
-            <div className="fm-bs-zijden">
+            <div className="fm-bs-tellers">
               {teller('Boven', s0.boven || 0, (v) => zetStoel({ boven: v }))}
               {teller('Onder', s0.onder || 0, (v) => zetStoel({ onder: v }))}
               {teller('Links', s0.links || 0, (v) => zetStoel({ links: v }))}
@@ -1380,7 +1380,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     }
     if (mb.type === 'rijen') return (
       <>
-        <div className="fm-bs-zijden">
+        <div className="fm-bs-tellers">
           {teller('Rijen', mb.rijen, (v) => zet({ rijen: Math.max(1, v) }), 80)}
           {teller('Per rij', mb.per_rij, (v) => zet({ per_rij: Math.max(1, v) }), 80)}
           {teller('Gang na', mb.gang_na || 0, (v) => zet({ gang_na: v }), 40)}
