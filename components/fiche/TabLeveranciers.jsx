@@ -341,9 +341,9 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
           <span className="pf-stil pf-klein">Groeperen</span>
           <Seg waarde={groeperen} onChange={setGroeperen} label="Groeperen" opties={[['geen', 'Geen'], ['groep', 'Groep'], ['locatie', 'Locatie'], ['levering', 'Levering']]} />
           <button className="t-knop klein" onClick={onExcel}>Excel</button>
-          <button className="t-knop klein" onClick={leverfichePdf}>Leverfiche (PDF)</button>
+          <button className="t-knop klein" onClick={leverfichePdf}>Leverfiche</button>
           {s && <button className="t-knop klein" disabled={bezig} onClick={deel} title="Link zonder login voor de leverancier: toont altijd de laatste stand van de vastgezette bestelling">{sl.deel_token ? 'Deellink kopiëren' : 'Deellink'}</button>}
-          {s && <button className={`t-knop klein ${b.vast ? '' : 'hoofd'}`} disabled={bezig} onClick={() => metBezig(() => zetVast(f, sl, !b.vast))} title={b.vast ? 'De aantallen volgen opnieuw wat er op de kaart staat (regels zonder aantal).' : 'Elke regel krijgt het aantal dat nu op de kaart staat. Daarna zie je het verschil.'}>{b.vast ? 'Weer laten meelopen' : 'Bestelling vastzetten'}</button>}
+          {s && <button className={`t-knop klein ${b.vast ? '' : 'hoofd'}`} disabled={bezig} onClick={() => metBezig(() => zetVast(f, sl, !b.vast))} title={b.vast ? 'De aantallen volgen opnieuw wat er op de kaart staat (regels zonder aantal).' : 'Elke regel krijgt het aantal dat nu op de kaart staat. Daarna zie je het verschil.'}>{b.vast ? 'Laten meelopen' : 'Vastzetten'}</button>}
         </div>
         <div className="pf-kopvelden">
           <label><span className="t-label">Wat ze leveren</span><Bewaarveld klasse="t-veld" waarde={sl.wat || ''} uit={!s} label="Wat" placeholder="bv. betonplaten" onBewaar={(v) => f.wijzig('site_leveranciers', sl.id, { wat: v.trim() || null })} /></label>

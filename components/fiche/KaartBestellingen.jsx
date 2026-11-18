@@ -32,14 +32,14 @@ export default function KaartBestellingen({ planId, schrijven, onKiesItems, onPl
   const { lijst, herlaad, k } = useBestellingen(planId);
   if (!lijst) return <div className="fm-paneel-inhoud"><p className="fm-sub">Laden…</p></div>;
   return (
-    <div className="fm-paneel-inhoud" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '0 2px 6px' }}>
+    <div className="fm-paneel-inhoud" style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 12px' }}>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingBottom: 6 }}>
         <span className="fm-sub" style={{ flex: 1 }}>Klik een regel om dat materiaal op de kaart te selecteren.</span>
         <button className="fm-knop klein" onClick={herlaad} title="Bestellingen opnieuw ophalen uit de fiche">Vernieuw</button>
       </div>
       {!lijst.length && <p className="fm-sub">Nog geen bestellingen. Ze verschijnen zodra er materiaal van een leverancier op de kaart staat, of als je in de fiche regels toevoegt.</p>}
       {lijst.map((x) => (
-        <section key={x.sl.id} style={{ borderTop: '1px solid var(--t-rand, #E3E8EF)', padding: '8px 2px' }}>
+        <section key={x.sl.id} style={{ borderTop: '1px solid var(--t-rand, #E3E8EF)', padding: '8px 0' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
             <b style={{ flex: 1, fontWeight: 600 }}>{x.lev.naam}</b>
             <span className="fm-sub">{x.s.vast ? 'vastgezet' : 'loopt mee'}</span>

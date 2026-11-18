@@ -5043,7 +5043,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
             </button>
           )}
           <hr />
-          {[...PANELEN.slice(0, 2), ...(heeftModule('fiche') && !binnen ? [['bestellingen', 'Bestellingen', 'lijstje']] : []), ...(uitgebreid || tab === 'draaiboek' ? [['draaiboek', 'Draaiboek', 'lijstje']] : []), ...PANELEN.slice(2)]
+          {[...PANELEN.slice(0, 2), ...(heeftModule('fiche') && !binnen ? [['bestellingen', 'Bestel', 'lijstje']] : []), ...(uitgebreid || tab === 'draaiboek' ? [['draaiboek', 'Draaiboek', 'lijstje']] : []), ...PANELEN.slice(2)]
             .filter(([id]) => (id !== 'stroom' || heeftModule('stroom')) && (id !== 'sign' || heeftModule('signalisatie')))
             .map(([id, label, ic]) => {
             // Materiaal opent het volledige materiaalscherm (geen zijpaneel).
