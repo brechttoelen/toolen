@@ -19,6 +19,13 @@ describe('bestelling tegenover de kaart', () => {
   it('telt per leverancier', () => {
     expect(materiaalVan(fiche(), 'ebema').find((m) => m.naam === 'Betonplaat').aantal).toBe(4);
   });
+  it('koppelt via het element, niet via de naam', () => {
+    const f = fiche([regel('r1', { aantal: 4, kaart_sleutel: 'plaat|', kaart_naam: 'Oude naam' })], true);
+    expect(materiaalVan(f, 'ebema')[0].sleutel).toBe('plaat|');
+    const b = bestelRijen(f, sl(true));
+    expect(b.rijen[0]).toMatchObject({ geplaatst: 4, weg: false, kaartNaam: 'Betonplaat' });
+    expect(b.nietBesteld).toEqual([]);
+  });
   it('loopt mee: materiaal van de kaart staat er vanzelf, zonder verschil', () => {
     const b = bestelRijen(fiche(), sl(false));
     expect(b.rijen).toHaveLength(1);

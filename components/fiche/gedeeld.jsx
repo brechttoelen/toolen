@@ -2,6 +2,7 @@
 
 // Kleine bouwstenen van de fiche.
 import { useEffect, useRef, useState } from 'react';
+import { wedstrijd, datumVan, vanDatum, isoDag, label as dagLabel } from './dagen';
 
 export const STATUS_TAAK = [['open', 'Open'], ['bevestigd', 'Bevestigd'], ['klaar', 'Klaar']];
 export const statusKlas = (s) => ({ klaar: 'ok', bevestigd: 'blauw', op_site: 'ok', terug: 'ok', gepakt: 'blauw', gefactureerd: 'ok', afgesloten: 'ok', bevestigd_lev: 'blauw', offerte: 'blauw', betaald: 'ok', goedgekeurd: 'ok', betwist: 'let-op', afgewezen: 'let-op' }[s] || '');
@@ -75,13 +76,95 @@ export function Chips({ waarde, opties, onChange }) {
   return <div className="pf-chiprij">{opties.map(([k, n]) => <button key={k} className={`pf-chip ${waarde === k ? 'aan' : ''}`} aria-pressed={waarde === k} onClick={() => onChange(k)}>{n}</button>)}</div>;
 }
 
-// Keuze uit een lijst met zoeken (personen, leveranciers, items).
-export function Kiezer({ waarde, opties, onChange, placeholder = 'Kies…', leeg = 'Niemand', label, uit = false }) {
+// Eén keuzeveld voor de hele fiche: typen om te zoeken, pijltjes en Enter om te kiezen.
+//   opties: [{ id, naam, sub?, groep? }]. Met `vrij` mag je ook iets typen dat niet in de lijst staat (onVrij).
+//   Zonder `waarde` en met `tekst` toont het veld die vrije tekst.
+export function Keuze({ waarde, opties, onChange, leeg = 'Geen', label, uit = false, placeholder = 'Kies of typ…', vrij = false, tekst = '', onVrij, wisbaar = true, klasse = 't-veld', style }) {
+  const gekozen = opties.find((o) => o.id === waarde) || null;
+  const toon = gekozen ? gekozen.naam : (tekst || '');
+  const [q, setQ] = useState(null);          // null = niet aan het typen
+  const [open, setOpen] = useState(false);
+  const [i, setI] = useState(0);
+  const [vak, setVak] = useState(null);
+  const ref = useRef(null);
+  const zoek = (q || '').trim().toLowerCase();
+  const lijst = (zoek ? opties.filter((o) => `${o.naam} ${o.sub || ''} ${o.groep || ''}`.toLowerCase().includes(zoek)) : opties).slice(0, 60);
+  const metLeeg = wisbaar && !zoek && (waarde || tekst);
+  const plaats = () => { const r = ref.current?.getBoundingClientRect(); if (r) setVak({ left: r.left, top: r.bottom + 4, width: Math.max(r.width, 220), max: Math.max(160, window.innerHeight - r.bottom - 16) }); };
+  const doeOpen = () => { if (uit) return; plaats(); setOpen(true); setI(0); };
+  const sluit = () => { setOpen(false); setQ(null); };
+  useEffect(() => {
+    if (!open) return undefined;
+    const schuif = (e) => { if (e.target instanceof Element && e.target.closest('.pf-keuzelijst')) return; plaats(); };
+    window.addEventListener('scroll', schuif, true); window.addEventListener('resize', plaats);
+    return () => { window.removeEventListener('scroll', schuif, true); window.removeEventListener('resize', plaats); };
+  }, [open]);
+  const kies = (o) => { sluit(); ref.current?.blur(); if (o) { if (o.id !== waarde) onChange(o.id); } else if (waarde || tekst) { if (waarde) onChange(null); if (vrij && tekst) onVrij?.(''); } };
+  const verlaat = () => {
+    if (q == null) return sluit();
+    const t = q.trim();
+    const exact = t && opties.find((o) => o.naam.toLowerCase() === t.toLowerCase());
+    sluit();
+    if (exact) { if (exact.id !== waarde) onChange(exact.id); } else if (vrij && t !== toon) { if (waarde) onChange(null); onVrij?.(t); } else if (!t && (waarde || tekst)) kies(null);
+  };
+  const toets = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (!open) doeOpen(); else setI((x) => Math.min(lijst.length - 1, x + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setI((x) => Math.max(0, x - 1)); }
+    else if (e.key === 'Enter') { if (open && lijst[i] && (zoek || !vrij)) { e.preventDefault(); kies(lijst[i]); } else e.currentTarget.blur(); }
+    else if (e.key === 'Escape') { if (open) { e.stopPropagation(); sluit(); e.currentTarget.blur(); } }
+  };
+  let vorigeGroep = null;
   return (
-    <select className="t-veld" style={{ width: '100%', boxSizing: 'border-box', height: 32 }} value={waarde || ''} onChange={(e) => onChange(e.target.value || null)} aria-label={label} disabled={uit}>
-      <option value="">{leeg}</option>
-      {opties.map((o) => <option key={o.id} value={o.id}>{o.naam}</option>)}
-    </select>
+    <span className="pf-keuze" style={style}>
+      <input ref={ref} className={klasse} role="combobox" aria-expanded={open} aria-autocomplete="list" aria-label={label} disabled={uit} autoComplete="off"
+        value={q ?? toon} placeholder={uit ? '' : (leeg && !vrij ? leeg : placeholder)}
+        onFocus={(e) => { e.target.select(); doeOpen(); }} onClick={() => !open && doeOpen()}
+        onChange={(e) => { setQ(e.target.value); setI(0); if (!open) doeOpen(); }} onBlur={verlaat} onKeyDown={toets} />
+      <svg className="pijl" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" fill="none" /></svg>
+      {open && vak && (
+        <div className="pf-keuzelijst" role="listbox" style={{ left: vak.left, top: vak.top, width: vak.width, maxHeight: Math.min(320, vak.max) }} onMouseDown={(e) => e.preventDefault()}>
+          {metLeeg && <button type="button" className="leeg" onClick={() => kies(null)}>{leeg || 'Leegmaken'}</button>}
+          {lijst.map((o, n) => {
+            const kop = o.groep && o.groep !== vorigeGroep ? o.groep : null; vorigeGroep = o.groep || null;
+            return [
+              kop && <div key={`g${kop}`} className="kop">{kop}</div>,
+              <button type="button" key={o.id} role="option" aria-selected={o.id === waarde} className={`${n === i ? 'actief' : ''} ${o.id === waarde ? 'gekozen' : ''}`} onMouseEnter={() => setI(n)} onClick={() => kies(o)}>
+                <span>{o.naam}</span>{o.sub && <small>{o.sub}</small>}
+              </button>,
+            ];
+          })}
+          {!lijst.length && <div className="niets">{vrij && zoek ? `Enter: “${q.trim()}” als vrije tekst` : 'Niets gevonden'}</div>}
+          {vrij && zoek && lijst.length > 0 && !lijst.some((o) => o.naam.toLowerCase() === zoek) && <div className="niets">Tab: “{q.trim()}” als vrije tekst</div>}
+        </div>
+      )}
+    </span>
+  );
+}
+// Keuze uit een lijst (personen, leveranciers, items): zelfde veld, met zoeken.
+export function Kiezer({ waarde, opties, onChange, placeholder = 'Kies of typ…', leeg = 'Niemand', label, uit = false }) {
+  return <Keuze waarde={waarde} opties={opties} onChange={onChange} placeholder={placeholder} leeg={leeg} label={label} uit={uit} style={{ width: '100%' }} />;
+}
+
+// Eén dagkiezer voor de hele fiche: een vrije datum (bewaard tegenover de wedstrijddag, zodat ze meeschuift
+// naar een volgende editie). Zonder wedstrijddag: het aantal dagen voor (-) of na (+) de wedstrijd.
+export function DagKiezer({ plan, anker, dag, onChange, label = 'Dag', uit = false, leeg = false, metLabel = true, style }) {
+  const heeft = dag != null && dag !== '';
+  if (wedstrijd(plan)) {
+    const d = heeft ? datumVan(plan, anker, dag) : null;
+    return (
+      <span className="pf-dag" style={style}>
+        <input className="t-veld" type="date" value={d ? isoDag(d) : ''} disabled={uit} aria-label={label}
+          onChange={(e) => { if (e.target.value) onChange(vanDatum(plan, e.target.value)); else if (leeg) onChange(null); }} />
+        {metLabel && heeft && <span className="lab">{dagLabel(plan, anker, dag)}</span>}
+      </span>
+    );
+  }
+  return (
+    <span className="pf-dag" style={style}>
+      <input className="t-veld" type="number" step="1" value={heeft ? (anker === 'einde' ? dag : dag) : ''} disabled={uit} aria-label={`${label}: dagen voor (-) of na (+) de wedstrijd`} placeholder="-2"
+        onChange={(e) => { if (e.target.value === '') { if (leeg) onChange(null); return; } onChange({ anker: anker === 'einde' ? 'einde' : 'start', dag: Number(e.target.value) || 0 }); }} />
+      {metLabel && <span className="lab">{heeft ? dagLabel(plan, anker, dag) : 'dagen tegenover de wedstrijd'}</span>}
+    </span>
   );
 }
 

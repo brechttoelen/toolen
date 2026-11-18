@@ -43,6 +43,7 @@ export function berekenStuklijst(items, elementen, lagen, actieveFase = null, st
       const e2 = mr.el; const hk2 = herkomstVan({ velden: {} }, e2, std);
       const sl = `${e2.id}||h:${hk2}`;
       const r = perElement.get(sl) || { naam: e2.naam, categorie: e2.categorie, leverancier: hk2, artikel_id: e2.artikel_id || null, aantal: 0, meter: 0, tekenwijze: e2.tekenwijze === 'lijn' ? 'punt' : e2.tekenwijze };
+      if (!r.bestel) Object.defineProperty(r, 'bestel', { value: `${e2.id}|`, enumerable: false });
       r.aantal += mr.aantal; perElement.set(sl, r);
     }
     const m = maten(it, el);
@@ -146,6 +147,8 @@ export function berekenStuklijst(items, elementen, lagen, actieveFase = null, st
       const hk = herkomstVan(it, el, std);
       const sleutel = `${el.id}|${it.velden?.variant || ''}${doekNaam ? `|doek:${doekNaam}` : ''}|h:${hk}`;
       const r = perElement.get(sleutel) || { naam: [el.naam, it.velden?.variant, doekNaam].filter(Boolean).join(' · '), categorie: el.categorie, leverancier: hk, artikel_id: el.artikel_id || null, aantal: 0, meter: 0, tekenwijze: el.tekenwijze };
+      // Vaste sleutel voor de bestelling in de fiche: element en variant, los van naam en leverancier.
+      if (!r.bestel) Object.defineProperty(r, 'bestel', { value: `${el.id}|${it.velden?.variant || ''}${doekNaam ? `|doek:${doekNaam}` : ''}`, enumerable: false });
       if (el.tekenwijze === 'lijn' && isStellingBouw(it)) {
         // Stellingconstructie: één regel per soort stelling (maat, dekhoogte), geen onderdelen. Die verschillen
         // per leverancier en per constructie; de leverancier rekent ze zelf uit.

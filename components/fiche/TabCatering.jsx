@@ -5,7 +5,7 @@
 // Voorstellen: een leverancier die op een dag in de planning staat maar nog geen maaltijd heeft.
 import { useMemo, useState } from 'react';
 import { opId, euro, getal, getalTekst } from './data';
-import { Seg, Chips, Bewaarveld, TabNotities } from './gedeeld';
+import { Seg, Chips, Bewaarveld, TabNotities, DagKiezer } from './gedeeld';
 import { dagLijst, dagNaam, label, canoniek, sleutel, uitSleutel, uurKort, leesUur } from './dagen';
 import { maakXlsx, bewaarBestand } from '../maps/tabelExport';
 
@@ -150,7 +150,6 @@ function PerPlaats({ f, lev }) {
   const plaatsen = [...new Set(opDag.map(plaatsVan))];
   const leeg = { product: 'Lunchpakket', voor: '', groep: '', uur: '', aantal: '', eenheid: 'st', plaats: '', lev: '', k: huidig?.k || 'start:0' };
   const [n, setN] = useState(leeg);
-  const lijst = dagLijst(plan, [...(f.d.taak_dagen || []), { anker: 'start', dag: -10 }, { anker: 'einde', dag: 5 }]);
   const toe = async () => {
     if (!n.product.trim() || !n.voor.trim()) return f.meld('Product en voor wie invullen');
     const levVoor = f.d.leveranciers.find((l) => l.naam.toLowerCase() === n.voor.trim().toLowerCase());
@@ -188,7 +187,7 @@ function PerPlaats({ f, lev }) {
     {s && <div className="pf-kaart">
       <b>Bestelling toevoegen</b>
       <div className="pf-velden">
-        <label><span className="t-label">Dag</span><select className="t-veld" value={n.k || huidig?.k || ''} onChange={(e) => setN({ ...n, k: e.target.value })}>{lijst.map((x) => <option key={x.k} value={x.k}>{dagNaam(plan, x.anker, x.dag)}</option>)}</select></label>
+        <label><span className="t-label">Dag</span><DagKiezer plan={plan} {...uitSleutel(n.k || huidig?.k || 'start:0')} metLabel={false} onChange={(x) => setN({ ...n, k: sleutel(x.anker, x.dag) })} /></label>
         <label><span className="t-label">Product</span><input className="t-veld" value={n.product} onChange={(e) => setN({ ...n, product: e.target.value })} list="pf-producten" /></label>
         <label><span className="t-label">Voor wie</span><input className="t-veld" value={n.voor} onChange={(e) => setN({ ...n, voor: e.target.value })} list="pf-levnamen2" placeholder="Portix, Vrijwilligers" /></label>
         <label><span className="t-label">Groep</span><input className="t-veld" value={n.groep} onChange={(e) => setN({ ...n, groep: e.target.value })} placeholder="Organisatie" /></label>

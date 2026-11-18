@@ -5,7 +5,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { maps, foutTekst } from '../maps/db';
 import { herkomstVan } from '../maps/stijl';
-import { dagLijst, dagNaam, label, uitSleutel, uurKort, leesUur } from './dagen';
+import { dagNaam, label, uitSleutel, sleutel as dagSleutel, uurKort, leesUur } from './dagen';
+import { DagKiezer } from './gedeeld';
+import './fiche.css';
 
 export default function FicheSelectieBlok({ items, plan, schrijven, titelStandaard = '', elementenMap = null }) {
   const ids = useMemo(() => items.map((x) => x.id), [items]);
@@ -41,7 +43,6 @@ export default function FicheSelectieBlok({ items, plan, schrijven, titelStandaa
   };
   useEffect(() => { laad(); }, [sleutel, planId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const lijst = useMemo(() => dagLijst(plan || {}, [{ anker: 'start', dag: -10 }, { anker: 'einde', dag: 5 }]), [plan]);
   const koppelRijen = (taakId) => items.map((i) => ({ taak_id: taakId, soort: 'item', item_id: i.id, label: i.naam || null }));
   const maak = async () => {
     const t = titel.trim() || titelStandaard || `Plaatsen ${items.length} items`;
@@ -88,7 +89,7 @@ export default function FicheSelectieBlok({ items, plan, schrijven, titelStandaa
       {schrijven && <>
         <input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder={titelStandaard || `Plaatsen ${items.length} items`} aria-label="Nieuwe taak" />
         <div style={{ display: 'flex', gap: 6 }}>
-          <select value={dagK} onChange={(e) => setDagK(e.target.value)} aria-label="Dag" style={{ flex: 1, minWidth: 0 }}>{lijst.map((x) => <option key={x.k} value={x.k}>{dagNaam(plan || {}, x.anker, x.dag)}</option>)}</select>
+          <DagKiezer plan={plan || {}} {...uitSleutel(dagK)} metLabel={false} onChange={(x) => setDagK(dagSleutel(x.anker, x.dag))} style={{ flex: 1, minWidth: 0 }} />
           <input value={uur} onChange={(e) => setUur(e.target.value)} placeholder="uur" aria-label="Uur" style={{ width: 60 }} />
         </div>
         <button className="fm-knop klein" onClick={maak}>Taak maken voor {items.length} {items.length === 1 ? 'item' : 'items'}</button>
@@ -104,7 +105,7 @@ export default function FicheSelectieBlok({ items, plan, schrijven, titelStandaa
           <select value={lev.soort} onChange={(e) => setLev({ ...lev, soort: e.target.value })} aria-label="Soort"><option value="levering">Levering</option><option value="ophaling">Ophaling</option></select>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <select value={lev.k} onChange={(e) => setLev({ ...lev, k: e.target.value })} aria-label="Dag" style={{ flex: 1, minWidth: 0 }}>{lijst.map((x) => <option key={x.k} value={x.k}>{dagNaam(plan || {}, x.anker, x.dag)}</option>)}</select>
+          <DagKiezer plan={plan || {}} {...uitSleutel(lev.k)} metLabel={false} onChange={(x) => setLev({ ...lev, k: dagSleutel(x.anker, x.dag) })} style={{ flex: 1, minWidth: 0 }} />
           <input value={lev.uur} onChange={(e) => setLev({ ...lev, uur: e.target.value })} placeholder="uur" aria-label="Uur" style={{ width: 60 }} />
         </div>
         <button className="fm-knop klein" onClick={maakLevering}>{lev.soort === 'ophaling' ? 'Ophaling' : 'Levering'} maken</button>

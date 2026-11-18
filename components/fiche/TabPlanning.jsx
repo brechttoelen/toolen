@@ -3,9 +3,9 @@
 // Planning van de site: taken per dag (een taak kan op meerdere dagen staan), leveringen
 // en ophalingen van leveranciers, en het programma van de wedstrijd.
 import { useMemo, useState } from 'react';
-import { dagLijst, label, dagNaam, isoWeek, sleutel, canoniek, uurKort, leesUur, wedstrijd, fase, FASE_NAAM, datumTekst } from './dagen';
+import { dagLijst, label, dagNaam, isoWeek, sleutel, uitSleutel, canoniek, uurKort, leesUur, wedstrijd, fase, FASE_NAAM, datumTekst } from './dagen';
 import { locatieTekst } from './bestelling';
-import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities } from './gedeeld';
+import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities, DagKiezer } from './gedeeld';
 import { opId } from './data';
 import TaakPaneel from './TaakPaneel';
 import { bevestig } from '../maps/dialoog';
@@ -47,7 +47,7 @@ export default function TabPlanning({ f, planId }) {
   const regelTekst = (l) => { const rs = regelsBij(l); return rs.slice(0, 4).map((r) => `${r.aantal != null ? `${Number(r.aantal)} × ` : ''}${r.wat}`).join(', ') + (rs.length > 4 ? ` +${rs.length - 4}` : ''); };
   const regelPlaats = (l) => [...new Set(regelsBij(l).map((r) => locatieTekst(f, r)).filter(Boolean))].join(', ');
 
-  const lijst = useMemo(() => dagLijst(plan, [...dagen, ...leveringen, ...programma, { anker: 'start', dag: 0 }]), [plan, dagen, leveringen, programma]);
+  const lijst = useMemo(() => dagLijst(plan, [...dagen, ...leveringen, ...programma, { anker: 'start', dag: 0 }, ...(dagK ? [uitSleutel(dagK)] : [])]), [plan, dagen, leveringen, programma, dagK]);
   const huidig = lijst.find((x) => x.k === dagK) || lijst.find((x) => x.k === 'start:0') || lijst[0];
   const idx = Math.max(0, lijst.indexOf(huidig));
   const metWeek = !!wedstrijd(plan);
@@ -136,9 +136,7 @@ export default function TabPlanning({ f, planId }) {
               <button className="t-knop klein" onClick={() => stap(1)} aria-label="Volgende">›</button>
               <button className="t-knop klein" onClick={() => setDagK('start:0')}>Wedstrijddag</button></>}
             {weerg === 'alles' && <b style={{ fontWeight: 600 }}>{titel}</b>}
-            <select className="t-veld" style={{ height: 30, width: 'auto' }} value={huidig?.k || ''} onChange={(e) => { setDagK(e.target.value); if (weerg === 'alles') setWeerg('dag'); }} aria-label="Ga naar dag">
-              {lijst.map((x) => { const n = dagen.filter((d) => { const c = canoniek(plan, d.anker, d.dag); return sleutel(c.anker, c.dag) === x.k; }).length; return <option key={x.k} value={x.k}>{dagNaam(plan, x.anker, x.dag)} · {n} {n === 1 ? 'taak' : 'taken'}</option>; })}
-            </select>
+            <DagKiezer plan={plan} anker={huidig?.anker} dag={huidig?.dag} metLabel={false} label="Ga naar een dag" onChange={(x) => { const c = canoniek(plan, x.anker, x.dag); setDagK(sleutel(c.anker, c.dag)); if (weerg === 'alles') setWeerg('dag'); }} />
             <div className="pf-vul" />
             <span className="pf-stil">{takenInBereik.length} taken · {nOpen} open</span>
           </div>

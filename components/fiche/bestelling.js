@@ -1,6 +1,6 @@
 // Bestelling per leverancier per site: regels (maps.bestelregels) tegenover wat er op de kaart staat.
-// Een regel met kaart_naam is gekoppeld aan de regel met die naam in de materiaallijst van die leverancier;
-// het geplaatste aantal wordt geteld, nooit bewaard. Zonder kaart_naam is het een vrije regel.
+// Een regel met kaart_sleutel (element en variant) is gekoppeld aan die regel in de materiaallijst van de leverancier;
+// het geplaatste aantal wordt geteld, nooit bewaard. Zonder koppeling is het een vrije regel.
 // Niet vastgezet: de bestelling loopt mee met de kaart (regels zonder aantal volgen de telling, materiaal
 // zonder regel verschijnt vanzelf). Vastgezet: aantallen staan vast en het verschil is zichtbaar.
 import { berekenStuklijst } from '../maps/Stuklijst';
@@ -20,14 +20,15 @@ export function materiaalVan(f, levId, deel = null) {
   const items = (deel || f.items).filter((i) => !i.vast);
   let s;
   try { s = berekenStuklijst(items, els, lagen, null, std); } catch { return []; }
-  const perNaam = new Map();
+  const per = new Map();
   for (const r of (s.elementen || [])) {
     if (String(r.leverancier || '').trim().toLowerCase() !== naam) continue;
-    const m = perNaam.get(r.naam) || { naam: r.naam, aantal: 0, meter: 0, ids: [] };
+    const k = r.bestel || `n:${r.naam}`;
+    const m = per.get(k) || { sleutel: k, naam: r.naam, aantal: 0, meter: 0, ids: [] };
     m.aantal += r.aantal || 0; m.meter += r.meter || 0; m.ids.push(...(r.ids || []));
-    perNaam.set(r.naam, m);
+    per.set(k, m);
   }
-  return [...perNaam.values()].sort((a, b) => b.aantal - a.aantal);
+  return [...per.values()].sort((a, b) => b.aantal - a.aantal);
 }
 // Leveranciers met materiaal op de kaart, met de telling van de materiaallijst (ook toebehoren).
 const opKaartCache = new WeakMap();
@@ -71,46 +72,53 @@ export const regelsVan = (f, slId) => (f.d.bestelregels || []).filter((r) => r.s
 //   besteld: het aantal van de regel; zonder aantal volgt een gekoppelde regel de kaart.
 export function bestelRijen(f, sl) {
   const levId = sl.leverancier_id;
-  const mat = new Map(materiaalVan(f, levId).map((m) => [m.naam, m]));
-  const regels = regelsVan(f, sl.id);
+  const lijst = materiaalVan(f, levId);
+  const mat = new Map(lijst.map((m) => [m.sleutel, m]));
+  const opNaam = new Map(lijst.map((m) => [m.naam, m]));
+  // Een regel hangt aan de kaart via de sleutel (element en variant). Regels van vóór de sleutel, of regels
+  // waarvan de sleutel niet meer bestaat, vallen terug op de naam.
+  const sleutelVan = (r) => (r.kaart_sleutel && mat.has(r.kaart_sleutel) ? r.kaart_sleutel : r.kaart_naam && opNaam.has(r.kaart_naam) ? opNaam.get(r.kaart_naam).sleutel : r.kaart_sleutel || (r.kaart_naam ? `n:${r.kaart_naam}` : null));
+  const regels = regelsVan(f, sl.id).map((r) => ({ r, k: sleutelVan(r) }));
   const vast = !!sl.vastgezet_op;
   const perLaag = new Map();
   const inLaag = (laagId) => {
-    if (!perLaag.has(laagId)) perLaag.set(laagId, new Map(materiaalVan(f, levId, f.items.filter((i) => i.laag_id === laagId)).map((m) => [m.naam, m])));
+    if (!perLaag.has(laagId)) perLaag.set(laagId, new Map(materiaalVan(f, levId, f.items.filter((i) => i.laag_id === laagId)).map((m) => [m.sleutel, m])));
     return perLaag.get(laagId);
   };
   // Wat niet in een laag van een andere regel ligt, verdelen over de regels zonder locatie (in volgorde).
   const rest = new Map();
-  const restVan = (r) => {
-    const k = `${r.kaart_naam}|${r.eenheid}`;
+  const restVan = (x) => {
+    const k = `${x.k}|${x.r.eenheid}`;
     if (!rest.has(k)) {
-      let g = waarde(mat.get(r.kaart_naam), r.eenheid);
-      const lagen = new Set(regels.filter((x) => x.kaart_naam === r.kaart_naam && x.locatie_laag_id).map((x) => x.locatie_laag_id));
-      for (const l of lagen) g -= waarde(inLaag(l).get(r.kaart_naam), r.eenheid);
+      let g = waarde(mat.get(x.k), x.r.eenheid);
+      const lagen = new Set(regels.filter((y) => y.k === x.k && y.r.locatie_laag_id).map((y) => y.r.locatie_laag_id));
+      for (const l of lagen) g -= waarde(inLaag(l).get(x.k), x.r.eenheid);
       rest.set(k, Math.max(0, rond(g)));
     }
     return k;
   };
-  const rijen = regels.map((r) => {
-    if (!r.kaart_naam) return { id: r.id, r, vrij: true, besteld: num(r.aantal), geplaatst: null, volgt: false };
+  const rijen = regels.map((x, i) => {
+    const r = x.r;
+    if (!x.k) return { id: r.id, r, vrij: true, besteld: num(r.aantal), geplaatst: null, volgt: false };
     let g;
-    if (r.locatie_laag_id) g = waarde(inLaag(r.locatie_laag_id).get(r.kaart_naam), r.eenheid);
+    if (r.locatie_laag_id) g = waarde(inLaag(r.locatie_laag_id).get(x.k), r.eenheid);
     else {
-      const k = restVan(r); const over = rest.get(k);
-      const laatste = !regels.some((x) => x !== r && x.kaart_naam === r.kaart_naam && x.eenheid === r.eenheid && !x.locatie_laag_id && regels.indexOf(x) > regels.indexOf(r));
+      const k = restVan(x); const over = rest.get(k);
+      const laatste = !regels.some((y, j) => j > i && y.k === x.k && y.r.eenheid === r.eenheid && !y.r.locatie_laag_id);
       g = laatste || r.aantal == null ? over : Math.min(over, Number(r.aantal));
       rest.set(k, rond(over - g));
     }
     const volgt = r.aantal == null;
-    return { id: r.id, r, vrij: false, besteld: volgt ? (vast ? null : g) : Number(r.aantal), geplaatst: g, volgt, weg: !mat.has(r.kaart_naam) };
+    const m = mat.get(x.k);
+    return { id: r.id, r, k: x.k, vrij: false, besteld: volgt ? (vast ? null : g) : Number(r.aantal), geplaatst: g, volgt, weg: !m, kaartNaam: m?.naam || r.kaart_naam };
   });
-  const gekoppeld = new Set(regels.map((r) => r.kaart_naam).filter(Boolean));
-  const los = [...mat.values()].filter((m) => !gekoppeld.has(m.naam));
+  const gekoppeld = new Set(regels.map((x) => x.k).filter(Boolean));
+  const los = lijst.filter((m) => !gekoppeld.has(m.sleutel));
   const virtueel = vast ? [] : los.map((m) => ({
-    id: `kaart:${m.naam}`, virtueel: true, vrij: false, volgt: true, besteld: m.aantal, geplaatst: m.aantal,
-    r: { id: null, site_leverancier_id: sl.id, wat: m.naam, kaart_naam: m.naam, eenheid: 'st', aantal: null },
+    id: `kaart:${m.sleutel}`, k: m.sleutel, virtueel: true, vrij: false, volgt: true, besteld: m.aantal, geplaatst: m.aantal, kaartNaam: m.naam,
+    r: { id: null, site_leverancier_id: sl.id, wat: m.naam, kaart_naam: m.naam, kaart_sleutel: m.sleutel, eenheid: 'st', aantal: null },
   }));
-  return { rijen: [...rijen, ...virtueel], nietBesteld: vast ? los : [], vast, mat };
+  return { rijen: [...rijen, ...virtueel], nietBesteld: vast ? los : [], los, vast, mat };
 }
 // 'weinig' | 'veel' | 'klaar' | null (vrije regel of niets te vergelijken).
 export function stand(rij) {
@@ -160,7 +168,7 @@ export function samenvatting(f, sl) {
 export async function maakEcht(f, rij, extra = {}) {
   if (!rij.virtueel) return rij.r;
   const n = regelsVan(f, rij.r.site_leverancier_id).length;
-  return f.voegToe('bestelregels', { site_leverancier_id: rij.r.site_leverancier_id, wat: rij.r.wat, kaart_naam: rij.r.kaart_naam, eenheid: rij.r.eenheid, volgorde: n, ...extra });
+  return f.voegToe('bestelregels', { site_leverancier_id: rij.r.site_leverancier_id, wat: rij.r.wat, kaart_naam: rij.r.kaart_naam, kaart_sleutel: rij.r.kaart_sleutel, eenheid: rij.r.eenheid, volgorde: n, ...extra });
 }
 const zelfdeUur = (a, b) => uurKort(a) === uurKort(b);
 // Levering of ophaling van regels instellen: zoekt het moment van die leverancier of maakt het,
@@ -190,18 +198,18 @@ export async function zetVast(f, sl, aan) {
   if (!aan) return f.wijzig('site_leveranciers', sl.id, { vastgezet_op: null });
   const b = bestelRijen(f, sl);
   const n = regelsVan(f, sl.id).length;
-  const nieuw = b.rijen.filter((x) => x.virtueel).map((x, i) => ({ site_leverancier_id: sl.id, wat: x.r.wat, kaart_naam: x.r.kaart_naam, eenheid: 'st', aantal: x.geplaatst, volgorde: n + i }));
+  const nieuw = b.rijen.filter((x) => x.virtueel).map((x, i) => ({ site_leverancier_id: sl.id, wat: x.r.wat, kaart_naam: x.r.kaart_naam, kaart_sleutel: x.r.kaart_sleutel, eenheid: 'st', aantal: x.geplaatst, volgorde: n + i }));
   if (nieuw.length && !(await f.voegToe('bestelregels', nieuw))) return false;
   for (const x of b.rijen.filter((y) => !y.virtueel && !y.vrij && y.volgt)) await f.wijzig('bestelregels', x.r.id, { aantal: x.geplaatst });
   return f.wijzig('site_leveranciers', sl.id, { vastgezet_op: new Date().toISOString(), ...(['nog_niets', 'inschatting', 'offerte_gevraagd', 'offerte'].includes(sl.status) ? { status: 'bevestigd' } : {}) });
 }
 // Een gekoppelde regel zonder locatie opsplitsen in één regel per laag waar dat materiaal ligt.
 export async function splitsPerLocatie(f, sl, rij) {
-  const r = rij.r; if (!r.kaart_naam || r.locatie_laag_id) return 0;
-  const delen = (f.lagen || []).map((lg) => ({ lg, m: materiaalVan(f, sl.leverancier_id, f.items.filter((i) => i.laag_id === lg.id)).find((x) => x.naam === r.kaart_naam) })).filter((x) => x.m && waarde(x.m, r.eenheid) > 0);
+  const r = rij.r; if (rij.vrij || !rij.k || r.locatie_laag_id) return 0;
+  const delen = (f.lagen || []).map((lg) => ({ lg, m: materiaalVan(f, sl.leverancier_id, f.items.filter((i) => i.laag_id === lg.id)).find((x) => x.sleutel === rij.k) })).filter((x) => x.m && waarde(x.m, r.eenheid) > 0);
   if (delen.length < 2) return 0;
   const basis = regelsVan(f, sl.id).length;
-  const nieuw = delen.map((x, i) => ({ site_leverancier_id: sl.id, wat: r.wat, kaart_naam: r.kaart_naam, eenheid: r.eenheid || 'st', groep: r.groep || null, opmerking: r.opmerking || null,
+  const nieuw = delen.map((x, i) => ({ site_leverancier_id: sl.id, wat: r.wat, kaart_naam: rij.kaartNaam || r.kaart_naam, kaart_sleutel: rij.k, eenheid: r.eenheid || 'st', groep: r.groep || null, opmerking: r.opmerking || null,
     levering_id: r.levering_id || null, ophaling_id: r.ophaling_id || null, locatie_laag_id: x.lg.id, aantal: sl.vastgezet_op ? waarde(x.m, r.eenheid) : null, volgorde: basis + i }));
   if (!(await f.voegToe('bestelregels', nieuw))) return 0;
   if (r.id) await f.wis('bestelregels', r.id);
