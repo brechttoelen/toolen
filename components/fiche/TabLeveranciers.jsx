@@ -30,13 +30,18 @@ function Balk({ n, tot, st }) {
     </span>
   );
 }
-// Cel die bewaart bij verlaten of Enter, met optionele suggesties.
-function Veld({ waarde, onBewaar, label, placeholder = '', lijst, uit = false, klasse = 'pf-cel breed', style }) {
+// Cel die bewaart bij verlaten of Enter, met optionele suggesties. Met `tekst` staat de waarde als gewone
+// tekst die over meerdere regels loopt; een klik (of Tab) maakt er een invulveld van.
+function Veld({ waarde, onBewaar, label, placeholder = '', lijst, uit = false, klasse = 'pf-cel breed', style, tekst = false }) {
   const [v, setV] = useState(waarde ?? '');
+  const [bewerk, setBewerk] = useState(false);
   useEffect(() => { setV(waarde ?? ''); }, [waarde]);
+  if (tekst && !bewerk) {
+    return <button type="button" className={`${klasse} pf-celtekst`} style={style} disabled={uit} aria-label={`${label}: ${waarde || 'leeg'}`} onClick={() => setBewerk(true)} onFocus={() => !uit && setBewerk(true)}>{waarde || <span className="leeg">{uit ? '' : placeholder}</span>}</button>;
+  }
   return (
-    <input className={klasse} style={style} value={v} placeholder={placeholder} aria-label={label} list={lijst} disabled={uit}
-      onChange={(e) => setV(e.target.value)} onBlur={() => { if (String(v) !== String(waarde ?? '')) onBewaar(v); }}
+    <input className={klasse} style={style} value={v} placeholder={placeholder} aria-label={label} list={lijst} disabled={uit} autoFocus={tekst}
+      onChange={(e) => setV(e.target.value)} onBlur={() => { setBewerk(false); if (String(v) !== String(waarde ?? '')) onBewaar(v); }}
       onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { setV(waarde ?? ''); e.currentTarget.blur(); } }} />
   );
 }
@@ -423,14 +428,14 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
                         : <span className="pf-stil pf-klein"> {eenheidNaam(r.eenheid)}</span>}
                     </td>
                     <td><div className="pf-watcel">
-                      <Veld klasse="pf-cel breed wat" waarde={r.wat} uit={!s} label="Wat" onBewaar={(v) => v.trim() && zet(x, { wat: v.trim() })} />
+                      <Veld tekst klasse="pf-cel breed wat" waarde={r.wat} uit={!s} label="Wat" onBewaar={(v) => v.trim() && zet(x, { wat: v.trim() })} />
                       <Veld klasse="pf-cel breed sub" waarde={r.opmerking || ''} uit={!s} label={`Opmerking bij ${r.wat}`} placeholder={s ? 'opmerking' : ''} onBewaar={(v) => zet(x, { opmerking: v.trim() || null })} />
                       {x.namen?.length > 0 && <small title={x.namen.join(', ')}>{namenTekst(x.namen)}</small>}
                       {x.weg && <small className="pf-let">staat niet meer op de kaart{s && <> · <button className="pf-link" onClick={() => f.wijzig('bestelregels', r.id, { kaart_naam: null, kaart_sleutel: null })}>loskoppelen</button></>}</small>}
                       {!x.vrij && !x.weg && x.kaartNaam !== r.wat && <small>op de kaart: {x.kaartNaam}</small>}
                     </div></td>
-                    <td><Veld waarde={r.groep || ''} uit={!s} label={`Groep ${r.wat}`} lijst={`${lijstId}-groepen`} onBewaar={(v) => zet(x, { groep: v.trim() || null })} /></td>
-                    <td><Veld waarde={locatieTekst(f, r)} uit={!s} label={`Locatie ${r.wat}`} lijst={`${lijstId}-lagen`} onBewaar={(v) => zet(x, locatiePatch(v))} /></td>
+                    <td><Veld tekst waarde={r.groep || ''} uit={!s} label={`Groep ${r.wat}`} lijst={`${lijstId}-groepen`} onBewaar={(v) => zet(x, { groep: v.trim() || null })} /></td>
+                    <td><Veld tekst waarde={locatieTekst(f, r)} uit={!s} label={`Locatie ${r.wat}`} lijst={`${lijstId}-lagen`} onBewaar={(v) => zet(x, locatiePatch(v))} /></td>
                     <td>
                       <button className="pf-periode" disabled={!s} onClick={() => { setSel(new Set([x.id])); startActie('periode', [x]); }} aria-label={`Periode ${r.wat}`}>
                         {l || o ? periodeTekst(f, l, o) : <span className={b.vast ? 'pf-let' : 'pf-stil'}>{s ? 'instellen' : '–'}</span>}

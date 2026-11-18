@@ -168,7 +168,7 @@ export function naamMeubel(m) {
     const z = zitMeubel(m);
     if (m.statafel) return m.vorm === 'rond' ? `Statafel Ø ${g(m.b)} m` : `Statafel ${g(m.b)} × ${g(m.d)} m`;
     const vorm = m.vorm === 'rond' ? `Ronde tafel Ø ${g(m.b)} m` : m.vorm === 'ovaal' ? `Ovale tafel ${g(m.b)} × ${g(m.d)} m` : m.vorm === 'halfrond' ? `Halfronde tafel ${g(m.b)} m` : `Tafel ${g(m.b)} × ${g(m.d)} m`;
-    return z ? `${vorm} · ${z} stoelen` : vorm;
+    return z ? `${vorm} · ${z} stoelen${m.stoel_huis ? ' van het huis' : ''}` : vorm;
   }
   if (m.type === 'rijen') return `${m.tafels ? 'Klasopstelling' : 'Stoelenrijen'} ${m.rijen} × ${m.per_rij}`;
   return { stoel: 'Stoel', podium: `Podium ${g(m.b)} × ${g(m.d)} m`, bar: `Bar ${g(m.b)} × ${g(m.d)} m`, buffet: `Buffet ${g(m.b)} × ${g(m.d)} m`, deur: m.dubbel ? `Dubbele deur ${g(m.b)} m` : `Deur ${g(m.b)} m`, raam: `Raam ${g(m.b)} m` }[m.type] || 'Meubel';

@@ -186,6 +186,10 @@
 .pf-vastbalk .pf-bulk { position: static; flex-wrap: nowrap; overflow-x: auto; gap: 2px; }
 .pf-vastbalk .pf-bulk b { white-space: nowrap; }
 .pf-vastbalk .pf-bknop { white-space: nowrap; }
+.pf-celtekst { height: auto; min-height: 28px; padding: 4px 6px; text-align: left; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; cursor: text; display: block; font: inherit; color: inherit; }
+.pf-celtekst.wat { font-weight: 600; }
+.pf-celtekst .leeg { color: transparent; }
+.pf-celtekst:disabled { cursor: default; }
 /* Luchtfoto onder een rij */
 .pf-tabel tr.pf-kaartrij td { padding: 0 0 12px; background: #fff !important; }
 .pf-rijkaart { scroll-margin: 16px 0 16px; display: grid; grid-template-columns: minmax(0, 1fr) 240px; height: 340px; border: 1px solid var(--t-rand); border-radius: 10px; overflow: hidden; }
