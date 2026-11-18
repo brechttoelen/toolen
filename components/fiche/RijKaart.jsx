@@ -22,19 +22,20 @@ async function maakKaart(plan) {
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
   const klaar = new Promise((ok) => map.once('load', () => {
     const leeg = { type: 'FeatureCollection', features: [] };
-    // Het plan zelf, getekend zoals in de kaarteditor (zelfde lagen en stijlen).
+    // De rest van het plan: dun en grijswit, enkel als houvast.
+    map.addSource('pf-alle', { type: 'geojson', data: leeg });
+    map.addLayer({ id: 'pf-alle-lijn', type: 'line', source: 'pf-alle', filter: ['!=', ['geometry-type'], 'Point'], paint: { 'line-color': '#E6E9EE', 'line-width': 1, 'line-opacity': 0.7 } });
+    map.addLayer({ id: 'pf-alle-punt', type: 'circle', source: 'pf-alle', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 2.5, 'circle-color': '#E6E9EE', 'circle-opacity': 0.7 } });
+    // De elementen van de regel zelf: getekend zoals in de kaarteditor (zelfde lagen en stijlen).
     map.addSource('fm-vormen', { type: 'geojson', data: leeg }); map.addSource('fm-labels', { type: 'geojson', data: leeg });
     for (const l of stijl.kaartLagen(start[1])) { try { map.addLayer(l); } catch (e) { console.warn('kaartlaag', l.id, e); } }
-    // Daarbovenop: de elementen van de regel, oranje omlijnd.
-    map.addSource('pf-kies', { type: 'geojson', data: leeg }); map.addSource('pf-plek', { type: 'geojson', data: leeg });
-    map.addLayer({ id: 'pf-kies-vlak', type: 'fill', source: 'pf-kies', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': '#FF7A00', 'fill-opacity': 0.12 } });
-    map.addLayer({ id: 'pf-kies-lijn', type: 'line', source: 'pf-kies', filter: ['!=', ['geometry-type'], 'Point'], paint: { 'line-color': '#FF7A00', 'line-width': 3 } });
+    map.addSource('pf-plek', { type: 'geojson', data: leeg });
     // Ring rond het midden van elk element: ook een klein of smal element valt meteen op.
     map.addLayer({ id: 'pf-plek-ring', type: 'circle', source: 'pf-plek', paint: { 'circle-radius': 18, 'circle-color': '#FF7A00', 'circle-opacity': 0.18, 'circle-stroke-color': '#FF7A00', 'circle-stroke-width': 2.5 } });
     try { og.klapBronvermeldingIn(map); } catch { /* blijft open */ }
     ok();
   }));
-  return { map, doos, klaar, markers: [], maplibregl, stijl, getekend: null };
+  return { map, doos, klaar, markers: [], maplibregl, stijl };
 }
 
 export default function RijKaart({ plan, items, lagen = [], elementen = [], ids, onSluit }) {
@@ -50,16 +51,12 @@ export default function RijKaart({ plan, items, lagen = [], elementen = [], ids,
         if (!gedeeld) gedeeld = await maakKaart(plan);
         const k = gedeeld; await k.klaar; if (weg || !gast.current) return;
         gast.current.appendChild(k.doos); k.map.resize();
-        if (k.getekend !== items) {
-          // Eén keer per stand van het plan: alle items met hun echte tekening.
-          const lagenMap = new Map(lagen.map((l) => [l.id, l])); const elMap = new Map(elementen.map((e) => [e.id, e]));
-          const verborgen = new Set(lagen.filter((l) => l.zichtbaar === false).map((l) => l.id));
-          const { vormen, labels } = k.stijl.naarGeojson(items.filter((i) => !i.velden?.binnen), lagenMap, elMap, { verborgenLagen: verborgen, verbergElementen: plan.instellingen?.verborgen_elementen });
-          k.stijl.zorgVoorPatronen(k.map, vormen.features, labels.features);
-          k.map.getSource('fm-vormen').setData(vormen); k.map.getSource('fm-labels').setData(labels);
-          k.getekend = items;
-        }
-        k.map.getSource('pf-kies').setData(fc(gekozen));
+        const kies = new Set(ids);
+        const lagenMap = new Map(lagen.map((l) => [l.id, l])); const elMap = new Map(elementen.map((e) => [e.id, e]));
+        const { vormen, labels } = k.stijl.naarGeojson(gekozen, lagenMap, elMap, {});
+        k.stijl.zorgVoorPatronen(k.map, vormen.features, labels.features);
+        k.map.getSource('fm-vormen').setData(vormen); k.map.getSource('fm-labels').setData(labels);
+        k.map.getSource('pf-alle').setData(fc(items.filter((i) => !kies.has(i.id) && !i.velden?.binnen)));
         k.map.getSource('pf-plek').setData({ type: 'FeatureCollection', features: gekozen.map((i) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: midden(i.geometrie) } })).filter((x) => x.geometry.coordinates) });
         k.markers.forEach((m) => m.remove()); k.markers = [];
         for (const i of gekozen.slice(0, 60)) {
