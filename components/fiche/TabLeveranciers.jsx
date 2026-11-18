@@ -400,10 +400,10 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
         )}
 
         <div className="pf-tabvak" style={{ maxHeight: 'none', border: 0, borderRadius: 0 }}>
-          <table className="pf-tabel pf-bestel" style={{ minWidth: 880 }}>
+          <table className="pf-tabel pf-bestel" style={{ minWidth: 980 }}>
             <thead><tr>
               <th style={{ width: 26 }} /><th style={{ width: 30 }}>{s && <input type="checkbox" checked={alleAan} onChange={() => setSel(alleAan ? new Set() : new Set(b.rijen.map((x) => x.id)))} aria-label="Alles selecteren" />}</th>
-              <th className="getal" style={{ width: 104 }}>Aantal</th><th>Wat</th><th style={{ width: 120 }}>Groep</th><th style={{ width: 180 }}>Locatie</th><th style={{ width: 270 }}>Periode · begin → einde</th><th style={{ width: 180 }}><button className={`pf-kolknop ${kolom === 'geplaatst' ? 'aan' : ''}`} onClick={() => setKolom('geplaatst')} title="Hoeveel staat er op de kaart">Geplaatst</button><button className={`pf-kolknop ${kolom === 'geleverd' ? 'aan' : ''}`} onClick={() => setKolom('geleverd')} title="Ontvangst op het terrein afvinken">Geleverd</button></th>
+              <th className="getal" style={{ width: 104 }}>Aantal</th><th>Wat</th><th style={{ width: 160 }}>Groep</th><th style={{ width: 160 }}>Locatie</th><th style={{ width: 270 }}>Periode · begin → einde</th><th style={{ width: 180 }}><button className={`pf-kolknop ${kolom === 'geplaatst' ? 'aan' : ''}`} onClick={() => setKolom('geplaatst')} title="Hoeveel staat er op de kaart">Geplaatst</button><button className={`pf-kolknop ${kolom === 'geleverd' ? 'aan' : ''}`} onClick={() => setKolom('geleverd')} title="Ontvangst op het terrein afvinken">Geleverd</button></th>
             </tr></thead>
             <tbody>
               {!b.rijen.length && <tr><td colSpan={8} className="pf-leeg">Nog geen regels. Materiaal van {lev.naam} op de kaart komt hier vanzelf; voeg hieronder toe wat je niet tekent.</td></tr>}
