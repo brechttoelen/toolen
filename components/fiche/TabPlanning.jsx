@@ -8,6 +8,7 @@ import { locatieTekst, momentNaam, momentDagen, namenTekst, bestelRijen } from '
 import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities, DagKiezer } from './gedeeld';
 import { opId } from './data';
 import TaakPaneel from './TaakPaneel';
+import RijKaart from './RijKaart';
 import { bevestig } from '../maps/dialoog';
 
 const DEEL = ['Voormiddag', 'Namiddag', 'Avond', 'Zonder uur'];
@@ -34,7 +35,7 @@ export default function TabPlanning({ f, planId }) {
   const [enkelOpen, setEnkelOpen] = useState(false);
   const [toonProg, setToonProg] = useState(true);
   const [sel, setSel] = useState(new Set());
-  const [levOpen, setLevOpen] = useState(() => new Set());   // opengeklapte leveringen en opbouw
+  const [levOpen, setLevOpen] = useState(null);   // opengeklapte levering of opbouw (één tegelijk: er is één kaart)
   const [open, setOpen] = useState(null);
 
   const taken = f.d.taken || [];
@@ -54,6 +55,7 @@ export default function TabPlanning({ f, planId }) {
     if (sl && rs.length) { if (!rijenPerSl.has(sl.id)) rijenPerSl.set(sl.id, bestelRijen(f, sl).rijen); const ids = new Set(rs.map((r) => r.id)); t = namenTekst([...new Set(rijenPerSl.get(sl.id).filter((x) => ids.has(x.r.id)).flatMap((x) => x.namen || []))], 16); }
     namenPerMoment.set(l.id, t); return t;
   };
+  const regelIds = (l) => { const sl = slMap.get(l.site_leverancier_id); const rs = regelsBij(l); if (!sl || !rs.length) return []; if (!rijenPerSl.has(sl.id)) rijenPerSl.set(sl.id, bestelRijen(f, sl).rijen); const ids = new Set(rs.map((r) => r.id)); return [...new Set(rijenPerSl.get(sl.id).filter((x) => ids.has(x.r.id)).flatMap((x) => x.ids || []))]; };
   const regelPlaats = (l) => [...new Set(regelsBij(l).map((r) => locatieTekst(f, r)).filter(Boolean))].join(', ');
 
   const lijst = useMemo(() => dagLijst(plan, [...dagen, ...leveringen.flatMap((l) => momentDagen(plan, l)), ...programma, { anker: 'start', dag: 0 }, ...(dagK ? [uitSleutel(dagK)] : [])]), [plan, dagen, leveringen, programma, dagK]);
@@ -186,15 +188,25 @@ export default function TabPlanning({ f, planId }) {
                   ...g.rijen.map((r) => {
                     if (r.soort === 'prog') return <tr key={`p${r.p.id}`} className="prog"><td /><td style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{r.uur || '–'}</td><td colSpan={4}><b>{r.p.wat}</b><small>Programma</small></td></tr>;
                     if (r.soort === 'levering') {
-                      const l = r.l;
-                      return (
-                        <tr key={`l${l.id}-${r.n || 0}`}><td className="pf-pijlcel">{regelsBij(l).length > 0 && <button className="pf-pijl" aria-expanded={levOpen.has(`${l.id}-${r.n || 0}`)} aria-label="Wat en waar tonen" onClick={() => setLevOpen((v) => { const n = new Set(v); const k = `${l.id}-${r.n || 0}`; if (n.has(k)) n.delete(k); else n.add(k); return n; })}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg></button>}</td><td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.uur || '–'}</td>
-                          <td><b>{momentNaam(l)}{l.werk && slMap.get(l.site_leverancier_id)?.wat ? ` ${slMap.get(l.site_leverancier_id).wat}` : ''} · {l.lev?.naam || 'leverancier'}</b><small>{[r.van > 1 && `dag ${r.n + 1} van ${r.van}`, uurKort(l.uur_tot) && `tot ${uurKort(l.uur_tot)}`, l.wat || (regelsBij(l).length > 0 && `${regelsBij(l).length} ${regelsBij(l).length === 1 ? 'regel' : 'regels'}`)].filter(Boolean).join(' · ')}</small>
-                            {levOpen.has(`${l.id}-${r.n || 0}`) && <><small>{regelTekst(l)}</small>{regelNamen(l) && <small>{regelNamen(l)}</small>}</>}</td>
-                          <td>{(l.leverpunt_item_id && f.items.find((x) => x.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst || regelPlaats(l) || <span className="pf-stil">Leverpunt ontbreekt</span>}</td>
+                      const l = r.l; const lk = `${l.id}-${r.n || 0}`; const isOpen = levOpen === lk; const rs = regelsBij(l);
+                      const groepen = [...new Set(rs.map((x) => x.groep).filter(Boolean))].join(', ');
+                      const waar = (l.leverpunt_item_id && f.items.find((x) => x.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst || regelPlaats(l) || groepen;
+                      return [
+                        <tr key={`l${lk}`} className={isOpen ? 'gekozen' : ''}><td className="pf-pijlcel">{(rs.length > 0 || f.schrijven) && <button className="pf-pijl" aria-expanded={isOpen} aria-label="Wat en waar tonen, met kaart en opmerking" onClick={() => setLevOpen(isOpen ? null : lk)}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg></button>}</td><td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.uur || '–'}</td>
+                          <td><b>{momentNaam(l)}{l.werk && slMap.get(l.site_leverancier_id)?.wat ? ` ${slMap.get(l.site_leverancier_id).wat}` : ''} · {l.lev?.naam || 'leverancier'}</b>
+                            <small>{[r.van > 1 && `dag ${r.n + 1} van ${r.van}`, uurKort(l.uur_tot) && `tot ${uurKort(l.uur_tot)}`, rs.length > 0 && `${rs.length} ${rs.length === 1 ? 'regel' : 'regels'}`].filter(Boolean).join(' · ')}</small>
+                            {l.wat && <small style={{ color: 'var(--t-tekst)' }}>{l.wat}</small>}</td>
+                          <td>{waar || (l.werk ? <span className="pf-stil">–</span> : <span className="pf-stil">Leverpunt ontbreekt</span>)}</td>
                           <td>{l.lev?.naam}</td>
-                          <td><StatusKeuze waarde={l.status} opties={STATUS_TAAK} uit={!f.schrijven} label="Status levering" onChange={(v) => f.wijzig('leveringen', l.id, { status: v })} /></td></tr>
-                      );
+                          <td><StatusKeuze waarde={l.status} opties={STATUS_TAAK} uit={!f.schrijven} label="Status levering" onChange={(v) => f.wijzig('leveringen', l.id, { status: v })} /></td></tr>,
+                        isOpen && <tr key={`l${lk}-open`} className="pf-kaartrij"><td colSpan={6}>
+                          <div className="pf-momentopen">
+                            <label className="pf-rij" style={{ flexWrap: 'nowrap' }}><span className="pf-stil">Opmerking</span><Bewaarveld klasse="t-veld" style={{ flex: 1 }} waarde={l.wat || ''} uit={!f.schrijven} label="Opmerking bij dit moment" placeholder="bv. over de tramsporen" onBewaar={(v) => f.wijzig('leveringen', l.id, { wat: v.trim() || null })} /></label>
+                            {rs.length > 0 && <span>{regelTekst(l)}</span>}{regelNamen(l) && <span className="pf-stil">{regelNamen(l)}</span>}
+                          </div>
+                          {rs.length > 0 && <RijKaart plan={f.plan} items={f.items} lagen={f.lagen} elementen={f.elementen} ids={regelIds(l)} onSluit={() => setLevOpen(null)} />}
+                        </td></tr>,
+                      ];
                     }
                     const { t, d } = r; const w = waarTekst(t, f); const wie = wieTekst(t, d, f);
                     const meer = dagen.filter((x) => x.taak_id === t.id).length;
