@@ -138,8 +138,8 @@ export function stand(rij) {
   return rij.geplaatst < rij.besteld ? 'weinig' : rij.geplaatst > rij.besteld ? 'veel' : 'klaar';
 }
 
-// Een moment is een levering of ophaling (één tijdslot), of een opbouw of afbraak door de leverancier zelf
-// (werk: over `dagen` opeenvolgende dagen, met dezelfde uren per dag).
+// Een moment is een levering of ophaling, of een opbouw of afbraak door de leverancier zelf (werk).
+// Elk moment kan over `dagen` opeenvolgende dagen lopen, met dezelfde uren per dag.
 export const momentNaam = (l) => (l?.werk ? (l.soort === 'ophaling' ? 'Afbraak' : 'Opbouw') : (l?.soort === 'ophaling' ? 'Ophaling' : 'Levering'));
 export const momentDagen = (plan, l) => Array.from({ length: Math.max(1, Number(l.dagen) || 1) }, (_, n) => canoniek(plan, l.anker, (Number(l.dag) || 0) + n));
 // Aantal dagen van a tot b (0 = zelfde dag).
@@ -202,7 +202,7 @@ export async function zetMoment(f, sl, regels, soort, m) {
   let id = null;
   if (m) {
     const c = canoniek(f.plan, m.anker, m.dag);
-    const werk = !!m.werk; const dagen = werk ? Math.max(1, Number(m.dagen) || 1) : 1;
+    const werk = !!m.werk; const dagen = Math.max(1, Number(m.dagen) || 1);
     const bestaand = (f.d.leveringen || []).find((l) => l.site_leverancier_id === sl.id && l.soort === soort && !!l.werk === werk && (Number(l.dagen) || 1) === dagen && zelfdeUur(l.uur_van, m.uur_van) && zelfdeUur(l.uur_tot, m.uur_tot)
       && (() => { const x = canoniek(f.plan, l.anker, l.dag); return x.anker === c.anker && x.dag === c.dag; })());
     const lev = bestaand || await f.voegToe('leveringen', { site_leverancier_id: sl.id, soort, anker: c.anker, dag: c.dag, uur_van: m.uur_van || null, uur_tot: m.uur_tot || null, werk, dagen });

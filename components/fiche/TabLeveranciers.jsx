@@ -197,13 +197,13 @@ function MomentVelden({ f, soort, waarde, onChange }) {
   const laatste = { anker: waarde.anker, dag: (Number(waarde.dag) || 0) + Math.max(1, waarde.dagen || 1) - 1 };
   return (
     <div className="pf-rij" style={{ gap: 6 }}>
-      <Seg waarde={waarde.werk ? 'werk' : 'slot'} onChange={(v) => onChange({ ...waarde, werk: v === 'werk', dagen: v === 'werk' ? waarde.dagen || 1 : 1 })} label={einde ? 'Ophaling of afbraak' : 'Levering of opbouw'}
+      <Seg waarde={waarde.werk ? 'werk' : 'slot'} onChange={(v) => onChange({ ...waarde, werk: v === 'werk' })} label={einde ? 'Ophaling of afbraak' : 'Levering of opbouw'}
         opties={einde ? [['slot', 'Ophaling'], ['werk', 'Afbraak']] : [['slot', 'Levering'], ['werk', 'Opbouw']]} />
-      <DagKiezer plan={f.plan} anker={waarde.anker} dag={waarde.dag} label={`Dag ${soort}`} metLabel={!waarde.werk} onChange={(x) => onChange({ ...waarde, ...x })} />
-      {waarde.werk && <>
+      <DagKiezer plan={f.plan} anker={waarde.anker} dag={waarde.dag} label={`Dag ${soort}`} metLabel={false} onChange={(x) => onChange({ ...waarde, ...x })} />
+      {<>
         <span className="pf-stil pf-klein">tot en met</span>
         <DagKiezer plan={f.plan} anker={laatste.anker} dag={laatste.dag} label="Laatste dag" metLabel={false} onChange={(x) => onChange({ ...waarde, dagen: Math.max(1, dagVerschil(f.plan, waarde, x) + 1) })} />
-        <span className="pf-stil pf-klein">{waarde.dagen > 1 ? `${waarde.dagen} dagen · uren per dag` : 'uren'}</span>
+        <span className="pf-stil pf-klein">{waarde.dagen > 1 ? `${waarde.dagen} dagen · uren per dag` : 'één dag · uren'}</span>
       </>}
       <input className="t-veld" style={{ width: 72 }} value={waarde.van} onChange={(e) => onChange({ ...waarde, van: e.target.value })} placeholder="van" aria-label="Van" />
       <input className="t-veld" style={{ width: 72 }} value={waarde.tot} onChange={(e) => onChange({ ...waarde, tot: e.target.value })} placeholder="tot" aria-label="Tot" />
@@ -247,7 +247,7 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
     setTekst(a === 'locatie' ? locatieTekst(f, eerste || {}) : a === 'groep' ? eerste?.groep || '' : a === 'opmerking' ? eerste?.opmerking || '' : '');
     setActie(a);
   };
-  const moment = (m) => { const van = leesUur(m.van), tot = leesUur(m.tot); if ((m.van && !van) || (m.tot && !tot)) { f.meld('Uur niet herkend, bv. 08:00'); return undefined; } return { anker: m.anker, dag: m.dag, uur_van: van, uur_tot: tot, werk: !!m.werk, dagen: m.werk ? Math.max(1, m.dagen || 1) : 1 }; };
+  const moment = (m) => { const van = leesUur(m.van), tot = leesUur(m.tot); if ((m.van && !van) || (m.tot && !tot)) { f.meld('Uur niet herkend, bv. 08:00'); return undefined; } return { anker: m.anker, dag: m.dag, uur_van: van, uur_tot: tot, werk: !!m.werk, dagen: Math.max(1, m.dagen || 1) }; };
   const pasToe = (wat) => metBezig(async () => {
     const regels = await echteRegels(gekozen); if (!regels.length) return;
     const ids = regels.map((r) => r.id);
