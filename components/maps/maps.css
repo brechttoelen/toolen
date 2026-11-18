@@ -845,13 +845,6 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-bs-veld input, .fm-bs-veld select { height: 28px; border: 1px solid #DADDE3; border-radius: 4px; padding: 0 6px; font-size: 12px; color: var(--fm-zwart); background: #fff; width: 100%; }
 .fm-bs-tabs { margin: 10px 12px 4px; width: auto; display: flex; }
 .fm-bs-tabs button { flex: 1; }
-.fm-bs-huisrij { display: grid; grid-template-columns: 1fr auto 26px; align-items: center; gap: 6px; padding: 0 6px 0 0; border-bottom: 1px solid #f0f0ee; min-height: 40px; }
-.fm-bs-huisrij .naam { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; border: 0; background: none; text-align: left; padding: 6px 12px; cursor: pointer; font-size: 12.5px; color: var(--fm-zwart); min-width: 0; }
-.fm-bs-huisrij .naam small { color: var(--fm-grijs); font-size: 11px; }
-.fm-bs-huisrij:hover { background: #F3F4F6; }
-.fm-bs-huisrij.aan { background: #EEF3FE; box-shadow: inset 2px 0 0 #2563EB; }
-.fm-bs-huisrij .tel { font-size: 12px; color: #6B7280; white-space: nowrap; }
-.fm-bs-huisrij.vol .tel { color: #DC2626; }
 .fm-bs-potlood { border: 0; background: none; cursor: pointer; color: #9CA3AF; width: 26px; height: 26px; }
 .fm-bs-potlood:hover { color: var(--fm-zwart); }
 .fm-bs-huisform { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #F9FAFB; border-bottom: 1px solid #E5E7EB; }
@@ -891,8 +884,6 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-bs-tegel .titel, .fm-bs-tegel small { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fm-bs-tegel .titel { font-size: 11px; color: var(--fm-zwart); }
 .fm-bs-tegel small { font-size: 10px; color: var(--fm-grijs); }
-.fm-bs-huisrij .naam span, .fm-bs-huisrij .naam small { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fm-bs-huisrij .tel { white-space: nowrap; }
 .fm-bs-datums { display: grid; grid-template-columns: 1fr auto 1fr; gap: 4px; align-items: center; } .fm-bs-datums input { width: 100%; min-width: 0; height: 26px; border: 1px solid #DADDE3; border-radius: 4px; font-size: 11.5px; padding: 0 4px; }
 .fm-bs-ruimte > span { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fm-bs-ruimte .fm-bs-functie-tag { font-size: 11.5px; }
@@ -965,11 +956,6 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-selinfo-rij input { flex: 1; min-width: 0; }
 .fm-selinfo-tabel { width: 100%; }
 .fm-selinfo-tabel td { padding: 5px 4px; }
-.fm-bs-lijstknoppen { display: flex; flex-direction: column; gap: 4px; padding: 0 12px; }
-.fm-bs-lijstknop { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 10px; border: 1px solid #E5E7EB; border-radius: 6px; background: #fff; cursor: pointer; text-align: left; font-size: 12px; min-width: 0; }
-.fm-bs-lijstknop small { color: var(--fm-grijs); font-size: 10.5px; }
-.fm-bs-lijstknop.aan { border-color: #2563EB; background: #EEF3FE; box-shadow: 0 0 0 1px #2563EB; }
-.fm-bs-lijstknop .fm-afkap { display: block; max-width: 100%; }
 .fm-branding .fm-segment[role=tablist] { display: grid; grid-template-columns: repeat(3, 1fr); }
 .fm-branding .fm-segment[role=tablist] button { border-bottom: 1px solid var(--fm-rand, #DADDE3); }
 .fm-bs-tel span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2558,12 +2544,6 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-bs-rail button .pijltje { position: absolute; right: 6px; bottom: 6px; width: 0; height: 0; border-left: 4px solid transparent; border-bottom: 4px solid currentColor; opacity: .7; }
 .fm-bs-rail .fm-bs-huisknop svg { color: #5FD3B8; }
 .fm-bs-rail .fm-bs-huisknop.aan svg { color: inherit; }
-.fm-binnenscherm:not(.lezen) .fm-bs-links.fm-bs-paneel { width: 256px; flex: none; display: flex; flex-direction: column; padding-bottom: 0; border-right: 1px solid var(--fm-rand); }
-.fm-bs-paneelkop { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--fm-rand); font-size: 12.5px; flex: none; }
-.fm-bs-paneelkop strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fm-bs-paneelkop .fm-x { border: 0; background: none; cursor: pointer; font-size: 16px; color: var(--fm-grijs); padding: 0 2px; }
-.fm-bs-bibsoort { margin: 8px 12px; display: flex; }
-.fm-bs-bibsoort button { flex: 1; }
 .fm-binnenscherm:not(.lezen) .fm-bs-rechts { width: 320px; border-left: 1px solid var(--fm-rand); }
 .fm-bs-eig { display: flex; flex-direction: column; font-size: 12px; }
 .fm-bs-eig .fm-sectie { gap: 8px; }
@@ -2587,56 +2567,22 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-selacties > button.zwart { background: var(--fm-zwart); color: #fff; border-color: var(--fm-zwart); }
 .fm-selacties > select { padding-right: 4px; max-width: 150px; }
 .fm-selacties .fm-menu { left: 0; right: auto !important; }
-.fm-bs-stoelstd { margin: 0 12px 8px; }
 
-/* Linkerpanelen van de binnen-editor: dezelfde rijen als de lagen en de bibliotheek op de kaart. */
-.fm-bs-rail button span { font-size: 10.5px; letter-spacing: -.01em; max-width: 62px; }
-.fm-bs-paneel { background: #fff; font-size: 12px; }
-.fm-bs-paneel > .fm-lijstkop, .fm-bs-paneel .fm-bs-inrichten .fm-lijstkop { padding: 10px 12px 4px; }
-.fm-bs-paneel .fm-bs-inrichten { padding-bottom: 12px; }
-.fm-bs-paneel .fm-bs-lijstknoppen { padding: 0; gap: 0; border-top: 1px solid #f0f0ee; }
-.fm-bs-elrij { grid-template-columns: 30px minmax(0, 1fr) 0; text-align: left; font: inherit; color: var(--fm-zwart); }
-.fm-bs-elrij .tekst { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
-.fm-bs-elrij .naam { font-size: 12.5px; font-weight: 600; }
-.fm-bs-elrij.aan { box-shadow: inset 3px 0 0 var(--t-blauw, #108AED); }
-.fm-bs-paneel .fm-bs-tegels { padding: 0 12px; gap: 4px; }
-.fm-bs-paneel .fm-bs-tegel { border-radius: 0; border-color: var(--fm-rand); }
-.fm-bs-paneel .fm-bs-tegel:hover { border-color: var(--fm-zwart); }
-.fm-bs-paneel .fm-bs-tegel.aan { border-color: var(--t-blauw, #108AED); box-shadow: inset 0 0 0 1px var(--t-blauw, #108AED); background: var(--fm-aan-bg); }
-/* Ruimtes: rij zoals een laag */
-.fm-bs-paneel .fm-bs-ruimte { padding: 7px 12px; border-bottom: 1px solid #f0f0ee; border-left: 0; }
-.fm-bs-paneel .fm-bs-ruimte:hover { background: var(--fm-aan-bg); }
-.fm-bs-paneel .fm-bs-ruimte.aan { background: var(--fm-aan-bg); box-shadow: inset 3px 0 0 var(--t-blauw, #108AED); }
-.fm-bs-paneel .fm-bs-ruimte .naam { font-size: 12.5px; }
-.fm-bs-paneel .fm-bs-tel { padding: 4px 12px; }
-.fm-bs-paneel .fm-bs-leegtekst { padding: 10px 12px; }
-/* Huis: rij zoals een bibliotheekelement, met groenblauwe rand rond het symbool */
-.fm-bs-paneel .fm-bs-huisrij { grid-template-columns: 30px minmax(0, 1fr) auto 26px; padding: 0 6px 0 10px; gap: 6px; min-height: 44px; border-bottom: 1px solid #f0f0ee; }
-.fm-bs-paneel .fm-bs-huisrij .ic { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; background: #E3F4EF; border: 1px solid #0E7C6B; }
-.fm-bs-paneel .fm-bs-huisrij .naam { padding: 6px 0; }
-.fm-bs-paneel .fm-bs-huisrij .naam span { font-weight: 600; }
-.fm-bs-paneel .fm-bs-huisrij:hover { background: var(--fm-aan-bg); }
-.fm-bs-paneel .fm-bs-huisrij.aan { background: var(--fm-aan-bg); box-shadow: inset 3px 0 0 var(--t-blauw, #108AED); }
-.fm-bs-paneel .fm-bs-huisrij .tel { color: #0E6B5C; font-weight: 600; }
-.fm-bs-paneel .fm-bs-huisrij.vol .tel { color: #B4123A; }
-.fm-bs-paneel .fm-bs-huisform { background: var(--fm-bg); border-bottom: 1px solid var(--fm-rand); }
-.fm-bs-paneel .fm-bs-stoelstd { margin: 10px 12px; }
-.fm-bs-paneel .fm-bs-bibsoort { margin: 10px 12px 4px; }
 /* Paneelknop van een gereedschap dat nu actief is (Tekenen, Punt, Stroom): stip rechtsboven. */
 .fm-bs-rail button.paneelknop.actief::after { content: ''; position: absolute; top: 7px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--t-blauw, #108AED); box-shadow: 0 0 0 2px var(--wr-balk, var(--t-navy, #022056)); }
-.fm-bs-elrij .ic svg { display: block; }
-/* Gereedschapslijsten (Tekenen, Punt, Stroom) en bibliotheekrijen in de binnen-editor: compact zoals de lagen. */
-.fm-bs-paneel .fm-bs-elrij { grid-template-columns: 28px minmax(0, 1fr) 0; gap: 10px; min-height: 40px; padding: 5px 12px; border-bottom: 1px solid #f0f0ee; }
-.fm-bs-paneel .fm-bs-elrij .ic { width: 28px; height: 28px; background: transparent; border: 0; }
-.fm-bs-paneel .fm-bs-elrij .naam { font-size: 12.5px; font-weight: 500; }
-.fm-bs-paneel .fm-bs-elrij .fm-sub { font-size: 11px; }
-.fm-bs-paneel .fm-bs-lijstknoppen { border-top: 0; }
 /* Paneel open: zacht gemarkeerd; enkel het actieve gereedschap is wit. */
 .fm-bs-rail .paneelknop.aan, .fm-bs-rail .paneelknop.aan:hover { background: rgba(255,255,255,.16); color: #fff; box-shadow: none; outline: 0; }
 .fm-bs-rail button:focus:not(:focus-visible) { outline: 0; }
-/* Selectie in de linkerpanelen exact zoals de lagen en de bibliotheek op de kaart: enkel de lichte achtergrond.
-   Geen eigen balkje, geen afgeronde focusrand van de browser bij een muisklik (wel bij toetsenbord). */
-.fm-bs-paneel .fm-bs-ruimte.aan, .fm-bs-paneel .fm-bs-elrij.aan, .fm-bs-paneel .fm-bs-huisrij.aan { background: var(--fm-aan-bg); box-shadow: none; border-left: 0; }
-.fm-bs-paneel button:focus { outline: 0; }
-.fm-bs-paneel button:focus-visible { outline: 2px solid var(--fm-zwart); outline-offset: -2px; }
-.fm-bs-paneel .fm-bs-ruimte, .fm-bs-paneel .fm-bs-elrij, .fm-bs-paneel .fm-bs-huisrij { border-radius: 0; }
+
+/* Linkerpanelen van de binnen-editor: de panelen van de kaart (fm-paneel, fm-teken, fm-tekenrij, fm-element). */
+.fm-bs-paneel { flex: none; }
+.fm-bs-paneel .fm-bs-kleurvak { width: 12px; height: 12px; border-radius: 2px; display: block; }
+.fm-bs-paneel .fm-bs-uitleg { margin: 0; padding: 8px 14px 12px; line-height: 1.45; }
+.fm-bs-paneel .fm-bs-teltabel { margin: 0 0 8px; }
+.fm-bs-paneel .fm-bs-teltabel th, .fm-bs-paneel .fm-bs-teltabel td { padding-left: 14px; padding-right: 14px; }
+.fm-bs-paneel .fm-bs-bibsoort { display: flex; }
+.fm-bs-paneel .fm-bs-bibsoort button { flex: 1; }
+.fm-bs-paneel .fm-bs-huiselement .ic { background: #E3F4EF; border-color: #0E7C6B; }
+.fm-bs-paneel .fm-teken .fm-bs-tegels { padding: 0 14px; }
+.fm-bs-paneel .fm-teken > .fm-sectie { border-bottom: 0; }
+

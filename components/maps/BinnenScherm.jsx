@@ -143,7 +143,7 @@ const zaalNaam = (t) => String(t || '').replace(/\s*\([^)]*m²\)\s*$/, '').trim(
 
 export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuweVerdieping, onderlegger, items, elementen, elementenMap, schrijven,
   onMaak, onWijzig, onVerwijder, onGrondplan, onPassen, onOnderlegger, onSluit, onMaakElement, onWijzigElement, onHost, fasen = [], actieveFase = null, onFase, onOngedaan, doeken = [], taal = 'nl', fotosVast = null, merk = null, autoPdf = false, onPdfKlaar, beginCamera = null, beginCameraBeeld = null, onDeelCamera = null,
-  stroom = null, vast = [], onKabelBuiten = null, planInfo = null, fiche = false, beginSel = null }) {
+  stroom = null, vast = [], onKabelBuiten = null, planInfo = null, fiche = false, beginSel = null, beginPaneel = null }) {
   const tx = binnenTekst(taal); const vn = (n) => vertaalNaam(n, taal);
   const [d, setD] = useState(null); // DXF-gegevens van het grondplan (lijnen in meter)
   const [laden, setLaden] = useState(false);
@@ -168,7 +168,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   const [punten, setPunten] = useState([]); // klikken voor meten, zaal tekenen of schaal
   const [meting, setMeting] = useState(null); // laatste meting [a, b]
   // Linkerpanelen zoals Lagen op de kaart: één tegelijk, via de zijbalk (nog een klik = dicht).
-  const [paneel, setPaneel] = useState('ruimtes'); // 'ruimtes' | 'huis' | 'bib' | null
+  const [paneel, setPaneel] = useState(beginPaneel || 'ruimtes'); // 'ruimtes' | 'huis' | 'bib' | null
   const [bibSoort, setBibSoort] = useState('meubels'); // in Bibliotheek: snelle meubels of de volledige bibliotheek
   const [menuTop, setMenuTop] = useState(8); // hoogte van het uitklapmenu naast de zijbalk
   const [kaal, setKaal] = useState(false); // dossier-overzicht: enkel grondplan, ruimtes en hun functie
@@ -1732,18 +1732,21 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   };
   const huisRij = (e) => {
     const n = huisGebruikt.get(e.id) || 0; const max = Number(e.eigenschappen?.huis?.aantal) || 0;
+    const kies = () => { if (!schrijven) return; setKiesEl(kiesEl?.id === e.id ? null : huisKeuze(e)); setModus(null); setRuimteKlik(false); setSel([]); };
+    const tel = max ? (n >= max && n ? `alles geplaatst (${n} / ${max})` : `${n} / ${max} geplaatst`) : n ? `${n} geplaatst` : '';
     return (
-      <div key={e.id} className={`fm-bs-huisrij${kiesEl?.id === e.id ? ' aan' : ''}${max && n >= max ? ' vol' : ''}`}>
-        <span className="ic" aria-hidden="true"><ElementIcoon el={e} maat={22} /></span>
-        <button className="naam" title={e.naam} disabled={!schrijven} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : huisKeuze(e)); setModus(null); setRuimteKlik(false); setSel([]); }}>
-          <span>{e.naam}</span>
-          <small>{e.tekenwijze === 'punt' ? 'Punt' : e.eigenschappen?.tafel ? (e.eigenschappen.tafel.vorm === 'rond' ? `Ø ${getal(e.eigenschappen.tafel.b, 2)} m` : `${getal(e.eigenschappen.tafel.b, 2)} × ${getal(e.eigenschappen.tafel.d, 2)} m`) : `${getal(Number(e.breedte_m) || 0, 2)} × ${getal(Number(e.diepte_m) || 0, 2)} m`}{zitVan(e) ? ` · ${zitVan(e)} zitpl.` : ''}</small>
-        </button>
-        <span className="tel">{max ? (n >= max && n ? 'Alles geplaatst' : `${n} / ${max}`) : n || ''}{max && n > max ? ` (${n} / ${max})` : ''}</span>
-        {schrijven && <button className="fm-bs-potlood" aria-label={`${e.naam} bewerken`} onClick={() => setHuisForm({ id: e.id, naam: e.naam, aantal: e.eigenschappen?.huis?.aantal ?? '', vorm: e.tekenwijze === 'punt' ? 'punt' : e.eigenschappen?.tafel?.vorm || 'basis', b: e.eigenschappen?.tafel?.b ?? e.breedte_m ?? '', d: e.eigenschappen?.tafel?.d ?? e.diepte_m ?? '', zit: e.eigenschappen?.zitplaatsen ?? '', basis: e.id })}>✎</button>}
+      <div key={e.id} className={`fm-element fm-bs-huiselement${kiesEl?.id === e.id ? ' aan' : ''}`} role="button" tabIndex={0} title={e.naam} onClick={kies} onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); kies(); } }}>
+        <span className="ic"><ElementIcoon el={e} maat={26} /></span>
+        <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+          <span className="fm-afkap" style={{ fontSize: 13, fontWeight: 600 }}>{e.naam}</span>
+          <span className="fm-sub">{e.tekenwijze === 'punt' ? 'Punt' : e.eigenschappen?.tafel ? (e.eigenschappen.tafel.vorm === 'rond' ? `Ø ${getal(e.eigenschappen.tafel.b, 2)} m` : `${getal(e.eigenschappen.tafel.b, 2)} × ${getal(e.eigenschappen.tafel.d, 2)} m`) : `${getal(Number(e.breedte_m) || 0, 2)} × ${getal(Number(e.diepte_m) || 0, 2)} m`}{zitVan(e) ? ` · ${zitVan(e)} zitpl.` : ''}</span>
+          {tel && <span className={`fm-sub${max && n > max ? ' fm-bs-teveel' : ''}`}>{tel}</span>}
+        </span>
+        {schrijven ? <button type="button" className="fm-sluit" aria-label={`${e.naam} bewerken`} title="Bewerken" onClick={(ev) => { ev.stopPropagation(); setHuisForm({ id: e.id, naam: e.naam, aantal: e.eigenschappen?.huis?.aantal ?? '', vorm: e.tekenwijze === 'punt' ? 'punt' : e.eigenschappen?.tafel?.vorm || 'basis', b: e.eigenschappen?.tafel?.b ?? e.breedte_m ?? '', d: e.eigenschappen?.tafel?.d ?? e.diepte_m ?? '', zit: e.eigenschappen?.zitplaatsen ?? '', basis: e.id }); }}><Icoon naam="penseel" maat={14} /></button> : <span />}
       </div>
     );
   };
+
 
   // Export vanuit het algemene exportmenu: het binnenplan opent en maakt meteen de pdf.
   useEffect(() => {
@@ -2063,6 +2066,35 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     return uit;
   }, [tekenvel, plan, ruimtes]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Rijen zoals op de kaart: gereedschap (fm-tekenrij) en bibliotheekelementen (fm-element).
+  const PANEEL_NAAM = { ruimtes: tx.ruimtes || 'Ruimtes', huis: 'Van het huis', bib: 'Bibliotheek', teken: 'Tekenen', punt: 'Punt', stroom: 'Stroom' };
+  const tekenRij = ({ key, aan, ic, naam, sub, onClick, rood = false }) => (
+    <button key={key} type="button" className={`fm-tekenrij${aan ? ' aan' : ''}`} onClick={onClick}>
+      <span className="ic">{ic}</span>
+      <span className="tekst"><b>{naam}</b>{sub ? <small className={rood ? 'fm-bs-teveel' : undefined}>{sub}</small> : null}</span>
+    </button>
+  );
+  const elRij = (e) => (
+    <button key={e.id} type="button" className={`fm-element${kiesEl?.id === e.id ? ' aan' : ''}`} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}>
+      <span className="ic"><ElementIcoon el={e} maat={26} /></span>
+      <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, textAlign: 'left' }}>
+        <span className="fm-afkap" style={{ fontSize: 13, fontWeight: 600 }}>{e.naam}</span>
+        <span className="fm-sub">{[e.tekenwijze === 'lijn' ? 'lijn tekenen' : 'klik om te plaatsen', e.leverancier].filter(Boolean).join(' · ')}</span>
+      </span>
+      <span />
+    </button>
+  );
+  const stoelKeuze = huisStoelLijst.length > 0 ? (
+    <div className="fm-sectie">
+      <label className="fm-veld">Stoelen bij nieuwe tafels
+        <select value={stoelNieuw || ''} onChange={(e) => setStoelStd(e.target.value || null)}>
+          <option value="">Eigen of gehuurd</option>
+          {huisStoelLijst.map((e) => <option key={e.id} value={e.id}>{e.naam} (van het huis)</option>)}
+        </select>
+      </label>
+    </div>
+  ) : null;
+
   const inhoud = (
     <div className={`fm fm-binnenscherm${schrijven ? '' : ' lezen'}${!schrijven && (selItems.length === 1 || actR || gebouwKaart) ? ' met-detail' : ''}${lijstOpen ? ' lijst-open' : ''}`} role="dialog" aria-label={`Binnenplan ${naamHost}`}>
       {camBeeld && (() => {
@@ -2139,12 +2171,8 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
             <button type="button" className={modus === 'meet' ? 'aan' : ''} title="Afstand meten" onClick={() => startModus('meet')}><Icoon naam="meten" maat={20} /><span>{tx.meten}</span></button>
           </nav>
         )}
-        {(!schrijven || paneel) && (
-        <aside className={`fm-bs-links${schrijven ? ' fm-bs-paneel' : ''}`}>
-          {(!schrijven || paneel === 'ruimtes') && (
-            <>
-              {schrijven && <div className="fm-paneelkop fm-bs-paneelkop"><strong>{tx.ruimtes} · {ruimtes.length}</strong><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>}
-
+        {!schrijven && (
+        <aside className="fm-bs-links">
           {!schrijven && <button className="fm-bs-greep" aria-expanded={lijstOpen} onClick={() => setLijstOpen((x) => !x)}><span className="fm-bs-greep-streep" aria-hidden="true" /><span className="fm-bs-greep-tekst">{tx.ruimtes} · {ruimtes.length}<span className="fm-sub"> · {inrichting.length} {tx.items}</span></span><span aria-hidden="true">{lijstOpen ? '▾' : '▴'}</span></button>}
           {!schrijven && <div className="fm-lijstkop fm-bs-lijstkop1">{tx.ruimtes} · {ruimtes.length}</div>}
           {ruimtes.length ? [...ruimtes].sort((a, b) => String(a.naam || '').localeCompare(String(b.naam || ''), 'nl', { numeric: true })).map((r) => {
@@ -2163,24 +2191,42 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
           {telEigen.map(([n, c]) => <div key={n} className="fm-bs-tel"><span title={vn(n)}>{vn(n)}</span><strong>{c}</strong></div>)}
           {telHuis.length > 0 && <div className="fm-bs-subkop">{tx.huis}</div>}
           {telHuis.map(([n, c]) => <div key={n} className="fm-bs-tel"><span title={vn(n)}>{vn(n)}</span><strong>{c}</strong></div>)}
-            </>
+        </aside>
+        )}
+        {schrijven && paneel && (
+        <aside className="fm-paneel fm-bs-paneel" aria-label={PANEEL_NAAM[paneel]}>
+          <div className="fm-paneelkop"><span className="fm-paneelnaam">{PANEEL_NAAM[paneel]}{paneel === 'huis' ? ` · ${naamHost}` : paneel === 'ruimtes' ? ` · ${ruimtes.length}` : ''}</span><button type="button" className="fm-sluit" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
+          <div className="fm-paneel-inhoud">
+          {paneel === 'ruimtes' && (
+            <div className="fm-teken">
+              <section>
+                {ruimtes.length ? [...ruimtes].sort((x, y) => String(x.naam || '').localeCompare(String(y.naam || ''), 'nl', { numeric: true })).map((r) => {
+                  const t = perRuimte.get(r.id) || { n: 0, zit: 0 }; const max = Number(r.velden?.max_personen) || 0; const kl = functieNu(r)?.kleur || r.stijl?.kleur || '#2563EB';
+                  const sub = [functieTekst(r), `${Math.round(oppervlakte(puntenVan(lokaalVan(r).geometrie)))} m²`, t.zit || max ? `${t.zit} ${tx.zitpl}${max ? ` / ${max}` : ''}` : t.n ? `${t.n} ${tx.items}` : ''].filter(Boolean).join(' · ');
+                  return tekenRij({ key: r.id, aan: actieveRuimte === r.id, ic: <span className="fm-bs-kleurvak" style={{ background: kl }} />, naam: r.naam || 'Ruimte', sub, rood: max && t.zit > max, onClick: () => { zoomOp(r); setActieveRuimte(r.id); setSel([]); setGebouwKaart(false); } });
+                }) : <p className="fm-sub fm-bs-uitleg">{plan.zalen.length ? 'Grondplan › Ruimtes herkennen' : 'Grondplan › Ruimte tekenen'}</p>}
+              </section>
+              <section>
+                <h3>{tx.op} {verdNaam}</h3>
+                {!inrichting.length && <p className="fm-sub fm-bs-uitleg">{tx.leeg}</p>}
+                {(telEigen.length > 0 || telHuis.length > 0) && (
+                  <table className="fm-tabel fm-bs-teltabel"><tbody>
+                    {telEigen.length > 0 && <tr><th colSpan={2}>{tx.eigen}</th></tr>}
+                    {telEigen.map(([n, c]) => <tr key={`e${n}`}><td>{vn(n)}</td><td className="getal">{c}</td></tr>)}
+                    {telHuis.length > 0 && <tr><th colSpan={2}>{tx.huis}</th></tr>}
+                    {telHuis.map(([n, c]) => <tr key={`h${n}`}><td>{vn(n)}</td><td className="getal">{c}</td></tr>)}
+                  </tbody></table>
+                )}
+              </section>
+            </div>
           )}
-          {schrijven && paneel === 'huis' && (
+          {paneel === 'huis' && (
             <>
-              <div className="fm-paneelkop fm-bs-paneelkop"><strong>Van het huis</strong><span className="fm-sub"> · {naamHost}</span><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
-              {huisStoelLijst.length > 0 && (
-                <label className="fm-veld fm-bs-stoelstd">Stoelen bij nieuwe tafels
-                  <select value={stoelNieuw || ''} onChange={(e) => setStoelStd(e.target.value || null)}>
-                    <option value="">Eigen of gehuurd</option>
-                    {huisStoelLijst.map((e) => <option key={e.id} value={e.id}>{e.naam} (van het huis)</option>)}
-                  </select>
-                </label>
-              )}
-              <div className="fm-bs-huis">
-              {!huis.length && !huisForm && <div className="fm-sub fm-bs-leegtekst">Wat stelt {naamHost} zelf ter beschikking? Tafels, stoelen, podium… Het blijft bewaard voor volgende plannen en komt niet op onze laadlijst.</div>}
+              {stoelKeuze}
+              {!huis.length && !huisForm && <p className="fm-sub fm-bs-uitleg">Wat stelt {naamHost} zelf ter beschikking? Tafels, stoelen, podium… Het blijft bewaard voor volgende plannen en komt niet op onze laadlijst.</p>}
               {huis.map(huisRij)}
               {huisForm && (
-                <div className="fm-bs-huisform">
+                <div className="fm-sectie fm-bs-huisform">
                   <label className="fm-veld">Naam<input autoFocus value={huisForm.naam} onChange={(e) => setHuisForm({ ...huisForm, naam: e.target.value })} placeholder="bv. Ronde tafel Ø 1,8 m" /></label>
                   <div className="fm-rij">
                     <label className="fm-veld">Aantal<input type="number" min="0" value={huisForm.aantal} onChange={(e) => setHuisForm({ ...huisForm, aantal: e.target.value })} /></label>
@@ -2209,94 +2255,62 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                   <div className="fm-rij"><button className="fm-knop klein zwart" disabled={!huisForm.naam.trim()} onClick={bewaarHuis}>Bewaren</button><button className="fm-knop klein" onClick={() => setHuisForm(null)}>Annuleren</button></div>
                 </div>
               )}
-              {schrijven && !huisForm && <div style={{ padding: 12 }}><button className="fm-knop vol" style={{ width: '100%' }} onClick={() => setHuisForm({ naam: '', aantal: '', vorm: 'rond', b: '1.8', d: '', zit: '', basis: null })}>Materiaal toevoegen</button></div>}
+              {!huisForm && <div className="fm-sectie"><button className="fm-knop vol" onClick={() => setHuisForm({ naam: '', aantal: '', vorm: 'rond', b: '1.8', d: '', zit: '', basis: null })}>Materiaal toevoegen</button></div>}
+            </>
+          )}
+          {paneel === 'teken' && (
+            <div className="fm-teken">
+              <section>
+                <h3>Vormen</h3>
+                {[['lijn', 'lijn', 'Lijn of muur', 'typ een lengte + Enter · Shift = 45°'], ['pijl', 'verder', 'Pijl', ''], ['maat', 'liniaal', 'Maatlijn', 'vangt op hoeken en randen'], ['rechthoek', 'rechthoek', 'Rechthoek', 'twee hoeken'], ['cirkel', 'cirkel', 'Cirkel', 'midden en rand'], ['vlak', 'vlak', 'Vlak', 'klik punten, dubbelklik = klaar']].map(([k, ic, n, u]) => tekenRij({ key: k, aan: modus === k, ic: <Icoon naam={ic} maat={20} />, naam: n, sub: u, onClick: () => startModus(k) }))}
+              </section>
+              <section>
+                <h3>Tekst en ruimtes</h3>
+                {[['tekst', 'tekst', 'Tekst', ''], ['zaal', 'kader', 'Zaal', 'een ruimte tekenen']].map(([k, ic, n, u]) => tekenRij({ key: k, aan: modus === k, ic: <Icoon naam={ic} maat={20} />, naam: n, sub: u, onClick: () => startModus(k) }))}
+              </section>
+              <p className="fm-sub fm-bs-uitleg">Esc stopt met tekenen. Een getekende vorm pas je aan met de hoekjes en bolletjes.</p>
             </div>
-            </>
           )}
-          {schrijven && paneel === 'teken' && (
-            <>
-              <div className="fm-paneelkop fm-bs-paneelkop"><strong>Tekenen</strong><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
-              <div className="fm-bs-lijstknoppen">
-                <button type="button" className={`fm-element fm-bs-elrij${modus === 'lijn' ? ' aan' : ''}`} onClick={() => startModus('lijn')}><span className="ic" aria-hidden="true"><Icoon naam="lijn" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Lijn of muur</span><span className="fm-sub">typ een lengte + Enter · Shift = 45°</span></span><span /></button>
-                <button type="button" className={`fm-element fm-bs-elrij${modus === 'pijl' ? ' aan' : ''}`} onClick={() => startModus('pijl')}><span className="ic" aria-hidden="true"><Icoon naam="verder" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Pijl</span></span><span /></button>
-                <button type="button" className={`fm-element fm-bs-elrij${modus === 'maat' ? ' aan' : ''}`} onClick={() => startModus('maat')}><span className="ic" aria-hidden="true"><Icoon naam="liniaal" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Maatlijn</span><span className="fm-sub">vangt op hoeken en randen</span></span><span /></button>
-                <button type="button" className={`fm-element fm-bs-elrij${modus === 'rechthoek' ? ' aan' : ''}`} onClick={() => startModus('rechthoek')}><span className="ic" aria-hidden="true"><Icoon naam="rechthoek" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Rechthoek</span><span className="fm-sub">twee hoeken</span></span><span /></button>
-                <button type="button" className={`fm-element fm-bs-elrij${modus === 'cirkel' ? ' aan' : ''}`} onClick={() => startModus('cirkel')}><span className="ic" aria-hidden="true"><Icoon naam="cirkel" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Cirkel</span><span className="fm-sub">midden en rand</span></span><span /></button>
-                <button type="button" className={`fm-element fm-bs-elrij${modus === 'vlak' ? ' aan' : ''}`} onClick={() => startModus('vlak')}><span className="ic" aria-hidden="true"><Icoon naam="vlak" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Vlak</span><span className="fm-sub">klik punten, dubbelklik = klaar</span></span><span /></button>
-                <button type="button" className={`fm-element fm-bs-elrij${modus === 'tekst' ? ' aan' : ''}`} onClick={() => startModus('tekst')}><span className="ic" aria-hidden="true"><Icoon naam="tekst" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Tekst</span></span><span /></button>
-                <button type="button" className={`fm-element fm-bs-elrij${modus === 'zaal' ? ' aan' : ''}`} onClick={() => startModus('zaal')}><span className="ic" aria-hidden="true"><Icoon naam="kader" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Zaal</span><span className="fm-sub">een ruimte tekenen</span></span><span /></button>
-              </div>
-              <div className="fm-sub fm-bs-leegtekst">Esc stopt met tekenen. Getekende lijnen en vlakken pas je aan met een dubbelklik.</div>
-            </>
+          {paneel === 'punt' && (
+            <div className="fm-teken">
+              <section>
+                <h3>Punten</h3>
+                {PUNT_TYPES.filter((t) => t.k !== 'invoer' && t.k !== 'stroom').map((t) => tekenRij({ key: t.k, aan: modus === `punt:${t.k}`, ic: <svg width="22" height="22" aria-hidden="true"><PuntSymbool type={t.k} x={11} y={11} /></svg>, naam: t.naam, onClick: () => startModus(`punt:${t.k}`) }))}
+              </section>
+            </div>
           )}
-          {schrijven && paneel === 'punt' && (
-            <>
-              <div className="fm-paneelkop fm-bs-paneelkop"><strong>Punt</strong><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
-              <div className="fm-bs-lijstknoppen">
-                {PUNT_TYPES.filter((t) => t.k !== 'invoer' && t.k !== 'stroom').map((t) => <button key={t.k} type="button" className={`fm-element fm-bs-elrij${modus === `punt:${t.k}` ? ' aan' : ''}`} onClick={() => startModus(`punt:${t.k}`)}><span className="ic" aria-hidden="true"><svg width="22" height="22"><PuntSymbool type={t.k} x={11} y={11} /></svg></span><span className="tekst"><span className="fm-afkap naam">{t.naam}</span></span><span /></button>)}
-              </div>
-            </>
-          )}
-          {schrijven && paneel === 'stroom' && (
-            <>
-              <div className="fm-paneelkop fm-bs-paneelkop"><strong>Stroom</strong><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
-              <div className="fm-bs-lijstknoppen">
-                <button type="button" className={`fm-element fm-bs-elrij${modus === 'punt:stroom' ? ' aan' : ''}`} onClick={() => startModus('punt:stroom')}><span className="ic" aria-hidden="true"><svg width="22" height="22"><PuntSymbool type="stroom" x={11} y={11} /></svg></span><span className="tekst"><span className="fm-afkap naam">Stroomaansluiting van het gebouw</span><span className="fm-sub">vaste stopcontacten, met nr en net per uitgang</span></span><span /></button>
-                <button type="button" className={`fm-element fm-bs-elrij${modus === 'punt:invoer' ? ' aan' : ''}`} onClick={() => startModus('punt:invoer')}><span className="ic" aria-hidden="true"><svg width="22" height="22"><PuntSymbool type="invoer" x={11} y={11} /></svg></span><span className="tekst"><span className="fm-afkap naam">Stroominvoer</span><span className="fm-sub">waar de kabel van buiten binnenkomt</span></span><span /></button>
-                <button type="button" className={`fm-element fm-bs-elrij${modus === 'kabel' ? ' aan' : ''}`} onClick={() => startModus('kabel')}><span className="ic" aria-hidden="true"><Icoon naam="stekker" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Kabel</span><span className="fm-sub">klik de voeding, dan de verbruiker</span></span><span /></button>
-              </div>
+          {paneel === 'stroom' && (
+            <div className="fm-teken">
+              <section>
+                <h3>Aansluiten</h3>
+                {tekenRij({ key: 'vast', aan: modus === 'punt:stroom', ic: <svg width="22" height="22" aria-hidden="true"><PuntSymbool type="stroom" x={11} y={11} /></svg>, naam: 'Stroomaansluiting van het gebouw', sub: 'vaste stopcontacten, met nr en net per uitgang', onClick: () => startModus('punt:stroom') })}
+                {tekenRij({ key: 'invoer', aan: modus === 'punt:invoer', ic: <svg width="22" height="22" aria-hidden="true"><PuntSymbool type="invoer" x={11} y={11} /></svg>, naam: 'Stroominvoer', sub: 'waar de kabel van buiten binnenkomt', onClick: () => startModus('punt:invoer') })}
+                {tekenRij({ key: 'kabel', aan: modus === 'kabel', ic: <Icoon naam="stekker" maat={20} />, naam: 'Kabel', sub: 'klik de voeding, dan de verbruiker', onClick: () => startModus('kabel') })}
+              </section>
               {stroomGroepen.map(([naam, lijst]) => (
-                <div key={naam}>
-                  <div className="fm-lijstkop">{naam}</div>
-                  <div className="fm-bs-lijstknoppen">
-                    {lijst.map((e) => <button key={e.id} type="button" className={`fm-element fm-bs-elrij${kiesEl?.id === e.id ? ' aan' : ''}`} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}><span className="ic" aria-hidden="true"><ElementIcoon el={e} maat={26} /></span><span className="tekst"><span className="fm-afkap naam">{e.naam}</span>{e.leverancier ? <span className="fm-sub">{e.leverancier}</span> : null}</span><span /></button>)}
-                  </div>
-                </div>
+                <section key={naam}>
+                  <h3>{naam}</h3>
+                  {lijst.map((e) => elRij(e))}
+                </section>
               ))}
-            </>
+            </div>
           )}
-          {schrijven && paneel === 'bib' && (
+          {paneel === 'bib' && (
             <>
-              <div className="fm-paneelkop fm-bs-paneelkop"><strong>Bibliotheek</strong><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
-              <div className="fm-segment fm-bs-bibsoort">
-                <button type="button" className={bibSoort === 'meubels' ? 'aan' : ''} onClick={() => setBibSoort('meubels')}>Meubels en inrichting</button>
-                <button type="button" className={bibSoort === 'alles' ? 'aan' : ''} onClick={() => setBibSoort('alles')}>Alle elementen</button>
+              <div className="fm-sectie">
+                <div className="fm-segment fm-bs-bibsoort">
+                  <button type="button" className={bibSoort === 'meubels' ? 'aan' : ''} onClick={() => setBibSoort('meubels')}>Meubels en inrichting</button>
+                  <button type="button" className={bibSoort === 'alles' ? 'aan' : ''} onClick={() => setBibSoort('alles')}>Alle elementen</button>
+                </div>
               </div>
-              {huisStoelLijst.length > 0 && (
-                <label className="fm-veld fm-bs-stoelstd">Stoelen bij nieuwe tafels
-                  <select value={stoelNieuw || ''} onChange={(e) => setStoelStd(e.target.value || null)}>
-                    <option value="">Eigen of gehuurd</option>
-                    {huisStoelLijst.map((e) => <option key={e.id} value={e.id}>{e.naam} (van het huis)</option>)}
-                  </select>
-                </label>
-              )}
               {bibSoort === 'meubels' ? (
-                <div className="fm-bs-inrichten">
-              {(() => {
-                const br = bib.filter((e) => isFrame(e) || isDrape(e) || isWand(e)); if (!br.length) return null;
-                return (
-                  <div>
-                    <div className="fm-lijstkop">Branding</div>
-                    <div className="fm-bs-lijstknoppen">
-                      {br.map((e) => <button key={e.id} type="button" className={`fm-element fm-bs-elrij${kiesEl?.id === e.id ? ' aan' : ''}`} disabled={!schrijven} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}><span className="ic" aria-hidden="true"><ElementIcoon el={e} maat={26} /></span><span className="tekst"><span className="fm-afkap naam">{e.naam}</span><span className="fm-sub">{[e.tekenwijze === 'lijn' ? 'lijn tekenen' : 'klik om te plaatsen', e.leverancier].filter(Boolean).join(' · ')}</span></span><span /></button>)}
-                    </div>
-                  </div>
-                );
-              })()}
-              {(() => {
-                const tr = bib.filter((e) => /truss/i.test(e.categorie || '') && ['lijn', 'schaal'].includes(e.tekenwijze)); if (!tr.length) return null;
-                return (
-                  <div>
-                    <div className="fm-lijstkop">Truss</div>
-                    <div className="fm-bs-lijstknoppen">
-                      {tr.map((e) => <button key={e.id} type="button" className={`fm-element fm-bs-elrij${kiesEl?.id === e.id ? ' aan' : ''}`} disabled={!schrijven} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}><span className="ic" aria-hidden="true"><ElementIcoon el={e} maat={26} /></span><span className="tekst"><span className="fm-afkap naam">{e.naam}</span><span className="fm-sub">{[e.tekenwijze === 'lijn' ? 'lijn tekenen' : 'klik om te plaatsen', e.leverancier].filter(Boolean).join(' · ')}</span></span><span /></button>)}
-                    </div>
-                  </div>
-                );
-              })()}
+                <div className="fm-teken">
+                  {stoelKeuze}
+                  {(() => { const br = bib.filter((e) => isFrame(e) || isDrape(e) || isWand(e)); return br.length ? <section><h3>Branding</h3>{br.map((e) => elRij(e))}</section> : null; })()}
+                  {(() => { const tr = bib.filter((e) => /truss/i.test(e.categorie || '') && ['lijn', 'schaal'].includes(e.tekenwijze)); return tr.length ? <section><h3>Truss</h3>{tr.map((e) => elRij(e))}</section> : null; })()}
               {MEUBEL_GROEPEN.map((g) => (
-                <div key={g.naam}>
-                  <div className="fm-lijstkop">{g.naam}</div>
+                <section key={g.naam}>
+                  <h3>{g.naam}</h3>
                   <div className="fm-bs-tegels">
                     {g.items.map((mb, i) => {
                       const id = `m:${g.naam}:${i}`; const tk = meubelTekening(mb); const z = Math.max(tk.b, tk.h) || 1;
@@ -2312,14 +2326,15 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                       );
                     })}
                   </div>
-                </div>
+                </section>
               ))}
-            </div>
+                </div>
               ) : (
                 <BibliotheekPaneel startCat="Binnenruimte" elementen={bib} gekozen={kiesEl} schrijven={schrijven} onKies={(el) => { setKiesEl(el); setRuimteKlik(false); setModus(null); setSel([]); }} />
               )}
             </>
           )}
+          </div>
         </aside>
         )}
         <div className="fm-bs-doek-wrap">

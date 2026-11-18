@@ -47,6 +47,15 @@ describe('binnenscherm', () => {
     expect(html).toContain('Vergrendeld');
     expect(html).toMatch(/disabled=""[^>]*>.*?Wissen/);
   });
+  it('linkerpanelen gebruiken de rijen van de kaart', () => {
+    const el = { id: 'e1', naam: 'Groene stoel', categorie: 'Huismateriaal', tekenwijze: 'schaal', breedte_m: 0.45, diepte_m: 0.45, eigenschappen: { huis: { locatie: 'thermae-palace', aantal: 600 }, meubel: { type: 'stoel' } } };
+    const p = { ...props(true), elementen: [el], elementenMap: new Map([['e1', el]]) };
+    for (const [pan, moet] of [['ruimtes', 'fm-tekenrij'], ['huis', 'fm-element fm-bs-huiselement'], ['teken', 'Lijn of muur'], ['punt', 'fm-tekenrij'], ['stroom', 'Stroomaansluiting van het gebouw'], ['bib', 'Meubels en inrichting']]) {
+      const html = renderToString(<BinnenScherm {...p} beginPaneel={pan} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('fm-paneel fm-bs-paneel');
+      expect(html).toContain(moet);
+    }
+  });
   it('lezen: zelfde weergave als voorheen, zonder zijbalk', () => {
     const html = renderToString(<BinnenScherm {...props(false)} />).replace(/<!-- -->/g, '');
     expect(html).not.toContain('fm-bs-rail');
