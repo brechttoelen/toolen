@@ -180,6 +180,8 @@
 .pf-kolknop { all: unset; cursor: pointer; font: inherit; color: var(--t-tekst-2); padding: 2px 6px; border-radius: 6px; margin-right: 2px; }
 .pf-kolknop.aan { color: var(--t-tekst); background: var(--t-vlak-2); }
 .pf-kolknop:focus-visible { outline: 2px solid var(--t-blauw); }
+.pf-tel { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pf-tel b { font-weight: 600; }
 /* Luchtfoto onder een rij */
 .pf-tabel tr.pf-kaartrij td { padding: 0 0 12px; background: #fff !important; }
 .pf-rijkaart { display: grid; grid-template-columns: minmax(0, 1fr) 240px; height: 340px; border: 1px solid var(--t-rand); border-radius: 10px; overflow: hidden; }

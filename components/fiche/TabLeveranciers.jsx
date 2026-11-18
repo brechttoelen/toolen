@@ -22,13 +22,11 @@ const cijfer = (n) => new Intl.NumberFormat('nl-BE', { maximumFractionDigits: 1 
 const eenheidNaam = (e) => (e === 'm' ? 'm' : 'st.');
 const standKlas = { weinig: 'pf-let', veel: 'pf-fout', klaar: 'pf-ok' };
 
-// Besteld tegenover geplaatst: balkje met cijfers. Groen is klaar, oranje te weinig, rood te veel.
+// Besteld tegenover geplaatst, in cijfers. Groen is klaar, oranje te weinig, rood te veel.
 function Balk({ n, tot, st }) {
-  const p = tot ? Math.min(100, Math.round((100 * n) / tot)) : n ? 100 : 0;
   return (
-    <span className={`pf-balk ${st || ''}`} title={st === 'weinig' ? `nog ${cijfer(tot - n)} te plaatsen` : st === 'veel' ? `${cijfer(n - tot)} meer geplaatst dan besteld` : undefined}>
-      <span className="spoor"><span style={{ width: `${p}%` }} /></span>
-      <span className="tel">{cijfer(n)} / {cijfer(tot)}</span>
+    <span className="pf-tel" title={st === 'weinig' ? `nog ${cijfer(tot - n)} te plaatsen` : st === 'veel' ? `${cijfer(n - tot)} meer geplaatst dan besteld` : st === 'volgt' ? 'volgt de kaart' : undefined}>
+      <b className={standKlas[st] || ''}>{cijfer(n)}</b><span className="pf-stil"> / {cijfer(tot)}</span>
     </span>
   );
 }
@@ -403,7 +401,7 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
           <table className="pf-tabel pf-bestel" style={{ minWidth: 980 }}>
             <thead><tr>
               <th style={{ width: 26 }} /><th style={{ width: 30 }}>{s && <input type="checkbox" checked={alleAan} onChange={() => setSel(alleAan ? new Set() : new Set(b.rijen.map((x) => x.id)))} aria-label="Alles selecteren" />}</th>
-              <th className="getal" style={{ width: 104 }}>Aantal</th><th>Wat</th><th style={{ width: 160 }}>Groep</th><th style={{ width: 160 }}>Locatie</th><th style={{ width: 270 }}>Periode · begin → einde</th><th style={{ width: 180 }}><button className={`pf-kolknop ${kolom === 'geplaatst' ? 'aan' : ''}`} onClick={() => setKolom('geplaatst')} title="Hoeveel staat er op de kaart">Geplaatst</button><button className={`pf-kolknop ${kolom === 'geleverd' ? 'aan' : ''}`} onClick={() => setKolom('geleverd')} title="Ontvangst op het terrein afvinken">Geleverd</button></th>
+              <th className="getal" style={{ width: 104 }}>Aantal</th><th>Wat</th><th style={{ width: 160 }}>Groep</th><th style={{ width: 160 }}>Locatie</th><th style={{ width: 270 }}>Periode · begin → einde</th><th style={{ width: 150 }}><button className={`pf-kolknop ${kolom === 'geplaatst' ? 'aan' : ''}`} onClick={() => setKolom('geplaatst')} title="Hoeveel staat er op de kaart">Geplaatst</button><button className={`pf-kolknop ${kolom === 'geleverd' ? 'aan' : ''}`} onClick={() => setKolom('geleverd')} title="Ontvangst op het terrein afvinken">Geleverd</button></th>
             </tr></thead>
             <tbody>
               {!b.rijen.length && <tr><td colSpan={8} className="pf-leeg">Nog geen regels. Materiaal van {lev.naam} op de kaart komt hier vanzelf; voeg hieronder toe wat je niet tekent.</td></tr>}
