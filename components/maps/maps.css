@@ -1002,11 +1002,18 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-binnenscherm.lezen .fm-bs-doek { touch-action: none; }
 @media (max-width: 760px) {
   .fm-binnenscherm.lezen { height: 100dvh; }
-  .fm-binnenscherm.lezen .fm-bs-kop { flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding: calc(6px + env(safe-area-inset-top)) 12px 6px; scrollbar-width: none; }
-  .fm-binnenscherm.lezen .fm-bs-kop::-webkit-scrollbar { display: none; }
+  /* Kop in drie regels: event (klein), gebouw (groot), daaronder verdiepingen en knoppen. Niets valt nog buiten beeld. */
+  .fm-binnenscherm.lezen .fm-bs-kop { flex-wrap: wrap; overflow: visible; gap: 6px 8px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; min-height: 0; }
   .fm-binnenscherm.lezen .fm-bs-kop > span[style] { display: none; }
-  .fm-binnenscherm.lezen .fm-bs-titel { max-width: 46vw; font-size: 15px; flex-shrink: 1; }
-  .fm-binnenscherm.lezen .fm-bs-verd, .fm-binnenscherm.lezen .fm-bs-moment, .fm-binnenscherm.lezen .fm-bs-merk { flex-shrink: 0; }
+  .fm-binnenscherm.lezen .fm-bs-merk { order: -2; flex: 1 1 100%; min-width: 0; font-size: 11.5px; font-weight: 600; color: var(--fm-grijs); overflow: hidden; text-overflow: ellipsis; display: block; }
+  .fm-binnenscherm.lezen .fm-bs-merk i { width: 8px; height: 8px; margin-right: 6px; vertical-align: 0; }
+  .fm-binnenscherm.lezen .fm-bs-titel { order: -1; flex: 1 1 60%; max-width: none; min-width: 0; font-size: 18px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 0; }
+  .fm-binnenscherm.lezen .fm-bs-kop > .fm-terugknop { order: -1; flex: none; }
+  .fm-binnenscherm.lezen .fm-bs-verd { flex: 0 1 auto; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .fm-binnenscherm.lezen .fm-bs-verd::-webkit-scrollbar { display: none; }
+  .fm-binnenscherm.lezen .fm-bs-verd button { white-space: nowrap; }
+  .fm-binnenscherm.lezen .fm-bs-kop > .fm-knop.klein { height: 32px; }
+  .fm-binnenscherm.lezen .fm-bs-moment { flex-shrink: 0; }
   .fm-binnenscherm.lezen .fm-bs-verd button { height: 32px; }
   .fm-binnenscherm.lezen .fm-bs-moment { font-size: 0; gap: 0; }
   .fm-binnenscherm.lezen .fm-bs-moment select { height: 32px; font-size: 13px; max-width: 42vw; }

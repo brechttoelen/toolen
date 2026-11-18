@@ -329,10 +329,17 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     const delen = [...plan.lijnen.map((l) => l.c), ...(hostRing ? [hostRing] : []), ...vanVerd.map((it) => puntenVan(lokaalVan(it).geometrie))];
     const k = kaderVan(delen) || [-15, -10, 15, 10];
     const b = Math.max(6, k[2] - k[0]) * 1.08; const h = Math.max(4, k[3] - k[1]) * 1.08;
-    setBeeld({ cx: (k[0] + k[2]) / 2, cy: (k[1] + k[3]) / 2, s: Math.min(maat.w / b, maat.h / h) });
+    // Gsm (deel-link): het blad onderaan (de greep) bedekt 64 px; het plan in het vrije deel erboven passen.
+    const smal = !schrijven && typeof window !== 'undefined' && window.innerWidth <= 760; const vrij = smal ? Math.max(120, maat.h - 64) : maat.h;
+    const sc = Math.min(maat.w / b, vrij / h);
+    setBeeld({ cx: (k[0] + k[2]) / 2, cy: (k[1] + k[3]) / 2 - (maat.h - vrij) / 2 / sc, s: sc });
   };
   useEffect(() => { if (!wachtOpPlan && maat.w > 0) passend(); }, [wachtOpPlan, verd, maat.w > 0, d]); // eslint-disable-line react-hooks/exhaustive-deps
   const B = beeld || { cx: 0, cy: 0, s: 20 };
+  // Deel-link op gsm: onderaan ligt een blad over de tekening, en in het overzicht (ver uitgezoomd) is het plan
+  // te klein voor punten, tekstjes en losse meubels: dan tonen en raken we enkel de ruimtes.
+  const gsmLees = !schrijven && typeof window !== 'undefined' && window.innerWidth <= 760;
+  const overzicht = gsmLees && B.s < 7;
   const naarScherm = ([x, y]) => [(x - B.cx) * B.s + maat.w / 2, (B.cy - y) * B.s + maat.h / 2];
   const naarWereld = (e) => { const r = svgRef.current.getBoundingClientRect(); return [B.cx + (e.clientX - r.left - maat.w / 2) / B.s, B.cy - (e.clientY - r.top - maat.h / 2) / B.s]; };
   const snap = ([x, y]) => [r3(Math.round(x / 0.05) * 0.05), r3(Math.round(y / 0.05) * 0.05)];
@@ -820,7 +827,14 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   };
   const plaatsPunt = useRef(null);
   // Kleinste zaal rond een punt.
-  tikRef.current = (w) => { const it = raak(w); setGebouwKaart(false); setLijstOpen(false); if (it) { setSel([it.id]); setActieveRuimte(null); return; } setSel([]); setActieveRuimte(ruimteBij(w)?.id || null); };
+  tikRef.current = (w) => {
+    // In het overzicht op gsm kiest een tik de ruimte (en zoomt erop in); pas ingezoomd raak je een meubel of punt.
+    const smal = !schrijven && typeof window !== 'undefined' && window.innerWidth <= 760; const ver = smal && (beeldRef.current?.s || 20) < 7;
+    const r = ruimteBij(w); const it = ver && r ? null : raak(w);
+    setGebouwKaart(false); setLijstOpen(false);
+    if (it) { setSel([it.id]); setActieveRuimte(null); return; }
+    setSel([]); setActieveRuimte(r?.id || null); if (smal && r) zoomOp(r);
+  };
   const ruimteBij = (w) => { let best = null; for (const r of ruimtes) { const ring = puntenVan(lokaalVan(r).geometrie); if (!binnenVeelhoek(w, ring)) continue; const a = oppervlakte(ring); if (!best || a < best.a) best = { r, a }; } return best?.r || null; };
   // Hoekpunt vangen op een hoekpunt van het grondplan (binnen 10 px), anders het raster.
   const vangPunt = (w, p) => {
@@ -2433,7 +2447,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                   <g className="fm-bs-afst teken"><rect x={x2 + 12} y={y2 + 10} width={t.length * 6.8 + 8} height={18} rx={3} /><text x={x2 + 16 + (t.length * 6.8) / 2} y={y2 + 23} textAnchor="middle">{t}</text></g>
                 </g>
               ); })()}
-              {!kaal && inrichting.filter((it) => lokaalVan(it).geometrie.type === 'Point').map((it) => {
+              {!kaal && !overzicht && inrichting.filter((it) => lokaalVan(it).geometrie.type === 'Point').map((it) => {
                 const el = elementenMap.get(it.element_id); const aan = sel.includes(it.id); const [x, y] = naarScherm(lokaalVan(it).geometrie.coordinates);
                 if (it.soort === 'tekst') { const fs = Number(it.stijl?.tekstgrootte) || 13; const t = it.naam || ''; const w = t.length * fs * 0.58 + 10; return (
                   <g key={it.id}>
