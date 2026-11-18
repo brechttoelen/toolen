@@ -141,7 +141,7 @@ const sectiesVan = (pts, e) => {
 };
 const zaalNaam = (t) => String(t || '').replace(/\s*\([^)]*m²\)\s*$/, '').trim();
 
-export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuweVerdieping, onderlegger, items, elementen, elementenMap, schrijven,
+export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen, verd, onVerd, onNieuweVerdieping, onderlegger, items, elementen, elementenMap, schrijven,
   onMaak, onWijzig, onVerwijder, onGrondplan, onPassen, onOnderlegger, onSluit, onMaakElement, onWijzigElement, onHost, fasen = [], actieveFase = null, onFase, onOngedaan, doeken = [], taal = 'nl', fotosVast = null, merk = null, autoPdf = false, onPdfKlaar, beginCamera = null, beginCameraBeeld = null, onDeelCamera = null,
   stroom = null, vast = [], onKabelBuiten = null, planInfo = null, fiche = false, beginSel = null, beginPaneel = null }) {
   const tx = binnenTekst(taal); const vn = (n) => vertaalNaam(n, taal);
@@ -830,6 +830,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   tikRef.current = (w) => {
     // In het overzicht op gsm kiest een tik de ruimte (en zoomt erop in); pas ingezoomd raak je een meubel of punt.
     const smal = !schrijven && typeof window !== 'undefined' && window.innerWidth <= 760; const ver = smal && (beeldRef.current?.s || 20) < 7;
+    if (modus === 'meet') { klikModus(w); return; }
     const r = ruimteBij(w); const it = ver && r ? null : raak(w);
     setGebouwKaart(false); setLijstOpen(false);
     if (it) { setSel([it.id]); setActieveRuimte(null); return; }
@@ -1691,6 +1692,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
           </div>
         )}
         <FotoStrook key={r.id} planId={host.plan_id} itemId={r.id} schrijven={false} titel={tx.fotos} vast={fotosVast ? fotosVast.get(r.id) || [] : null} kolommen={2} tekst={tx} />
+        {opmerkingBlok?.(r.id)}
       </div>
     );
   };
@@ -1732,6 +1734,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
           <div className="fm-bs-lees-blok"><div className="fm-bs-lees-label">{tx.doeken}</div><OntwerpDuimen it={it} el={el} elementenMap={elementenMap} zijNamen={tx} max={8} groot tekst={tx} /></div>
         )}
         {it.velden?.opmerking && <div className="fm-bs-lees-blok"><div className="fm-bs-lees-label">{tx.opmerking}</div><div>{it.velden.opmerking}</div></div>}
+        {opmerkingBlok?.(it.id)}
       </div>
     );
   };
@@ -2586,9 +2589,11 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                   {PUNT_TYPES.map((t) => <button key={t.k} onClick={() => startModus(`punt:${t.k}`)}><svg width="22" height="22" aria-hidden="true"><PuntSymbool type={t.k} x={11} y={11} /></svg>{t.naam}</button>)}
                 </div>
               )}
+              {gsmLees && modus === 'meet' && <div className="fm-bs-meethint">{punten.length ? tx.tweede : meting ? `${getal(Math.hypot(meting[1][0] - meting[0][0], meting[1][1] - meting[0][1]), 2)} m · ${tx.opnieuw}` : tx.eerste}</div>}
               <div className="fm-bs-zweef rechts">
                 <button aria-label="Inzoomen" onClick={() => setBeeld({ ...B, s: Math.min(600, B.s * 1.4) })}>+</button>
                 <button aria-label="Uitzoomen" onClick={() => setBeeld({ ...B, s: Math.max(0.5, B.s / 1.4) })}>−</button>
+                {gsmLees && <button className={`fm-bs-meetknop${modus === 'meet' ? ' aan' : ''}`} aria-pressed={modus === 'meet'} aria-label={tx.meten} onClick={() => { setSel([]); setActieveRuimte(null); startModus(modus === 'meet' ? null : 'meet'); }}><Icoon naam="meten" maat={20} /></button>}
                 <button onClick={passend}>{tx.passend}</button>
               </div>
             </>

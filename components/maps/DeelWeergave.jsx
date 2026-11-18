@@ -32,6 +32,7 @@ import { DoorgangLijst } from './StellingBlok';
 import { isStellingBouw } from './stellingbouw';
 import { hitOp } from './hit';
 import { binnenTekst } from './binnenTaal';
+import DeelOpmerkingen from './DeelOpmerkingen';
 
 // Vaste teksten van de deelpagina in de taal van de link.
 const T = {
@@ -298,7 +299,7 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
 
   const opties = data.link.opties || {};
   // Deel-link van enkel een binnenplan: meteen het binnenscherm, alleen om te bekijken.
-  if (opties.binnen) return <DeelBinnen data={data} elementenMap={elementenMap} taal={taal} />;
+  if (opties.binnen) return <DeelBinnen data={data} elementenMap={elementenMap} taal={taal} token={token} />;
   // Deel-link van enkel een 3D (stelling, wand, truss, tent): meteen over het hele scherm, zonder kaart.
   if (opties.drie) {
     const di = items.find((x) => x.id === opties.drie);
@@ -431,7 +432,7 @@ export default function DeelWeergave({ token, deel = null, onData = null }) {
       {groot3d && (() => { const gi = items.find((x) => x.id === groot3d); return gi ? <Groot3D it={gi} el={elementenMap.get(gi.element_id)} elementenMap={elementenMap} items={items} plannen={(data.stellingplannen || []).filter((p) => p.item_id === gi.id).map((p) => ({ pad: p.pad, meta: { naam: p.naam } }))} onSluit={() => setGroot3d(null)} /> : null; })()}
       {binnenOpen && (
         <div className="fm-deel-binnen">
-          <DeelBinnen data={data} elementenMap={elementenMap} taal={taal} hostId={binnenOpen} onSluit={() => setBinnenOpen(null)} />
+          <DeelBinnen data={data} elementenMap={elementenMap} taal={taal} token={token} hostId={binnenOpen} onSluit={() => setBinnenOpen(null)} />
         </div>
       )}
     </div>
@@ -486,7 +487,7 @@ function DeelPopup({ item, laag, element, elementenMap, items = null, taal = 'nl
   );
 }
 
-function DeelBinnen({ data, elementenMap, taal, hostId = null, onSluit = null }) {
+function DeelBinnen({ data, elementenMap, taal, token = null, hostId = null, onSluit = null }) {
   const items = data.items || [];
   const host = items.find((i) => i.id === (hostId || data.link.opties.binnen));
   const vs = (Array.isArray(host?.velden?.binnenplan?.verdiepingen) && host.velden.binnenplan.verdiepingen.length) ? host.velden.binnenplan.verdiepingen : [{ id: 'g', naam: 'Gelijkvloers' }];
@@ -504,6 +505,7 @@ function DeelBinnen({ data, elementenMap, taal, hostId = null, onSluit = null })
   return (
     <BinnenScherm host={host} verdiepingen={vs} verd={verd} onVerd={setVerd} onderlegger={ol} items={items} taal={taal} fotosVast={fotosVast} merk={merk}
       elementen={data.elementen || []} elementenMap={elementenMap} schrijven={false} beginCamera={camIt ? cam : null} beginCameraBeeld={(() => { try { return leesBeeld(new URLSearchParams(window.location.search).get('v')); } catch { return null; } })()}
+      opmerkingBlok={token && data.link?.opties?.opmerkingen ? (id) => <DeelOpmerkingen key={id} token={token} itemId={id} begin={(data.opmerkingen || []).filter((o) => o.item_id === id)} t={T[taal] || T.nl} /> : null}
       onMaak={leeg} onWijzig={leeg} onVerwijder={leeg} onGrondplan={leeg} onPassen={leeg} onOnderlegger={leeg} onNieuweVerdieping={leeg} onSluit={onSluit} />
   );
 }
