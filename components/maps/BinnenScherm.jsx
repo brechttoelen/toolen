@@ -438,9 +438,10 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   // Andere tafel van het huis kiezen: vorm en maat volgen die tafel, de stoelen blijven.
   const kiesHuisTafel = (it, elId) => {
     const mb = it.velden.meubel; const e = elId ? elementenMap.get(elId) : null;
-    const tpl = e?.eigenschappen?.meubel || (e?.eigenschappen?.tafel ? { type: 'tafel', ...e.eigenschappen.tafel } : null);
+    // Tafel uit de bibliotheek zonder meubelgegevens: rechthoek op de maat van het element.
+    const tpl = e?.eigenschappen?.meubel || (e?.eigenschappen?.tafel ? { type: 'tafel', ...e.eigenschappen.tafel } : e && Number(e.breedte_m) > 0 ? { type: 'tafel', vorm: /rond|ø/i.test(e.naam) ? 'rond' : 'rechthoek', b: Number(e.breedte_m), d: Number(e.diepte_m) || Number(e.breedte_m), statafel: /statafel/i.test(e.naam) || undefined } : null);
     const nieuw = tpl && tpl.type === 'tafel' ? { ...mb, statafel: tpl.statafel || undefined, vorm: tpl.vorm, b: Number(tpl.b) || mb.b, d: tpl.vorm === 'rond' ? Number(tpl.b) || mb.b : Number(tpl.d) || mb.d, ...((tpl.vorm === 'rechthoek') !== (mb.vorm === 'rechthoek') ? { stoelen: tpl.stoelen || autoStoelen({ ...mb, vorm: tpl.vorm, b: tpl.b, d: tpl.d }) } : {}) } : mb;
-    bewaarMeubel(it, nieuw, { soort: e ? 'element' : 'vlak', element_id: e?.id || null, binnen: { huis: !!e } });
+    bewaarMeubel(it, nieuw, { soort: e ? 'element' : 'vlak', element_id: e?.id || null, binnen: { huis: !!e?.eigenschappen?.huis } });
   };
   // Maat van een gewoon element aanpassen (breedte × diepte).
   const bewaarMaat = (it, b, dd) => {
@@ -1318,6 +1319,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   }, [items, host.id]);
   const bib = useMemo(() => elementen.filter((e) => !e.eigenschappen?.huis), [elementen]);
   const huisTafelLijst = useMemo(() => huis.filter((e) => e.eigenschappen?.meubel?.type === 'tafel' || (e.eigenschappen?.tafel && e.eigenschappen.tafel.vorm !== 'punt')), [huis]);
+  const bibTafelLijst = useMemo(() => bib.filter((e) => e.actief !== false && (e.eigenschappen?.meubel?.type === 'tafel' || e.eigenschappen?.tafel || (/tafel/i.test(e.naam) && e.tekenwijze === 'schaal' && Number(e.breedte_m) > 0))).sort((a, b) => a.naam.localeCompare(b.naam, 'nl')), [bib]);
   const huisStoelLijst = useMemo(() => huis.filter((e) => e.eigenschappen?.meubel?.type === 'stoel' || /stoel/i.test(e.naam)), [huis]);
   const meestGebruikteStoel = useMemo(() => { const m = new Map(); for (const it of inrichting) { const sh = it.velden?.meubel?.stoel_huis; if (sh) m.set(sh, (m.get(sh) || 0) + 1); } return [...m].sort((x, y) => y[1] - x[1])[0]?.[0] || null; }, [inrichting]);
   const stoelNieuw = stoelStd === undefined ? (huisStoelLijst.some((e) => e.id === meestGebruikteStoel) ? meestGebruikteStoel : null) : stoelStd;
@@ -1419,9 +1421,13 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
             {rh && <button className="fm-knop klein" onClick={() => { const a = autoStoelen(mb); zet({ stoelen: { boven: 0, onder: mb.b >= mb.d ? a.onder : 0, links: 0, rechts: mb.b >= mb.d ? 0 : a.rechts } }); }}>Eén kant</button>}
             <button className="fm-knop klein" onClick={() => zet({ stoelen: rh ? { boven: 0, onder: 0, links: 0, rechts: 0 } : { ...s0, n: 0 } })}>Geen</button>
           </div>
-          {(huisTafels.length > 0 || huisStoelen.length > 0) && (
+          {(huisTafels.length > 0 || huisStoelen.length > 0 || bibTafelLijst.length > 0) && (
             <div className="fm-rij">
-              {huisTafels.length > 0 && <label className="fm-veld">Tafel van het huis<select value={it.element_id || ''} onChange={(e) => kiesHuisTafel(it, e.target.value || null)}><option value="">Eigen / gehuurd</option>{huisTafels.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</select></label>}
+              {(huisTafelLijst.length > 0 || bibTafelLijst.length > 0) && <label className="fm-veld">Tafel<select value={it.element_id || ''} onChange={(e) => kiesHuisTafel(it, e.target.value || null)}>
+                          <option value="">Standaardtafel (zonder element)</option>
+                          {huisTafelLijst.length > 0 && <optgroup label={`Van ${naamHost}`}>{huisTafelLijst.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</optgroup>}
+                          {bibTafelLijst.length > 0 && <optgroup label="Uit de bibliotheek (eigen of gehuurd)">{bibTafelLijst.map((e) => <option key={e.id} value={e.id}>{e.naam}{e.leverancier ? ` · ${e.leverancier}` : ''}</option>)}</optgroup>}
+                        </select></label>}
               {huisStoelen.length > 0 && <label className="fm-veld">Stoelen van het huis<select value={mb.stoel_huis || ''} onChange={(e) => zet({ stoel_huis: e.target.value || null })}><option value="">Eigen / gehuurd</option>{huisStoelen.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</select></label>}
             </div>
           )}
@@ -2564,10 +2570,11 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                     <div className="fm-kop">Alles in één keer</div>
                     {tafels.length > 0 && (
                       <label className="fm-veld">Tafel · {tafels.length} {tafels.length === 1 ? 'tafel' : 'tafels'}
-                        <select value={een1(tafels, (x) => (isHuis(x) ? x.element_id : ''))} onChange={(e) => { if (e.target.value === '__') return; for (const x of tafels) kiesHuisTafel(x, e.target.value || null); }}>
+                        <select value={een1(tafels, (x) => x.element_id || '')} onChange={(e) => { if (e.target.value === '__') return; for (const x of tafels) kiesHuisTafel(x, e.target.value || null); }}>
                           <option value="__" disabled>Verschillend</option>
-                          <option value="">Eigen of gehuurd</option>
-                          {huisTafelLijst.map((e) => <option key={e.id} value={e.id}>{e.naam} (van het huis)</option>)}
+                          <option value="">Standaardtafel (zonder element)</option>
+                          {huisTafelLijst.length > 0 && <optgroup label={`Van ${naamHost}`}>{huisTafelLijst.map((e) => <option key={e.id} value={e.id}>{e.naam}</option>)}</optgroup>}
+                          {bibTafelLijst.length > 0 && <optgroup label="Uit de bibliotheek (eigen of gehuurd)">{bibTafelLijst.map((e) => <option key={e.id} value={e.id}>{e.naam}{e.leverancier ? ` · ${e.leverancier}` : ''}</option>)}</optgroup>}
                         </select>
                       </label>
                     )}
