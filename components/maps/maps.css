@@ -2622,3 +2622,6 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-bs-paneel .fm-bs-huisform { background: var(--fm-bg); border-bottom: 1px solid var(--fm-rand); }
 .fm-bs-paneel .fm-bs-stoelstd { margin: 10px 12px; }
 .fm-bs-paneel .fm-bs-bibsoort { margin: 10px 12px 4px; }
+/* Paneelknop van een gereedschap dat nu actief is (Tekenen, Punt, Stroom): stip rechtsboven. */
+.fm-bs-rail button.paneelknop.actief::after { content: ''; position: absolute; top: 7px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--t-blauw, #108AED); box-shadow: 0 0 0 2px var(--wr-balk, var(--t-navy, #022056)); }
+.fm-bs-elrij .ic svg { display: block; }

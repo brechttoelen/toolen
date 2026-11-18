@@ -144,6 +144,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   const [paneel, setPaneel] = useState('ruimtes'); // 'ruimtes' | 'huis' | 'bib' | null
   const [bibSoort, setBibSoort] = useState('meubels'); // in Bibliotheek: snelle meubels of de volledige bibliotheek
   const [menuTop, setMenuTop] = useState(8); // hoogte van het uitklapmenu naast de zijbalk
+  const [focusRuimte, setFocusRuimte] = useState(null); // in het dossier: deze ruimte in de verf, de rest bleek
   const [stoelStd, setStoelStd] = useState(undefined); // stoel van het huis bij nieuwe tafels (undefined = de meest gebruikte)
   const levLijst = useLeveranciers();
   const [actieveRuimte, setActieveRuimte] = useState(null);
@@ -1283,9 +1284,9 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       {hostRing && <path d={padW(hostRing, true)} fill="#FFFFFF" fillOpacity={0.5} stroke="#3F3F46" strokeWidth={2} vectorEffect={NS} strokeLinejoin="round" />}
       {tentGaten.map((o, k) => { const a = T.naarPlan(o.a); const b = T.naarPlan(o.b); const kl = o.soort === 'raam' ? '#3B82F6' : o.soort === 'nood' ? '#16A34A' : o.soort === 'deur' ? '#D97706' : '#FFFFFF';
         return <g key={`tg${k}`}><path d={padW([a, b])} stroke={kl} strokeWidth={o.soort === 'raam' ? 3 : 5} vectorEffect={NS} strokeLinecap="butt" />{(o.soort === 'open' || o.soort === 'koppeling') && <path d={padW([a, b])} stroke="#9CA3AF" strokeWidth={1} strokeDasharray="4 3" vectorEffect={NS} />}</g>; })}
-      {ruimtes.map((r) => { const k = functieNu(r)?.kleur || r.stijl?.kleur || '#2563EB'; return <path key={r.id} d={padW(puntenVan(lokaalVan(r).geometrie), true)} fill={k} fillOpacity={0.09} stroke={k} strokeOpacity={0.55} strokeWidth={1.2} vectorEffect={NS} />; })}
+      {ruimtes.map((r) => { const k = functieNu(r)?.kleur || r.stijl?.kleur || '#2563EB'; return <path key={r.id} d={padW(puntenVan(lokaalVan(r).geometrie), true)} fill={k} fillOpacity={focusRuimte ? (focusRuimte === r.id ? 0.16 : 0.03) : 0.09} stroke={k} strokeOpacity={focusRuimte ? (focusRuimte === r.id ? 0.9 : 0.25) : 0.55} strokeWidth={focusRuimte === r.id ? 2.4 : 1.2} vectorEffect={NS} />; })}
     </g>
-  ), [ruimtes, T, voorlopig, actieveFase, dag, hostRing, hostTek, tentGaten]); // eslint-disable-line react-hooks/exhaustive-deps
+  ), [ruimtes, T, voorlopig, actieveFase, dag, hostRing, hostTek, tentGaten, focusRuimte]); // eslint-disable-line react-hooks/exhaustive-deps
   // Tekenvolgorde: vloer en podium onderaan, dan het gewone materiaal, dan tafels en stoelen, punten bovenaan.
   // Anders ligt een later geplaatst podium over de tafels die er al stonden.
   const tekenRang = (it) => {
@@ -1752,7 +1753,8 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       const o = bron.querySelectorAll('*'); const k = kloon.querySelectorAll('*');
       for (let i = 0; i < o.length; i++) {
         const cs = getComputedStyle(o[i]); const st = EIG.map((e) => `${e}:${cs.getPropertyValue(e)}`).join(';');
-        k[i].setAttribute('style', `${st};${k[i].getAttribute('style') || ''}`);
+        // Het webfont bestaat niet in een losse svg (dan wordt het Times): een gewoon schreefloos lettertype.
+        k[i].setAttribute('style', `${st};font-family:Helvetica,Arial,sans-serif;${k[i].getAttribute('style') || ''}`);
       }
       // Beelden (grondplan, foto's) inbakken als data-URL.
       for (const im of kloon.querySelectorAll('image')) {
@@ -1817,7 +1819,29 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       const lijst = [...ruimtes].sort((a, b) => String(a.naam || '').localeCompare(String(b.naam || ''), 'nl', { numeric: true }));
       const kopTekst = (titel, sub) => {
         doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(14, 26, 51); doc.text(titel, M, M + 5);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(74, 90, 117); doc.text(sub, M, M + 10);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(74, 90, 117); metM2(sub, M, M + 10);
+      };
+      // Inzoomen op een kader (in meter) zodat het precies het vak op het papier vult, en dan enkel dat stuk uitsnijden.
+      const zoomVak = (k, a) => {
+        const cw = Math.min(maat.w, maat.h * a); const ch = cw / a;
+        const b = Math.max(2, k[2] - k[0]) * 1.18; const h = Math.max(2, k[3] - k[1]) * 1.18;
+        setBeeld({ cx: (k[0] + k[2]) / 2, cy: (k[1] + k[3]) / 2, s: Math.min(cw / b, ch / h) });
+        return { cw, ch };
+      };
+      const uitsnede = (vb, cw, ch) => {
+        if (!vb) return null; const f = vb.cv.width / vb.W0; const c = document.createElement('canvas'); c.width = Math.round(cw * f); c.height = Math.round(ch * f);
+        c.getContext('2d').drawImage(vb.cv, Math.round(((vb.W0 - cw) / 2) * f), Math.round(((vb.H0 - ch) / 2) * f), c.width, c.height, 0, 0, c.width, c.height);
+        return { cv: c, W0: cw, H0: ch, sPx: vb.sPx };
+      };
+      // m² met een echte superscript (de standaardletters van de pdf kennen het teken niet).
+      const metM2 = (str, x, y, { align = 'left' } = {}) => {
+        const delen = String(str).split('m²'); const fs = doc.getFontSize(); const klein = fs * 0.62; const op = (fs * 0.3528) * 0.38;
+        let breedte = 0; delen.forEach((d, i) => { breedte += doc.getTextWidth(d); if (i < delen.length - 1) { breedte += doc.getTextWidth('m'); doc.setFontSize(klein); breedte += doc.getTextWidth('2'); doc.setFontSize(fs); } });
+        let cx = align === 'right' ? x - breedte : x;
+        delen.forEach((d, i) => {
+          doc.text(d, cx, y); cx += doc.getTextWidth(d);
+          if (i < delen.length - 1) { doc.text('m', cx, y); cx += doc.getTextWidth('m'); doc.setFontSize(klein); doc.text('2', cx, y - op); cx += doc.getTextWidth('2'); doc.setFontSize(fs); }
+        });
       };
       const plaatsBeeld = (vb, x, y, w, h) => {
         const sc = Math.min(w / vb.W0, h / vb.H0); const ib = vb.W0 * sc; const ih = vb.H0 * sc;
@@ -1832,16 +1856,19 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
         let y = y0;
         return {
           kop: (t) => { if (y > PH - M - 8) return; doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(14, 26, 51); doc.text(t, x, y); y += 4.6; doc.setFont('helvetica', 'normal'); doc.setFontSize(8.3); },
-          rij: (a, b2 = '', kl = [14, 26, 51]) => { if (y > PH - M - 3) return; doc.setTextColor(...kl); const r = doc.splitTextToSize(String(a), w - 16); doc.text(r[0], x, y); if (b2 !== '') doc.text(String(b2), x + w, y, { align: 'right' }); y += 4.1; },
+          rij: (a, b2 = '', kl = [14, 26, 51]) => { if (y > PH - M - 3) return; doc.setTextColor(...kl); const r = doc.splitTextToSize(String(a), w - 16); doc.text(r[0], x, y); if (b2 !== '') metM2(String(b2), x + w, y, { align: 'right' }); y += 4.1; },
           tekst: (t) => { doc.setTextColor(74, 90, 117); for (const r of doc.splitTextToSize(String(t), w)) { if (y > PH - M - 3) return; doc.text(r, x, y); y += 3.9; } },
           ruimte: (n = 3) => { y += n; },
         };
       };
       // 1. Overzicht
-      setActieveRuimte(null); passend(); await wacht(450);
-      const ov = await vangBeeld();
+      const vakW = PB - 2 * M - ZIJ - 6; const vakH = PH - M - 15 - M; const aVak = vakW / vakH;
+      setActieveRuimte(null); setFocusRuimte(null);
+      const alleK = kaderVan(lijst.map((r) => puntenVan(lokaalVan(r).geometrie)));
+      let ov = null;
+      if (alleK) { const { cw, ch } = zoomVak(alleK, aVak); await wacht(500); ov = uitsnede(await vangBeeld(), cw, ch); } else { passend(); await wacht(450); ov = await vangBeeld(); }
       kopTekst(`${naamHost} · ${verdNaam}`, `Overzicht van de ruimtes · ${datum}`);
-      if (ov) plaatsBeeld(ov, M, M + 15, PB - 2 * M - ZIJ - 6, PH - M - 15 - M);
+      if (ov) plaatsBeeld(ov, M, M + 15, vakW, vakH);
       const k0 = kolom(PB - M - ZIJ, M + 18, ZIJ);
       k0.kop(`${tx.ruimtes} · ${lijst.length}`);
       for (const r of lijst) {
@@ -1854,12 +1881,13 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       // 2. Per ruimte
       for (const r of lijst) {
         doc.addPage('a4', 'landscape');
-        setActieveRuimte(r.id); zoomOp(r); await wacht(450);
-        const vb = await vangBeeld();
+        setFocusRuimte(r.id);
+        const kr = kaderVan([puntenVan(lokaalVan(r).geometrie)]); let vb = null;
+        if (kr) { const { cw, ch } = zoomVak(kr, aVak); await wacht(500); vb = uitsnede(await vangBeeld(), cw, ch); }
         const opp = Math.round(oppervlakte(puntenVan(lokaalVan(r).geometrie)));
         const f = functiesNu(r).map((x) => x.naam).filter(Boolean).join(' / ');
         kopTekst(r.naam || 'Ruimte', [naamHost, verdNaam, `${opp} m²`, f].filter(Boolean).join(' · '));
-        if (vb) plaatsBeeld(vb, M, M + 15, PB - 2 * M - ZIJ - 6, PH - M - 15 - M);
+        if (vb) plaatsBeeld(vb, M, M + 15, vakW, vakH);
         const k = kolom(PB - M - ZIJ, M + 18, ZIJ);
         const inr = inRuimte(r); const t = perRuimte.get(r.id) || { zit: 0 }; const max = Number(r.velden?.max_personen) || 0;
         if (f) { k.kop('Functie'); for (const fx of functiesNu(r)) k.rij(fx.naam || '', ''); k.ruimte(); }
@@ -1877,7 +1905,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       const n = doc.getNumberOfPages();
       for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(7); doc.setTextColor(132, 146, 168); doc.text(`${naamHost} · ${verdNaam} · ${i} / ${n}`, PB - M, PH - 4, { align: 'right' }); }
       doc.save(`${naamHost} - ${verdNaam} - ruimtes.pdf`.replace(/[\\/:*?"<>|]+/g, '-'));
-    } catch (e) { setMelding?.(e?.message || 'Dossier maken lukte niet.'); } finally { setActieveRuimte(null); passend(); setPdfBezig(false); }
+    } catch (e) { setMelding?.(e?.message || 'Dossier maken lukte niet.'); } finally { setFocusRuimte(null); setActieveRuimte(null); passend(); setPdfBezig(false); }
   };
 
   // ---------- Tekenen met de tekenaar van de bibliotheek ----------
@@ -2051,9 +2079,9 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
             ))}
             <hr />
             <button type="button" className={!modus && !kiesEl ? 'aan' : ''} title="Selecteren (Esc)" onClick={() => { startModus(null); setKiesEl(null); }}><Icoon naam="selecteer" maat={20} /><span>{tx.selecteren}</span></button>
-            <button type="button" className={modus in TEKEN ? 'aan' : ''} data-menuknop title="Tekenen: lijn, vlak, tekst, zaal …" onClick={(e) => { setMenuTop(e.currentTarget.offsetTop); setPuntMenu(false); setStroomMenu(false); setTekenMenu((x) => !x); }}><Icoon naam="tekenen" maat={20} /><span>{modus in TEKEN ? TEKEN[modus] : 'Tekenen'}</span><i className="pijltje" /></button>
-            <button type="button" className={modus?.startsWith('punt:') && modus !== 'punt:invoer' ? 'aan' : ''} data-menuknop title="Punt: stopcontact, camera, renner …" onClick={(e) => { setMenuTop(e.currentTarget.offsetTop); setTekenMenu(false); setStroomMenu(false); setPuntMenu((x) => !x); }}><Icoon naam="punt" maat={20} /><span>{modus?.startsWith('punt:') && modus !== 'punt:invoer' ? (PUNT[modus.slice(5)]?.kort || PUNT[modus.slice(5)]?.naam) : 'Punt'}</span><i className="pijltje" /></button>
-            {magModule('stroom') && <button type="button" className={stroomAan ? 'aan' : ''} data-menuknop title="Stroom in dit gebouw: invoer, kasten, stekkerdozen, verbruikers en kabels" onClick={(e) => { setMenuTop(e.currentTarget.offsetTop); setTekenMenu(false); setPuntMenu(false); setStroomMenu((x) => (x ? false : true)); }}><Icoon naam="bliksem" maat={20} /><span>{modus === 'kabel' ? 'Kabel' : 'Stroom'}</span><i className="pijltje" /></button>}
+            <button type="button" className={`paneelknop${paneel === 'teken' ? ' aan' : ''}${modus in TEKEN ? ' actief' : ''}`} aria-pressed={paneel === 'teken'} title="Tekenen: lijn, vlak, tekst, zaal …" onClick={() => setPaneel((x) => (x === 'teken' ? null : 'teken'))}><Icoon naam="tekenen" maat={20} /><span>Tekenen</span></button>
+            <button type="button" className={`paneelknop${paneel === 'punt' ? ' aan' : ''}${modus?.startsWith('punt:') && modus !== 'punt:invoer' ? ' actief' : ''}`} aria-pressed={paneel === 'punt'} title="Punt: stopcontact, camera, renner …" onClick={() => setPaneel((x) => (x === 'punt' ? null : 'punt'))}><Icoon naam="punt" maat={20} /><span>Punt</span></button>
+            {magModule('stroom') && <button type="button" className={`paneelknop${paneel === 'stroom' ? ' aan' : ''}${stroomAan ? ' actief' : ''}`} aria-pressed={paneel === 'stroom'} title="Stroom in dit gebouw: invoer, kasten, stekkerdozen, verbruikers en kabels" onClick={() => setPaneel((x) => (x === 'stroom' ? null : 'stroom'))}><Icoon naam="bliksem" maat={20} /><span>Stroom</span></button>}
             <button type="button" className={modus === 'meet' ? 'aan' : ''} title="Afstand meten" onClick={() => startModus('meet')}><Icoon naam="meten" maat={20} /><span>{tx.meten}</span></button>
           </nav>
         )}
@@ -2129,6 +2157,47 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
               )}
               {schrijven && !huisForm && <div style={{ padding: 12 }}><button className="fm-knop vol" style={{ width: '100%' }} onClick={() => setHuisForm({ naam: '', aantal: '', vorm: 'rond', b: '1.8', d: '', zit: '', basis: null })}>Materiaal toevoegen</button></div>}
             </div>
+            </>
+          )}
+          {schrijven && paneel === 'teken' && (
+            <>
+              <div className="fm-paneelkop fm-bs-paneelkop"><strong>Tekenen</strong><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
+              <div className="fm-bs-lijstknoppen">
+                <button type="button" className={`fm-element fm-bs-elrij${modus === 'lijn' ? ' aan' : ''}`} onClick={() => startModus('lijn')}><span className="ic" aria-hidden="true"><Icoon naam="lijn" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Lijn of muur</span><span className="fm-sub">typ een lengte + Enter · Shift = 45°</span></span><span /></button>
+                <button type="button" className={`fm-element fm-bs-elrij${modus === 'pijl' ? ' aan' : ''}`} onClick={() => startModus('pijl')}><span className="ic" aria-hidden="true"><Icoon naam="verder" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Pijl</span></span><span /></button>
+                <button type="button" className={`fm-element fm-bs-elrij${modus === 'maat' ? ' aan' : ''}`} onClick={() => startModus('maat')}><span className="ic" aria-hidden="true"><Icoon naam="liniaal" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Maatlijn</span><span className="fm-sub">vangt op hoeken en randen</span></span><span /></button>
+                <button type="button" className={`fm-element fm-bs-elrij${modus === 'rechthoek' ? ' aan' : ''}`} onClick={() => startModus('rechthoek')}><span className="ic" aria-hidden="true"><Icoon naam="rechthoek" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Rechthoek</span><span className="fm-sub">twee hoeken</span></span><span /></button>
+                <button type="button" className={`fm-element fm-bs-elrij${modus === 'cirkel' ? ' aan' : ''}`} onClick={() => startModus('cirkel')}><span className="ic" aria-hidden="true"><Icoon naam="cirkel" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Cirkel</span><span className="fm-sub">midden en rand</span></span><span /></button>
+                <button type="button" className={`fm-element fm-bs-elrij${modus === 'vlak' ? ' aan' : ''}`} onClick={() => startModus('vlak')}><span className="ic" aria-hidden="true"><Icoon naam="vlak" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Vlak</span><span className="fm-sub">klik punten, dubbelklik = klaar</span></span><span /></button>
+                <button type="button" className={`fm-element fm-bs-elrij${modus === 'tekst' ? ' aan' : ''}`} onClick={() => startModus('tekst')}><span className="ic" aria-hidden="true"><Icoon naam="tekst" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Tekst</span></span><span /></button>
+                <button type="button" className={`fm-element fm-bs-elrij${modus === 'zaal' ? ' aan' : ''}`} onClick={() => startModus('zaal')}><span className="ic" aria-hidden="true"><Icoon naam="kader" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Zaal</span><span className="fm-sub">een ruimte tekenen</span></span><span /></button>
+              </div>
+              <div className="fm-sub fm-bs-leegtekst">Esc stopt met tekenen. Getekende lijnen en vlakken pas je aan met een dubbelklik.</div>
+            </>
+          )}
+          {schrijven && paneel === 'punt' && (
+            <>
+              <div className="fm-paneelkop fm-bs-paneelkop"><strong>Punt</strong><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
+              <div className="fm-bs-lijstknoppen">
+                {PUNT_TYPES.filter((t) => t.k !== 'invoer').map((t) => <button key={t.k} type="button" className={`fm-element fm-bs-elrij${modus === `punt:${t.k}` ? ' aan' : ''}`} onClick={() => startModus(`punt:${t.k}`)}><span className="ic" aria-hidden="true"><svg width="22" height="22"><PuntSymbool type={t.k} x={11} y={11} /></svg></span><span className="tekst"><span className="fm-afkap naam">{t.naam}</span></span><span /></button>)}
+              </div>
+            </>
+          )}
+          {schrijven && paneel === 'stroom' && (
+            <>
+              <div className="fm-paneelkop fm-bs-paneelkop"><strong>Stroom</strong><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
+              <div className="fm-bs-lijstknoppen">
+                <button type="button" className={`fm-element fm-bs-elrij${modus === 'punt:invoer' ? ' aan' : ''}`} onClick={() => startModus('punt:invoer')}><span className="ic" aria-hidden="true"><svg width="22" height="22"><PuntSymbool type="invoer" x={11} y={11} /></svg></span><span className="tekst"><span className="fm-afkap naam">Stroominvoer</span><span className="fm-sub">waar de kabel van buiten binnenkomt</span></span><span /></button>
+                <button type="button" className={`fm-element fm-bs-elrij${modus === 'kabel' ? ' aan' : ''}`} onClick={() => startModus('kabel')}><span className="ic" aria-hidden="true"><Icoon naam="stekker" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Kabel</span><span className="fm-sub">klik de voeding, dan de verbruiker</span></span><span /></button>
+              </div>
+              {stroomGroepen.map(([naam, lijst]) => (
+                <div key={naam}>
+                  <div className="fm-lijstkop">{naam}</div>
+                  <div className="fm-bs-lijstknoppen">
+                    {lijst.map((e) => <button key={e.id} type="button" className={`fm-element fm-bs-elrij${kiesEl?.id === e.id ? ' aan' : ''}`} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}><span className="ic" aria-hidden="true"><ElementIcoon el={e} maat={26} /></span><span className="tekst"><span className="fm-afkap naam">{e.naam}</span>{e.leverancier ? <span className="fm-sub">{e.leverancier}</span> : null}</span><span /></button>)}
+                  </div>
+                </div>
+              ))}
             </>
           )}
           {schrijven && paneel === 'bib' && (
