@@ -2537,3 +2537,15 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 @keyframes fm-lader-ruit { 0%, 55%, 100% { transform: translate(0, 0) scale(1); } 28% { transform: translate(var(--dx), var(--dy)) scale(.62); } }
 @keyframes fm-lader-draai { 0%, 10% { transform: rotate(0); } 25%, 35% { transform: rotate(90deg); } 50%, 60% { transform: rotate(180deg); } 75%, 85% { transform: rotate(270deg); } 100% { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .fm-lader-draai, .fm-lader-ruit { animation: none; } }
+
+/* Uitgangen van bron, kast of vaste aansluiting: één regel per stopcontact (nr · aantal · type · net · weg). */
+.fm-uitgangen { display: flex; flex-direction: column; gap: 4px; }
+.fm-uitgang { display: grid; grid-template-columns: 34px 40px minmax(0, 1fr) 88px 22px; gap: 4px; align-items: center; }
+.fm-uitgang.kop { font-size: 10.5px; color: var(--fm-grijs); }
+.fm-uitgang input, .fm-uitgang select { height: 28px; min-width: 0; width: 100%; border: 1px solid var(--fm-rand2); border-radius: 0; padding: 0 5px; font-size: 12px; color: var(--fm-zwart); background: #fff; box-shadow: none; -webkit-appearance: none; appearance: none; }
+.fm-uitgang select { padding-right: 16px; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23686D76'/%3E%3C/svg%3E") no-repeat right 5px center; }
+.fm-uitgang input:first-child, .fm-uitgang input:nth-child(2) { text-align: center; }
+.fm-uitgang input:focus, .fm-uitgang select:focus { outline: 2px solid var(--fm-zwart); outline-offset: -1px; }
+.fm-uitgang.zonder-n select:nth-of-type(2) { border-color: #F59E0B; background-color: #FFFBEB; color: #92400E; }
+.fm-uitgang-mono { font-size: 11px; color: var(--fm-grijs); padding-left: 6px; }
+.fm-uitgang .fm-x { height: 24px; width: 22px; border: 0; background: none; cursor: pointer; font-size: 15px; color: #B4123A; padding: 0; }

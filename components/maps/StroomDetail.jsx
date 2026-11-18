@@ -1,6 +1,6 @@
 'use client';
 
-import { DRIEFASE_TYPES, NETTEN, netVan } from './vasteAansluitingen';
+import UitgangenLijst from './UitgangenLijst';
 import { StroomSectie } from './Eigenschappen';
 import { stroomVan, uitgangenBezetting, uitgangVoorKind, isMonoKnoop } from './stroom';
 import { getal } from './geo';
@@ -93,30 +93,5 @@ export default function StroomDetail({ item, el, stroom, items, elementenMap, va
 }
 
 function UitgangenVeld({ waarde, onZet, standaard = false, rol = 'kast' }) {
-  const TYPES = ['CEE 16A mono', 'Schuko', 'CEE 16A 3F', 'CEE 32A 3F', 'CEE 63A', 'CEE 125A', 'Powerlock'];
-  const lijst = Array.isArray(waarde) ? waarde : [];
-  const zet = (i, p) => onZet(lijst.map((u, j) => (j === i ? { ...u, ...p } : u)));
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div className="fm-kop">Uitgangen van de {rol === 'bron' ? 'bron' : 'kast'}</div>
-      {standaard && <div className="fm-sub">Standaard volgens het vermogen; pas aan als deze stroomgroep andere stopcontacten heeft.</div>}
-      {lijst.map((u, i) => (
-        <div key={i}>
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <input inputMode="numeric" value={u.aantal ?? 1} onChange={(e) => zet(i, { aantal: Number(e.target.value) || 1 })} style={{ width: 44, height: 30 }} aria-label="Aantal" />
-          <span>×</span>
-          <select value={u.type || ''} onChange={(e) => zet(i, { type: e.target.value })} style={{ flex: 1, height: 30 }} aria-label="Type"><option value="">Kies…</option>{TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select>
-          <button className="fm-knop klein gevaar" aria-label="Uitgang weg" onClick={() => onZet(lijst.filter((_, j) => j !== i))}>×</button>
-        </div>
-          {DRIEFASE_TYPES.has(u.type) && (
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center', paddingLeft: 48, marginBottom: 4 }}>
-          <input value={u.naam || ''} onChange={(e) => zet(i, { naam: e.target.value || undefined })} placeholder="nr" style={{ width: 52, height: 28 }} aria-label="Nummer of naam van de uitgang" />
-          <select value={netVan(u)} onChange={(e) => zet(i, { net: e.target.value === '3x230' ? '3x230' : undefined })} style={{ flex: 1, height: 28 }} aria-label={`Net van uitgang ${i + 1}`}>{NETTEN.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>
-        </div>
-          )}
-        </div>
-      ))}
-      <button className="fm-knop klein" style={{ alignSelf: 'flex-start' }} onClick={() => onZet([...lijst, { type: 'CEE 32A 3F', aantal: 1 }])}>+ Uitgang</button>
-    </div>
-  );
+  return <UitgangenLijst waarde={waarde} onZet={onZet} titel={`Uitgangen van de ${rol === 'bron' ? 'bron' : 'kast'}`} uitleg={standaard ? 'Standaard volgens het vermogen; pas aan als deze stroomgroep andere stopcontacten heeft.' : null} />;
 }
