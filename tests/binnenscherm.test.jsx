@@ -12,7 +12,7 @@ describe('binnenscherm', () => {
   it('bewerken: zijbalk met panelen en gereedschap, geen zwevende knoppenrij', () => {
     const html = renderToString(<BinnenScherm {...props(true)} />).replace(/<!-- -->/g, '');
     expect(html).toContain('fm-gereedschap fm-bs-rail');
-    expect(html).toContain('Van het huis');
+    expect(html).toContain('Huis');
     expect(html).toContain('Bibliotheek');
     expect(html).toContain('Elisabeth');
     expect(html).not.toContain('fm-bs-zweef links');
@@ -30,6 +30,11 @@ describe('binnenscherm', () => {
     expect(html).toContain('Rij maken');
     expect(html).toContain('fm-bs-huislabel');
     expect(html).toContain('Geleverd door');
+    const t2 = { ...tafel, id: 't2', element_id: null, soort: 'vlak' };
+    const html3 = renderToString(<BinnenScherm {...p} items={[...p.items, t2]} beginSel={['t1', 't2']} />).replace(/<!-- -->/g, '');
+    expect(html3).toContain('Alles in één keer');
+    expect(html3).toContain('2 tafels');
+    expect(html3).toContain('Dossier per ruimte');
     const html2 = renderToString(<BinnenScherm {...p} beginSel={['k1']} />).replace(/<!-- -->/g, '');
     expect(html2).toContain('Leverancier');
     expect(html2).toContain('placeholder="Manutan"');

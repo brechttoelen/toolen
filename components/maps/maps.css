@@ -2587,3 +2587,38 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-selacties > button.zwart { background: var(--fm-zwart); color: #fff; border-color: var(--fm-zwart); }
 .fm-selacties > select { padding-right: 4px; max-width: 150px; }
 .fm-selacties .fm-menu { left: 0; right: auto !important; }
+.fm-bs-stoelstd { margin: 0 12px 8px; }
+
+/* Linkerpanelen van de binnen-editor: dezelfde rijen als de lagen en de bibliotheek op de kaart. */
+.fm-bs-rail button span { font-size: 10.5px; letter-spacing: -.01em; max-width: 62px; }
+.fm-bs-paneel { background: #fff; font-size: 12px; }
+.fm-bs-paneel > .fm-lijstkop, .fm-bs-paneel .fm-bs-inrichten .fm-lijstkop { padding: 10px 12px 4px; }
+.fm-bs-paneel .fm-bs-inrichten { padding-bottom: 12px; }
+.fm-bs-paneel .fm-bs-lijstknoppen { padding: 0; gap: 0; border-top: 1px solid #f0f0ee; }
+.fm-bs-elrij { grid-template-columns: 30px minmax(0, 1fr) 0; text-align: left; font: inherit; color: var(--fm-zwart); }
+.fm-bs-elrij .tekst { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.fm-bs-elrij .naam { font-size: 12.5px; font-weight: 600; }
+.fm-bs-elrij.aan { box-shadow: inset 3px 0 0 var(--t-blauw, #108AED); }
+.fm-bs-paneel .fm-bs-tegels { padding: 0 12px; gap: 4px; }
+.fm-bs-paneel .fm-bs-tegel { border-radius: 0; border-color: var(--fm-rand); }
+.fm-bs-paneel .fm-bs-tegel:hover { border-color: var(--fm-zwart); }
+.fm-bs-paneel .fm-bs-tegel.aan { border-color: var(--t-blauw, #108AED); box-shadow: inset 0 0 0 1px var(--t-blauw, #108AED); background: var(--fm-aan-bg); }
+/* Ruimtes: rij zoals een laag */
+.fm-bs-paneel .fm-bs-ruimte { padding: 7px 12px; border-bottom: 1px solid #f0f0ee; border-left: 0; }
+.fm-bs-paneel .fm-bs-ruimte:hover { background: var(--fm-aan-bg); }
+.fm-bs-paneel .fm-bs-ruimte.aan { background: var(--fm-aan-bg); box-shadow: inset 3px 0 0 var(--t-blauw, #108AED); }
+.fm-bs-paneel .fm-bs-ruimte .naam { font-size: 12.5px; }
+.fm-bs-paneel .fm-bs-tel { padding: 4px 12px; }
+.fm-bs-paneel .fm-bs-leegtekst { padding: 10px 12px; }
+/* Huis: rij zoals een bibliotheekelement, met groenblauwe rand rond het symbool */
+.fm-bs-paneel .fm-bs-huisrij { grid-template-columns: 30px minmax(0, 1fr) auto 26px; padding: 0 6px 0 10px; gap: 6px; min-height: 44px; border-bottom: 1px solid #f0f0ee; }
+.fm-bs-paneel .fm-bs-huisrij .ic { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; background: #E3F4EF; border: 1px solid #0E7C6B; }
+.fm-bs-paneel .fm-bs-huisrij .naam { padding: 6px 0; }
+.fm-bs-paneel .fm-bs-huisrij .naam span { font-weight: 600; }
+.fm-bs-paneel .fm-bs-huisrij:hover { background: var(--fm-aan-bg); }
+.fm-bs-paneel .fm-bs-huisrij.aan { background: var(--fm-aan-bg); box-shadow: inset 3px 0 0 var(--t-blauw, #108AED); }
+.fm-bs-paneel .fm-bs-huisrij .tel { color: #0E6B5C; font-weight: 600; }
+.fm-bs-paneel .fm-bs-huisrij.vol .tel { color: #B4123A; }
+.fm-bs-paneel .fm-bs-huisform { background: var(--fm-bg); border-bottom: 1px solid var(--fm-rand); }
+.fm-bs-paneel .fm-bs-stoelstd { margin: 10px 12px; }
+.fm-bs-paneel .fm-bs-bibsoort { margin: 10px 12px 4px; }

@@ -10,7 +10,8 @@ import { createPortal } from 'react-dom';
 import { metTekening } from './tekeningen';
 import { laadDxf, planTransform } from './onderlegger';
 import { publiekeUrl } from './db';
-import BibliotheekPaneel from './BibliotheekPaneel';
+import { getOrganisatie } from './merk';
+import BibliotheekPaneel, { ElementIcoon } from './BibliotheekPaneel';
 import { magModule } from './modules';
 import { vraagTekst, useSluitBuiten } from './dialoog';
 import { FotoStrook } from './fotos';
@@ -143,6 +144,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   const [paneel, setPaneel] = useState('ruimtes'); // 'ruimtes' | 'huis' | 'bib' | null
   const [bibSoort, setBibSoort] = useState('meubels'); // in Bibliotheek: snelle meubels of de volledige bibliotheek
   const [menuTop, setMenuTop] = useState(8); // hoogte van het uitklapmenu naast de zijbalk
+  const [stoelStd, setStoelStd] = useState(undefined); // stoel van het huis bij nieuwe tafels (undefined = de meest gebruikte)
   const levLijst = useLeveranciers();
   const [actieveRuimte, setActieveRuimte] = useState(null);
   const [rijVorm, setRijVorm] = useState(null); // { kol, rij, tussen }
@@ -415,6 +417,8 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   };
   const plaatsMeubel = (el, p) => {
     let mb = { ...el.meubel }; let mid = p; let rot = elRot;
+    // Nieuwe tafel of stoelenrij: meteen met de stoelen van het huis die je gekozen hebt (ook bij een eigen tafel).
+    if ((mb.type === 'tafel' || mb.type === 'rijen') && !mb.stoel_huis && stoelNieuw) mb = { ...mb, stoel_huis: stoelNieuw };
     if (naarMuur(mb)) { const m = opMuur(p, mb); if (m) { mid = m.midden; rot = m.rot; mb = { ...mb, t: m.t }; } }
     const lok = { geometrie: { type: 'Polygon', coordinates: [voetMeubel(mb, mid, rot)] }, midden: mid, rot };
     const n = naarItem(lok);
@@ -1186,14 +1190,22 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       );
     }
     const mb = it.velden?.meubel;
-    const tk = g.type === 'Polygon' ? (mb ? tekening(null, lok, 1, meubelTekening(mb)) : (el && metTekening(el).eigenschappen?.tekening ? tekening(el, lok, 1, pasTekeningAan(metTekening(el).eigenschappen.tekening, it, el), it.parameters, it) : tekening(el, lok, 1, null, it.parameters))) : null;
+    // Tafel en stoelen elk in hun eigen kleur: van het huis groenblauw, eigen of gehuurd in de gewone tint, met een duidelijke rand.
+    const mbTek = (m) => {
+      const t = meubelTekening(m); const tHuis = !!(it.velden?.binnen?.huis || el?.eigenschappen?.huis); const sHuis = !!m.stoel_huis;
+      const zit = (v) => v.vul === '#D6CFC4' || v.vul === '#A8A29E';
+      return { ...t, vlakken: t.vlakken.map((v) => (zit(v)
+        ? (sHuis ? { ...v, vul: v.vul === '#A8A29E' ? '#5FA897' : '#BFE3D8', lijn: '#0E6B5C' } : v)
+        : (tHuis ? { ...v, vul: '#DDF1EB', lijn: '#0E6B5C', d: Math.max(Number(v.d) || 0.02, 0.025) } : { ...v, lijn: '#3F3F46', d: Math.max(Number(v.d) || 0.02, 0.025) }))) };
+    };
+    const tk = g.type === 'Polygon' ? (mb ? tekening(null, lok, 1, mbTek(mb)) : (el && metTekening(el).eigenschappen?.tekening ? tekening(el, lok, 1, pasTekeningAan(metTekening(el).eigenschappen.tekening, it, el), it.parameters, it) : tekening(el, lok, 1, null, it.parameters))) : null;
     // Textielframe: voor- (onder) en achterkant (boven) in de kleur van het doek.
     const zijKleur = el && isFrame(el) && lok.midden ? [1, 2].map((k) => { const id = it.velden?.[`paneel_${k}`]; return id ? elementenMap.get(id)?.eigenschappen?.kleur || '#EA580C' : null; }) : null;
     const vanHuis = !!(it.velden?.binnen?.huis || el?.eigenschappen?.huis);
     return (
       <g key={it.id}>
         {tk}
-        {vanHuis && g.type === 'Polygon' && <path d={pad(puntenVan(g), true)} fill="#0E7C6B" fillOpacity={0.12} stroke="#0E7C6B" strokeWidth={1.5} vectorEffect={NS} pointerEvents="none" />}
+        {vanHuis && !mb && g.type === 'Polygon' && <path d={pad(puntenVan(g), true)} fill="#0E7C6B" fillOpacity={0.12} stroke="#0E7C6B" strokeWidth={1.5} vectorEffect={NS} pointerEvents="none" />}
         {zijKleur && zijKleur.map((kl, k) => { if (!kl) return null; const b = (Number(it.parameters?.breedte) || Number(el.breedte_m) || 1) / 2; const y = k ? 0.05 : -0.05; const p1 = draai([-b, y], lok.rot || 0); const p2 = draai([b, y], lok.rot || 0); return <path key={`z${k}`} d={padW([[lok.midden[0] + p1[0], lok.midden[1] + p1[1]], [lok.midden[0] + p2[0], lok.midden[1] + p2[1]]])} stroke={kl} strokeWidth={0.06} />; })}
         {!el && !mb ? (
           <path d={pad(puntenVan(g), g.type === 'Polygon')} fill={g.type === 'Polygon' ? (it.stijl?.vulkleur || it.stijl?.kleur || '#2563EB') : 'none'} fillOpacity={g.type === 'Polygon' ? (it.stijl?.vuldekking ?? 0.15) : 0} stroke={aan ? '#2563EB' : (it.stijl?.kleur || '#1d1d1b')} strokeWidth={aan ? 3 : Number(it.stijl?.dikte) || 2} vectorEffect={NS} strokeDasharray={it.stijl?.streep === 'streep' ? '6 4' : it.stijl?.streep === 'stip' ? '0.1 4' : undefined} strokeLinecap={it.stijl?.streep === 'stip' ? 'round' : undefined} />
@@ -1304,6 +1316,10 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     return m;
   }, [items, host.id]);
   const bib = useMemo(() => elementen.filter((e) => !e.eigenschappen?.huis), [elementen]);
+  const huisTafelLijst = useMemo(() => huis.filter((e) => e.eigenschappen?.meubel?.type === 'tafel' || (e.eigenschappen?.tafel && e.eigenschappen.tafel.vorm !== 'punt')), [huis]);
+  const huisStoelLijst = useMemo(() => huis.filter((e) => e.eigenschappen?.meubel?.type === 'stoel' || /stoel/i.test(e.naam)), [huis]);
+  const meestGebruikteStoel = useMemo(() => { const m = new Map(); for (const it of inrichting) { const sh = it.velden?.meubel?.stoel_huis; if (sh) m.set(sh, (m.get(sh) || 0) + 1); } return [...m].sort((x, y) => y[1] - x[1])[0]?.[0] || null; }, [inrichting]);
+  const stoelNieuw = stoelStd === undefined ? (huisStoelLijst.some((e) => e.id === meestGebruikteStoel) ? meestGebruikteStoel : null) : stoelStd;
   // Stroomelementen uit de bibliotheek, per groep in het menu Stroom.
   const stroomGroepen = useMemo(() => [
     ['Kast', bib.filter(elKast)], ['Stekkerdoos', bib.filter(elStekkerdoos)], ['Verwarming', bib.filter(elVerwarming)], ['Verbruiker', bib.filter(elVerbruiker)],
@@ -1665,6 +1681,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     const n = huisGebruikt.get(e.id) || 0; const max = Number(e.eigenschappen?.huis?.aantal) || 0;
     return (
       <div key={e.id} className={`fm-bs-huisrij${kiesEl?.id === e.id ? ' aan' : ''}${max && n >= max ? ' vol' : ''}`}>
+        <span className="ic" aria-hidden="true"><ElementIcoon el={e} maat={22} /></span>
         <button className="naam" title={e.naam} disabled={!schrijven} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : huisKeuze(e)); setModus(null); setRuimteKlik(false); setSel([]); }}>
           <span>{e.naam}</span>
           <small>{e.tekenwijze === 'punt' ? 'Punt' : e.eigenschappen?.tafel ? (e.eigenschappen.tafel.vorm === 'rond' ? `Ø ${getal(e.eigenschappen.tafel.b, 2)} m` : `${getal(e.eigenschappen.tafel.b, 2)} × ${getal(e.eigenschappen.tafel.d, 2)} m`) : `${getal(Number(e.breedte_m) || 0, 2)} × ${getal(Number(e.diepte_m) || 0, 2)} m`}{zitVan(e) ? ` · ${zitVan(e)} zitpl.` : ''}</small>
@@ -1724,12 +1741,9 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   const beginCamGedaan = useRef(false);
   useEffect(() => { if (!beginCamera || beginCamGedaan.current) return; if (inrichting.some((x) => x.id === beginCamera)) { beginCamGedaan.current = true; setCamBeeld(beginCamera); } }, [beginCamera, inrichting]);
   useEffect(() => { if (!groot3d) return undefined; const t = (e) => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); setGroot3d(null); } }; window.addEventListener('keydown', t, true); return () => window.removeEventListener('keydown', t, true); }, [groot3d]);
-  const maakPdfBinnen = async () => {
-    if (pdfBezig) return;
-    setPdfBezig(true); setSel([]); setActieveRuimte(null); passend();
-    try {
-      await new Promise((ok) => setTimeout(ok, 350));
-      const bron = svgRef.current; if (!bron) return;
+  // Het huidige beeld van het tekenvlak als canvas (met de css-stijlen en ingebakken beelden).
+  const vangBeeld = async () => {
+      const bron = svgRef.current; if (!bron) return null;
       const W0 = bron.clientWidth; const H0 = bron.clientHeight; const sPx = beeldRef.current?.s || 20;
       const kloon = bron.cloneNode(true);
       kloon.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); kloon.setAttribute('width', W0); kloon.setAttribute('height', H0); kloon.setAttribute('viewBox', `0 0 ${W0} ${H0}`);
@@ -1751,6 +1765,14 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       const img = await new Promise((ok, nok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => nok(new Error('Plan kon niet omgezet worden.')); i.src = url; });
       const k2 = Math.min(4, 4200 / W0); const cv = document.createElement('canvas'); cv.width = Math.round(W0 * k2); cv.height = Math.round(H0 * k2);
       const ctx = cv.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url);
+      return { cv, W0, H0, sPx };
+  };
+  const maakPdfBinnen = async () => {
+    if (pdfBezig) return;
+    setPdfBezig(true); setSel([]); setActieveRuimte(null); passend();
+    try {
+      await new Promise((ok) => setTimeout(ok, 350));
+      const vb0 = await vangBeeld(); if (!vb0) return; const { cv, W0, H0, sPx } = vb0;
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
       const PB = 420; const PH = 297; const M = 12; const ZIJ = 92;
@@ -1779,6 +1801,83 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       if (telHuis.length) { kop(tx.huis); for (const [n, c] of telHuis) rij(vn(n), c); }
       doc.save(`${naamHost} - ${verdNaam}.pdf`.replace(/[\\/:*?"<>|]+/g, '-'));
     } catch (e) { setMelding?.(e?.message || 'PDF maken lukte niet.'); } finally { setPdfBezig(false); }
+  };
+
+  // Dossier voor de locatie: overzicht van alle ruimtes met hun functie, daarna per ruimte de ingezoomde
+  // indeling met het materiaal in die ruimte, apart wat van het huis komt en wat wij meebrengen.
+  const maakDossier = async () => {
+    if (pdfBezig) return;
+    setPdfBezig(true); setSel([]); setMenu(false);
+    const wacht = (ms) => new Promise((ok) => setTimeout(ok, ms));
+    const wij = getOrganisatie()?.kort || getOrganisatie()?.naam || 'ons';
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const PB = 297; const PH = 210; const M = 10; const ZIJ = 88; const datum = new Date().toLocaleDateString('nl-BE', { day: 'numeric', month: 'long', year: 'numeric' });
+      const lijst = [...ruimtes].sort((a, b) => String(a.naam || '').localeCompare(String(b.naam || ''), 'nl', { numeric: true }));
+      const kopTekst = (titel, sub) => {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(14, 26, 51); doc.text(titel, M, M + 5);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(74, 90, 117); doc.text(sub, M, M + 10);
+      };
+      const plaatsBeeld = (vb, x, y, w, h) => {
+        const sc = Math.min(w / vb.W0, h / vb.H0); const ib = vb.W0 * sc; const ih = vb.H0 * sc;
+        doc.addImage(vb.cv.toDataURL('image/jpeg', 0.9), 'JPEG', x, y, ib, ih);
+        doc.setDrawColor(227, 232, 239); doc.setLineWidth(0.2); doc.rect(x, y, ib, ih);
+        const mmPerM = sc * vb.sPx; const L = [0.5, 1, 2, 5, 10, 20, 50, 100].find((v) => v * mmPerM >= 20) || 100; const bx = x + 5; const by = y + ih - 6;
+        doc.setFillColor(255, 255, 255); doc.rect(bx - 2, by - 5, L * mmPerM + 14, 8, 'F');
+        doc.setFillColor(14, 26, 51); doc.rect(bx, by, (L * mmPerM) / 2, 1.3, 'F'); doc.setDrawColor(14, 26, 51); doc.rect(bx, by, L * mmPerM, 1.3);
+        doc.setFontSize(7); doc.setTextColor(14, 26, 51); doc.text('0', bx, by - 1.2); doc.text(`${getal(L, 1)} m`, bx + L * mmPerM, by - 1.2, { align: 'center' });
+      };
+      const kolom = (x, y0, w) => {
+        let y = y0;
+        return {
+          kop: (t) => { if (y > PH - M - 8) return; doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(14, 26, 51); doc.text(t, x, y); y += 4.6; doc.setFont('helvetica', 'normal'); doc.setFontSize(8.3); },
+          rij: (a, b2 = '', kl = [14, 26, 51]) => { if (y > PH - M - 3) return; doc.setTextColor(...kl); const r = doc.splitTextToSize(String(a), w - 16); doc.text(r[0], x, y); if (b2 !== '') doc.text(String(b2), x + w, y, { align: 'right' }); y += 4.1; },
+          tekst: (t) => { doc.setTextColor(74, 90, 117); for (const r of doc.splitTextToSize(String(t), w)) { if (y > PH - M - 3) return; doc.text(r, x, y); y += 3.9; } },
+          ruimte: (n = 3) => { y += n; },
+        };
+      };
+      // 1. Overzicht
+      setActieveRuimte(null); passend(); await wacht(450);
+      const ov = await vangBeeld();
+      kopTekst(`${naamHost} · ${verdNaam}`, `Overzicht van de ruimtes · ${datum}`);
+      if (ov) plaatsBeeld(ov, M, M + 15, PB - 2 * M - ZIJ - 6, PH - M - 15 - M);
+      const k0 = kolom(PB - M - ZIJ, M + 18, ZIJ);
+      k0.kop(`${tx.ruimtes} · ${lijst.length}`);
+      for (const r of lijst) {
+        const t = perRuimte.get(r.id) || { zit: 0 }; const max = Number(r.velden?.max_personen) || 0;
+        k0.rij(r.naam || 'Ruimte', `${Math.round(oppervlakte(puntenVan(lokaalVan(r).geometrie)))} m²`);
+        const f = functiesNu(r).map((x) => x.naam).filter(Boolean).join(' / ');
+        const extra = [f, t.zit ? `${t.zit} zitpl.${max ? ` (max. ${max})` : ''}` : max ? `max. ${max} pers.` : ''].filter(Boolean).join(' · ');
+        if (extra) k0.rij(`   ${extra}`, '', [74, 90, 117]);
+      }
+      // 2. Per ruimte
+      for (const r of lijst) {
+        doc.addPage('a4', 'landscape');
+        setActieveRuimte(r.id); zoomOp(r); await wacht(450);
+        const vb = await vangBeeld();
+        const opp = Math.round(oppervlakte(puntenVan(lokaalVan(r).geometrie)));
+        const f = functiesNu(r).map((x) => x.naam).filter(Boolean).join(' / ');
+        kopTekst(r.naam || 'Ruimte', [naamHost, verdNaam, `${opp} m²`, f].filter(Boolean).join(' · '));
+        if (vb) plaatsBeeld(vb, M, M + 15, PB - 2 * M - ZIJ - 6, PH - M - 15 - M);
+        const k = kolom(PB - M - ZIJ, M + 18, ZIJ);
+        const inr = inRuimte(r); const t = perRuimte.get(r.id) || { zit: 0 }; const max = Number(r.velden?.max_personen) || 0;
+        if (f) { k.kop('Functie'); for (const fx of functiesNu(r)) k.rij(fx.naam || '', ''); k.ruimte(); }
+        if (t.zit || max) { k.kop('Bezetting'); k.rij('Zitplaatsen', `${t.zit || 0}${max ? ` / ${max}` : ''}`); k.ruimte(); }
+        const huisT = tellen(inr, true); const eigenT = tellen(inr, false);
+        k.kop(`Van ${naamHost}`);
+        if (huisT.length) for (const [n, c] of huisT) k.rij(vn(n), c, [14, 107, 92]); else k.tekst('Niets van het huis in deze ruimte.');
+        k.ruimte();
+        k.kop(`Van ${wij}`);
+        if (eigenT.length) for (const [n, c] of eigenT) k.rij(vn(n), c); else k.tekst('Niets van ons in deze ruimte.');
+        const opm = inr.map((it) => it.velden?.opmerking).filter(Boolean);
+        if (opm.length) { k.ruimte(); k.kop('Opmerkingen'); for (const o of [...new Set(opm)].slice(0, 8)) k.tekst(`· ${o}`); }
+      }
+      // Voettekst met paginanummer
+      const n = doc.getNumberOfPages();
+      for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(7); doc.setTextColor(132, 146, 168); doc.text(`${naamHost} · ${verdNaam} · ${i} / ${n}`, PB - M, PH - 4, { align: 'right' }); }
+      doc.save(`${naamHost} - ${verdNaam} - ruimtes.pdf`.replace(/[\\/:*?"<>|]+/g, '-'));
+    } catch (e) { setMelding?.(e?.message || 'Dossier maken lukte niet.'); } finally { setActieveRuimte(null); passend(); setPdfBezig(false); }
   };
 
   // ---------- Tekenen met de tekenaar van de bibliotheek ----------
@@ -1916,6 +2015,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
         </div>
         <span style={{ flex: 1 }} />
         <button className="fm-knop klein" disabled={pdfBezig} title="Dit binnenplan als pdf (A3)" onClick={maakPdfBinnen}>{pdfBezig ? 'PDF maken…' : 'PDF'}</button>
+        {ruimtes.length > 0 && <button className="fm-knop klein" disabled={pdfBezig} title={`Voor ${naamHost}: overzicht van alle ruimtes met hun functie, daarna per ruimte de indeling en het materiaal (van het huis en van ons)`} onClick={maakDossier}>Dossier per ruimte</button>}
         {(fasen.length > 0 || dagen.length > 0) && (
           <label className="fm-bs-moment">{tx.moment}
             <select value={actieveFase ? `f:${actieveFase}` : dag ? `d:${dag}` : ''} onChange={(e) => { const v = e.target.value; setSel([]); if (v.startsWith('f:')) { setDag(null); onFase?.(v.slice(2)); } else { onFase?.(null); setDag(v.startsWith('d:') ? v.slice(2) : null); } }}>
@@ -1946,7 +2046,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       <div className="fm-bs-lijf">
         {schrijven && (
           <nav className="fm-gereedschap fm-bs-rail" aria-label="Gereedschap binnenplan">
-            {[['ruimtes', 'lagen', tx.ruimtes || 'Ruimtes'], ['huis', 'gebouw', 'Van het huis'], ['bib', 'element', 'Bibliotheek']].map(([k, ic, t]) => (
+            {[['ruimtes', 'lagen', tx.ruimtes || 'Ruimtes'], ['huis', 'gebouw', 'Huis'], ['bib', 'element', 'Bibliotheek']].map(([k, ic, t]) => (
               <button key={k} type="button" className={`paneelknop${paneel === k ? ' aan' : ''}${k === 'huis' ? ' fm-bs-huisknop' : ''}`} aria-pressed={paneel === k} title={t} onClick={() => setPaneel((x) => (x === k ? null : k))}><Icoon naam={ic} maat={20} /><span>{t}</span></button>
             ))}
             <hr />
@@ -1986,6 +2086,14 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
           {schrijven && paneel === 'huis' && (
             <>
               <div className="fm-paneelkop fm-bs-paneelkop"><strong>Van het huis</strong><span className="fm-sub"> · {naamHost}</span><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
+              {huisStoelLijst.length > 0 && (
+                <label className="fm-veld fm-bs-stoelstd">Stoelen bij nieuwe tafels
+                  <select value={stoelNieuw || ''} onChange={(e) => setStoelStd(e.target.value || null)}>
+                    <option value="">Eigen of gehuurd</option>
+                    {huisStoelLijst.map((e) => <option key={e.id} value={e.id}>{e.naam} (van het huis)</option>)}
+                  </select>
+                </label>
+              )}
               <div className="fm-bs-huis">
               {!huis.length && !huisForm && <div className="fm-sub fm-bs-leegtekst">Wat stelt {naamHost} zelf ter beschikking? Tafels, stoelen, podium… Het blijft bewaard voor volgende plannen en komt niet op onze laadlijst.</div>}
               {huis.map(huisRij)}
@@ -2030,15 +2138,23 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                 <button type="button" className={bibSoort === 'meubels' ? 'aan' : ''} onClick={() => setBibSoort('meubels')}>Meubels en inrichting</button>
                 <button type="button" className={bibSoort === 'alles' ? 'aan' : ''} onClick={() => setBibSoort('alles')}>Alle elementen</button>
               </div>
+              {huisStoelLijst.length > 0 && (
+                <label className="fm-veld fm-bs-stoelstd">Stoelen bij nieuwe tafels
+                  <select value={stoelNieuw || ''} onChange={(e) => setStoelStd(e.target.value || null)}>
+                    <option value="">Eigen of gehuurd</option>
+                    {huisStoelLijst.map((e) => <option key={e.id} value={e.id}>{e.naam} (van het huis)</option>)}
+                  </select>
+                </label>
+              )}
               {bibSoort === 'meubels' ? (
                 <div className="fm-bs-inrichten">
               {(() => {
                 const br = bib.filter((e) => isFrame(e) || isDrape(e) || isWand(e)); if (!br.length) return null;
                 return (
                   <div>
-                    <div className="fm-bs-subkop">Branding</div>
+                    <div className="fm-lijstkop">Branding</div>
                     <div className="fm-bs-lijstknoppen">
-                      {br.map((e) => <button key={e.id} className={`fm-bs-lijstknop${kiesEl?.id === e.id ? ' aan' : ''}`} disabled={!schrijven} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}><span className="fm-afkap">{e.naam}</span><small>{e.tekenwijze === 'lijn' ? 'lijn tekenen' : 'klik om te plaatsen'}</small></button>)}
+                      {br.map((e) => <button key={e.id} type="button" className={`fm-element fm-bs-elrij${kiesEl?.id === e.id ? ' aan' : ''}`} disabled={!schrijven} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}><span className="ic" aria-hidden="true"><ElementIcoon el={e} maat={26} /></span><span className="tekst"><span className="fm-afkap naam">{e.naam}</span><span className="fm-sub">{[e.tekenwijze === 'lijn' ? 'lijn tekenen' : 'klik om te plaatsen', e.leverancier].filter(Boolean).join(' · ')}</span></span><span /></button>)}
                     </div>
                   </div>
                 );
@@ -2047,16 +2163,16 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                 const tr = bib.filter((e) => /truss/i.test(e.categorie || '') && ['lijn', 'schaal'].includes(e.tekenwijze)); if (!tr.length) return null;
                 return (
                   <div>
-                    <div className="fm-bs-subkop">Truss</div>
+                    <div className="fm-lijstkop">Truss</div>
                     <div className="fm-bs-lijstknoppen">
-                      {tr.map((e) => <button key={e.id} className={`fm-bs-lijstknop${kiesEl?.id === e.id ? ' aan' : ''}`} disabled={!schrijven} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}><span className="fm-afkap">{e.naam}</span><small>{e.tekenwijze === 'lijn' ? 'lijn tekenen' : 'klik om te plaatsen'}</small></button>)}
+                      {tr.map((e) => <button key={e.id} type="button" className={`fm-element fm-bs-elrij${kiesEl?.id === e.id ? ' aan' : ''}`} disabled={!schrijven} title={e.naam} onClick={() => { setKiesEl(kiesEl?.id === e.id ? null : e); setModus(null); setRuimteKlik(false); setSel([]); }}><span className="ic" aria-hidden="true"><ElementIcoon el={e} maat={26} /></span><span className="tekst"><span className="fm-afkap naam">{e.naam}</span><span className="fm-sub">{[e.tekenwijze === 'lijn' ? 'lijn tekenen' : 'klik om te plaatsen', e.leverancier].filter(Boolean).join(' · ')}</span></span><span /></button>)}
                     </div>
                   </div>
                 );
               })()}
               {MEUBEL_GROEPEN.map((g) => (
                 <div key={g.naam}>
-                  <div className="fm-bs-subkop">{g.naam}</div>
+                  <div className="fm-lijstkop">{g.naam}</div>
                   <div className="fm-bs-tegels">
                     {g.items.map((mb, i) => {
                       const id = `m:${g.naam}:${i}`; const tk = meubelTekening(mb); const z = Math.max(tk.b, tk.h) || 1;
@@ -2366,6 +2482,52 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                   <button className="fm-knop klein gevaar" disabled={selItems.every((x) => x.vergrendeld)} onClick={() => wisSel(sel)}><Icoon naam="prullenbak" maat={14} />Wissen</button>
                 </div>
               </div>
+              {selItems.length > 1 && (() => {
+                const tafels = selItems.filter((x) => x.velden?.meubel?.type === 'tafel' && !x.vergrendeld);
+                const metStoel = selItems.filter((x) => ['tafel', 'rijen', 'stoel'].includes(x.velden?.meubel?.type) && !x.vergrendeld);
+                const elems = selItems.filter((x) => x.element_id && !x.velden?.punt && !isHuis(x) && !x.vergrendeld);
+                const een1 = (lijst, f) => { const w = [...new Set(lijst.map(f))]; return w.length === 1 ? w[0] : '__'; };
+                if (!tafels.length && !metStoel.length && !elems.length) return null;
+                return (
+                  <div className="fm-sectie">
+                    <div className="fm-kop">Alles in één keer</div>
+                    {tafels.length > 0 && (
+                      <label className="fm-veld">Tafel · {tafels.length} {tafels.length === 1 ? 'tafel' : 'tafels'}
+                        <select value={een1(tafels, (x) => (isHuis(x) ? x.element_id : ''))} onChange={(e) => { if (e.target.value === '__') return; for (const x of tafels) kiesHuisTafel(x, e.target.value || null); }}>
+                          <option value="__" disabled>Verschillend</option>
+                          <option value="">Eigen of gehuurd</option>
+                          {huisTafelLijst.map((e) => <option key={e.id} value={e.id}>{e.naam} (van het huis)</option>)}
+                        </select>
+                      </label>
+                    )}
+                    {metStoel.length > 0 && huisStoelLijst.length > 0 && (
+                      <label className="fm-veld">Stoelen · {metStoel.length} {metStoel.length === 1 ? 'item' : 'items'}
+                        <select value={een1(metStoel, (x) => x.velden.meubel.stoel_huis || '')} onChange={(e) => { if (e.target.value === '__') return; for (const x of metStoel) bewaarMeubel(x, { ...x.velden.meubel, stoel_huis: e.target.value || null }); }}>
+                          <option value="__" disabled>Verschillend</option>
+                          <option value="">Eigen of gehuurd</option>
+                          {huisStoelLijst.map((e) => <option key={e.id} value={e.id}>{e.naam} (van het huis)</option>)}
+                        </select>
+                      </label>
+                    )}
+                    {tafels.length > 0 && (
+                      <div className="fm-rij">
+                        <span className="fm-sub">Stoelen rond de tafels</span>
+                        <button className="fm-knop klein" onClick={() => { for (const x of tafels) { const m = x.velden.meubel; bewaarMeubel(x, { ...m, stoelen: autoStoelen(m) }); } }}>Automatisch</button>
+                        <button className="fm-knop klein" onClick={() => { for (const x of tafels) { const m = x.velden.meubel; const a = autoStoelen(m); bewaarMeubel(x, { ...m, stoelen: m.vorm === 'rechthoek' ? { boven: 0, onder: m.b >= m.d ? a.onder : 0, links: 0, rechts: m.b >= m.d ? 0 : a.rechts } : { ...(m.stoelen || {}), kant: 'een' } }); } }}>Eén kant</button>
+                        <button className="fm-knop klein" onClick={() => { for (const x of tafels) { const m = x.velden.meubel; bewaarMeubel(x, { ...m, stoelen: m.vorm === 'rechthoek' ? { boven: 0, onder: 0, links: 0, rechts: 0 } : { ...(m.stoelen || {}), n: 0 } }); } }}>Geen</button>
+                      </div>
+                    )}
+                    {elems.length > 0 && (
+                      <label className="fm-veld">Leverancier · {elems.length} {elems.length === 1 ? 'element' : 'elementen'}
+                        <input key={`blv${sel.join(',')}`} list="fm-bs-leveranciers-m" placeholder={een1(elems, (x) => x.velden?.herkomst || '') === '__' ? 'verschillend' : 'zoals in de bibliotheek'} defaultValue={een1(elems, (x) => x.velden?.herkomst || '') === '__' ? '' : een1(elems, (x) => x.velden?.herkomst || '')}
+                          onBlur={(e) => { const v = juisteNaam(e.target.value, levLijst); if (!v && een1(elems, (x) => x.velden?.herkomst || '') === '__') return; for (const x of elems) if ((x.velden?.herkomst || '') !== v) onWijzig(x.id, { velden: { ...(x.velden || {}), herkomst: v || null } }); if (v) zorgLeverancier(v); }} onKeyDown={enterBlur} />
+                        <datalist id="fm-bs-leveranciers-m">{levLijst.filter((l) => l.actief !== false).map((l) => <option key={l.id} value={l.naam} />)}</datalist>
+                      </label>
+                    )}
+                    {selItems.some((x) => x.vergrendeld) && <div className="fm-sub">Vergrendelde items blijven ongewijzigd.</div>}
+                  </div>
+                );
+              })()}
               {een && (
                 <div className="fm-sectie">
                   <div className="fm-kop">Item</div>
