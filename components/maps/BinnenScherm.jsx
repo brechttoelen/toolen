@@ -464,9 +464,18 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     const c = lok.midden || (() => { const k = kaderVan([puntenVan(lok.geometrie)]); return [(k[0] + k[2]) / 2, (k[1] + k[3]) / 2]; })();
     return { geometrie: mapG(lok.geometrie, ([x, y]) => { const q = draai([x - c[0], y - c[1]], g); return [r3(c[0] + q[0]), r3(c[1] + q[1])]; }), midden: lok.midden, rot: lok.rot != null ? ((((lok.rot + g) % 360) + 360) % 360) : null };
   };
+  // Vergrendeld = niet verschuiven, draaien, vervormen of wissen (zoals op de kaart).
+  const isVergrendeld = (id) => !!inrichting.find((x) => x.id === id)?.vergrendeld;
+  const losVan = (ids) => ids.filter((id) => !isVergrendeld(id));
+  const wisSel = (ids = sel) => {
+    const weg = losVan(ids);
+    if (weg.length) onVerwijder(weg);
+    if (weg.length < ids.length) setMelding(`${ids.length - weg.length} vergrendeld ${ids.length - weg.length === 1 ? 'item blijft' : 'items blijven'} staan.`);
+    setSel(ids.filter((id) => !weg.includes(id)));
+  };
   const draaiSel = (g) => {
     if (kiesEl && !sel.length) { setElRot((r) => (((r + g) % 360) + 360) % 360); return; }
-    for (const it of inrichting.filter((x) => sel.includes(x.id))) bewaarLokaal(it, gedraaid(lokaalVan(it), g));
+    for (const it of inrichting.filter((x) => sel.includes(x.id) && !x.vergrendeld)) bewaarLokaal(it, gedraaid(lokaalVan(it), g));
   };
   // Ruimte aanklikken: de kleinste gesloten lijn van het grondplan rond de klik.
   const ruimteOp = (w) => {
@@ -681,7 +690,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     if (!lijst.length) return;
     const k = kaderVan(lijst.map((x) => puntenVan(x.lok.geometrie)));
     klembord.current = { lijst, midden: [(k[0] + k[2]) / 2, (k[1] + k[3]) / 2], keer: 0 };
-    if (knip) { onVerwijder(sel); setSel([]); }
+    if (knip) wisSel(sel);
     setMelding(`${lijst.length} ${lijst.length === 1 ? 'item' : 'items'} ${knip ? 'geknipt' : 'gekopieerd'} · Ctrl V om te plakken`);
   };
   const plak = () => {
@@ -699,7 +708,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   // Draaigreep boven de selectie (zoals op de kaart): midden en schermpositie van de greep.
   const draaiGreep = () => {
     if (!schrijven || kiesEl || modus || !sel.length || (vormZaal && sel.length === 1)) return null;
-    const lijst = inrichting.filter((x) => sel.includes(x.id)); if (!lijst.length) return null;
+    const lijst = inrichting.filter((x) => sel.includes(x.id)); if (!lijst.length || lijst.some((x) => x.vergrendeld)) return null;
     const loks = lijst.map((x) => (voorlopig?.[x.id] || lokaalVan(x)));
     if (lijst.length === 1 && loks[0].geometrie.type === 'Point') return null; // een punt of tekst alleen: niets te draaien
     if (lijst.length === 1 && loks[0].midden) {
@@ -864,6 +873,8 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       setSel([]); sleep.current = { pan: true, x: e.clientX, y: e.clientY, b: B, klik: w }; return;
     }
     let ids = e.shiftKey ? (sel.includes(it.id) ? sel.filter((x) => x !== it.id) : [...sel, it.id]) : (sel.includes(it.id) ? sel : [it.id]);
+    // Vergrendelde items: wel selecteren, niet slepen (Alt + slepen maakt wel een kopie).
+    if (!e.altKey && ids.some(isVergrendeld)) { setSel(ids); setActieveRuimte(null); if (!e.shiftKey) setMelding('Vergrendeld: ontgrendel in het rechtermenu om te verplaatsen.'); return; }
     const orig0 = Object.fromEntries(inrichting.filter((x) => ids.includes(x.id)).map((x) => [x.id, lokaalVan(x)]));
     let orig = orig0;
     // Alt + slepen = kopie slepen (zoals op de kaart).
@@ -991,7 +1002,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       if (e.key === 'Enter' && (modus === 'lijn' || modus === 'vlak' || modus === 'pijl')) { e.preventDefault(); afmaken(punten); return; }
       if (e.key === 'Enter' && lijn) { if (lijn.length >= 2) plaatsLijn(kiesEl, lijn); setLijn(null); setKiesEl(null); return; }
       if (!schrijven) return;
-      if ((e.key === 'Delete' || e.key === 'Backspace') && sel.length) { e.preventDefault(); onVerwijder(sel); setSel([]); return; }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && sel.length) { e.preventDefault(); wisSel(sel); return; }
       if (mod && k === 'd' && sel.length) { e.preventDefault(); dupliceer(); return; }
       if (mod && k === 'c' && sel.length) { e.preventDefault(); kopieer(false); return; }
       if (mod && k === 'x' && sel.length) { e.preventDefault(); kopieer(true); return; }
@@ -1318,7 +1329,8 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   const zaalLabels = useMemo(() => ruimtes.map((r) => { const k = kaderVan([puntenVan(lokaalVan(r).geometrie)]); const lp = labelPlek(puntenVan(lokaalVan(r).geometrie)); return k && lp ? { id: r.id, naam: r.naam, functie: functieTekst(r), kleur: functieNu(r)?.kleur, ...lp } : null; }).filter(Boolean), [ruimtes, T, voorlopig, actieveFase, fasen, dag]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const actR = actieveRuimte ? ruimtes.find((r) => r.id === actieveRuimte) : null;
-  const vormIt = vormZaal ? ruimtes.find((r) => r.id === vormZaal) || inrichting.find((r) => r.id === vormZaal) || null : null;
+  const vormIt0 = vormZaal ? ruimtes.find((r) => r.id === vormZaal) || inrichting.find((r) => r.id === vormZaal) || null : null;
+  const vormIt = vormIt0?.vergrendeld ? null : vormIt0;
   const selItems = inrichting.filter((x) => sel.includes(x.id));
   const verdNaam = tx[verdiepingen.find((v) => v.id === verd)?.naam] || verdiepingen.find((v) => v.id === verd)?.naam || 'deze verdieping';
   const schaalbaar = onderlegger && (!isDxf || d?.pdf);
@@ -2350,7 +2362,8 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                   <button className="fm-knop klein" onClick={() => draaiSel(90)}>90°</button>
                   <button className="fm-knop klein" title="Kopie ernaast (Ctrl D)" onClick={dupliceer}><Icoon naam="kopie" maat={14} />Kopie</button>
                   <span style={{ flex: 1 }} />
-                  <button className="fm-knop klein gevaar" onClick={() => { onVerwijder(sel); setSel([]); }}><Icoon naam="prullenbak" maat={14} />Wissen</button>
+                  <button className="fm-knop klein" aria-pressed={selItems.every((x) => x.vergrendeld)} title={selItems.every((x) => x.vergrendeld) ? 'Ontgrendelen' : 'Vergrendelen: kan niet meer per ongeluk verschuiven of gewist worden'} onClick={() => { const aan = !selItems.every((x) => x.vergrendeld); for (const x of selItems) if (!!x.vergrendeld !== aan) onWijzig(x.id, { vergrendeld: aan }); }}><Icoon naam={selItems.every((x) => x.vergrendeld) ? 'slot' : 'slotopen'} maat={14} />{selItems.every((x) => x.vergrendeld) ? 'Vergrendeld' : 'Vergrendel'}</button>
+                  <button className="fm-knop klein gevaar" disabled={selItems.every((x) => x.vergrendeld)} onClick={() => wisSel(sel)}><Icoon naam="prullenbak" maat={14} />Wissen</button>
                 </div>
               </div>
               {een && (

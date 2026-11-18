@@ -34,6 +34,14 @@ describe('binnenscherm', () => {
     expect(html2).toContain('Leverancier');
     expect(html2).toContain('placeholder="Manutan"');
   });
+  it('vergrendeld item: knop toont slot en Wissen staat uit', () => {
+    const el = { id: 'e2', naam: 'Dossierkast', categorie: 'Binnenruimte', tekenwijze: 'schaal', breedte_m: 0.9, diepte_m: 0.4, eigenschappen: {} };
+    const k = { id: 'k1', plan_id: 'p1', soort: 'element', element_id: 'e2', vergrendeld: true, geometrie: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] }, parameters: {}, velden: { binnen: { host: 'h1', verd: 'g', lokaal: { geometrie: { type: 'Polygon', coordinates: [[[5, 1], [5.9, 1], [5.9, 1.4], [5, 1.4], [5, 1]]] }, midden: [5.45, 1.2], rot: 0 } } } };
+    const p = { ...props(true), items: [host, zaal, k], elementen: [el], elementenMap: new Map([['e2', el]]) };
+    const html = renderToString(<BinnenScherm {...p} beginSel={['k1']} />).replace(/<!-- -->/g, '');
+    expect(html).toContain('Vergrendeld');
+    expect(html).toMatch(/disabled=""[^>]*>.*?Wissen/);
+  });
   it('lezen: zelfde weergave als voorheen, zonder zijbalk', () => {
     const html = renderToString(<BinnenScherm {...props(false)} />).replace(/<!-- -->/g, '');
     expect(html).not.toContain('fm-bs-rail');

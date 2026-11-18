@@ -4774,6 +4774,76 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
   const paneelOpen = !volScherm && tab;
   const eigenschappenOpen = !volScherm && !!item;
   const veelSel = selectie.length > 1 && !groepSel; // meerdere losse items: selectiepaneel i.p.v. de eigenschappen van één
+  // Acties voor een selectie van meerdere items: in het rechterpaneel (Selectie); enkel op volledig scherm in de contextbalk.
+  const selectieActies = schrijven && selectie.length > 1 ? (
+    <>
+              {groepSel && <button title="De groep een naam geven (de onderdelen zelf krijgen geen naam)" onClick={() => vraagGroepNaam(items.find((x) => x.id === selectie[0])?.groep_id)}>Naam…</button>}
+              <button title="Geheel 15° linksom draaien" onClick={() => multiActie('draai-')}><Icoon naam="draailinks" maat={15} />15°</button>
+              <button title="Geheel 15° rechtsom draaien" onClick={() => multiActie('draai+')}><Icoon naam="draairechts" maat={15} />15°</button>
+              {groepSel && !iso && schrijven && <button title="De groep recht op een raster bewerken, met maten en bestaande elementen" onClick={() => openTekenscherm(selectie)}>Tekenscherm</button>}
+              {groepSel && !iso && <button className="zwart" title="Enkel deze groep bewerken; de rest van het plan blijft zichtbaar als achtergrond (ook: dubbelklik)" onClick={() => { const g = items.find((x) => x.id === selectie[0])?.groep_id; setIso(g); setGeselecteerd(null); setExtra([]); }}>Groep bewerken</button>}
+              {groepSel
+                ? <button title="De items weer los van elkaar selecteren" onClick={() => multiActie('degroeperen')}>Groep opheffen</button>
+                : <button onClick={() => multiActie('groeperen')}>Groeperen</button>}
+              <select aria-label="Uitlijnen" value="" onChange={(e) => e.target.value && multiActie(e.target.value)}>
+                <option value="">Uitlijnen</option>
+                <option value="links">Links</option><option value="rechts">Rechts</option><option value="boven">Boven</option><option value="onder">Onder</option>
+                <option value="midden-h">Midden (verticale as)</option><option value="midden-v">Midden (horizontale as)</option>
+                <option value="verdeel-h">Gelijk verdelen horizontaal</option><option value="verdeel-v">Gelijk verdelen verticaal</option>
+              </select>
+              <button onClick={() => multiActie('dupliceren')}>Dupliceren</button>
+              {(() => {
+                const sel = items.filter((x) => selectie.includes(x.id)); const nu = [...new Set(sel.map((x) => x.laag_id))];
+                return (
+                  <select aria-label="Naar laag" title="Alle geselecteerde items naar een andere laag" value={nu.length === 1 ? nu[0] || '' : ''} onChange={(e) => {
+                    const doel = e.target.value; if (!doel) return;
+                    const weg = sel.filter((x) => x.laag_id !== doel && !x.vergrendeld);
+                    for (const x of weg) wijzigItem(x.id, { laag_id: doel });
+                    setTimeout(syncTd, 0);
+                    setMelding(`${weg.length} ${weg.length === 1 ? 'item' : 'items'} naar ${lagen.find((l) => l.id === doel)?.naam || 'de laag'}${sel.some((x) => x.vergrendeld) ? ' (vergrendelde items niet)' : ''}.`);
+                  }}>
+                    {nu.length !== 1 && <option value="">Laag: {nu.length} verschillende</option>}
+                    <LaagOpties lagen={lagen} />
+                  </select>
+                );
+              })()}
+              <div style={{ position: 'relative' }}>
+                <button data-menuknop title="Meer acties" onClick={(e) => { e.stopPropagation(); setMenu(menu === 'ctxm' ? null : 'ctxm'); }}>Meer <Icoon naam="pijlomlaag" maat={12} /></button>
+                {menu === 'ctxm' && (
+                  <div className="fm-menu" style={{ right: 0, top: 32, minWidth: 200 }} onClick={(e) => { e.stopPropagation(); setMenu(null); }}>
+                    {!groepSel && <button onClick={() => multiActie('degroeperen')}>Groep opheffen</button>}
+                    {items.filter((x) => selectie.includes(x.id) && x.geometrie?.type === 'LineString').length >= 2 && <button onClick={() => multiActie('lijnen-koppelen')}>Lijnen koppelen</button>}
+                    {items.some((x) => selectie.includes(x.id) && x.geometrie?.type === 'LineString') && ['car', 'bike'].map((prof) => (
+                      <button key={prof} onClick={async () => {
+                        const lijnen = items.filter((x) => selectie.includes(x.id) && x.geometrie?.type === 'LineString' && !x.vergrendeld);
+                        let ok = 0;
+                        for (const [k, x] of lijnen.entries()) {
+                          setMelding(`Langs de weg leggen: ${k + 1} van ${lijnen.length}…`);
+                          try { const r = await legLangsWeg(x.geometrie.coordinates, prof); if (st.current.items.some((y) => y.id === x.id)) { wijzigItem(x.id, { geometrie: { type: 'LineString', coordinates: r.coords }, parameters: { ...(x.parameters || {}), route: { profiel: prof, punten: r.punten } } }); ok += 1; } } catch {}
+                        }
+                        setTimeout(syncTd, 0);
+                        setMelding(`${ok} van ${lijnen.length} lijnen langs de weg gelegd${ok < lijnen.length ? ' (de rest: geen weg gevonden)' : ''}. Ctrl Z zet ze één voor één terug.`);
+                      }}>Lijnen langs de weg leggen<small>{prof === 'car' ? 'auto' : 'fiets (ook fietspaden)'}</small></button>
+                    ))}
+                    <button onClick={async () => {
+                      const sel = items.filter((x) => selectie.includes(x.id) && x.element_id);
+                      if (!sel.length) { setMelding('Geen elementen in de selectie.'); return; }
+                      const nu = [...new Set(sel.map((x) => x.velden?.herkomst || ''))];
+                      const v = await vraagTekst(`Wie levert deze ${sel.length} elementen voor dit event? Bv. Gemeente of Delrue. Leeg = de leverancier uit de bibliotheek.`, nu.length === 1 ? nu[0] : '', { titel: 'Geleverd door', ok: 'Instellen' });
+                      if (v == null) return;
+                      for (const x of sel) wijzigItem(x.id, { velden: { ...(x.velden || {}), herkomst: v.trim() || null } });
+                      setMelding(`${sel.length} elementen: geleverd door ${v.trim() || 'de leverancier uit de bibliotheek'}.`);
+                    }}>Geleverd door…</button>
+                    <button onClick={() => kopieer(selectie)}>Kopiëren</button>
+                    <button onClick={() => { for (const id of selectie) wijzigItem(id, { verborgen: true }); setExtra([]); setGeselecteerd(null); setTimeout(syncTd, 0); setMelding(`${selectie.length} items verborgen. Terug zichtbaar via Lagen.`); }}>Verbergen</button>
+                    <button onClick={() => multiActie('sjabloon')}>Als sjabloon bewaren</button>
+                    {anderePlannen.map((x) => <button key={x.id} onClick={() => actie('kopieer-plan', x.id)}>Kopiëren naar {x.naam}</button>)}
+                  </div>
+                )}
+              </div>
+              <button style={{ color: '#B4123A' }} onClick={() => multiActie('verwijderen')}><Icoon naam="prullenbak" maat={15} /></button>
+    </>
+  ) : null;
   const vastOpen = !volScherm && !!vastSel && !item;
   const plaatsOpen = schrijven && !volScherm && !item && gereedschap === 'element' && !!gekozenElement;
   const planOpen = !!plan && !volScherm && !item && !vastSel && !plaatsOpen && !binnen && planZicht;
@@ -5539,74 +5609,10 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
               </div>
             </div>
           )}
-          {schrijven && selectie.length > 1 && !(groepSel && !iso && eigenschappenOpen) && (
+          {schrijven && selectie.length > 1 && !eigenschappenOpen && (
             <div className="fm-contextbalk" role="toolbar" aria-label="Acties voor de selectie">
               <span className="naam">{groepSel ? `${groepNaam(items.find((x) => x.id === selectie[0])?.groep_id) || 'Groep'} · ${selectie.length} items` : `${selectie.length} geselecteerd`}</span>
-              {groepSel && <button title="De groep een naam geven (de onderdelen zelf krijgen geen naam)" onClick={() => vraagGroepNaam(items.find((x) => x.id === selectie[0])?.groep_id)}>Naam…</button>}
-              <button title="Geheel 15° linksom draaien" onClick={() => multiActie('draai-')}><Icoon naam="draailinks" maat={15} />15°</button>
-              <button title="Geheel 15° rechtsom draaien" onClick={() => multiActie('draai+')}><Icoon naam="draairechts" maat={15} />15°</button>
-              {groepSel && !iso && schrijven && <button title="De groep recht op een raster bewerken, met maten en bestaande elementen" onClick={() => openTekenscherm(selectie)}>Tekenscherm</button>}
-              {groepSel && !iso && <button className="zwart" title="Enkel deze groep bewerken; de rest van het plan blijft zichtbaar als achtergrond (ook: dubbelklik)" onClick={() => { const g = items.find((x) => x.id === selectie[0])?.groep_id; setIso(g); setGeselecteerd(null); setExtra([]); }}>Groep bewerken</button>}
-              {groepSel
-                ? <button title="De items weer los van elkaar selecteren" onClick={() => multiActie('degroeperen')}>Groep opheffen</button>
-                : <button onClick={() => multiActie('groeperen')}>Groeperen</button>}
-              <select aria-label="Uitlijnen" value="" onChange={(e) => e.target.value && multiActie(e.target.value)}>
-                <option value="">Uitlijnen</option>
-                <option value="links">Links</option><option value="rechts">Rechts</option><option value="boven">Boven</option><option value="onder">Onder</option>
-                <option value="midden-h">Midden (verticale as)</option><option value="midden-v">Midden (horizontale as)</option>
-                <option value="verdeel-h">Gelijk verdelen horizontaal</option><option value="verdeel-v">Gelijk verdelen verticaal</option>
-              </select>
-              <button onClick={() => multiActie('dupliceren')}>Dupliceren</button>
-              {(() => {
-                const sel = items.filter((x) => selectie.includes(x.id)); const nu = [...new Set(sel.map((x) => x.laag_id))];
-                return (
-                  <select aria-label="Naar laag" title="Alle geselecteerde items naar een andere laag" value={nu.length === 1 ? nu[0] || '' : ''} onChange={(e) => {
-                    const doel = e.target.value; if (!doel) return;
-                    const weg = sel.filter((x) => x.laag_id !== doel && !x.vergrendeld);
-                    for (const x of weg) wijzigItem(x.id, { laag_id: doel });
-                    setTimeout(syncTd, 0);
-                    setMelding(`${weg.length} ${weg.length === 1 ? 'item' : 'items'} naar ${lagen.find((l) => l.id === doel)?.naam || 'de laag'}${sel.some((x) => x.vergrendeld) ? ' (vergrendelde items niet)' : ''}.`);
-                  }}>
-                    {nu.length !== 1 && <option value="">Laag: {nu.length} verschillende</option>}
-                    <LaagOpties lagen={lagen} />
-                  </select>
-                );
-              })()}
-              <div style={{ position: 'relative' }}>
-                <button data-menuknop title="Meer acties" onClick={(e) => { e.stopPropagation(); setMenu(menu === 'ctxm' ? null : 'ctxm'); }}>Meer <Icoon naam="pijlomlaag" maat={12} /></button>
-                {menu === 'ctxm' && (
-                  <div className="fm-menu" style={{ right: 0, top: 32, minWidth: 200 }} onClick={(e) => { e.stopPropagation(); setMenu(null); }}>
-                    {!groepSel && <button onClick={() => multiActie('degroeperen')}>Groep opheffen</button>}
-                    {items.filter((x) => selectie.includes(x.id) && x.geometrie?.type === 'LineString').length >= 2 && <button onClick={() => multiActie('lijnen-koppelen')}>Lijnen koppelen</button>}
-                    {items.some((x) => selectie.includes(x.id) && x.geometrie?.type === 'LineString') && ['car', 'bike'].map((prof) => (
-                      <button key={prof} onClick={async () => {
-                        const lijnen = items.filter((x) => selectie.includes(x.id) && x.geometrie?.type === 'LineString' && !x.vergrendeld);
-                        let ok = 0;
-                        for (const [k, x] of lijnen.entries()) {
-                          setMelding(`Langs de weg leggen: ${k + 1} van ${lijnen.length}…`);
-                          try { const r = await legLangsWeg(x.geometrie.coordinates, prof); if (st.current.items.some((y) => y.id === x.id)) { wijzigItem(x.id, { geometrie: { type: 'LineString', coordinates: r.coords }, parameters: { ...(x.parameters || {}), route: { profiel: prof, punten: r.punten } } }); ok += 1; } } catch {}
-                        }
-                        setTimeout(syncTd, 0);
-                        setMelding(`${ok} van ${lijnen.length} lijnen langs de weg gelegd${ok < lijnen.length ? ' (de rest: geen weg gevonden)' : ''}. Ctrl Z zet ze één voor één terug.`);
-                      }}>Lijnen langs de weg leggen<small>{prof === 'car' ? 'auto' : 'fiets (ook fietspaden)'}</small></button>
-                    ))}
-                    <button onClick={async () => {
-                      const sel = items.filter((x) => selectie.includes(x.id) && x.element_id);
-                      if (!sel.length) { setMelding('Geen elementen in de selectie.'); return; }
-                      const nu = [...new Set(sel.map((x) => x.velden?.herkomst || ''))];
-                      const v = await vraagTekst(`Wie levert deze ${sel.length} elementen voor dit event? Bv. Gemeente of Delrue. Leeg = de leverancier uit de bibliotheek.`, nu.length === 1 ? nu[0] : '', { titel: 'Geleverd door', ok: 'Instellen' });
-                      if (v == null) return;
-                      for (const x of sel) wijzigItem(x.id, { velden: { ...(x.velden || {}), herkomst: v.trim() || null } });
-                      setMelding(`${sel.length} elementen: geleverd door ${v.trim() || 'de leverancier uit de bibliotheek'}.`);
-                    }}>Geleverd door…</button>
-                    <button onClick={() => kopieer(selectie)}>Kopiëren</button>
-                    <button onClick={() => { for (const id of selectie) wijzigItem(id, { verborgen: true }); setExtra([]); setGeselecteerd(null); setTimeout(syncTd, 0); setMelding(`${selectie.length} items verborgen. Terug zichtbaar via Lagen.`); }}>Verbergen</button>
-                    <button onClick={() => multiActie('sjabloon')}>Als sjabloon bewaren</button>
-                    {anderePlannen.map((x) => <button key={x.id} onClick={() => actie('kopieer-plan', x.id)}>Kopiëren naar {x.naam}</button>)}
-                  </div>
-                )}
-              </div>
-              <button style={{ color: '#B4123A' }} onClick={() => multiActie('verwijderen')}><Icoon naam="prullenbak" maat={15} /></button>
+              {selectieActies}
               <button onClick={() => setExtra([])}>×</button>
             </div>
           )}
@@ -5646,7 +5652,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
         )}
         {(() => { slotInfo.current = item ? { slot: slotVan(item.id), kijkers: anderen.filter((a) => a.selectie?.includes(item.id) && !(a.bewerkt === item.id && Date.now() - (a.actief || 0) < 30000)) } : { slot: null, kijkers: [] }; return null; })()}
         {eigenschappenOpen && veelSel && (
-          <SelectieInfo plan={plan} sel={items.filter((x) => selectie.includes(x.id))} lagen={lagen} lagenMap={lagenMap} fasen={fasen} elementenMap={elementenMap} schrijven={schrijven}
+          <SelectieInfo acties={selectieActies} plan={plan} sel={items.filter((x) => selectie.includes(x.id))} lagen={lagen} lagenMap={lagenMap} fasen={fasen} elementenMap={elementenMap} schrijven={schrijven}
             onWijzig={(id, patch) => { wijzigItem(id, patch); setTimeout(syncTd, 0); }} onVerwijder={(ids) => ids.length && verwijderItems(ids)}
             onSluit={() => { setGeselecteerd(null); setExtra([]); }} onKies={(ids) => { setGeselecteerd(ids[0]); setExtra(ids.slice(1)); }}
             onMaak={(lijst) => { const n = lijst.map((x) => maakItem(x)); try { tdRef.current?.addFeatures(n.map((x) => tdFeature(x))); } catch { setTimeout(syncTd, 0); } setMelding?.(`${n.length} schuine hekken geplaatst`); }} />

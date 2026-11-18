@@ -14,7 +14,7 @@ import { heeftModule } from './merk';
 const SOORT = { punt: 'Punt', lijn: 'Lijn', vlak: 'Vlak', rechthoek: 'Rechthoek', cirkel: 'Cirkel', tekst: 'Tekst', notitie: 'Notitie', veelhoek: 'Veelhoek', ellips: 'Ellips', sector: 'Kijkhoek', afstand: 'Maatlijn' };
 const g1 = (v) => (Math.round(v * 10) / 10).toLocaleString('nl-BE');
 
-export default function SelectieInfo({ sel, lagen, lagenMap, fasen, elementenMap, schrijven, onWijzig, onVerwijder, onSluit, onKies, onMaak, plan = null }) {
+export default function SelectieInfo({ sel, lagen, lagenMap, fasen, elementenMap, schrijven, onWijzig, onVerwijder, onSluit, onKies, onMaak, plan = null, acties = null }) {
   const [herkomst, setHerkomst] = useState('');
   const [schoor, setSchoor] = useState({ om: 5, patroon: 'zigzag' });
   // Twee nadarlijnen geselecteerd: schuine dranghekken ertussen om ze te verstevigen.
@@ -54,6 +54,7 @@ export default function SelectieInfo({ sel, lagen, lagenMap, fasen, elementenMap
       <div className="fm-paneelkop"><span className="fm-paneelnaam fm-familienaam">Selectie</span><button className="fm-sluit" aria-label="Selectie opheffen" onClick={onSluit}>×</button></div>
       <div className="fm-paneel-inhoud fm-selinfo">
         <div className="fm-kern"><div className="groot">{sel.length} geselecteerd</div></div>
+        {acties && <div className="fm-sectie fm-selacties" role="toolbar" aria-label="Acties voor de selectie">{acties}</div>}
         <div className="fm-sectie">
           <div className="fm-kop">In de selectie</div>
           <table className="fm-tabel fm-selinfo-tabel">
