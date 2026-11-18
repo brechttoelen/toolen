@@ -1747,7 +1747,11 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-mat-levknop b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fm-mat-levknop span { font-variant-numeric: tabular-nums; color: var(--fm-grijs); }
 .fm-mat-levknop small { grid-column: 1 / -1; font-size: 11px; color: var(--fm-grijs); }
-.fm-mat-midden { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; }
+/* Kolom in plaats van vaste rijen: de selectiebalk komt er als extra rij tussen zonder de lijst weg te duwen. */
+.fm-mat-midden { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.fm-mat-midden > .fm-mat-werk { flex: none; }
+.fm-mat-midden > .fm-mat-lijst { flex: 1 1 auto; min-height: 0; }
+.fm-mat .pf-keuze > input.fm-mat-lev { max-width: none; padding-right: 22px; }
 .fm-mat-werk { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--fm-rand); flex-wrap: wrap; }
 .fm-mat-zoek { height: 28px; border: 1px solid var(--fm-rand2); padding: 0 8px; min-width: 0; width: 220px; }
 .fm-mat-lijst { overflow: auto; min-width: 0; }

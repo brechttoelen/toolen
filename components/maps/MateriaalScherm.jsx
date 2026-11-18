@@ -12,6 +12,8 @@ import { heeftModule } from './merk';
 import { maakXlsx, maakPdf, bewaarBestand } from './tabelExport';
 import { herkomstVan, maten, GEEN_LEV } from './stijl';
 import { useLeveranciers, juisteNaam, zorgLeverancier, leveranciersVoor } from './leveranciers';
+import { Keuze } from '../fiche/gedeeld';
+import '../fiche/fiche.css';
 import { sorteerCategorieen, ZONDER_LEVERANCIER } from './categorieen';
 
 const getal = (x, d = 0) => Number(x || 0).toLocaleString('nl-BE', { maximumFractionDigits: d });
@@ -30,15 +32,19 @@ function ExportKnop({ label, klein = false, opties }) {
   );
 }
 
-// Invoerveld met keuzelijst: bewaren bij Enter of bij het verlaten, enkel als er iets veranderde.
-function LevVeld({ waarde, placeholder, opties, uit, onKies, label }) {
-  const [v, setV] = useState(waarde || '');
-  useEffect(() => setV(waarde || ''), [waarde]);
-  const klaar = () => { if (v.trim() !== (waarde || '')) onKies(v.trim()); };
+// Leverancier kiezen: typen om te zoeken, pijltjes en Enter om te kiezen, of een nieuwe naam typen.
+// Zelfde keuzeveld als in de fiche.
+function LevVeld({ waarde, placeholder, opties = [], uit, onKies, label }) {
+  const wacht = useRef(undefined);
+  // Het keuzeveld kan in één beweging leegmaken en een vrije naam doorgeven: enkel de laatste telt.
+  const stuur = (v) => { const eerste = wacht.current === undefined; wacht.current = v; if (eerste) queueMicrotask(() => { const x = wacht.current; wacht.current = undefined; if ((x || '') !== (waarde || '')) onKies(x || ''); }); };
+  const lijst = useMemo(() => opties.map((n) => ({ id: n, naam: n })), [opties]);
+  const inLijst = !!waarde && opties.includes(waarde);
   return (
-    <input className="fm-mat-lev" list="fm-mat-levs" aria-label={label} value={v} placeholder={placeholder} disabled={uit}
-      onChange={(e) => setV(e.target.value)} onBlur={klaar} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } if (e.key === 'Escape') { setV(waarde || ''); e.currentTarget.blur(); } }}
-      onClick={(e) => e.stopPropagation()} />
+    <span onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex', width: '100%', maxWidth: 220 }}>
+      <Keuze klasse="fm-mat-lev" waarde={inLijst ? waarde : null} tekst={inLijst ? '' : (waarde || '')} opties={lijst} vrij uit={uit} label={label} placeholder={placeholder} leeg="Zonder leverancier"
+        onChange={(v) => stuur(v || '')} onVrij={(t) => stuur(t || '')} style={{ width: '100%' }} />
+    </span>
   );
 }
 
@@ -153,11 +159,11 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
     for (const n of levNamen) { rijen.push([`${n || 'Zonder leverancier'}${contactTekst(n) ? ` · ${contactTekst(n)}` : ''}`, '', '']); for (const r of regelsVan(n)) rijen.push([`${r.naam}${r.categorie ? `  (${r.categorie})` : ''}`, getal(r.aantal), r.tekenwijze === 'lijn' && r.meter ? `${getal(r.meter, 1)} m` : '']); }
     bewaarBestand(maakPdf({ titel: 'Materiaal per leverancier', regels: [planTekst], rijen, breedtes: [6, 1.2, 1.4], rechts: [1, 2] }), `materiaal ${plan?.naam || ''}.pdf`);
   };
-  const regelSleutel = (r) => `${r._g}|${r.naam}|${r.leverancier}`;
+  // Ook het eerste item in de sleutel: regels met dezelfde naam en leverancier (bv. stellingen per stuk) blijven apart.
+  const regelSleutel = (r) => `${r._g}|${r.naam}|${r.leverancier}|${[...(r.ids || [])][0] || ''}`;
 
   return (
     <div className={`fm-mat${verborgen ? ' verborgen' : ''}`} role="dialog" aria-label="Materiaal per leverancier" aria-hidden={verborgen || undefined}>
-      <datalist id="fm-mat-levs">{alleNamen.map((n) => <option key={n} value={n} />)}</datalist>
       <div className="fm-mat-bar">
         <TerugKnop onClick={onSluit} />
         <strong>Materiaal</strong><span className="fm-mat-sub">{plan?.naam}{fase ? ` · ${fase.naam}` : ' · alle fasen'}</span>
@@ -188,7 +194,7 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
             <div className="fm-mat-werk" role="toolbar" aria-label="Selectie toewijzen" style={{ background: 'var(--t-navy, #022056)', color: '#fff' }}>
               <b>{sel.size} {sel.size === 1 ? 'regel' : 'regels'} · {getal(selStuks())} st.</b>
               <span>Geleverd door</span>
-              <span style={{ color: 'var(--t-tekst, #0E1A33)' }}><LevVeld label="Leverancier voor de selectie" waarde={bulkLev} placeholder="kies of typ een leverancier" uit={false} onKies={(v) => { setBulkLev(v); if (v) wijsToe(v); }} /></span>
+              <span style={{ color: 'var(--t-tekst, #0E1A33)' }}><LevVeld opties={alleNamen} label="Leverancier voor de selectie" waarde={bulkLev} placeholder="kies of typ een leverancier" uit={false} onKies={(v) => { setBulkLev(v); if (v) wijsToe(v); }} /></span>
               <button className="fm-knop klein" onClick={() => wijsToe('')} title="Eigen keuze weghalen: de leverancier van het element of de standaard per categorie geldt weer">Terug naar standaard</button>
               <button className="fm-knop klein" onClick={() => onToon(selIds, `${sel.size} regels`)}>Toon op kaart</button>
               <span style={{ flex: 1 }} />
@@ -225,7 +231,7 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
                               <td>{schrijven && metEl.length > 0 && <input type="checkbox" style={{ marginRight: 8 }} checked={sel.has(k)} onClick={(e) => e.stopPropagation()} onChange={() => kiesRegel(k, rIds)} aria-label={`${r.naam} selecteren`} />}<span className="fm-mat-pijl" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>{r.naam}
                                 {af > 0 && <span className="fm-tag oranje" title={`De standaard voor ${xs.find((x) => x.af)?.el.categorie} is ${xs.find((x) => x.af)?.sd}`}>wijkt af van de standaard</span>}
                                 {viaStd && <span className="fm-tag">via standaard</span>}</td>
-                              <td>{groep === 'lev' ? r.categorie : metEl.length ? <LevVeld label={`Geleverd door voor ${r.naam}`} waarde={r.leverancier} placeholder={ZONDER} uit={!schrijven} onKies={(v) => zetHerkomst(rIds, v)} /> : r.leverancier || '—'}</td>
+                              <td>{groep === 'lev' ? r.categorie : metEl.length ? <LevVeld opties={alleNamen} label={`Geleverd door voor ${r.naam}`} waarde={r.leverancier} placeholder={ZONDER} uit={!schrijven} onKies={(v) => zetHerkomst(rIds, v)} /> : r.leverancier || '—'}</td>
                               <td className="r">{getal(r.aantal)}</td>
                               <td className="r">{r.tekenwijze === 'lijn' && r.meter ? `${getal(r.meter, 1)} m` : ''}</td>
                               <td className="r"><button className="fm-knop klein" onClick={(e) => { e.stopPropagation(); onToon(rIds, r.naam); }}>Toon</button></td>
@@ -233,13 +239,13 @@ export default function MateriaalScherm({ verborgen = false, plan, items, elemen
                             {isOpen && (
                               <tr className="fm-mat-sub-rij"><td colSpan={5}>
                                 <div className="fm-mat-items">
-                                  <div className="fm-mat-itemkop"><span>{rIds.length} {rIds.length === 1 ? 'item' : 'items'} op het plan</span>{groep === 'lev' && metEl.length > 0 && <label>Alles van deze regel naar <LevVeld label={`Leverancier voor alle ${r.naam}`} waarde="" placeholder={r.leverancier || 'leverancier'} uit={!schrijven} onKies={(v) => zetHerkomst(rIds, v)} /></label>}</div>
+                                  <div className="fm-mat-itemkop"><span>{rIds.length} {rIds.length === 1 ? 'item' : 'items'} op het plan</span>{groep === 'lev' && metEl.length > 0 && <label>Alles van deze regel naar <LevVeld opties={alleNamen} label={`Leverancier voor alle ${r.naam}`} waarde="" placeholder={r.leverancier || 'leverancier'} uit={!schrijven} onKies={(v) => zetHerkomst(rIds, v)} /></label>}</div>
                                   {xs.map((x) => { const mm = x.el ? maten(x.it, x.el) : {}; return (
                                     <div key={x.it.id} className="fm-mat-item">
                                       <span className="n">{x.it.naam || x.el?.naam || 'Item'}</span>
                                       <span className="fm-sub">{lagenMap.get(x.it.laag_id)?.naam || 'Zonder laag'}</span>
                                       <span className="fm-sub r">{x.el?.tekenwijze === 'lijn' && mm.lengte ? `${getal(mm.lengte, 1)} m${mm.stuks != null ? ` · ${mm.stuks} st.` : ''}` : mm.stuks > 1 ? `${mm.stuks} st.` : ''}</span>
-                                      {x.el ? <LevVeld label={`Geleverd door voor ${x.it.naam || x.el.naam}`} waarde={x.eigen} placeholder={String(x.it.velden?.herkomst || '').trim() === GEEN_LEV ? ZONDER : x.el.leverancier || x.sd || ZONDER} uit={!schrijven} onKies={(v) => zetHerkomst([x.it.id], v)} /> : <span />}
+                                      {x.el ? <LevVeld opties={alleNamen} label={`Geleverd door voor ${x.it.naam || x.el.naam}`} waarde={x.eigen} placeholder={String(x.it.velden?.herkomst || '').trim() === GEEN_LEV ? ZONDER : x.el.leverancier || x.sd || ZONDER} uit={!schrijven} onKies={(v) => zetHerkomst([x.it.id], v)} /> : <span />}
                                       <button className="fm-knop klein" onClick={() => onToon([x.it.id], x.it.naam || x.el?.naam || 'Item')}>Toon</button>
                                     </div>
                                   ); })}
