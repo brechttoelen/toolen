@@ -50,6 +50,14 @@ const puntenVan = (g) => (!g ? [] : g.type === 'Point' ? [g.coordinates] : g.typ
 const mapG = (g, f) => (g.type === 'Point' ? { type: 'Point', coordinates: f(g.coordinates) } : g.type === 'LineString' ? { type: 'LineString', coordinates: g.coordinates.map(f) } : { type: 'Polygon', coordinates: g.coordinates.map((r) => r.map(f)) });
 const binnenVeelhoek = (p, ring) => { let b = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const [xi, yi] = ring[i]; const [xj, yj] = ring[j]; if ((yi > p[1]) !== (yj > p[1]) && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) b = !b; } return b; };
 const oppervlakte = (ring) => { let s = 0; for (let i = 0; i < ring.length - 1; i++) s += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]; return Math.abs(s / 2); };
+// Een stuk buigen: kwadratische boog van a naar b met de top op afstand h van de koorde (zoals in de tekenaar).
+const boogPunten = (a, b, h, n = 16) => {
+  const dx = b[0] - a[0]; const dy = b[1] - a[1]; const L = Math.hypot(dx, dy) || 1;
+  const cx = a[0] + dx / 2 + 2 * h * (-dy / L); const cy = a[1] + dy / 2 + 2 * h * (dx / L); const uit = [];
+  for (let i = 0; i <= n; i++) { const t = i / n; const u = 1 - t; uit.push([Math.round((u * u * a[0] + 2 * u * t * cx + t * t * b[0]) * 1000) / 1000, Math.round((u * u * a[1] + 2 * u * t * cy + t * t * b[1]) * 1000) / 1000]); }
+  return uit;
+};
+const boogHoogte = (a, b, p) => { const dx = b[0] - a[0]; const dy = b[1] - a[1]; const L = Math.hypot(dx, dy) || 1; return (dx * (p[1] - a[1]) - dy * (p[0] - a[0])) / L; };
 const kaderVan = (lijst) => { let k = null; for (const c of lijst) for (const [x, y] of c) k = k ? [Math.min(k[0], x), Math.min(k[1], y), Math.max(k[2], x), Math.max(k[3], y)] : [x, y, x, y]; return k; };
 const ZAAL_LAAG = /^(zalen|ruimtes?|zones?)$/i;
 // Pad in meter (de wereldgroep schaalt en spiegelt; lijndiktes met non-scaling-stroke).
@@ -868,7 +876,11 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       const geo2 = (r) => (open ? { type: 'LineString', coordinates: r } : { type: 'Polygon', coordinates: [r] });
       const nHoek = open ? ring.length : ring.length - 1;
       for (let i = 0; i < nHoek; i++) { const [x, y] = naarScherm(ring[i]); if (Math.hypot(x - mx, y - my) < 8) { if (e.detail >= 2 && nHoek > (open ? 2 : 3)) { const r = (open ? ring : ring.slice(0, -1)).filter((_, j) => j !== i); bewaarLokaal(vormIt, { ...lokaalVan(vormIt), geometrie: geo2(open ? r : [...r, r[0]]) }); return; } sleep.current = { hoek: i, ring, open }; return; } }
-      for (let i = 0; i < ring.length - 1; i++) { const m = [(ring[i][0] + ring[i + 1][0]) / 2, (ring[i][1] + ring[i + 1][1]) / 2]; const [x, y] = naarScherm(m); if (Math.hypot(x - mx, y - my) < 7) { const r = [...ring.slice(0, i + 1), m, ...ring.slice(i + 1)]; sleep.current = { hoek: i + 1, ring: r, open }; setVoorlopig({ [vormIt.id]: { ...lokaalVan(vormIt), geometrie: geo2(r) } }); return; } }
+      // Bolletje op het midden: slepen = dit stuk buigen; dubbelklik = een extra hoekpunt (dat je daarna versleept).
+      for (let i = 0; i < ring.length - 1; i++) { const m = [(ring[i][0] + ring[i + 1][0]) / 2, (ring[i][1] + ring[i + 1][1]) / 2]; const [x, y] = naarScherm(m); if (Math.hypot(x - mx, y - my) < 8) {
+        if (e.detail >= 2) { const r = [...ring.slice(0, i + 1), [r3(m[0]), r3(m[1])], ...ring.slice(i + 1)]; bewaarLokaal(vormIt, { ...lokaalVan(vormIt), geometrie: geo2(r) }); setMelding('Hoekpunt toegevoegd: versleep het vierkantje.'); return; }
+        sleep.current = { boog: i, ring, open }; return;
+      } }
     }
     const dg = draaiGreep();
     if (dg) { const [mx, my] = naarScherm(w); if (Math.hypot(dg.greep[0] - mx, dg.greep[1] - my) < 10) { sleep.current = { draai: true, c: dg.c, a0: Math.atan2(w[1] - dg.c[1], w[0] - dg.c[0]), ids: sel, orig: Object.fromEntries(inrichting.filter((x) => sel.includes(x.id)).map((x) => [x.id, lokaalVan(x)])), bewogen: false }; return; } }
@@ -940,6 +952,14 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     if (!s && !kiesEl && !modus) { const h = raak(w); const r = svgRef.current?.getBoundingClientRect(); setZweefIt(h && r ? { id: h.id, x: e.clientX - r.left, y: e.clientY - r.top } : null); } else if (zweefIt) setZweefIt(null);
     if (!s) { const dg = draaiGreep(); const [mx, my] = naarScherm(w); const op = dg && Math.hypot(dg.greep[0] - mx, dg.greep[1] - my) < 10; if (svgRef.current) svgRef.current.style.cursor = op ? 'grab' : kiesEl || ruimteKlik || modus ? 'crosshair' : 'default'; }
     if (s?.pan) { if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > 3) s.bewogen = true; setBeeld({ ...s.b, cx: s.b.cx - (e.clientX - s.x) / s.b.s, cy: s.b.cy + (e.clientY - s.y) / s.b.s }); return; }
+    if (s?.boog != null && vormIt) {
+      const a = s.ring[s.boog]; const b = s.ring[s.boog + 1];
+      const pts = boogPunten(a, b, boogHoogte(a, b, w));
+      const r = [...s.ring.slice(0, s.boog + 1), ...pts.slice(1, -1), ...s.ring.slice(s.boog + 1)];
+      s.nieuw = r; s.bewogen = true;
+      setVoorlopig({ [vormIt.id]: { ...lokaalVan(vormIt), geometrie: s.open ? { type: 'LineString', coordinates: r } : { type: 'Polygon', coordinates: [r] } } });
+      return;
+    }
     if (s?.hoek != null && vormIt) {
       const q = e.altKey ? p : vangPunt(w, p);
       const r = s.ring.map((c, i) => (i === s.hoek || (!s.open && s.hoek === 0 && i === s.ring.length - 1) ? q : c));
@@ -979,6 +999,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     const s = sleep.current; sleep.current = null;
     if (hulp.length) setHulp([]); if (afst.length && !kiesEl) setAfst([]);
     if (s?.pan && !s.bewogen && s.klik) { const r = ruimteBij(s.klik); setActieveRuimte(r?.id || null); return; }
+    if (s?.boog != null) { if (s.nieuw && vormIt) { const l = lokaalVan(vormIt); bewaarLokaal(vormIt, { ...l, geometrie: s.open ? { type: 'LineString', coordinates: s.nieuw } : { type: 'Polygon', coordinates: [s.nieuw] } }); } setTimeout(() => setVoorlopig(null), 0); return; }
     if (s?.hoek != null) { if (s.nieuw && vormIt) { const l = lokaalVan(vormIt); bewaarLokaal(vormIt, { ...l, geometrie: s.open ? { type: 'LineString', coordinates: s.nieuw } : { type: 'Polygon', coordinates: [s.nieuw] } }); } setTimeout(() => setVoorlopig(null), 0); return; }
     if (s?.kader) {
       setKaderSel(null);
@@ -1368,8 +1389,8 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
         : modus === 'zaal' ? (punten.length ? 'Klik de andere hoek' : 'Klik een hoek van de ruimte')
           : modus === 'schaal' ? (punten.length ? 'Klik het tweede punt' : 'Klik twee punten waarvan je de afstand kent')
             : kiesEl ? `${kiesEl.naam} · klik om te plaatsen${kiesEl.tekenwijze === 'lijn' ? ' · dubbelklik = klaar' : ' · Shift + klik = meer plaatsen'}`
-              : vormIt && sel.includes(vormIt.id) ? 'Hoekjes slepen · rondje op een zijde = punt erbij · dubbelklik op een hoek = weg · Esc = klaar'
-              : sel.length && schrijven ? 'Slepen = verschuiven · Alt = kopie · bolletje = draaien (Shift 15°) · Ctrl C/V' : vormIt ? 'Hoekjes slepen · rondje op een zijde = hoek erbij · dubbelklik op een hoek = weg' : '';
+              : vormIt && sel.includes(vormIt.id) ? 'Hoekjes slepen · bolletje op een zijde slepen = buigen, dubbelklik = hoek erbij · dubbelklik op een hoek = weg · Esc = klaar'
+              : sel.length && schrijven ? 'Slepen = verschuiven · Alt = kopie · bolletje = draaien (Shift 15°) · Ctrl C/V' : vormIt ? 'Hoekjes slepen · bolletje op een zijde slepen = buigen, dubbelklik = hoek erbij · dubbelklik op een hoek = weg' : '';
   const toonSetup = !onderlegger && !zonder && !laden && !ruimtes.length && !inrichting.length;
   // Een tafel van het huis wordt een instelbare tafel (vorm, stoelen) die naar het huiselement verwijst.
   const num = (v) => { const x = Number(String(v).replace(',', '.')); return x > 0 ? x : null; };
@@ -2354,7 +2375,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
               })}
               {schrijven && vormIt && !kiesEl && !modus && (() => { const g0 = lokaalVan(vormIt).geometrie; const open = g0.type === 'LineString'; const ring = puntenVan(g0); const k = (vormIt.velden?.ruimte && functieNu(vormIt)?.kleur) || vormIt.stijl?.kleur || '#2563EB'; return (
                 <g>
-                  {ring.slice(0, -1).map((c, i) => { const m = [(c[0] + ring[i + 1][0]) / 2, (c[1] + ring[i + 1][1]) / 2]; const [x, y] = naarScherm(m); return <circle key={`m${i}`} cx={x} cy={y} r={3.5} fill="#fff" stroke={k} strokeWidth={1} opacity={0.8} />; })}
+                  {ring.slice(0, -1).map((c, i) => { const m = [(c[0] + ring[i + 1][0]) / 2, (c[1] + ring[i + 1][1]) / 2]; const [x, y] = naarScherm(m); return <circle key={`m${i}`} cx={x} cy={y} r={4.5} fill="#fff" stroke={k} strokeWidth={1.5}><title>Sleep om dit stuk te buigen · dubbelklik voor een extra hoekpunt</title></circle>; })}
                   {(open ? ring : ring.slice(0, -1)).map((c, i) => { const [x, y] = naarScherm(c); return <rect key={`h${i}`} x={x - 4.5} y={y - 4.5} width={9} height={9} fill="#fff" stroke={k} strokeWidth={1.5} />; })}
                 </g>
               ); })()}
@@ -2686,7 +2707,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
                     return (
                       <div className="fm-rij">
                         {maatVeld('Lengte (m)', r3(lengte), zetLengte, `el${een.id}${r3(lengte)}`)}
-                        <button className={`fm-knop klein${vormZaal === een.id ? ' zwart' : ''}`} style={{ alignSelf: 'flex-end' }} title="Hoekpunten verslepen, bolletje in het midden = punt erbij, dubbelklik = punt weg" onClick={() => setVormZaal(vormZaal === een.id ? null : een.id)}>{vormZaal === een.id ? 'Klaar' : 'Punten aanpassen'}</button>
+                        <button className={`fm-knop klein${vormZaal === een.id ? ' zwart' : ''}`} style={{ alignSelf: 'flex-end' }} title="Hoekpunten verslepen · bolletje in het midden slepen = buigen, dubbelklik = punt erbij · dubbelklik op een hoek = weg" onClick={() => setVormZaal(vormZaal === een.id ? null : een.id)}>{vormZaal === een.id ? 'Klaar' : 'Punten aanpassen'}</button>
                       </div>
                     );
                   })()}
