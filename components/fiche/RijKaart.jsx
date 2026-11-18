@@ -43,6 +43,8 @@ export default function RijKaart({ plan, items, lagen = [], elementen = [], ids,
   const [stand, setStand] = useState('laden');
   const gekozen = useMemo(() => { const s = new Set(ids); return items.filter((i) => s.has(i.id) && i.geometrie?.type); }, [items, ids]);
   const sleutel = ids.join(',');
+  // Lijst rechts: elementen met dezelfde naam samen, met hun aantal.
+  const lijst = useMemo(() => { const per = new Map(); for (const i of gekozen) { const k = `${i.velden?.binnen ? 'b' : 'u'}|${i.naam || ''}`; const g = per.get(k) || { i, n: 0, binnen: !!i.velden?.binnen }; g.n += 1; per.set(k, g); } return [...per.values()]; }, [gekozen]);
 
   useEffect(() => {
     let weg = false;
@@ -53,21 +55,33 @@ export default function RijKaart({ plan, items, lagen = [], elementen = [], ids,
         gast.current.appendChild(k.doos); k.map.resize();
         const kies = new Set(ids);
         const lagenMap = new Map(lagen.map((l) => [l.id, l])); const elMap = new Map(elementen.map((e) => [e.id, e]));
-        const { vormen, labels } = k.stijl.naarGeojson(gekozen, lagenMap, elMap, {});
+        // Buiten: getekend zoals in de editor. Binnen (in een gebouw): één punt per gebouw, de opstelling zelf staat in het binnenplan.
+        const buiten = gekozen.filter((i) => !i.velden?.binnen);
+        const { vormen, labels } = k.stijl.naarGeojson(buiten, lagenMap, elMap, {});
         k.stijl.zorgVoorPatronen(k.map, vormen.features, labels.features);
         k.map.getSource('fm-vormen').setData(vormen); k.map.getSource('fm-labels').setData(labels);
         k.map.getSource('pf-alle').setData(fc(items.filter((i) => !kies.has(i.id) && !i.velden?.binnen)));
-        k.map.getSource('pf-plek').setData({ type: 'FeatureCollection', features: gekozen.map((i) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: midden(i.geometrie) } })).filter((x) => x.geometry.coordinates) });
+        // Plaats van elk element: het midden van zijn tekening (een stelling is groter dan haar basislijn).
+        const vak = new Map();
+        for (const ft of vormen.features) { const id = ft.properties?.id; if (!id) continue; const v = vak.get(id) || [Infinity, Infinity, -Infinity, -Infinity]; for (const c of punten(ft.geometry)) { v[0] = Math.min(v[0], c[0]); v[1] = Math.min(v[1], c[1]); v[2] = Math.max(v[2], c[0]); v[3] = Math.max(v[3], c[1]); } vak.set(id, v); }
+        const plek = (i) => { const v = vak.get(i.id); return v && Number.isFinite(v[0]) ? [(v[0] + v[2]) / 2, (v[1] + v[3]) / 2] : midden(i.geometrie); };
+        const prikkers = buiten.map((i) => ({ c: plek(i), naam: i.naam })).filter((x) => x.c);
+        const perGebouw = new Map();
+        for (const i of gekozen.filter((x) => x.velden?.binnen)) { const h = i.velden.binnen.host || 'x'; const g = perGebouw.get(h) || { n: 0, c: null }; g.n += 1; g.c = g.c || midden(items.find((x) => x.id === h)?.geometrie) || midden(i.geometrie); perGebouw.set(h, g); }
+        for (const [h, g] of perGebouw) if (g.c) prikkers.push({ c: g.c, naam: `${items.find((x) => x.id === h)?.naam || 'Binnen'} · ${g.n} binnen` });
+        k.map.getSource('pf-plek').setData({ type: 'FeatureCollection', features: prikkers.map((x) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: x.c } })) });
         k.markers.forEach((m) => m.remove()); k.markers = [];
-        for (const i of gekozen.slice(0, 60)) {
-          const c = midden(i.geometrie); if (!c || !i.naam) continue;
-          const el = document.createElement('div'); el.className = 'pf-kaartlabel'; el.textContent = i.naam;
-          k.markers.push(new k.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -24] }).setLngLat(c).addTo(k.map));
+        const dubbel = new Map(); for (const x of prikkers) dubbel.set(x.naam, (dubbel.get(x.naam) || 0) + 1);
+        for (const x of prikkers.slice(0, 80)) {
+          if (!x.naam || dubbel.get(x.naam) > 1) continue;   // een naam die meerdere elementen delen, wijst niets aan
+          const el = document.createElement('div'); el.className = 'pf-kaartlabel'; el.textContent = x.naam;
+          k.markers.push(new k.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -24] }).setLngLat(x.c).addTo(k.map));
         }
-        const p = gekozen.flatMap((i) => punten(i.geometrie));
+        k.plek = new Map(buiten.map((i) => [i.id, plek(i)]));
+        const p = [...[...vak.values()].filter((v) => Number.isFinite(v[0])).flatMap((v) => [[v[0], v[1]], [v[2], v[3]]]), ...prikkers.map((x) => x.c)];
         if (p.length) {
           const b = p.reduce((a, c) => [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[2], c[0]), Math.max(a[3], c[1])], [Infinity, Infinity, -Infinity, -Infinity]);
-          k.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 70, maxZoom: 19, duration: 0 });
+          k.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 70, maxZoom: 19.5, duration: 0 });
         }
         setStand(p.length ? 'ok' : 'leeg');
       } catch (e) { console.error('kaart onder de rij', e); if (!weg) setStand('fout'); }
@@ -76,13 +90,13 @@ export default function RijKaart({ plan, items, lagen = [], elementen = [], ids,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sleutel]);
 
-  const naar = (i) => { const c = midden(i.geometrie); if (c && gedeeld) gedeeld.map.flyTo({ center: c, zoom: Math.max(gedeeld.map.getZoom(), 19), duration: 500 }); };
+  const naar = (i) => { const c = gedeeld?.plek?.get(i.id) || midden(i.geometrie); if (c && gedeeld) gedeeld.map.flyTo({ center: c, zoom: Math.max(gedeeld.map.getZoom(), 19), duration: 500 }); };
   return (
     <div className="pf-rijkaart">
       <div className="kaart" ref={gast}>{stand !== 'ok' && <span className="stand">{stand === 'laden' ? 'Kaart laden…' : stand === 'leeg' ? 'Deze regel heeft geen elementen met een plaats op de kaart.' : 'De kaart kon niet laden.'}</span>}</div>
       <div className="lijst">
         <div className="pf-rij" style={{ flexWrap: 'nowrap' }}><b style={{ flex: 1, fontWeight: 600 }}>{gekozen.length} {gekozen.length === 1 ? 'element' : 'elementen'}</b><button className="pf-sluit" onClick={onSluit} aria-label="Kaart sluiten">✕</button></div>
-        <div className="namen">{gekozen.map((i) => <button key={i.id} className="pf-lijstknop" onClick={() => naar(i)}><b>{i.naam || 'Zonder naam'}</b></button>)}</div>
+        <div className="namen">{lijst.map((x) => <button key={x.i.id} className="pf-lijstknop" onClick={() => naar(x.i)}><b>{x.n > 1 ? `${x.n} × ` : ''}{x.i.naam || 'Zonder naam'}</b>{x.binnen && <span>binnen · de opstelling staat in het binnenplan</span>}</button>)}</div>
         {gekozen[0] && <a className="t-knop klein" href={`/maps/${plan.id}?item=${gekozen[0].id}`} style={{ textDecoration: 'none' }}>Open op de kaart</a>}
       </div>
     </div>

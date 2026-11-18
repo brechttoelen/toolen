@@ -99,10 +99,13 @@ export function bestelRijen(f, sl) {
   };
   // Namen die de items op de kaart kregen (bv. CAM 1, CAM 2): staan als vanzelf bij de regel.
   const itemOp = new Map(f.items.map((i) => [i.id, i])); const elOp = new Map((f.elementen || []).map((e) => [e.id, e]));
+  // Enkel namen die één element aanwijzen: een naam die meerdere items delen (bv. 77 keer "Tafel · 2 stoelen",
+  // de vanzelf gegeven naam) zegt niets over welk element het is. Zo'n vanzelf gegeven meubelnaam valt ook weg bij één stuk:
+  // de stoelen in die naam kunnen van het huis zijn en horen niet bij deze leverancier.
   const namenVan = (ids) => {
-    const uit = new Set();
-    for (const id of ids || []) { const it = itemOp.get(id); const n = String(it?.naam || '').trim(); if (n && n !== elOp.get(it.element_id)?.naam) uit.add(n); }
-    return [...uit].sort((a, b) => a.localeCompare(b, 'nl', { numeric: true }));
+    const tel = new Map();
+    for (const id of ids || []) { const it = itemOp.get(id); const n = String(it?.naam || '').trim(); if (!n || n === elOp.get(it.element_id)?.naam) continue; if (it.velden?.meubel && /^(tafel|stoel|rij|klastafel)\b.*\d/i.test(n)) continue; tel.set(n, (tel.get(n) || 0) + 1); }
+    return [...tel].filter(([, a]) => a === 1).map(([n]) => n).sort((a, b) => a.localeCompare(b, 'nl', { numeric: true }));
   };
   const rijen = regels.map((x, i) => {
     const r = x.r;
