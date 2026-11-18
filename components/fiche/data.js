@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { maps, foutTekst, wieBenIk, magSchrijven } from '../maps/db';
 import { herkomstVan } from '../maps/stijl';
 
-export const PLAN_TABELLEN = ['site_leveranciers', 'leveringen', 'offertes', 'facturen', 'budgetposten', 'taken', 'taak_dagen', 'taak_koppelingen',
+export const PLAN_TABELLEN = ['site_leveranciers', 'leveringen', 'bestelregels', 'offertes', 'facturen', 'budgetposten', 'taken', 'taak_dagen', 'taak_koppelingen',
   'programma', 'laadregels', 'cateringregels', 'catering_prijzen', 'notities', 'site_rollen', 'plan_vennootschappen'];
 export const ORG_TABELLEN = ['leveranciers', 'personen', 'vennootschappen', 'laad_bronnen', 'laadpakketten'];
 const VOLGORDE = { programma: 'uur_van', leveranciers: 'naam', personen: 'naam', vennootschappen: 'naam', laad_bronnen: 'volgorde', laadpakketten: 'naam', notities: 'created_at' };

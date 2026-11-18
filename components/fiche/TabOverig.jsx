@@ -31,7 +31,7 @@ export function TabOverzicht({ f, naar }) {
   if (verloren.length) aandacht.push({ t: `${verloren.length} taken verloren hun plek op de kaart`, sub: verloren.slice(0, 3).map((t) => t.titel).join(', '), tab: 'planning' });
   const zonderOph = sl.filter((x) => { const lv = (f.d.leveringen || []).filter((l) => l.site_leverancier_id === x.id); return lv.some((l) => l.soort === 'levering') && !lv.some((l) => l.soort === 'ophaling'); });
   if (zonderOph.length) aandacht.push({ t: `${zonderOph.length} leveranciers leveren maar hebben geen ophaling`, sub: zonderOph.slice(0, 4).map((x) => lev.get(x.leverancier_id)?.naam).join(', '), tab: 'leveranciers' });
-  const zonderPunt = (f.d.leveringen || []).filter((l) => !l.leverpunt_item_id && !l.leverpunt_tekst);
+  const zonderPunt = (f.d.leveringen || []).filter((l) => !l.leverpunt_item_id && !l.leverpunt_tekst && !(f.d.bestelregels || []).some((r) => (r.levering_id === l.id || r.ophaling_id === l.id) && (r.locatie_laag_id || r.locatie_tekst)));
   if (zonderPunt.length) aandacht.push({ t: `${zonderPunt.length} leveringen zonder leverpunt`, tab: 'leveranciers' });
   if (f.financieel) {
     const afwijk = sl.filter((x) => { const o = (f.d.offertes || []).filter((y) => y.site_leverancier_id === x.id && y.status !== 'afgewezen'); const fa = (f.d.facturen || []).filter((y) => y.site_leverancier_id === x.id); return o.length && fa.length && somVan(fa) - somVan(o) > 0.009; });

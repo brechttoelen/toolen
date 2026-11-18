@@ -106,3 +106,21 @@ describe('materiaal per leverancier', () => {
     expect(materiaalVan(f, f.d.leveranciers[0].id, deel).find((r) => r.naam === 'Rijplaat')?.aantal).toBe(1);
   });
 });
+
+import { Bestelling } from '../components/fiche/TabLeveranciers';
+import { samenvatting } from '../components/fiche/bestelling';
+describe('bestelling van een leverancier', () => {
+  it('toont materiaal van de kaart, een vrije regel en de periode', () => {
+    const f = fiche(true);
+    const sl = f.d.site_leveranciers[0];
+    f.d.bestelregels = [{ id: 'v1', site_leverancier_id: sl.id, wat: 'Toiletrollen', kaart_naam: null, eenheid: 'st', aantal: 200, groep: 'Event', levering_id: f.d.leveringen[0].id }];
+    for (const vast of [false, true]) {
+      const x = { ...sl, vastgezet_op: vast ? '2026-11-18T10:00:00Z' : null };
+      const html = renderToString(<Bestelling f={f} sl={x} lev={f.d.leveranciers[0]} s={samenvatting(f, x)} suggesties={[]} terug={() => {}} onExcel={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Toiletrollen');
+      expect(html).toContain('niet getekend');
+      expect(html).toContain(vast ? 'Vastgezet' : 'Loopt mee met de kaart');
+      expect(html).toContain(vast ? 'Op de kaart maar niet in de bestelling' : 'Trailer schuine hekken');
+    }
+  });
+});

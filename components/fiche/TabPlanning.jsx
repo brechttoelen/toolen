@@ -4,6 +4,7 @@
 // en ophalingen van leveranciers, en het programma van de wedstrijd.
 import { useMemo, useState } from 'react';
 import { dagLijst, label, dagNaam, isoWeek, sleutel, canoniek, uurKort, leesUur, wedstrijd, fase, FASE_NAAM, datumTekst } from './dagen';
+import { locatieTekst } from './bestelling';
 import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities } from './gedeeld';
 import { opId } from './data';
 import TaakPaneel from './TaakPaneel';
@@ -41,6 +42,10 @@ export default function TabPlanning({ f, planId }) {
   const slMap = opId(f.d.site_leveranciers); const levMap = opId(f.d.leveranciers);
   const leveringen = (f.d.leveringen || []).map((l) => ({ ...l, lev: levMap.get(slMap.get(l.site_leverancier_id)?.leverancier_id) }));
   const programma = f.d.programma || [];
+  // Wat en waar van een levering uit de bestelregels die ernaar verwijzen.
+  const regelsBij = (l) => (f.d.bestelregels || []).filter((r) => r.levering_id === l.id || r.ophaling_id === l.id);
+  const regelTekst = (l) => { const rs = regelsBij(l); return rs.slice(0, 4).map((r) => `${r.aantal != null ? `${Number(r.aantal)} × ` : ''}${r.wat}`).join(', ') + (rs.length > 4 ? ` +${rs.length - 4}` : ''); };
+  const regelPlaats = (l) => [...new Set(regelsBij(l).map((r) => locatieTekst(f, r)).filter(Boolean))].join(', ');
 
   const lijst = useMemo(() => dagLijst(plan, [...dagen, ...leveringen, ...programma, { anker: 'start', dag: 0 }]), [plan, dagen, leveringen, programma]);
   const huidig = lijst.find((x) => x.k === dagK) || lijst.find((x) => x.k === 'start:0') || lijst[0];
@@ -176,8 +181,8 @@ export default function TabPlanning({ f, planId }) {
                       const l = r.l;
                       return (
                         <tr key={`l${l.id}`}><td /><td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.uur || '–'}</td>
-                          <td><b>{l.soort === 'ophaling' ? 'Ophaling' : 'Levering'} · {l.lev?.naam || 'leverancier'}</b><small>{[l.wat, uurKort(l.uur_tot) && `tot ${uurKort(l.uur_tot)}`].filter(Boolean).join(' · ')}</small></td>
-                          <td>{(l.leverpunt_item_id && f.items.find((x) => x.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst || <span className="pf-stil">Leverpunt ontbreekt</span>}</td>
+                          <td><b>{l.soort === 'ophaling' ? 'Ophaling' : 'Levering'} · {l.lev?.naam || 'leverancier'}</b><small>{[l.wat || regelTekst(l), uurKort(l.uur_tot) && `tot ${uurKort(l.uur_tot)}`].filter(Boolean).join(' · ')}</small></td>
+                          <td>{(l.leverpunt_item_id && f.items.find((x) => x.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst || regelPlaats(l) || <span className="pf-stil">Leverpunt ontbreekt</span>}</td>
                           <td>{l.lev?.naam}</td>
                           <td><StatusKeuze waarde={l.status} opties={STATUS_TAAK} uit={!f.schrijven} label="Status levering" onChange={(v) => f.wijzig('leveringen', l.id, { status: v })} /></td></tr>
                       );

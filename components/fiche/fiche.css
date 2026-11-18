@@ -116,6 +116,28 @@
 .pf-veldrij { display: grid; grid-template-columns: 110px 1fr; gap: 6px 10px; align-items: center; }
 .pf-veldrij > span:first-child { font-size: 12.5px; color: var(--t-tekst-2); }
 .pf-not.klaar .tekst { text-decoration: line-through; color: var(--t-tekst-2); }
+/* Bestelling per leverancier */
+.pf-balk { display: flex; align-items: center; gap: 8px; }
+.pf-balk .spoor { flex: 1; height: 8px; min-width: 40px; background: var(--t-vlak-2); border-radius: 4px; overflow: hidden; }
+.pf-balk .spoor span { display: block; height: 8px; background: var(--t-blauw); }
+.pf-balk .tel { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; font-size: 12.5px; }
+.pf-balk.klaar .spoor span { background: #1B7F4F; }
+.pf-balk.weinig .spoor span { background: var(--t-let-op); }
+.pf-balk.veel .spoor span { background: var(--t-fout); }
+.pf-balk.volgt .tel { font-weight: 500; color: var(--t-tekst-2); }
+.pf-bestel td { vertical-align: top; }
+.pf-bestel .pf-cel.wat { font-weight: 600; }
+.pf-bestel .pf-cel.sub { height: 22px; font-size: 12.5px; color: var(--t-tekst-2); }
+.pf-bestel .pf-cel.sub::placeholder { color: transparent; }
+.pf-bestel tr:hover .pf-cel.sub::placeholder, .pf-bestel .pf-cel.sub:focus::placeholder { color: var(--t-tekst-2); opacity: .7; }
+.pf-eenheid { appearance: none; -webkit-appearance: none; border: 0; background: transparent; font: inherit; font-size: 12.5px; color: var(--t-tekst-2); cursor: pointer; padding: 0 2px; border-radius: 4px; }
+.pf-eenheid:hover { background: var(--t-vlak-2); color: var(--t-tekst); }
+.pf-eenheid:focus-visible { outline: 2px solid var(--t-blauw); }
+.pf-periode { all: unset; box-sizing: border-box; cursor: pointer; display: block; width: 100%; min-height: 28px; padding: 4px 6px; border-radius: 6px; border: 1px solid transparent; font-variant-numeric: tabular-nums; }
+.pf-periode:hover:not(:disabled) { border-color: var(--t-rand-2); }
+.pf-periode:focus-visible { outline: 2px solid var(--t-blauw); outline-offset: 1px; }
+.pf-periode:disabled { cursor: default; }
+.pf-actie { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 10px 12px; background: var(--t-blauw-zacht); border-radius: 10px; }
 @media (max-width: 760px) {
   .pf-kop { padding: 14px 16px 0; }
   .pf-romp { padding: 14px 16px 40px; }

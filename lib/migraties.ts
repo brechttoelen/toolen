@@ -56,4 +56,5 @@ export const MIGRATIES: { naam: string; handmatig?: boolean; vervangen?: boolean
   { naam: "0053_plan_vennootschappen_created_at" },
   { naam: "0054_fiche_levering_per_deel" },
   { naam: "0055_geen_standaardleveranciers" },
+  { naam: "0056_fiche_bestelregels" },
 ];
