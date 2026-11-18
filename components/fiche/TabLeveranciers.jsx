@@ -12,6 +12,7 @@ import { STATUS_LEV, EENHEDEN, materiaalVan, leveranciersOpKaart, betrokken, mat
 import { maakXlsx, bewaarBestand } from '../maps/tabelExport';
 import { maps } from '../maps/db';
 import { bevestig } from '../maps/dialoog';
+import RijKaart from './RijKaart';
 
 export { STATUS_LEV, materiaalVan, leveranciersOpKaart, betrokken, matTekst, itemsVanLevering, somVan };
 
@@ -219,6 +220,7 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
   const [bezig, setBezig] = useState(false);
   const [kolom, setKolom] = useState('geplaatst');   // laatste kolom: geplaatst op de kaart of geleverd op het terrein
   const [plak, setPlak] = useState(null);
+  const [kaartRij, setKaartRij] = useState(null);   // rij waaronder de luchtfoto openstaat
   const lvMap = opId(f.d.leveringen);
   const lagen = f.lagen || [];
   const gekozen = b.rijen.filter((x) => sel.has(x.id));
@@ -410,7 +412,7 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
                 const x = g.x; const r = x.r; const st = stand(x); const aan = sel.has(x.id);
                 const l = lvMap.get(r.levering_id), o = lvMap.get(r.ophaling_id);
                 const metMeter = !x.vrij && (b.mat.get(x.k)?.meter || 0) > 0;
-                return (
+                return [
                   <tr key={x.id} className={aan ? 'gekozen' : ''}>
                     <td>{s && <input type="checkbox" checked={aan} onChange={() => setSel((v) => { const n = new Set(v); if (n.has(x.id)) n.delete(x.id); else n.add(x.id); return n; })} aria-label={`Selecteer ${r.wat}`} />}</td>
                     <td className="getal">
@@ -422,7 +424,7 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
                     <td><div className="pf-watcel">
                       <Veld klasse="pf-cel breed wat" waarde={r.wat} uit={!s} label="Wat" onBewaar={(v) => v.trim() && zet(x, { wat: v.trim() })} />
                       <Veld klasse="pf-cel breed sub" waarde={r.opmerking || ''} uit={!s} label={`Opmerking bij ${r.wat}`} placeholder={s ? 'opmerking' : ''} onBewaar={(v) => zet(x, { opmerking: v.trim() || null })} />
-                      {x.namen?.length > 0 && <small title={x.namen.join(', ')}>{namenTekst(x.namen)}</small>}
+                      {(x.namen?.length > 0 || x.ids?.length > 0) && <small title={x.namen?.join(', ')}>{namenTekst(x.namen)}{x.ids?.length > 0 && <>{x.namen?.length > 0 ? ' · ' : ''}<button className="pf-link" style={{ fontSize: 'inherit' }} aria-expanded={kaartRij === x.id} onClick={() => setKaartRij(kaartRij === x.id ? null : x.id)}>{kaartRij === x.id ? 'kaart sluiten' : 'toon op kaart'}</button></>}</small>}
                       {x.weg && <small className="pf-let">staat niet meer op de kaart{s && <> · <button className="pf-link" onClick={() => f.wijzig('bestelregels', r.id, { kaart_naam: null, kaart_sleutel: null })}>loskoppelen</button></>}</small>}
                       {!x.vrij && !x.weg && x.kaartNaam !== r.wat && <small>op de kaart: {x.kaartNaam}</small>}
                     </div></td>
@@ -448,8 +450,9 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
                         : x.besteld == null ? <span className="pf-stil">{cijfer(x.geplaatst)} op de kaart</span> : <Balk n={x.geplaatst} tot={x.besteld} st={x.volgt ? 'volgt' : st} />}
                       </>)}
                     </td>
-                  </tr>
-                );
+                  </tr>,
+                  kaartRij === x.id && <tr key={`${x.id}-kaart`} className="pf-kaartrij"><td colSpan={7}><RijKaart plan={f.plan} items={f.items} ids={x.ids || []} onSluit={() => setKaartRij(null)} /></td></tr>,
+                ];
               })}
             </tbody>
           </table>

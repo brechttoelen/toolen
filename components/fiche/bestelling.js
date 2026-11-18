@@ -117,13 +117,14 @@ export function bestelRijen(f, sl) {
     }
     const volgt = r.aantal == null;
     const m = mat.get(x.k);
-    const namen = namenVan(r.locatie_laag_id ? inLaag(r.locatie_laag_id).get(x.k)?.ids : m?.ids);
-    return { id: r.id, r, k: x.k, namen, vrij: false, besteld: volgt ? (vast ? null : g) : Number(r.aantal), geplaatst: g, volgt, weg: !m, kaartNaam: m?.naam || r.kaart_naam };
+    const ids = (r.locatie_laag_id ? inLaag(r.locatie_laag_id).get(x.k)?.ids : m?.ids) || [];
+    const namen = namenVan(ids);
+    return { id: r.id, r, k: x.k, namen, ids, vrij: false, besteld: volgt ? (vast ? null : g) : Number(r.aantal), geplaatst: g, volgt, weg: !m, kaartNaam: m?.naam || r.kaart_naam };
   });
   const gekoppeld = new Set(regels.map((x) => x.k).filter(Boolean));
   const los = lijst.filter((m) => !gekoppeld.has(m.sleutel));
   const virtueel = vast ? [] : los.map((m) => ({
-    id: `kaart:${m.sleutel}`, k: m.sleutel, namen: namenVan(m.ids), virtueel: true, vrij: false, volgt: true, besteld: m.aantal, geplaatst: m.aantal, kaartNaam: m.naam,
+    id: `kaart:${m.sleutel}`, k: m.sleutel, namen: namenVan(m.ids), ids: m.ids || [], virtueel: true, vrij: false, volgt: true, besteld: m.aantal, geplaatst: m.aantal, kaartNaam: m.naam,
     r: { id: null, site_leverancier_id: sl.id, wat: m.naam, kaart_naam: m.naam, kaart_sleutel: m.sleutel, eenheid: 'st', aantal: null },
   }));
   return { rijen: [...rijen, ...virtueel], nietBesteld: vast ? los : [], los, vast, mat };

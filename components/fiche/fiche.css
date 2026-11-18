@@ -173,6 +173,16 @@
 .pf-kolknop { all: unset; cursor: pointer; font: inherit; color: var(--t-tekst-2); padding: 2px 6px; border-radius: 6px; margin-right: 2px; }
 .pf-kolknop.aan { color: var(--t-tekst); background: var(--t-vlak-2); }
 .pf-kolknop:focus-visible { outline: 2px solid var(--t-blauw); }
+/* Luchtfoto onder een rij */
+.pf-tabel tr.pf-kaartrij td { padding: 0 0 12px; background: #fff !important; }
+.pf-rijkaart { display: grid; grid-template-columns: minmax(0, 1fr) 240px; height: 340px; border: 1px solid var(--t-rand); border-radius: 10px; overflow: hidden; }
+.pf-rijkaart .kaart { position: relative; background: #1b2430; min-width: 0; }
+.pf-rijkaart .kaart .stand { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 13px; z-index: 2; pointer-events: none; padding: 16px; text-align: center; }
+.pf-rijkaart .lijst { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-left: 1px solid var(--t-rand); min-height: 0; }
+.pf-rijkaart .namen { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
+.pf-rijkaart .namen .pf-lijstknop { padding: 6px 10px; }
+.pf-kaartlabel { background: #fff; color: #0E1A33; font: 600 12px var(--font-sans); padding: 2px 7px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.35); white-space: nowrap; pointer-events: none; }
+@media (max-width: 760px) { .pf-rijkaart { grid-template-columns: 1fr; height: auto; } .pf-rijkaart .kaart { height: 280px; } }
 /* Leverfiche op een deellink */
 .pf-lf { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; font-family: var(--font-sans); font-size: 14px; color: var(--t-tekst); display: flex; flex-direction: column; gap: 14px; background: #fff; min-height: 100vh; box-sizing: border-box; }
 .pf-lf h1 { margin: 0; font-family: var(--font-titel); font-size: 24px; }
