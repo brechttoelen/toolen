@@ -12,6 +12,7 @@ import Info from './info';
 import { brugCfg, brugMaten, brugStukken } from './rennersbrug';
 import Blok from './blok';
 import FicheItemBlok from '../fiche/ItemBlok';
+import { trapKeuze } from './tekening';
 import { heeftModule } from './merk';
 import { LaagOpties } from './laagOpties';
 import { vraagTekst } from './dialoog';
@@ -372,6 +373,18 @@ export default function Eigenschappen(props) {
             <div className="fm-kleuren">
               {VOERTUIGKLEUREN.map((c) => <button key={c} className={k === c ? 'aan' : ''} style={{ background: c }} aria-label={c} disabled={ro} onClick={() => zetVeld('kleur', c === '#FFFFFF' ? undefined : c)} />)}
               <input type="color" value={k.toLowerCase()} disabled={ro} onChange={(e) => zetVeld('kleur', e.target.value.toUpperCase())} aria-label="Eigen kleur" title="Eigen kleur" style={{ padding: 0, border: '1px solid #DADDE3' }} />
+            </div>
+          </div>
+        );
+      })(),
+      item.soort === 'element' && el?.eigenschappen?.tekening?.trappen && (() => {
+        // Trappen op de vaste plaatsen van de unit: aanvinken waar er een staat.
+        const tk = el.eigenschappen.tekening; const aan = trapKeuze(tk, item);
+        const wissel = (id) => zetVeld('trappen', aan.includes(id) ? aan.filter((x) => x !== id) : [...aan, id]);
+        return (
+          <div className="fm-veld" key="trappen">Trappen · {aan.length}
+            <div className="fm-vinkrij">
+              {tk.trappen.plaatsen.map((pl) => <label key={pl.id} className="fm-vink"><input type="checkbox" checked={aan.includes(pl.id)} disabled={ro} onChange={() => wissel(pl.id)} />{pl.naam}</label>)}
             </div>
           </div>
         );

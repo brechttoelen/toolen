@@ -199,11 +199,40 @@ export function plaatser(midden, rot = 0, sx = 1, sy = 1) {
   };
 }
 
+// Trappen op vaste plaatsen rond een unit (tekening.trappen): per item kies je waar er een staat
+// (velden.trappen = lijst van plaats-id's; leeg = de standaard van de tekening). De standaardtrappen zitten
+// in de tekening zelf (delen met `trap`), de andere plaatsen worden hier bijgetekend.
+export function trapKeuze(tekening, item) {
+  const t = tekening?.trappen; if (!t) return null;
+  const k = item?.velden?.trappen;
+  return Array.isArray(k) ? k.filter((id) => t.plaatsen.some((x) => x.id === id)) : t.standaard || [];
+}
+export function metTrappen(tekening, item) {
+  const t = tekening?.trappen; if (!t) return tekening;
+  const aan = new Set(trapKeuze(tekening, item));
+  const getekend = new Set([...(tekening.vlakken || []), ...(tekening.lijnen || [])].map((x) => x.trap).filter(Boolean));
+  const ok = (x) => !x.trap || aan.has(x.trap);
+  const romp = (tekening.vlakken?.[0]?.r?.[0] || []);
+  const xs = romp.map((q) => q[0]), ys = romp.map((q) => q[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const b = t.b / 2, d = t.d; const extraV = [], extraL = [];
+  for (const pl of t.plaatsen) {
+    if (!aan.has(pl.id) || getekend.has(pl.id)) continue;
+    // Rechthoek van de trap en de richting van de treden (evenwijdig met de wand).
+    const [ax, ay, bx, by] = pl.zijde === 'voor' ? [pl.pos - b, y0 - d, pl.pos + b, y0] : pl.zijde === 'achter' ? [pl.pos - b, y1, pl.pos + b, y1 + d] : pl.zijde === 'links' ? [x0 - d, pl.pos - b, x0, pl.pos + b] : [x1, pl.pos - b, x1 + d, pl.pos + b];
+    extraV.push({ r: [[[ax, ay], [bx, ay], [bx, by], [ax, by], [ax, ay]]], vul: '#ffffff', lijn: '#1d1d1b', d: 0.02, trap: pl.id });
+    const langs = pl.zijde === 'voor' || pl.zijde === 'achter';
+    for (let n = 1; n < 5; n++) { const f = n / 5; extraL.push(langs ? { c: [[ax, ay + (by - ay) * f], [bx, ay + (by - ay) * f]], k: '#6B7280', d: 0.015, trap: pl.id } : { c: [[ax + (bx - ax) * f, ay], [ax + (bx - ax) * f, by]], k: '#6B7280', d: 0.015, trap: pl.id }); }
+  }
+  return { ...tekening, vlakken: [...(tekening.vlakken || []).filter(ok), ...extraV], lijnen: [...(tekening.lijnen || []).filter(ok), ...extraL] };
+}
+
 // Features voor naarGeojson.
 // Tekst nooit op zijn kop: tussen 90° en 270° een halve slag terug.
 const leesbaar = (r) => { const a = ((r % 360) + 360) % 360; return a > 90 && a <= 270 ? a - 180 : a; };
 export function tekeningFeatures(tekening, item, el, basis) {
   const p = item.parameters || {};
+  tekening = metTrappen(tekening, item);
   if (!tekening || !p.midden) return { vormen: [], labels: [] };
   // spiegel_x / spiegel_y: de tekening omklappen (bv. de draairichting van een deur).
   const sx = (el?.breedte_m && p.breedte ? p.breedte / el.breedte_m : 1) * (p.spiegel_x ? -1 : 1);
