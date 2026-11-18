@@ -4,7 +4,7 @@
 // en ophalingen van leveranciers, en het programma van de wedstrijd.
 import { useMemo, useState } from 'react';
 import { dagLijst, label, dagNaam, isoWeek, sleutel, uitSleutel, canoniek, uurKort, leesUur, wedstrijd, fase, FASE_NAAM, datumTekst } from './dagen';
-import { locatieTekst } from './bestelling';
+import { locatieTekst, momentNaam, momentDagen, namenTekst, bestelRijen } from './bestelling';
 import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities, DagKiezer } from './gedeeld';
 import { opId } from './data';
 import TaakPaneel from './TaakPaneel';
@@ -45,9 +45,17 @@ export default function TabPlanning({ f, planId }) {
   // Wat en waar van een levering uit de bestelregels die ernaar verwijzen.
   const regelsBij = (l) => (f.d.bestelregels || []).filter((r) => r.levering_id === l.id || r.ophaling_id === l.id);
   const regelTekst = (l) => { const rs = regelsBij(l); return rs.slice(0, 4).map((r) => `${r.aantal != null ? `${Number(r.aantal)} × ` : ''}${r.wat}`).join(', ') + (rs.length > 4 ? ` +${rs.length - 4}` : ''); };
+  // Namen van de items (CAM 1, CAM 2) bij een moment; de telling per leverancier en per moment één keer per weergave.
+  const rijenPerSl = new Map(); const namenPerMoment = new Map();
+  const regelNamen = (l) => {
+    if (namenPerMoment.has(l.id)) return namenPerMoment.get(l.id);
+    const sl = slMap.get(l.site_leverancier_id); const rs = regelsBij(l); let t = '';
+    if (sl && rs.length) { if (!rijenPerSl.has(sl.id)) rijenPerSl.set(sl.id, bestelRijen(f, sl).rijen); const ids = new Set(rs.map((r) => r.id)); t = namenTekst([...new Set(rijenPerSl.get(sl.id).filter((x) => ids.has(x.r.id)).flatMap((x) => x.namen || []))], 16); }
+    namenPerMoment.set(l.id, t); return t;
+  };
   const regelPlaats = (l) => [...new Set(regelsBij(l).map((r) => locatieTekst(f, r)).filter(Boolean))].join(', ');
 
-  const lijst = useMemo(() => dagLijst(plan, [...dagen, ...leveringen, ...programma, { anker: 'start', dag: 0 }, ...(dagK ? [uitSleutel(dagK)] : [])]), [plan, dagen, leveringen, programma, dagK]);
+  const lijst = useMemo(() => dagLijst(plan, [...dagen, ...leveringen.flatMap((l) => momentDagen(plan, l)), ...programma, { anker: 'start', dag: 0 }, ...(dagK ? [uitSleutel(dagK)] : [])]), [plan, dagen, leveringen, programma, dagK]);
   const huidig = lijst.find((x) => x.k === dagK) || lijst.find((x) => x.k === 'start:0') || lijst[0];
   const idx = Math.max(0, lijst.indexOf(huidig));
   const metWeek = !!wedstrijd(plan);
@@ -64,10 +72,11 @@ export default function TabPlanning({ f, planId }) {
     const t = takenMap.get(d.taak_id);
     if (bereikK.has(k) && !t.voorbereiding && filt(t, d)) rijen.push({ soort: 'taak', k, uur: uurKort(d.uur_van), d, t });
   }
-  if (soort === 'Alles' || soort === 'Levering') for (const l of leveringen) {
-    const c = canoniek(plan, l.anker, l.dag); const k = sleutel(c.anker, c.dag);
-    if (bereikK.has(k) && (!enkelOpen || l.status !== 'klaar')) rijen.push({ soort: 'levering', k, uur: uurKort(l.uur_van), l });
-  }
+  // Een opbouw of afbraak over meerdere dagen staat op elke dag van de periode.
+  if (soort === 'Alles' || soort === 'Levering') for (const l of leveringen) momentDagen(plan, l).forEach((c, n, alle) => {
+    const k = sleutel(c.anker, c.dag);
+    if (bereikK.has(k) && (!enkelOpen || l.status !== 'klaar')) rijen.push({ soort: 'levering', k, uur: uurKort(l.uur_van), l, n, van: alle.length });
+  });
   if (toonProg && soort === 'Alles') for (const p of programma) {
     const c = canoniek(plan, p.anker, p.dag); const k = sleutel(c.anker, c.dag);
     if (bereikK.has(k)) rijen.push({ soort: 'prog', k, uur: uurKort(p.uur_van), p });
@@ -178,8 +187,8 @@ export default function TabPlanning({ f, planId }) {
                     if (r.soort === 'levering') {
                       const l = r.l;
                       return (
-                        <tr key={`l${l.id}`}><td /><td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.uur || '–'}</td>
-                          <td><b>{l.soort === 'ophaling' ? 'Ophaling' : 'Levering'} · {l.lev?.naam || 'leverancier'}</b><small>{[l.wat || regelTekst(l), uurKort(l.uur_tot) && `tot ${uurKort(l.uur_tot)}`].filter(Boolean).join(' · ')}</small></td>
+                        <tr key={`l${l.id}-${r.n || 0}`}><td /><td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.uur || '–'}</td>
+                          <td><b>{momentNaam(l)}{l.werk && slMap.get(l.site_leverancier_id)?.wat ? ` ${slMap.get(l.site_leverancier_id).wat}` : ''} · {l.lev?.naam || 'leverancier'}</b><small>{[r.van > 1 && `dag ${r.n + 1} van ${r.van}`, l.wat || regelTekst(l), uurKort(l.uur_tot) && `tot ${uurKort(l.uur_tot)}`].filter(Boolean).join(' · ')}</small>{regelNamen(l) && <small>{regelNamen(l)}</small>}</td>
                           <td>{(l.leverpunt_item_id && f.items.find((x) => x.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst || regelPlaats(l) || <span className="pf-stil">Leverpunt ontbreekt</span>}</td>
                           <td>{l.lev?.naam}</td>
                           <td><StatusKeuze waarde={l.status} opties={STATUS_TAAK} uit={!f.schrijven} label="Status levering" onChange={(v) => f.wijzig('leveringen', l.id, { status: v })} /></td></tr>

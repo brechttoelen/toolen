@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Paneel, Bewaarveld, Bewaartekst, StatusKeuze, STATUS_TAAK, Kiezer, Keuze, DagKiezer } from './gedeeld';
 import { dagLijst, dagNaam, canoniek, sleutel, uurKort, leesUur, label, wedstrijd, volgorde } from './dagen';
 import { opId } from './data';
+import { momentNaam } from './bestelling';
 import { bevestig } from '../maps/dialoog';
 
 export default function TaakPaneel({ f, taakId, onSluit }) {
@@ -24,7 +25,7 @@ export default function TaakPaneel({ f, taakId, onSluit }) {
   const opSite = new Set((f.d.site_leveranciers || []).map((sl) => sl.leverancier_id));
   const levOpties = [...f.d.leveranciers].filter((l) => l.actief !== false || opSite.has(l.id)).sort((a, b) => (opSite.has(b.id) - opSite.has(a.id)) || a.naam.localeCompare(b.naam)).map((l) => ({ id: l.id, naam: l.naam, groep: opSite.has(l.id) ? 'Leveranciers van deze site' : 'Andere leveranciers' }));
   const slMap = opId(f.d.site_leveranciers); const levMap = opId(f.d.leveranciers);
-  const leveringen = (f.d.leveringen || []).map((l) => ({ id: l.id, naam: `${l.soort === 'ophaling' ? 'Ophaling' : 'Levering'} ${levMap.get(slMap.get(l.site_leverancier_id)?.leverancier_id)?.naam || ''} · ${dagNaam(f.plan, l.anker, l.dag)}${l.wat ? ` · ${l.wat}` : ''}` }));
+  const leveringen = (f.d.leveringen || []).map((l) => ({ id: l.id, naam: `${momentNaam(l)} ${levMap.get(slMap.get(l.site_leverancier_id)?.leverancier_id)?.naam || ''} · ${dagNaam(f.plan, l.anker, l.dag)}${l.wat ? ` · ${l.wat}` : ''}` }));
 
   const k = (x) => { const c = canoniek(f.plan, x.anker, x.dag); return sleutel(c.anker, c.dag); };
   const zetDag = (d, x) => f.wijzig('taak_dagen', d.id, canoniek(f.plan, x.anker, x.dag));

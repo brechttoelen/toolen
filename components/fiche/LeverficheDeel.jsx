@@ -3,7 +3,7 @@
 // Leverfiche op een deellink (zonder login): de vastgezette bestelling van één leverancier op één site.
 import { useEffect, useState } from 'react';
 import { sb } from '../maps/db';
-import { leverficheGroepen, momentKort, aantalTekst } from './bestelling';
+import { leverficheGroepen, eindeTekst, aantalTekst } from './bestelling';
 import './fiche.css';
 
 export default function LeverficheDeel({ token }) {
@@ -24,9 +24,9 @@ export default function LeverficheDeel({ token }) {
         <section key={g.titel}>
           <h2>{g.titel}</h2>
           <table>
-            <thead><tr><th className="getal">Aantal</th><th>Omschrijving</th><th>Groep</th><th>Locatie</th><th>Ophaling</th></tr></thead>
+            <thead><tr><th className="getal">Aantal</th><th>Omschrijving</th><th>Groep</th><th>Locatie</th><th>Ophaling of afbraak</th></tr></thead>
             <tbody>{g.rijen.map((r, i) => (
-              <tr key={i}><td className="getal"><b>{aantalTekst(r)}</b></td><td>{r.wat}{r.opmerking && <small>{r.opmerking}</small>}</td><td>{r.groep}</td><td>{r.locatie}</td><td>{r.oph ? momentKort(plan, r.oph) : ''}</td></tr>
+              <tr key={i}><td className="getal"><b>{aantalTekst(r)}</b></td><td>{r.wat}{r.opmerking && <small>{r.opmerking}</small>}</td><td>{r.groep}</td><td>{r.locatie}</td><td>{eindeTekst(plan, r.oph)}</td></tr>
             ))}</tbody>
           </table>
         </section>

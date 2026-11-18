@@ -2,7 +2,7 @@
 
 // Leverfiche als PDF (A4 staand): kop met leverancier en site, daarna de regels per levermoment.
 import { jsPDF } from 'jspdf';
-import { leverficheGroepen, momentKort, aantalTekst } from './bestelling';
+import { leverficheGroepen, eindeTekst, aantalTekst } from './bestelling';
 
 export function maakLeverfichePdf({ plan, leverancier, organisatie, wat, regels, vast }) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -16,14 +16,14 @@ export function maakLeverfichePdf({ plan, leverancier, organisatie, wat, regels,
   doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text(`${String(leverancier || '').toUpperCase()}${organisatie ? ` · via ${organisatie}` : ''}`, L + 3, y + 6.2);
   if (wat) doc.text(String(wat), R - 3, y + 6.2, { align: 'right' });
   y += 14; doc.setTextColor(0);
-  const kol = [{ t: 'Aantal', x: L, w: 20, r: true }, { t: 'Omschrijving', x: L + 23, w: 70 }, { t: 'Groep', x: L + 95, w: 22 }, { t: 'Locatie', x: L + 119, w: 34 }, { t: 'Ophaling', x: L + 155, w: 27 }];
+  const kol = [{ t: 'Aantal', x: L, w: 20, r: true }, { t: 'Omschrijving', x: L + 23, w: 70 }, { t: 'Groep', x: L + 95, w: 22 }, { t: 'Locatie', x: L + 119, w: 34 }, { t: 'Ophaling of afbraak', x: L + 155, w: 27 }];
   for (const g of leverficheGroepen(plan, regels)) {
     pagina(22);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); doc.text(g.titel, L, y); y += 2; doc.setLineWidth(0.5); doc.line(L, y, R, y); y += 5;
     doc.setFontSize(8.5); doc.setTextColor(90); for (const k of kol) doc.text(k.t, k.r ? k.x + k.w : k.x, y, k.r ? { align: 'right' } : undefined); doc.setTextColor(0); y += 4.5;
     for (const r of g.rijen) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-      const cellen = [aantalTekst(r), r.wat, r.groep, r.locatie, r.oph ? momentKort(plan, r.oph) : ''];
+      const cellen = [aantalTekst(r), r.wat, r.groep, r.locatie, eindeTekst(plan, r.oph)];
       const lijnen = cellen.map((c, i) => doc.splitTextToSize(String(c || ''), kol[i].w));
       const opm = r.opmerking ? doc.splitTextToSize(r.opmerking, kol[1].w) : [];
       const h = Math.max(...lijnen.map((x) => x.length), 1) * 4.6 + opm.length * 4 + 2.5;

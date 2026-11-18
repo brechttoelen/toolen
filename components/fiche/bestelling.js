@@ -134,12 +134,22 @@ export function stand(rij) {
   return rij.geplaatst < rij.besteld ? 'weinig' : rij.geplaatst > rij.besteld ? 'veel' : 'klaar';
 }
 
-// Moment (levering of ophaling) kort: "za 23 jan 08:00" of "D-8 08:00" zonder wedstrijddag.
+// Een moment is een levering of ophaling (één tijdslot), of een opbouw of afbraak door de leverancier zelf
+// (werk: over `dagen` opeenvolgende dagen, met dezelfde uren per dag).
+export const momentNaam = (l) => (l?.werk ? (l.soort === 'ophaling' ? 'Afbraak' : 'Opbouw') : (l?.soort === 'ophaling' ? 'Ophaling' : 'Levering'));
+export const momentDagen = (plan, l) => Array.from({ length: Math.max(1, Number(l.dagen) || 1) }, (_, n) => canoniek(plan, l.anker, (Number(l.dag) || 0) + n));
+// Aantal dagen van a tot b (0 = zelfde dag).
+export function dagVerschil(plan, a, b) {
+  const da = datumVan(plan, a.anker, a.dag), db = datumVan(plan, b.anker, b.dag);
+  return da && db ? Math.round((db - da) / 864e5) : (Number(b.dag) || 0) - (Number(a.dag) || 0);
+}
+const urenTekst = (l) => { const u = uurKort(l.uur_van); return u ? ` ${u}${l.uur_tot ? `–${uurKort(l.uur_tot)}` : ''}` : ''; };
+// Kort: "za 23 jan 08:00", "ma 18 – wo 20 jan 07:00–17:00", of "D-8 08:00" zonder wedstrijddag.
 export function momentKort(plan, l) {
   if (!l) return '';
-  const d = datumVan(plan, l.anker, l.dag);
-  const u = uurKort(l.uur_van);
-  return `${d ? datumTekst(d) : label(plan, l.anker, l.dag)}${u ? ` ${u}` : ''}${l.uur_tot ? `–${uurKort(l.uur_tot)}` : ''}`;
+  const dagen = momentDagen(plan, l); const eerste = dagen[0], laatste = dagen[dagen.length - 1];
+  const t = (x) => { const d = datumVan(plan, x.anker, x.dag); return d ? datumTekst(d) : label(plan, x.anker, x.dag); };
+  return `${t(eerste)}${dagen.length > 1 ? ` – ${t(laatste)}` : ''}${urenTekst(l)}`;
 }
 // "CAM 1, CAM 2, … +3": de namen van de items bij een regel, ingekort.
 export const namenTekst = (namen, max = 12) => (!namen?.length ? '' : namen.slice(0, max).join(', ') + (namen.length > max ? ` +${namen.length - max}` : ''));
@@ -165,9 +175,9 @@ export function samenvatting(f, sl) {
   const echt = b.rijen.filter((x) => !x.virtueel);
   if (b.vast || ['bevestigd', 'gefactureerd'].includes(sl.status)) {
     const zonderLev = b.rijen.filter((x) => !x.r.levering_id).length;
-    if (zonderLev) punten.push({ t: `${zonderLev} ${zonderLev === 1 ? 'regel' : 'regels'} zonder levering`, k: 'let-op' });
+    if (zonderLev) punten.push({ t: `${zonderLev} ${zonderLev === 1 ? 'regel' : 'regels'} zonder levering of opbouw`, k: 'let-op' });
     const zonderOph = echt.filter((x) => !x.vrij && x.r.levering_id && !x.r.ophaling_id).length;
-    if (zonderOph) punten.push({ t: `${zonderOph} ${zonderOph === 1 ? 'regel' : 'regels'} zonder ophaling`, k: 'let-op' });
+    if (zonderOph) punten.push({ t: `${zonderOph} ${zonderOph === 1 ? 'regel' : 'regels'} zonder ophaling of afbraak`, k: 'let-op' });
   }
   return { ...b, regels: b.rijen.length, telbaar: telbaar.length, besteld, geplaatst, punten, lev, oph, eerste: lev[0] || null, laatste: oph[oph.length - 1] || null, meer: Math.max(0, lev.length - 1) + Math.max(0, oph.length - 1) };
 }
@@ -188,9 +198,10 @@ export async function zetMoment(f, sl, regels, soort, m) {
   let id = null;
   if (m) {
     const c = canoniek(f.plan, m.anker, m.dag);
-    const bestaand = (f.d.leveringen || []).find((l) => l.site_leverancier_id === sl.id && l.soort === soort && zelfdeUur(l.uur_van, m.uur_van) && zelfdeUur(l.uur_tot, m.uur_tot)
+    const werk = !!m.werk; const dagen = werk ? Math.max(1, Number(m.dagen) || 1) : 1;
+    const bestaand = (f.d.leveringen || []).find((l) => l.site_leverancier_id === sl.id && l.soort === soort && !!l.werk === werk && (Number(l.dagen) || 1) === dagen && zelfdeUur(l.uur_van, m.uur_van) && zelfdeUur(l.uur_tot, m.uur_tot)
       && (() => { const x = canoniek(f.plan, l.anker, l.dag); return x.anker === c.anker && x.dag === c.dag; })());
-    const lev = bestaand || await f.voegToe('leveringen', { site_leverancier_id: sl.id, soort, anker: c.anker, dag: c.dag, uur_van: m.uur_van || null, uur_tot: m.uur_tot || null });
+    const lev = bestaand || await f.voegToe('leveringen', { site_leverancier_id: sl.id, soort, anker: c.anker, dag: c.dag, uur_van: m.uur_van || null, uur_tot: m.uur_tot || null, werk, dagen });
     if (!lev) return false;
     id = lev.id;
   }
@@ -236,16 +247,19 @@ export function leverficheRegels(f, sl) {
 // Gegroepeerd per levermoment (vroegste eerst, zonder levering achteraan), daarbinnen per locatie.
 export function leverficheGroepen(plan, regels) {
   const per = new Map();
-  for (const r of regels) { const k = r.lev ? momentKort(plan, r.lev) : ''; if (!per.has(k)) per.set(k, { lev: r.lev, rijen: [] }); per.get(k).rijen.push(r); }
+  for (const r of regels) { const k = r.lev ? `${momentNaam(r.lev)} ${momentKort(plan, r.lev)}` : ''; if (!per.has(k)) per.set(k, { lev: r.lev, rijen: [] }); per.get(k).rijen.push(r); }
   return [...per.values()].sort((a, b) => (!a.lev ? 1 : !b.lev ? -1 : volgorde(plan, a.lev, b.lev) || uurKort(a.lev.uur_van).localeCompare(uurKort(b.lev.uur_van))))
-    .map((g) => ({ titel: g.lev ? `Levering ${momentLang(plan, g.lev)}` : 'Levering nog af te spreken', rijen: g.rijen.sort((a, b) => (a.locatie || '').localeCompare(b.locatie || '')) }));
+    .map((g) => ({ titel: g.lev ? `${momentNaam(g.lev)} ${momentLang(plan, g.lev)}` : 'Levering nog af te spreken', rijen: g.rijen.sort((a, b) => (a.locatie || '').localeCompare(b.locatie || '')) }));
 }
 // "zaterdag 23 januari 2027 · 08:00–12:00" of het D-label zonder wedstrijddag.
 export function momentLang(plan, l) {
   if (!l) return '';
-  const d = datumVan(plan, l.anker, l.dag);
+  const dagen = momentDagen(plan, l);
+  const t = (x, jaar) => { const d = datumVan(plan, x.anker, x.dag); return d ? d.toLocaleDateString('nl-BE', { weekday: 'long', day: 'numeric', month: 'long', ...(jaar ? { year: 'numeric' } : {}) }) : label(plan, x.anker, x.dag); };
   const u = uurKort(l.uur_van);
-  const dag = d ? d.toLocaleDateString('nl-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : label(plan, l.anker, l.dag);
-  return `${dag}${u ? ` · ${u}${l.uur_tot ? `–${uurKort(l.uur_tot)}` : ''}` : ''}`;
+  const dag = dagen.length > 1 ? `${t(dagen[0], false)} tot en met ${t(dagen[dagen.length - 1], true)}` : t(dagen[0], true);
+  return `${dag}${u ? ` · ${dagen.length > 1 ? 'elke dag ' : ''}${u}${l.uur_tot ? `–${uurKort(l.uur_tot)}` : ''}` : ''}`;
 }
+// Einde van een regel voor de leverancier: "Afbraak di 2 feb 08:00–17:00".
+export const eindeTekst = (plan, l) => (l ? `${l.werk ? 'Afbraak ' : ''}${momentKort(plan, l)}` : '');
 export const aantalTekst = (r) => (r.aantal == null ? '' : `${new Intl.NumberFormat('nl-BE', { maximumFractionDigits: 1 }).format(Number(r.aantal))}${r.eenheid === 'm' ? ' m' : ''}`);

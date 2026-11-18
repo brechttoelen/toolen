@@ -4,7 +4,7 @@
 // Een klik op een regel selecteert dat materiaal op de kaart; Plaats kiest het element om verder te plaatsen.
 // BestelBlok toont hetzelfde voor de selectie, in het rechtermenu.
 import { useMemo } from 'react';
-import { samenvatting, stand, momentKort, locatieTekst } from './bestelling';
+import { samenvatting, stand, momentKort, momentNaam, locatieTekst } from './bestelling';
 import { useKaartStand, useBestelData } from './kaartStand';
 import './fiche.css';
 
@@ -88,7 +88,7 @@ export function BestelBlok({ planId, items }) {
           <div key={rij.id} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <div style={{ fontSize: 13 }}><b style={{ fontWeight: 600 }}>{x.lev.naam}</b> · {rij.r.wat}</div>
             {rij.besteld == null ? <span className="fm-sub">{cijfer(rij.geplaatst)} op de kaart</span> : <Balk n={rij.geplaatst} tot={rij.besteld} st={st} />}
-            <span className="fm-sub">{[x.s.vast ? tekort(rij) : 'loopt mee met de kaart', locatieTekst(x.f, rij.r), l && `levering ${momentKort(x.f.plan, l)}`, o && `ophaling ${momentKort(x.f.plan, o)}`].filter(Boolean).join(' · ')}</span>
+            <span className="fm-sub">{[x.s.vast ? tekort(rij) : 'loopt mee met de kaart', locatieTekst(x.f, rij.r), l && `${momentNaam(l).toLowerCase()} ${momentKort(x.f.plan, l)}`, o && `${momentNaam(o).toLowerCase()} ${momentKort(x.f.plan, o)}`].filter(Boolean).join(' · ')}</span>
             <a className="fm-sub" href={`/maps/${planId}/fiche?tab=leveranciers&lev=${x.sl.id}`}>Open de bestelling</a>
           </div>
         );

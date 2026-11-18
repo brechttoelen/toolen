@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bestelRijen, samenvatting, stand, materiaalVan } from '../components/fiche/bestelling';
+import { bestelRijen, samenvatting, stand, materiaalVan, momentKort, momentNaam, momentDagen } from '../components/fiche/bestelling';
 
 const punt = { type: 'Point', coordinates: [3, 51] };
 function fiche(regels = [], vast = false, leveringen = []) {
@@ -60,8 +60,16 @@ describe('bestelling tegenover de kaart', () => {
     const lv = [{ id: 'l1', site_leverancier_id: 's1', soort: 'levering', anker: 'start', dag: -8, uur_van: '08:00:00' }, { id: 'l2', site_leverancier_id: 's1', soort: 'ophaling', anker: 'einde', dag: 2 }];
     const s = samenvatting(fiche([regel('r1', { aantal: 6, levering_id: 'l1' })], true, lv), sl(true));
     expect(s).toMatchObject({ regels: 1, besteld: 6, geplaatst: 4 });
-    expect(s.punten.map((p) => p.t)).toEqual(['nog 2 te plaatsen', '1 regel zonder ophaling']);
+    expect(s.punten.map((p) => p.t)).toEqual(['nog 2 te plaatsen', '1 regel zonder ophaling of afbraak']);
     expect(s.eerste.id).toBe('l1'); expect(s.laatste.id).toBe('l2');
     expect(samenvatting(fiche(), sl(false)).punten).toEqual([]);
+  });
+  it('opbouw over meerdere dagen: naam, dagen en korte tekst', () => {
+    const plan = fiche().plan;
+    const l = { soort: 'levering', werk: true, anker: 'start', dag: -3, dagen: 3, uur_van: '07:00:00', uur_tot: '17:00:00' };
+    expect(momentNaam(l)).toBe('Opbouw');
+    expect(momentNaam({ soort: 'ophaling', werk: true })).toBe('Afbraak');
+    expect(momentDagen(plan, l).map((x) => x.dag)).toEqual([-3, -2, -1]);
+    expect(momentKort(plan, l)).toBe('do 28 jan – za 30 jan 07:00–17:00');
   });
 });
