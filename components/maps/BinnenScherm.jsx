@@ -2180,7 +2180,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
             <>
               <div className="fm-paneelkop fm-bs-paneelkop"><strong>Punt</strong><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
               <div className="fm-bs-lijstknoppen">
-                {PUNT_TYPES.filter((t) => t.k !== 'invoer').map((t) => <button key={t.k} type="button" className={`fm-element fm-bs-elrij${modus === `punt:${t.k}` ? ' aan' : ''}`} onClick={() => startModus(`punt:${t.k}`)}><span className="ic" aria-hidden="true"><svg width="22" height="22"><PuntSymbool type={t.k} x={11} y={11} /></svg></span><span className="tekst"><span className="fm-afkap naam">{t.naam}</span></span><span /></button>)}
+                {PUNT_TYPES.filter((t) => t.k !== 'invoer' && t.k !== 'stroom').map((t) => <button key={t.k} type="button" className={`fm-element fm-bs-elrij${modus === `punt:${t.k}` ? ' aan' : ''}`} onClick={() => startModus(`punt:${t.k}`)}><span className="ic" aria-hidden="true"><svg width="22" height="22"><PuntSymbool type={t.k} x={11} y={11} /></svg></span><span className="tekst"><span className="fm-afkap naam">{t.naam}</span></span><span /></button>)}
               </div>
             </>
           )}
@@ -2188,6 +2188,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
             <>
               <div className="fm-paneelkop fm-bs-paneelkop"><strong>Stroom</strong><button type="button" className="fm-x" aria-label="Paneel sluiten" onClick={() => setPaneel(null)}>×</button></div>
               <div className="fm-bs-lijstknoppen">
+                <button type="button" className={`fm-element fm-bs-elrij${modus === 'punt:stroom' ? ' aan' : ''}`} onClick={() => startModus('punt:stroom')}><span className="ic" aria-hidden="true"><svg width="22" height="22"><PuntSymbool type="stroom" x={11} y={11} /></svg></span><span className="tekst"><span className="fm-afkap naam">Stroomaansluiting van het gebouw</span><span className="fm-sub">vaste stopcontacten, met nr en net per uitgang</span></span><span /></button>
                 <button type="button" className={`fm-element fm-bs-elrij${modus === 'punt:invoer' ? ' aan' : ''}`} onClick={() => startModus('punt:invoer')}><span className="ic" aria-hidden="true"><svg width="22" height="22"><PuntSymbool type="invoer" x={11} y={11} /></svg></span><span className="tekst"><span className="fm-afkap naam">Stroominvoer</span><span className="fm-sub">waar de kabel van buiten binnenkomt</span></span><span /></button>
                 <button type="button" className={`fm-element fm-bs-elrij${modus === 'kabel' ? ' aan' : ''}`} onClick={() => startModus('kabel')}><span className="ic" aria-hidden="true"><Icoon naam="stekker" maat={18} /></span><span className="tekst"><span className="fm-afkap naam">Kabel</span><span className="fm-sub">klik de voeding, dan de verbruiker</span></span><span /></button>
               </div>

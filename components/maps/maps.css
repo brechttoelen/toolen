@@ -2625,3 +2625,12 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 /* Paneelknop van een gereedschap dat nu actief is (Tekenen, Punt, Stroom): stip rechtsboven. */
 .fm-bs-rail button.paneelknop.actief::after { content: ''; position: absolute; top: 7px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--t-blauw, #108AED); box-shadow: 0 0 0 2px var(--wr-balk, var(--t-navy, #022056)); }
 .fm-bs-elrij .ic svg { display: block; }
+/* Gereedschapslijsten (Tekenen, Punt, Stroom) en bibliotheekrijen in de binnen-editor: compact zoals de lagen. */
+.fm-bs-paneel .fm-bs-elrij { grid-template-columns: 28px minmax(0, 1fr) 0; gap: 10px; min-height: 40px; padding: 5px 12px; border-bottom: 1px solid #f0f0ee; }
+.fm-bs-paneel .fm-bs-elrij .ic { width: 28px; height: 28px; background: transparent; border: 0; }
+.fm-bs-paneel .fm-bs-elrij .naam { font-size: 12.5px; font-weight: 500; }
+.fm-bs-paneel .fm-bs-elrij .fm-sub { font-size: 11px; }
+.fm-bs-paneel .fm-bs-lijstknoppen { border-top: 0; }
+/* Paneel open: zacht gemarkeerd; enkel het actieve gereedschap is wit. */
+.fm-bs-rail .paneelknop.aan, .fm-bs-rail .paneelknop.aan:hover { background: rgba(255,255,255,.16); color: #fff; box-shadow: none; outline: 0; }
+.fm-bs-rail button:focus:not(:focus-visible) { outline: 0; }
