@@ -68,7 +68,7 @@ export function pasAan(o, bron, doel) {
 // ---------- Vector-onderleggers (DXF) ----------
 const dxfCache = new Map();
 export async function laadDxf(url) {
-  if (!dxfCache.has(url)) dxfCache.set(url, fetch(url).then((r) => r.json()));
+  if (!dxfCache.has(url)) dxfCache.set(url, fetch(publiekeUrl(url)).then((r) => { if (!r.ok) throw new Error(`Grondplan niet gevonden (${r.status})`); return r.json(); }).catch((e) => { dxfCache.delete(url); throw e; }));
   return dxfCache.get(url);
 }
 export function dxfGeojson(o, d) {
@@ -122,11 +122,11 @@ export async function zetOnderleggers(map, lijst, voorLaag = map.getLayer?.('fm-
     const coordinates = hoeken(o);
     const bron = map.getSource(id);
     if (bron) {
-      if (bron._fmUrl !== o.url) bron.updateImage({ url: o.url, coordinates });
+      if (bron._fmUrl !== o.url) bron.updateImage({ url: publiekeUrl(o.url), coordinates });
       else bron.setCoordinates(coordinates);
       bron._fmUrl = o.url;
     } else {
-      map.addSource(id, { type: 'image', url: o.url, coordinates });
+      map.addSource(id, { type: 'image', url: publiekeUrl(o.url), coordinates });
       map.getSource(id)._fmUrl = o.url;
       map.addLayer({ id, type: 'raster', source: id, paint: { 'raster-fade-duration': 0 } }, map.getLayer(voorLaag) ? voorLaag : undefined);
     }

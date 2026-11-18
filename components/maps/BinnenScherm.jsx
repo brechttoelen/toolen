@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { metTekening } from './tekeningen';
 import { laadDxf, planTransform } from './onderlegger';
+import { publiekeUrl } from './db';
 import BibliotheekPaneel from './BibliotheekPaneel';
 import { magModule } from './modules';
 import { vraagTekst, useSluitBuiten } from './dialoog';
@@ -1215,7 +1216,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
     let foto = null;
     if (onderlegger && !isDxf && onderlegger.url) {
       const b = Number(onderlegger.breedte) || 50; const h = b * (Number(onderlegger.verhouding) || 1);
-      foto = <g transform="scale(1 -1)"><image href={onderlegger.url} x={-b / 2} y={-h / 2} width={b} height={h} preserveAspectRatio="none" opacity={0.9} /></g>;
+      foto = <g transform="scale(1 -1)"><image href={publiekeUrl(onderlegger.url)} x={-b / 2} y={-h / 2} width={b} height={h} preserveAspectRatio="none" opacity={0.9} /></g>;
     }
     let gewoon = ''; let zaal = '';
     for (const l of plan.lijnen) { const dd = padW(l.c); if (ZAAL_LAAG.test(l.laag || '')) zaal += dd; else gewoon += dd; }

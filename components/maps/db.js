@@ -45,6 +45,9 @@ export function eigenAdres(pad) {
 export function publiekeUrl(pad) {
   if (!pad) return null;
   if (OPSLAG.length > 40 && String(pad).startsWith(OPSLAG)) return eigenAdres(String(pad).slice(OPSLAG.length));
+  // Oude volledige opslagadressen (de bucket is privé sinds 0022, of een ander domein): altijd via /b/.
+  const m = String(pad).match(new RegExp(`/storage/v1/object/(?:public|sign|authenticated)/${BUCKET}/([^?#]+)`));
+  if (m) return eigenAdres(m[1]);
   // Beelden die met de app meegeleverd worden (public/) of al een volledige URL zijn.
   if (/^(https?:|data:|\/)/.test(pad)) return pad;
   return eigenAdres(pad);

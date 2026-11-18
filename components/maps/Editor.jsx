@@ -52,7 +52,7 @@ import { controleer } from './controle';
 import Delen from './Delen';
 import PlanPaneel, { verschil } from './PlanPaneel';
 import OnderleggerGrepen from './OnderleggerGrepen';
-import { zetOnderleggers, naarLokaal, pasAan, pasAanVast, planTransform, nieuweOnderlegger, dxfGeojson, pdfLijnen, bewaarVectorOnderlegger } from './onderlegger';
+import { zetOnderleggers, naarLokaal, pasAan, pasAanVast, planTransform, nieuweOnderlegger, dxfGeojson, laadDxf, pdfLijnen, bewaarVectorOnderlegger } from './onderlegger';
 import StroomPaneel from './StroomPaneel';
 import { stroomVan, berekenStroom, kabellijstCsv, KABEL_KLEUR, kabelSpanning, kabelDoelen, kabelTypeVoor, koppelVoeding } from './stroom';
 import SignalisatiePaneel from './SignalisatiePaneel';
@@ -2301,7 +2301,7 @@ export default function Editor({ planId }) {
   // Zalen uit een DXF-grondplan (laag ZALEN, namen uit de teksten) als ruimtes van deze verdieping.
   const zalenUitGrondplan = async (ol) => {
     try {
-      const d = await fetch(ol.url).then((x) => x.json());
+      const d = await laadDxf(ol.url);
       const gj = dxfGeojson(ol, d);
       const vlakken = gj.features.filter((f) => /^(zalen|ruimtes?|zones?)$/i.test(f.properties.laag || '') && f.geometry.coordinates.length >= 4);
       if (!vlakken.length) { setMelding('Geen gesloten lijnen op een laag ZALEN of RUIMTES in dit grondplan.'); return; }
