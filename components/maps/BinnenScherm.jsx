@@ -39,6 +39,8 @@ import { FaseKiezer } from './Paneel';
 import { useLeveranciers, juisteNaam, zorgLeverancier } from './leveranciers';
 import { stroomVan, kabelDoelen, kabelTypeVoor, koppelVoeding, KABEL_KLEUR, kabelSpanning } from './stroom';
 import { elKast, elStekkerdoos, elVerwarming, elVerbruiker } from './werkruimtes';
+import { VeldpuntPaneel, VeldpuntBewerk, VP_TEKST } from './veldpunten';
+import { MeetPaneel } from './deelmeten';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const getal = (v, d = 1) => (Math.round(v * 10 ** d) / 10 ** d).toLocaleString('nl-BE');
@@ -143,10 +145,12 @@ const zaalNaam = (t) => String(t || '').replace(/\s*\([^)]*m²\)\s*$/, '').trim(
 
 // Leesweergave (deel-link) op gsm en tablet in staande stand: onderbladen in plaats van drie kolommen.
 const SMAL_MAX = 1024;
-export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen, verd, onVerd, onNieuweVerdieping, onderlegger, items, elementen, elementenMap, schrijven,
+export default function BinnenScherm({ opmerkingBlok = null, veldpunten = null, onPunt = null, onPuntWijzig = null, host, verdiepingen, verd, onVerd, onNieuweVerdieping, onderlegger, items, elementen, elementenMap, schrijven,
   onMaak, onWijzig, onVerwijder, onGrondplan, onPassen, onOnderlegger, onSluit, onMaakElement, onWijzigElement, onHost, fasen = [], actieveFase = null, onFase, onOngedaan, doeken = [], taal = 'nl', fotosVast = null, merk = null, autoPdf = false, onPdfKlaar, beginCamera = null, beginCameraBeeld = null, onDeelCamera = null,
   stroom = null, vast = [], onKabelBuiten = null, planInfo = null, fiche = false, beginSel = null, beginPaneel = null }) {
   const tx = binnenTekst(taal); const vn = (n) => vertaalNaam(n, taal);
+  const vpT = VP_TEKST[taal] || VP_TEKST.nl;
+  const vpUitleg = { nl: { meet: 'Tik punten op het plan.', punt: 'Tik op het plan waar je opmerking over gaat.', verplaats: 'Tik op de nieuwe plek op het plan.' }, fr: { meet: 'Touchez des points sur le plan.', punt: 'Touchez le plan là où porte votre remarque.', verplaats: 'Touchez le nouvel endroit sur le plan.' }, en: { meet: 'Tap points on the plan.', punt: 'Tap the plan where your comment applies.', verplaats: 'Tap the new spot on the plan.' } }[taal] || { meet: 'Tik punten op het plan.', punt: 'Tik op het plan waar je opmerking over gaat.', verplaats: 'Tik op de nieuwe plek op het plan.' };
   const [d, setD] = useState(null); // DXF-gegevens van het grondplan (lijnen in meter)
   const [laden, setLaden] = useState(false);
   const svgRef = useRef(null);
@@ -182,6 +186,10 @@ export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen,
   const [menu, setMenu] = useState(false);
   const [gebouwKaart, setGebouwKaart] = useState(false);
   const [lijstOpen, setLijstOpen] = useState(false); // gsm: onderblad met zalen en lijst open
+  // Leesweergave (deel-link): meten en punten met een opmerking, zoals op de kaart.
+  const [leesTool, setLeesTool] = useState(null); // null | 'meet' | 'punt'
+  const [meetPts, setMeetPts] = useState([]); const [meetVlak, setMeetVlak] = useState(false);
+  const [vpPlek, setVpPlek] = useState(null); const [vpKeuze, setVpKeuze] = useState(null); const [vpVerplaats, setVpVerplaats] = useState(false);
   const aanraak = useRef(null); const beeldRef = useRef(null); const maatRef = useRef(null); const tikRef = useRef(null);
   const [puntMenu, setPuntMenu] = useState(false);
   useSluitBuiten(puntMenu, () => setPuntMenu(false));
@@ -828,8 +836,24 @@ export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen,
     return kaderLok(rechthoek(m, Number(el.breedte_m) || 1, Number(el.diepte_m) || 1, elRot));
   };
   const plaatsPunt = useRef(null);
+  // Punten met een opmerking op deze verdieping (veldpunten met een plek in dit binnenplan).
+  const binnenPunten = (veldpunten || []).filter((o) => o.binnen?.host === host.id && (o.binnen.verd || verdiepingen[0]?.id) === verd && Array.isArray(o.binnen.p) && o.status !== 'klaar');
+  const puntOp = (w) => { const [mx, my] = naarScherm(w); return binnenPunten.find((o) => { const [x, y] = naarScherm(o.binnen.p); return Math.hypot(x - mx, y - my) < 18; }) || null; };
+  // Tik of klik in de leesweergave: meten, een punt zetten of verplaatsen, of een bestaand punt openen.
+  const leesTik = (w) => {
+    const q = [r3(w[0]), r3(w[1])];
+    if (vpVerplaats && vpKeuze) { const o = binnenPunten.find((x) => x.id === vpKeuze); if (o) onPuntWijzig?.(o, { p: q, punt: T.naarGeo(q) }); setVpVerplaats(false); return true; }
+    if (leesTool === 'meet') { setMeetPts((l) => [...l, q]); return true; }
+    const o = puntOp(w);
+    if (o) { setLeesTool(null); setVpPlek(null); setVpKeuze(o.id); setSel([]); setActieveRuimte(null); setLijstOpen(false); return true; }
+    if (leesTool === 'punt') { setVpPlek(q); setSel([]); setActieveRuimte(null); setLijstOpen(false); return true; }
+    if (vpKeuze) { setVpKeuze(null); return true; }
+    return false;
+  };
+  const kiesLeesTool = (t) => { const n = leesTool === t ? null : t; setLeesTool(n); setMeetPts([]); setVpPlek(null); setVpKeuze(null); setVpVerplaats(false); setSel([]); setActieveRuimte(null); setGebouwKaart(false); setLijstOpen(false); if (modus) startModus(null); };
   // Kleinste zaal rond een punt.
   tikRef.current = (w) => {
+    if (!schrijven && leesTik(w)) return;
     // In het overzicht op gsm kiest een tik de ruimte (en zoomt erop in); pas ingezoomd raak je een meubel of punt.
     const smal = !schrijven && typeof window !== 'undefined' && window.innerWidth <= SMAL_MAX; const ver = smal && (beeldRef.current?.s || 20) < 7;
     if (modus === 'meet') { klikModus(w); return; }
@@ -895,6 +919,7 @@ export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen,
   const omlaag = (e) => {
     if (e.button === 1 || e.button === 2) { sleep.current = { pan: true, x: e.clientX, y: e.clientY, b: B }; return; }
     if (e.button !== 0) return;
+    if (!schrijven && leesTik(naarWereld(e))) return;
     const w = naarWereld(e); const vg = tekenVangt() ? vangTeken(w) : null; const p = hoekVang(vg ? vg.p : snap(w), e);
     if (verleng) { verlengKlik(p, e.detail >= 2); return; }
     { const [mx, my] = naarScherm(w); const pl = plusjes().find((x) => Math.hypot(x.p[0] - mx, x.p[1] - my) < 10); if (pl) { setVerleng({ id: vormIt.id, eind: pl.eind }); return; } }
@@ -2115,7 +2140,7 @@ export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen,
   ) : null;
 
   const inhoud = (
-    <div className={`fm fm-binnenscherm${schrijven ? '' : ' lezen'}${!schrijven && (selItems.length === 1 || actR || gebouwKaart) ? ' met-detail' : ''}${lijstOpen ? ' lijst-open' : ''}`} role="dialog" aria-label={`Binnenplan ${naamHost}`}>
+    <div className={`fm fm-binnenscherm${schrijven ? '' : ' lezen'}${!schrijven && (selItems.length === 1 || actR || gebouwKaart) ? ' met-detail' : ''}${lijstOpen ? ' lijst-open' : ''}${!schrijven && (leesTool || vpKeuze) ? ' met-tool' : ''}`} role="dialog" aria-label={`Binnenplan ${naamHost}`}>
       {camBeeld && (() => {
         const it = inrichting.find((x) => x.id === camBeeld); if (!it) return null;
         const nu = (id) => inrichtingRef.current.find((y) => y.id === id); // altijd de laatste stand (bewaren gebeurt met vertraging)
@@ -2419,6 +2444,25 @@ export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen,
             </g>
             {/* Schermlaag: zaalnamen, punten en maten op vaste grootte */}
             <g pointerEvents="none">
+              {!schrijven && leesTool === 'meet' && meetPts.length > 0 && (() => {
+                const ring = meetVlak && meetPts.length >= 3 ? [...meetPts, meetPts[0]] : meetPts; const sc = ring.map(naarScherm);
+                return (
+                  <g className="fm-bs-meetlijn">
+                    {meetVlak && meetPts.length >= 3 && <path d={`M${sc.map((p) => p.join(',')).join('L')}Z`} fill="#2563EB" fillOpacity={0.12} stroke="none" />}
+                    {sc.length > 1 && <path d={`M${sc.map((p) => p.join(',')).join('L')}`} fill="none" stroke="#fff" strokeWidth={6} strokeLinejoin="round" />}
+                    {sc.length > 1 && <path d={`M${sc.map((p) => p.join(',')).join('L')}`} fill="none" stroke="#2563EB" strokeWidth={3} strokeDasharray="8 5" strokeLinejoin="round" />}
+                    {ring.slice(1).map((b, i) => { const a = ring[i]; const L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 0.2) return null; const [x, y] = naarScherm([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]); const t = `${getal(L, L < 10 ? 2 : 1)} m`; return <g key={i}><rect x={x - t.length * 3.6 - 5} y={y - 11} width={t.length * 7.2 + 10} height={22} rx={6} fill="#fff" stroke="#BFDBFE" /><text x={x} y={y + 4.5} textAnchor="middle" fontSize={13} fontWeight={700} fill="#1E3A8A">{t}</text></g>; })}
+                    {meetPts.map((p, i) => { const [x, y] = naarScherm(p); return <circle key={i} cx={x} cy={y} r={6} fill="#fff" stroke="#2563EB" strokeWidth={3} />; })}
+                  </g>
+                );
+              })()}
+              {binnenPunten.map((o) => { const [x, y] = naarScherm(o.binnen.p); const aan = vpKeuze === o.id; const t = String(o.tekst || '').slice(0, 32); return (
+                <g key={o.id}>
+                  <circle cx={x} cy={y} r={aan ? 10 : 8} fill="#EA580C" stroke="#fff" strokeWidth={2.5} />
+                  {!overzicht && t && <text x={x} y={y + 24} textAnchor="middle" fontSize={12} fontWeight={700} fill="#7C2D12" stroke="#fff" strokeWidth={3} paintOrder="stroke">{t}</text>}
+                </g>
+              ); })}
+              {vpPlek && leesTool === 'punt' && (() => { const [x, y] = naarScherm(vpPlek); return <circle cx={x} cy={y} r={11} fill="#EA580C" fillOpacity={0.85} stroke="#fff" strokeWidth={3} />; })()}
               {zaalLabels.map((z) => {
                 const [x, y] = naarScherm(z.p); const w = z.b * B.s - 10; const h = z.h * B.s;
                 if (w < 24 || h < 14) return null;
@@ -2540,8 +2584,9 @@ export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen,
           {!toonSetup && !wachtOpPlan && (
             <>
               {!schrijven && <div className="fm-bs-zweef links">
-                <button className={!modus ? 'aan' : ''} onClick={() => startModus(null)}>{tx.selecteren}</button>
-                <button className={modus === 'meet' ? 'aan' : ''} onClick={() => startModus('meet')}>{tx.meten}</button>
+                <button className={!modus && !leesTool ? 'aan' : ''} onClick={() => { startModus(null); if (leesTool) kiesLeesTool(leesTool); }}>{tx.selecteren}</button>
+                <button className={leesTool === 'meet' ? 'aan' : ''} onClick={() => kiesLeesTool('meet')}>{tx.meten}</button>
+                {onPunt && <button className={leesTool === 'punt' ? 'aan' : ''} onClick={() => kiesLeesTool('punt')}>{vpT.knop}</button>}
                 {schrijven && (
                   <span style={{ position: 'relative', display: 'inline-flex' }}>
                     <button className={modus in TEKEN ? 'aan' : ''} data-menuknop onClick={() => setTekenMenu((x) => !x)}>{modus in TEKEN ? TEKEN[modus] : 'Tekenen'} ▾</button>
@@ -2591,11 +2636,20 @@ export default function BinnenScherm({ opmerkingBlok = null, host, verdiepingen,
                   {PUNT_TYPES.map((t) => <button key={t.k} onClick={() => startModus(`punt:${t.k}`)}><svg width="22" height="22" aria-hidden="true"><PuntSymbool type={t.k} x={11} y={11} /></svg>{t.naam}</button>)}
                 </div>
               )}
-              {gsmLees && modus === 'meet' && <div className="fm-bs-meethint">{punten.length ? tx.tweede : meting ? `${getal(Math.hypot(meting[1][0] - meting[0][0], meting[1][1] - meting[0][1]), 2)} m · ${tx.opnieuw}` : tx.eerste}</div>}
+              {!schrijven && leesTool === 'meet' && <MeetPaneel taal={taal} punten={meetPts} setPunten={setMeetPts} vlak={meetVlak} setVlak={setMeetVlak} uitleg={vpUitleg.meet} onSluit={() => kiesLeesTool('meet')}
+                lengteVan={(r) => r.slice(1).reduce((a, b, i) => a + Math.hypot(b[0] - r[i][0], b[1] - r[i][1]), 0)} oppVan={(r) => oppervlakte(r)} />}
+              {!schrijven && leesTool === 'punt' && onPunt && <VeldpuntPaneel taal={taal} gps={false} uitleg={vpUitleg.punt} plek={vpPlek} setPlek={setVpPlek}
+                eigen={binnenPunten.filter((o) => o.eigen)} onKies={(o) => { setLeesTool(null); setVpKeuze(o.id); }}
+                onBewaar={({ punt: q, tekst, naam }) => onPunt({ host: host.id, verd, p: q, punt: T.naarGeo(q), tekst, naam })} onSluit={() => kiesLeesTool('punt')} />}
+              {!schrijven && vpKeuze && !leesTool && (() => { const o = binnenPunten.find((x) => x.id === vpKeuze); if (!o) return null; return (
+                <VeldpuntBewerk o={o} taal={taal} gps={false} verplaatsUitleg={vpUitleg.verplaats} verplaatsen={vpVerplaats} setVerplaatsen={setVpVerplaats}
+                  onWijzig={async (x, patch) => { const ok = await onPuntWijzig?.(x, patch); if (ok && patch.weg) setVpKeuze(null); return ok; }} onSluit={() => { setVpKeuze(null); setVpVerplaats(false); }} />
+              ); })()}
               <div className="fm-bs-zweef rechts">
                 <button aria-label="Inzoomen" onClick={() => setBeeld({ ...B, s: Math.min(600, B.s * 1.4) })}>+</button>
                 <button aria-label="Uitzoomen" onClick={() => setBeeld({ ...B, s: Math.max(0.5, B.s / 1.4) })}>−</button>
-                {gsmLees && <button className={`fm-bs-meetknop${modus === 'meet' ? ' aan' : ''}`} aria-pressed={modus === 'meet'} aria-label={tx.meten} onClick={() => { setSel([]); setActieveRuimte(null); startModus(modus === 'meet' ? null : 'meet'); }}><Icoon naam="meten" maat={20} /></button>}
+                {gsmLees && <button className={`fm-bs-meetknop${leesTool === 'meet' ? ' aan' : ''}`} aria-pressed={leesTool === 'meet'} aria-label={tx.meten} title={tx.meten} onClick={() => kiesLeesTool('meet')}><Icoon naam="meten" maat={20} /></button>}
+                {gsmLees && onPunt && <button className={`fm-bs-meetknop${leesTool === 'punt' ? ' aan' : ''}`} aria-pressed={leesTool === 'punt'} aria-label={vpT.knop} title={vpT.knop} onClick={() => kiesLeesTool('punt')}><Icoon naam="punt" maat={20} /></button>}
                 <button onClick={passend}>{tx.passend}</button>
               </div>
             </>

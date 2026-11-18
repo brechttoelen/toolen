@@ -1024,13 +1024,20 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
   .fm-binnenscherm.lezen .fm-bs-zweef.rechts button:last-child { font-size: 0; border-bottom: 0; }
   .fm-binnenscherm.lezen .fm-bs-zweef.rechts .fm-bs-meetknop { display: grid; place-items: center; }
   .fm-binnenscherm.lezen .fm-bs-zweef.rechts .fm-bs-meetknop.aan { background: var(--fm-zwart); color: #fff; }
-  .fm-bs-meethint { position: absolute; left: 12px; right: 68px; top: 10px; z-index: 4; background: var(--fm-zwart); color: #fff; border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600; box-shadow: 0 2px 10px rgba(0,0,0,.2); }
+  .fm-bs-meethint { display: none; position: absolute; left: 12px; right: 68px; top: 10px; z-index: 4; background: var(--fm-zwart); color: #fff; border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600; box-shadow: 0 2px 10px rgba(0,0,0,.2); }
   .fm-deel-opm { display: flex; flex-direction: column; gap: 8px; }
   .fm-deel-opm input, .fm-deel-opm textarea { font: inherit; font-size: 16px; border: 1px solid #DADDE3; border-radius: 8px; padding: 9px 10px; width: 100%; box-sizing: border-box; }
   .fm-deel-opm .fm-knop { height: 42px; border-radius: 8px; }
   .fm-deel-opm-rij { font-size: 14px; }
   .fm-binnenscherm.lezen .fm-bs-zweef.rechts button:last-child::before { content: '⤢'; font-size: 18px; }
   .fm-binnenscherm.lezen.met-detail .fm-bs-zweef.rechts, .fm-binnenscherm.lezen.lijst-open .fm-bs-zweef.rechts { display: none; }
+  /* Met meten of een punt bezig: de bladen weg, het paneel van het gereedschap onderaan. */
+  .fm-binnenscherm.lezen.met-tool .fm-bs-links, .fm-binnenscherm.lezen.met-tool .fm-bs-rechts { display: none !important; }
+  .fm-binnenscherm.lezen.met-tool .fm-bs-zweef.rechts { bottom: calc(220px + env(safe-area-inset-bottom)); }
+  .fm-binnenscherm.lezen .fm-vp-paneel { bottom: calc(12px + env(safe-area-inset-bottom)); max-height: 46dvh; overflow: auto; }
+  /* De kop van een blad blijft staan, zodat sluiten altijd binnen bereik is. */
+  .fm-binnenscherm.lezen .fm-bs-rechts .fm-bs-lees-kop { position: sticky; top: 0; z-index: 2; background: #fff; padding-top: 6px; padding-bottom: 6px; }
+  .fm-binnenscherm.lezen .fm-bs-greep { justify-content: space-between; }
   /* Onderbladen: lijst (dicht = enkel de greep) en details. */
   .fm-binnenscherm.lezen .fm-bs-links, .fm-binnenscherm.lezen .fm-bs-rechts {
     position: absolute; left: 0; right: 0; bottom: 0; width: auto; z-index: 5; border: 0; border-radius: 14px 14px 0 0;

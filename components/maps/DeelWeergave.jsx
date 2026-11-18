@@ -495,6 +495,21 @@ function DeelBinnen({ data, elementenMap, taal, token = null, hostId = null, onS
   const cam = (() => { try { return new URLSearchParams(window.location.search).get('cam') || data.link?.opties?.cam || null; } catch { return data.link?.opties?.cam || null; } })();
   const camIt = cam ? items.find((i) => i.id === cam && i.velden?.binnen?.host === host?.id) : null;
   const [verd, setVerd] = useState(camIt?.velden?.binnen?.verd && vs.some((v) => v.id === camIt.velden.binnen.verd) ? camIt.velden.binnen.verd : vs[0].id);
+  // Punten met een opmerking in dit binnenplan (veldpunten met een plek binnen): zetten, aanpassen, weghalen.
+  const [vpLijst, setVpLijst] = useState(() => data.veldpunten || []);
+  const magPunt = !!(token && data.link?.opties?.opmerkingen);
+  const bewaarPunt = async ({ host: h, verd: v, p, punt, tekst, naam }) => {
+    const { data: id, error } = await sb().schema('maps').rpc('deel_link_binnenpunt', { p_token: token, p_host: h, p_verd: v, p_x: p[0], p_y: p[1], p_lng: punt?.[0] ?? null, p_lat: punt?.[1] ?? null, p_naam: naam, p_tekst: tekst });
+    if (error || !id) return false;
+    setVpLijst((l) => [...l, { id, punt, binnen: { host: h, verd: v, p }, tekst, auteur: naam || data.link?.naam || '—', status: 'open', op: new Date().toISOString(), eigen: true }]);
+    return true;
+  };
+  const wijzigPunt = async (o, { p = null, punt = null, tekst = null, weg = false }) => {
+    const { data: ok, error } = await sb().schema('maps').rpc('deel_link_binnenpunt_wijzig', { p_token: token, p_id: o.id, p_x: p?.[0] ?? null, p_y: p?.[1] ?? null, p_lng: punt?.[0] ?? null, p_lat: punt?.[1] ?? null, p_tekst: tekst, p_weg: weg });
+    if (error || !ok) return false;
+    setVpLijst((l) => (weg ? l.filter((x) => x.id !== o.id) : l.map((x) => (x.id === o.id ? { ...x, ...(tekst ? { tekst } : {}), ...(p ? { binnen: { ...x.binnen, p }, punt: punt || x.punt } : {}) } : x))));
+    return true;
+  };
   if (!host) return <div className="fm" style={{ padding: 32 }}>Dit binnenplan is niet (meer) beschikbaar.</div>;
   const ols = data.plan?.instellingen?.onderleggers || [];
   const ol = ols.find((o) => o.binnen?.host === host.id && (o.binnen.verd || vs[0].id) === verd) || null;
@@ -505,6 +520,7 @@ function DeelBinnen({ data, elementenMap, taal, token = null, hostId = null, onS
   return (
     <BinnenScherm host={host} verdiepingen={vs} verd={verd} onVerd={setVerd} onderlegger={ol} items={items} taal={taal} fotosVast={fotosVast} merk={merk}
       elementen={data.elementen || []} elementenMap={elementenMap} schrijven={false} beginCamera={camIt ? cam : null} beginCameraBeeld={(() => { try { return leesBeeld(new URLSearchParams(window.location.search).get('v')); } catch { return null; } })()}
+      veldpunten={vpLijst} onPunt={magPunt ? bewaarPunt : null} onPuntWijzig={magPunt ? wijzigPunt : null}
       opmerkingBlok={token && data.link?.opties?.opmerkingen ? (id) => <DeelOpmerkingen key={id} token={token} itemId={id} begin={(data.opmerkingen || []).filter((o) => o.item_id === id)} t={T[taal] || T.nl} /> : null}
       onMaak={leeg} onWijzig={leeg} onVerwijder={leeg} onGrondplan={leeg} onPassen={leeg} onOnderlegger={leeg} onNieuweVerdieping={leeg} onSluit={onSluit} />
   );

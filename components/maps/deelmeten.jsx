@@ -33,16 +33,17 @@ export function meetGeometrie(punten, vlak) {
   return { type: 'FeatureCollection', features: f };
 }
 
-export function MeetPaneel({ taal = 'nl', punten, setPunten, vlak, setVlak, onSluit }) {
+// lengteVan / oppVan: voor een plan in meters (binnenplan) in plaats van lengtegraad/breedtegraad.
+export function MeetPaneel({ taal = 'nl', punten, setPunten, vlak, setVlak, onSluit, lengteVan = null, oppVan = null, uitleg = null }) {
   const t = MEET_TEKST[taal] || MEET_TEKST.nl;
   const ring = vlak && punten.length >= 3 ? [...punten, punten[0]] : punten;
-  const L = punten.length >= 2 ? lengte({ type: 'LineString', coordinates: ring }) : 0;
-  const A = vlak && punten.length >= 3 ? oppervlakte({ type: 'Polygon', coordinates: [ring] }) : 0;
+  const L = punten.length >= 2 ? (lengteVan ? lengteVan(ring) : lengte({ type: 'LineString', coordinates: ring })) : 0;
+  const A = vlak && punten.length >= 3 ? (oppVan ? oppVan(ring) : oppervlakte({ type: 'Polygon', coordinates: [ring] })) : 0;
   return (
     <div className="fm fm-vp-paneel" role="dialog" aria-label={t.knop}>
       <div className="fm-vp-kop"><strong>📏 {t.knop}</strong><button type="button" className="fm-knop klein" onClick={onSluit}>{t.klaar}</button></div>
       <div className="fm-segment">{[[false, t.lijn], [true, t.vlak]].map(([k, n]) => <button key={String(k)} type="button" className={vlak === k ? 'aan' : ''} onClick={() => setVlak(k)}>{n}</button>)}</div>
-      {punten.length < 2 ? <div className="fm-sub">{t.uitleg}</div> : (
+      {punten.length < 2 ? <div className="fm-sub">{uitleg || t.uitleg}</div> : (
         <div style={{ fontSize: 18, fontWeight: 600 }}>{vlak && punten.length >= 3 ? t.omtrek : t.totaal} {getal(L, L < 100 ? 1 : 0)} m{A > 0 ? <span style={{ display: 'block', fontSize: 15 }}>{t.opp} {getal(A, A < 100 ? 1 : 0)} m²</span> : null}</div>
       )}
       <div className="fm-vp-knoppen" style={{ justifyContent: 'flex-start' }}>

@@ -43,7 +43,8 @@ export function zetVeldpunten(map, lijst, concept = null) {
 }
 
 // Paneel in de deellink om een punt te zetten. plek = [lng, lat] (getikt of GPS) of null.
-export function VeldpuntPaneel({ taal = 'nl', plek, setPlek, onBewaar, onSluit, eigen = [], onKies = null }) {
+// gps = false: binnen een gebouw (geen GPS, enkel tikken op het plan). uitleg: eigen uitlegtekst.
+export function VeldpuntPaneel({ taal = 'nl', plek, setPlek, onBewaar, onSluit, eigen = [], onKies = null, gps: metGps = true, uitleg = null }) {
   const t = VP_TEKST[taal] || VP_TEKST.nl;
   const [tekst, setTekst] = useState(''); const [naam, setNaamS] = useState(leesNaam); const [status, setStatus] = useState('');
   useEffect(() => { if (plek) setStatus(''); }, [plek]);
@@ -60,8 +61,8 @@ export function VeldpuntPaneel({ taal = 'nl', plek, setPlek, onBewaar, onSluit, 
   return (
     <div className="fm fm-vp-paneel" role="dialog" aria-label={t.knop}>
       <div className="fm-vp-kop"><strong>{t.knop}</strong><button type="button" className="fm-knop klein" onClick={onSluit}>{t.stop}</button></div>
-      <div className="fm-sub">{t.uitleg}</div>
-      <button type="button" className="fm-knop klein" onClick={gps}>◎ {t.mijn}</button>
+      <div className="fm-sub">{uitleg || t.uitleg}</div>
+      {metGps && <button type="button" className="fm-knop klein" onClick={gps}>◎ {t.mijn}</button>}
       {plek && <>
         <label className="fm-veld">{t.wat}<textarea rows={2} value={tekst} placeholder={t.voorbeeld} maxLength={2000} onChange={(e) => setTekst(e.target.value)} autoFocus /></label>
         <label className="fm-veld">{t.naam}<input value={naam} maxLength={80} onChange={(e) => setNaamS(e.target.value)} /></label>
@@ -79,7 +80,7 @@ export function VeldpuntPaneel({ taal = 'nl', plek, setPlek, onBewaar, onSluit, 
 }
 
 // Een eigen veldpunt (van deze link) aanpassen: tekst, plek (verplaatsen: tik op de kaart of GPS) of weghalen.
-export function VeldpuntBewerk({ o, taal = 'nl', verplaatsen, setVerplaatsen, onWijzig, onSluit }) {
+export function VeldpuntBewerk({ o, taal = 'nl', verplaatsen, setVerplaatsen, onWijzig, onSluit, gps: metGps = true, verplaatsUitleg = null }) {
   const t = VP_TEKST[taal] || VP_TEKST.nl;
   const [bewerk, setBewerk] = useState(false); const [tekst, setTekst] = useState(o.tekst || ''); const [status, setStatus] = useState('');
   useEffect(() => { setTekst(o.tekst || ''); setBewerk(false); setStatus(''); }, [o.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -98,8 +99,8 @@ export function VeldpuntBewerk({ o, taal = 'nl', verplaatsen, setVerplaatsen, on
           ? <><textarea rows={2} value={tekst} maxLength={2000} onChange={(e) => setTekst(e.target.value)} autoFocus />
             <div className="fm-vp-knoppen"><button type="button" className="fm-knop" onClick={() => { setBewerk(false); setTekst(o.tekst || ''); }}>{t.annuleer}</button><button type="button" className="fm-knop zwart" disabled={!tekst.trim()} onClick={async () => { if (await wijzig({ tekst: tekst.trim() })) setBewerk(false); }}>{t.bewaar}</button></div></>
           : verplaatsen
-            ? <><div className="fm-sub" style={{ color: '#C2410C' }}>{t.verplaatsUitleg}</div>
-              <div className="fm-vp-knoppen"><button type="button" className="fm-knop" onClick={() => setVerplaatsen(false)}>{t.annuleer}</button><button type="button" className="fm-knop" onClick={gps}>◎ {t.mijn}</button></div></>
+            ? <><div className="fm-sub" style={{ color: '#C2410C' }}>{verplaatsUitleg || t.verplaatsUitleg}</div>
+              <div className="fm-vp-knoppen"><button type="button" className="fm-knop" onClick={() => setVerplaatsen(false)}>{t.annuleer}</button>{metGps && <button type="button" className="fm-knop" onClick={gps}>◎ {t.mijn}</button>}</div></>
             : <div className="fm-vp-knoppen" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
               <button type="button" className="fm-knop klein" onClick={() => setBewerk(true)}>{t.aanpas}</button>
               <button type="button" className="fm-knop klein" onClick={() => setVerplaatsen(true)}>{t.verplaats}</button>
