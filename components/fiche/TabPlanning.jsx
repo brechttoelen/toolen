@@ -34,6 +34,7 @@ export default function TabPlanning({ f, planId }) {
   const [enkelOpen, setEnkelOpen] = useState(false);
   const [toonProg, setToonProg] = useState(true);
   const [sel, setSel] = useState(new Set());
+  const [levOpen, setLevOpen] = useState(() => new Set());   // opengeklapte leveringen en opbouw
   const [open, setOpen] = useState(null);
 
   const taken = f.d.taken || [];
@@ -44,7 +45,7 @@ export default function TabPlanning({ f, planId }) {
   const programma = f.d.programma || [];
   // Wat en waar van een levering uit de bestelregels die ernaar verwijzen.
   const regelsBij = (l) => (f.d.bestelregels || []).filter((r) => r.levering_id === l.id || r.ophaling_id === l.id);
-  const regelTekst = (l) => { const rs = regelsBij(l); return rs.slice(0, 4).map((r) => `${r.aantal != null ? `${Number(r.aantal)} × ` : ''}${r.wat}`).join(', ') + (rs.length > 4 ? ` +${rs.length - 4}` : ''); };
+  const regelTekst = (l) => { const rs = regelsBij(l); return rs.map((r) => `${r.aantal != null ? `${Number(r.aantal)} × ` : ''}${r.wat}`).join(' · '); };
   // Namen van de items (CAM 1, CAM 2) bij een moment; de telling per leverancier en per moment één keer per weergave.
   const rijenPerSl = new Map(); const namenPerMoment = new Map();
   const regelNamen = (l) => {
@@ -188,7 +189,8 @@ export default function TabPlanning({ f, planId }) {
                       const l = r.l;
                       return (
                         <tr key={`l${l.id}-${r.n || 0}`}><td /><td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.uur || '–'}</td>
-                          <td><b>{momentNaam(l)}{l.werk && slMap.get(l.site_leverancier_id)?.wat ? ` ${slMap.get(l.site_leverancier_id).wat}` : ''} · {l.lev?.naam || 'leverancier'}</b><small>{[r.van > 1 && `dag ${r.n + 1} van ${r.van}`, l.wat || regelTekst(l), uurKort(l.uur_tot) && `tot ${uurKort(l.uur_tot)}`].filter(Boolean).join(' · ')}</small>{regelNamen(l) && <small>{regelNamen(l)}</small>}</td>
+                          <td><b>{momentNaam(l)}{l.werk && slMap.get(l.site_leverancier_id)?.wat ? ` ${slMap.get(l.site_leverancier_id).wat}` : ''} · {l.lev?.naam || 'leverancier'}</b><small>{[r.van > 1 && `dag ${r.n + 1} van ${r.van}`, uurKort(l.uur_tot) && `tot ${uurKort(l.uur_tot)}`, l.wat || (regelsBij(l).length > 0 && `${regelsBij(l).length} ${regelsBij(l).length === 1 ? 'regel' : 'regels'}`)].filter(Boolean).join(' · ')}{regelsBij(l).length > 0 && <> · <button className="pf-link" style={{ fontSize: 'inherit' }} aria-expanded={levOpen.has(`${l.id}-${r.n || 0}`)} onClick={() => setLevOpen((v) => { const n = new Set(v); const k = `${l.id}-${r.n || 0}`; if (n.has(k)) n.delete(k); else n.add(k); return n; })}>{levOpen.has(`${l.id}-${r.n || 0}`) ? 'verbergen' : 'wat en waar'}</button></>}</small>
+                            {levOpen.has(`${l.id}-${r.n || 0}`) && <><small>{regelTekst(l)}</small>{regelNamen(l) && <small>{regelNamen(l)}</small>}</>}</td>
                           <td>{(l.leverpunt_item_id && f.items.find((x) => x.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst || regelPlaats(l) || <span className="pf-stil">Leverpunt ontbreekt</span>}</td>
                           <td>{l.lev?.naam}</td>
                           <td><StatusKeuze waarde={l.status} opties={STATUS_TAAK} uit={!f.schrijven} label="Status levering" onChange={(v) => f.wijzig('leveringen', l.id, { status: v })} /></td></tr>
