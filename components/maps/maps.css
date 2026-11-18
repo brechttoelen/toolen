@@ -2586,3 +2586,11 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-bs-paneel .fm-teken .fm-bs-tegels { padding: 0 14px; }
 .fm-bs-paneel .fm-teken > .fm-sectie { border-bottom: 0; }
 
+/* Bibliotheek (kaart en binnenplan): het zoekveld wint van de algemene zoekveldstijl (.fm input[type=search]),
+   zodat het vergrootglas niet over de tekst staat; terugknop en rubriek op één regel. */
+.fm .fm-bib-zoekveld input[type=search] { height: 36px; padding: 0 32px 0 34px; border: 1px solid var(--t-rand, #D5DCE6); border-radius: 8px; font-size: 13px; background: var(--t-vlak, #F5F7FA); }
+.fm .fm-bib-zoekveld input[type=search]:focus { outline: none; background: #fff; border-color: var(--t-blauw, #108AED); box-shadow: 0 0 0 3px var(--t-blauw-zacht, #E8F3FD); }
+.fm-bib-pad { align-items: center; min-width: 0; }
+.fm-bib-terug { flex: none; white-space: nowrap; }
+.fm-bib-pad b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.fm-bib-pad .fm-sub:last-child { flex: none; }

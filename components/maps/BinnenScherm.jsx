@@ -2275,7 +2275,7 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
             <div className="fm-teken">
               <section>
                 <h3>Punten</h3>
-                {PUNT_TYPES.filter((t) => t.k !== 'invoer' && t.k !== 'stroom').map((t) => tekenRij({ key: t.k, aan: modus === `punt:${t.k}`, ic: <svg width="22" height="22" aria-hidden="true"><PuntSymbool type={t.k} x={11} y={11} /></svg>, naam: t.naam, onClick: () => startModus(`punt:${t.k}`) }))}
+                {PUNT_TYPES.filter((t) => !['invoer', 'stroom', 'stekker'].includes(t.k)).map((t) => tekenRij({ key: t.k, aan: modus === `punt:${t.k}`, ic: <svg width="22" height="22" aria-hidden="true"><PuntSymbool type={t.k} x={11} y={11} /></svg>, naam: t.naam, onClick: () => startModus(`punt:${t.k}`) }))}
               </section>
             </div>
           )}
