@@ -1253,7 +1253,17 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
       {ruimtes.map((r) => { const k = functieNu(r)?.kleur || r.stijl?.kleur || '#2563EB'; return <path key={r.id} d={padW(puntenVan(lokaalVan(r).geometrie), true)} fill={k} fillOpacity={0.09} stroke={k} strokeOpacity={0.55} strokeWidth={1.2} vectorEffect={NS} />; })}
     </g>
   ), [ruimtes, T, voorlopig, actieveFase, dag, hostRing, hostTek, tentGaten]); // eslint-disable-line react-hooks/exhaustive-deps
-  const itemsEl = useMemo(() => <g>{inrichting.map(tekenItem)}</g>, [inrichting, sel, voorlopig, elementenMap, T]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Tekenvolgorde: vloer en podium onderaan, dan het gewone materiaal, dan tafels en stoelen, punten bovenaan.
+  // Anders ligt een later geplaatst podium over de tafels die er al stonden.
+  const tekenRang = (it) => {
+    const el = it.element_id ? elementenMap.get(it.element_id) : null;
+    const t = `${el?.naam || ''} ${el?.categorie || ''} ${it.naam || ''}`;
+    if (it.velden?.meubel) return 2;
+    if (/podium|vloer|tribune|platform|tapijt|plankenvloer|verhoog/i.test(t)) return 0;
+    if (lokaalVan(it).geometrie?.type === 'Point') return 3;
+    return 1;
+  };
+  const itemsEl = useMemo(() => <g>{inrichting.map((it, i) => [tekenRang(it), i, it]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(([, , it]) => tekenItem(it))}</g>, [inrichting, sel, voorlopig, elementenMap, T]); // eslint-disable-line react-hooks/exhaustive-deps
   // Per ruimte: aantal items en zitplaatsen.
   const perRuimte = useMemo(() => new Map(ruimtes.map((r) => { const l = inRuimte(r); return [r.id, { n: l.length, zit: l.reduce((a, it) => a + (it.velden?.meubel ? zitMeubel(it.velden.meubel) : zitVan(elementenMap.get(it.element_id))), 0) }]; })), [ruimtes, inrichting, elementenMap]); // eslint-disable-line react-hooks/exhaustive-deps
   const isHuis = (it) => !!(it.velden?.binnen?.huis || elementenMap.get(it.element_id)?.eigenschappen?.huis);
