@@ -1258,8 +1258,9 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
   const tekenRang = (it) => {
     const el = it.element_id ? elementenMap.get(it.element_id) : null;
     const t = `${el?.naam || ''} ${el?.categorie || ''} ${it.naam || ''}`;
-    if (it.velden?.meubel) return 2;
-    if (/podium|vloer|tribune|platform|tapijt|plankenvloer|verhoog/i.test(t)) return 0;
+    const mt = it.velden?.meubel?.type;
+    if (['podium', 'vloer', 'tribune', 'tapijt'].includes(mt) || (!mt && /podium|vloer|tribune|platform|tapijt|plankenvloer|verhoog/i.test(t))) return 0;
+    if (mt) return 2;
     if (lokaalVan(it).geometrie?.type === 'Point') return 3;
     return 1;
   };
