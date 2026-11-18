@@ -10,7 +10,8 @@ const rad = (g) => (g * Math.PI) / 180;
 const OPLEG = 0.15; const VLOER = 0.2;
 
 export const isTrapEl = (el) => !!el && /trap/i.test(el.naam || '') && el.categorie === 'Units en containers';
-export const isUnitEl = (el) => !!el && !isTrapEl(el) && (el.categorie === 'Units en containers' || (el.categorie === 'Catering' && /container/i.test(`${el.naam} ${el.eigenschappen?.subgroep || ''}`)) || (el.categorie === 'Toiletten' && /container|unit/i.test(el.naam || '')))
+// Cateringcontainers (Bevers) zijn kant-en-klare standen: geen unit, dus geen 3D, stapelen of containerbouwer.
+export const isUnitEl = (el) => !!el && !isTrapEl(el) && (el.categorie === 'Units en containers' || (el.categorie === 'Toiletten' && /container|unit/i.test(el.naam || '')))
   && el.tekenwijze === 'schaal' && Number(el.breedte_m) > 1.5 && Number(el.diepte_m) > 1.5;
 export const isContainerDeel = (el) => isUnitEl(el) || isTrapEl(el);
 
