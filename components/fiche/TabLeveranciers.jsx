@@ -218,6 +218,8 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
   const [bezig, setBezig] = useState(false);
   const [kolom, setKolom] = useState('geplaatst');   // laatste kolom: geplaatst op de kaart of geleverd op het terrein
   const [plak, setPlak] = useState(null);
+  const [kopHoogte, setKopHoogte] = useState(160);   // de selectiebalk blijft net onder de vaste kop van de fiche staan
+  useEffect(() => { const meet = () => { const k = document.querySelector('.pf-kop'); if (k) setKopHoogte(k.offsetHeight); }; meet(); window.addEventListener('resize', meet); return () => window.removeEventListener('resize', meet); }, []);
   const [kaartRij, setKaartRij] = useState(null);   // rij waaronder de luchtfoto openstaat
   const lvMap = opId(f.d.leveringen);
   const lagen = f.lagen || [];
@@ -361,21 +363,20 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
           <label><span className="t-label">Opmerking</span><Bewaarveld klasse="t-veld" waarde={sl.opmerking || ''} uit={!s} label="Opmerking" onBewaar={(v) => f.wijzig('site_leveranciers', sl.id, { opmerking: v.trim() || null })} /></label>
         </div>
 
-        {s && gekozen.length > 0 && (
+        {s && gekozen.length > 0 && (<div className="pf-vastbalk" style={{ top: kopHoogte }}>
           <div className="pf-bulk">
-            <b>{gekozen.length} {gekozen.length === 1 ? 'regel' : 'regels'} geselecteerd</b>
-            {[['levering', 'Levering of opbouw'], ['ophaling', 'Ophaling of afbraak'], ['locatie', 'Locatie'], ['groep', 'Groep'], ['opmerking', 'Opmerking'], ['naar', 'Naar andere leverancier']].map(([k, n]) => (
-              <button key={k} className="pf-bknop" aria-pressed={actie === k} style={actie === k ? { background: 'rgba(255,255,255,.2)' } : undefined} onClick={() => (actie === k ? setActie(null) : startActie(k))}>{n}</button>
+            <b>{gekozen.length} {gekozen.length === 1 ? 'regel' : 'regels'}</b>
+            {[['levering', 'Begin', 'Levering of opbouw instellen'], ['ophaling', 'Einde', 'Ophaling of afbraak instellen'], ['locatie', 'Locatie', 'Locatie instellen'], ['groep', 'Groep', 'Groep instellen'], ['opmerking', 'Opmerking', 'Opmerking instellen'], ['naar', 'Verplaats', 'Naar een andere leverancier van deze site']].map(([k, n, t]) => (
+              <button key={k} className="pf-bknop" title={t} aria-pressed={actie === k} style={actie === k ? { background: 'rgba(255,255,255,.2)' } : undefined} onClick={() => (actie === k ? setActie(null) : startActie(k))}>{n}</button>
             ))}
             <span className="sep" />
-            <button className="pf-bknop" onClick={dupliceer}>Dupliceren</button>
-            <button className="pf-bknop" onClick={splits}>Splitsen per locatie</button>
+            <button className="pf-bknop" title="Regels dupliceren" onClick={dupliceer}>Dupliceer</button>
+            <button className="pf-bknop" title="Eén regel per laag waar het materiaal ligt" onClick={splits}>Splits</button>
             <div className="pf-vul" />
-            <button className="pf-bknop" onClick={wisGekozen}>Wissen</button>
+            <button className="pf-bknop" title="Regels wissen" onClick={wisGekozen}>Wis</button>
             <button className="pf-bknop" onClick={klaar} aria-label="Selectie opheffen">✕</button>
           </div>
-        )}
-        {s && actie && gekozen.length > 0 && (
+          {actie && (
           <div className="pf-actie">
             {(actie === 'levering' || actie === 'periode') && <MomentVelden f={f} soort="levering" waarde={mLev} onChange={setMLev} />}
             {(actie === 'ophaling' || actie === 'periode') && <MomentVelden f={f} soort="ophaling" waarde={mOph} onChange={setMOph} />}
@@ -395,7 +396,8 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
               <button className="t-knop klein stil" onClick={() => setActie(null)}>Annuleren</button>
             </div>
           </div>
-        )}
+          )}
+        </div>)}
 
         <div className="pf-tabvak" style={{ maxHeight: 'none', border: 0, borderRadius: 0 }}>
           <table className="pf-tabel pf-bestel" style={{ minWidth: 980 }}>
