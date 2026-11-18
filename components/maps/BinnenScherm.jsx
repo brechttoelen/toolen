@@ -1878,8 +1878,9 @@ export default function BinnenScherm({ host, verdiepingen, verd, onVerd, onNieuw
         const extra = [f, t.zit ? `${t.zit} zitpl.${max ? ` (max. ${max})` : ''}` : max ? `max. ${max} pers.` : ''].filter(Boolean).join(' · ');
         if (extra) k0.rij(`   ${extra}`, '', [74, 90, 117]);
       }
-      // 2. Per ruimte
+      // 2. Per ruimte (een ruimte zonder functie en zonder materiaal krijgt geen eigen pagina)
       for (const r of lijst) {
+        if (!functiesNu(r).some((x) => x.naam) && !inRuimte(r).length) continue;
         doc.addPage('a4', 'landscape');
         setFocusRuimte(r.id);
         const kr = kaderVan([puntenVan(lokaalVan(r).geometrie)]); let vb = null;
