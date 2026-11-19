@@ -32,7 +32,7 @@ export function useFiche(planId) {
   const laad = useCallback(async () => {
     // Alles wat enkel het plan-id nodig heeft, vertrekt meteen; de rest zodra het plan er is.
     const vast = Promise.all([
-      alles(() => maps().from('items').select('*').eq('plan_id', planId)),
+      alles(() => maps().from('items').select('*').eq('plan_id', planId), 1000, { tegelijk: 2 }),
       maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
       wieBenIk(),
       maps().rpc('plan_leveranciers', { p_plan: planId }),

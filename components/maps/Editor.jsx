@@ -399,7 +399,7 @@ export default function Editor({ planId }) {
           maps().from('plannen').select('*').eq('id', planId).maybeSingle(),
           maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
           maps().from('fasen').select('*').eq('plan_id', planId).order('volgorde'),
-          alles(() => maps().from('items').select('*').eq('plan_id', planId).order('volgorde')),
+          alles(() => maps().from('items').select('*').eq('plan_id', planId).order('volgorde'), 1000, { tegelijk: 2 }),
           haalBibliotheek(planId),
         ]);
         const eerste = [p, l, f, i, b].find((r) => r.error);
@@ -4348,7 +4348,7 @@ export default function Editor({ planId }) {
     }
     await wijzigPlan({ versie: (p.versie || 1) + 1 });
     setLagen((l) => [...l, ...ontbrekend]);
-    const vers = await alles(() => maps().from('items').select('*').eq('plan_id', p.id).order('volgorde'));
+    const vers = await alles(() => maps().from('items').select('*').eq('plan_id', p.id).order('volgorde'), 1000, { tegelijk: 2 });
     const lijst = vers.data || oudeItems;
     bewaarder.current.zetBasis(lijst);
     st.current.items = lijst;

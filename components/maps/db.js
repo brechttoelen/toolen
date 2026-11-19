@@ -102,13 +102,16 @@ export function magBibliotheek(profiel, el = null) {
 
 // PostgREST geeft hoogstens 1000 rijen per vraag. Deze helper haalt alles op, in stukken.
 // maak() geeft telkens een verse vraag terug; het antwoord heeft dezelfde vorm ({ data, error }).
-export async function alles(maak, stap = 1000) {
+export async function alles(maak, stap = 1000, { tegelijk = 1 } = {}) {
+  // Met `tegelijk` > 1 worden meerdere pagina's samen gevraagd (grote tabellen zoals items: één wachtronde minder).
   const data = [];
-  for (let van = 0; ; van += stap) {
-    const r = await maak().order('id').range(van, van + stap - 1);
-    if (r.error) return { data: null, error: r.error };
-    data.push(...(r.data || []));
-    if (!r.data || r.data.length < stap) return { data, error: null };
+  for (let van = 0; ; van += stap * tegelijk) {
+    const rs = await Promise.all(Array.from({ length: tegelijk }, (_, k) => maak().order('id').range(van + k * stap, van + (k + 1) * stap - 1)));
+    for (const r of rs) {
+      if (r.error) return { data: null, error: r.error };
+      data.push(...(r.data || []));
+      if (!r.data || r.data.length < stap) return { data, error: null };
+    }
   }
 }
 

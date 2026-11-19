@@ -146,7 +146,7 @@ export default function Kaart({ planId, profiel, doel, onKiesPlan }) {
           maps().from('plannen').select('*').eq('id', planId).maybeSingle(),
           maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
           maps().from('fasen').select('*').eq('plan_id', planId).order('volgorde'),
-          alles(() => maps().from('items').select('*').eq('plan_id', planId).order('volgorde')),
+          alles(() => maps().from('items').select('*').eq('plan_id', planId).order('volgorde'), 1000, { tegelijk: 2 }),
           haalBibliotheek(planId, { enkelActief: false }),
           maps().from('opmerkingen').select('id, tekst, auteur_naam, status, punt, item_id, created_at').eq('plan_id', planId).not('punt', 'is', null).order('created_at'),
         ]);

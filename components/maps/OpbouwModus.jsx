@@ -43,7 +43,7 @@ export default function OpbouwModus({ planId }) {
           maps().from('plannen').select('*').eq('id', planId).maybeSingle(),
           maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
           maps().from('fasen').select('*').eq('plan_id', planId).order('volgorde'),
-          alles(() => maps().from('items').select('*').eq('plan_id', planId).order('volgorde')),
+          alles(() => maps().from('items').select('*').eq('plan_id', planId).order('volgorde'), 1000, { tegelijk: 2 }),
           haalBibliotheek(planId, { enkelActief: false }),
           maps().from('bestanden').select('item_id').eq('plan_id', planId).eq('soort', 'foto'),
         ]);
