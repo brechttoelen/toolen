@@ -43,7 +43,7 @@ export default function FicheScherm({ planId }) {
   return (
     <div className="pf">
       <AppDialogen />
-      <div className={`pf-kop ${actief === 'planning' ? 'compact' : ''}`}>
+      <div className={`pf-kop ${['planning', 'leveranciers'].includes(actief) ? 'compact' : ''}`}>
         <div className="pf-kruimel"><a href="/maps">Overzicht</a><span>/</span><span>{event?.naam || plan.editie_naam || 'Zonder event'}</span></div>
         <div className="pf-kopregel">
           <h1 className="t-titel">{plan.naam}</h1>

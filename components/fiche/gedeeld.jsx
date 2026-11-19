@@ -1,7 +1,7 @@
 'use client';
 
 // Kleine bouwstenen van de fiche.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { wedstrijd, datumVan, vanDatum, isoDag, label as dagLabel } from './dagen';
 
 export const STATUS_TAAK = [['open', 'Open'], ['bevestigd', 'Bevestigd'], ['klaar', 'Klaar']];
@@ -188,3 +188,34 @@ export function TabNotities({ f, tab }) {
     </section>
   );
 }
+
+// Het scherm vult de rest van het venster; de tabel scrolt binnenin (planning, leveranciers).
+export function useVolHoogte(ref, aan = true) {
+  const [h, setH] = useState(null);
+  useLayoutEffect(() => {
+    if (!aan) return undefined;
+    const meet = () => { if (ref.current) setH(Math.max(360, window.innerHeight - ref.current.getBoundingClientRect().top)); };
+    meet(); window.addEventListener('resize', meet); return () => window.removeEventListener('resize', meet);
+  }, [aan, ref]);
+  return aan ? h : null;
+}
+
+// Knop met een klein paneel eronder (Filter, + Leverancier …); sluit bij klikken ernaast of Escape.
+export function KnopPaneel({ label, aan = false, hoofd = false, rechts = false, breed = 300, children }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const weg = (e) => { if (ref.current && !ref.current.contains(e.target) && !e.target.closest?.('.pf-keuzelijst')) setOpen(false); };
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', weg); window.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', weg); window.removeEventListener('keydown', esc); };
+  }, [open]);
+  return (
+    <span className="pf-filterwrap" ref={ref}>
+      <button className={`t-knop ${hoofd ? 'hoofd' : ''} ${aan ? 'aan' : ''}`} aria-expanded={open} onClick={() => setOpen(!open)}>{label}</button>
+      {open && <div className="pf-filterpop" role="dialog" aria-label={typeof label === 'string' ? label : undefined} style={{ width: breed, ...(rechts ? { left: 'auto', right: 0 } : {}) }}>{typeof children === 'function' ? children(() => setOpen(false)) : children}</div>}
+    </span>
+  );
+}
+

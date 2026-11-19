@@ -3,8 +3,8 @@
 // Leveranciers van de site. De lijst toont één lijn per leverancier; een klik opent de bestelling:
 // regels met aantal, wat, groep, locatie, levering en ophaling, tegenover wat er op de kaart staat.
 // De telling en de regels zelf zitten in bestelling.js.
-import { useEffect, useMemo, useState } from 'react';
-import { StatusKeuze, Bewaarveld, Bewaartekst, Kiezer, Keuze, DagKiezer, Chips, Zoek, Seg, Cijfer, TabNotities } from './gedeeld';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { StatusKeuze, Bewaarveld, Bewaartekst, Kiezer, Keuze, DagKiezer, Chips, Zoek, Seg, TabNotities, Paneel, KnopPaneel, useVolHoogte } from './gedeeld';
 import Toewijzen, { zonderLeverancier } from './Toewijzen';
 import { opId, euro, getal, getalTekst } from './data';
 import { uurKort, leesUur, volgorde } from './dagen';
@@ -20,6 +20,7 @@ export { STATUS_LEV, materiaalVan, leveranciersOpKaart, betrokken, matTekst, ite
 
 const STATUS_OFF = [['gevraagd', 'Gevraagd'], ['ontvangen', 'Ontvangen'], ['goedgekeurd', 'Goedgekeurd'], ['afgewezen', 'Afgewezen']];
 const STATUS_FAC = [['ontvangen', 'Ontvangen'], ['goedgekeurd', 'Goedgekeurd'], ['betaald', 'Betaald'], ['betwist', 'Betwist']];
+const PIJL = <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 const cijfer = (n) => new Intl.NumberFormat('nl-BE', { maximumFractionDigits: 1 }).format(n);
 const eenheidNaam = (e) => (e === 'm' ? 'm' : 'st.');
 const standKlas = { weinig: 'pf-let', veel: 'pf-fout', klaar: 'pf-ok' };
@@ -74,8 +75,11 @@ export default function TabLeveranciers({ f }) {
   // Per leverancier (lijst en bestelling) of Toewijzen (al het materiaal van de kaart). ?weergave=toewijzen vanop de kaart.
   const [weergave, setWeergave] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('weergave') === 'toewijzen' ? 'toewijzen' : 'lijst'));
   const [startZonder, setStartZonder] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('zonder') === '1'));
-  const [kopH, setKopH] = useState(0);
-  useEffect(() => { const meet = () => { const k = document.querySelector('.pf-kop'); if (k) setKopH(k.offsetHeight); }; meet(); window.addEventListener('resize', meet); return () => window.removeEventListener('resize', meet); }, []);
+  const [notOpen, setNotOpen] = useState(false);
+  const [kaartOpen, setKaartOpen] = useState(null);
+  const romp = useRef(null);
+  const hoogte = useVolHoogte(romp, weergave === 'lijst' && !open);
+  const nNotities = (f.d.notities || []).filter((n) => n.tab === 'leveranciers' && !n.klaar).length;
   const [filter, setFilter] = useState('Alle');
   const [zoek, setZoek] = useState('');
   const [suggesties, setSuggesties] = useState([]);
@@ -141,10 +145,7 @@ export default function TabLeveranciers({ f }) {
   const schakel = <Seg waarde={weergave} onChange={(v) => { setWeergave(v); if (v === 'lijst') setStartZonder(false); }} label="Weergave" opties={[['lijst', 'Per leverancier'], ['toewijzen', 'Toewijzen']]} />;
   if (weergave === 'toewijzen') {
     return (
-      <div className="pf-romp">
-        <div className="pf-rij">{schakel}<span className="pf-stil pf-klein">Wie levert wat: per regel, per groep of voor een selectie. Het komt op de items, zoals "Geleverd door" op de kaart.</span></div>
-        <Toewijzen f={f} startZonder={startZonder} onBestelling={naarBestelling} kopHoogte={kopH} />
-      </div>
+      <Toewijzen f={f} startZonder={startZonder} onBestelling={naarBestelling} schakel={schakel} />
     );
   }
 
@@ -159,49 +160,57 @@ export default function TabLeveranciers({ f }) {
   }
 
   const kolommen = fin ? 9 : 7;
+  const nVast = rijen.filter((r) => r.s.vast).length; const nOpv = rijen.filter((r) => r.s.punten.length).length;
+  const levIds = (r) => [...new Set(r.s.rijen.flatMap((x) => (x.vrij ? [] : x.ids || [])))];
+  const filters = ['Alle', 'Op te volgen', ...(fin ? ['Nog geen offerte', 'Factuur wijkt af'] : [])];
   return (
-    <div className="pf-romp">
-      <div className="pf-rij">{schakel}</div>
-      <div className="pf-raster vier">
-        <Cijfer n={rijen.length} tekst="leveranciers" />
-        <Cijfer n={rijen.filter((r) => r.s.vast).length} tekst="bestelling vastgezet" />
-        <Cijfer n={rijen.filter((r) => r.s.punten.length).length} tekst="op te volgen" klasse={rijen.some((r) => r.s.punten.length) ? 'pf-let' : ''} />
+    <div className={`pf-plan ${notOpen ? 'met-paneel' : ''}`} ref={romp} style={hoogte ? { height: hoogte } : undefined}>
+      <div className="pf-planbalk">
+        {schakel}
+        <Zoek waarde={zoek} onChange={setZoek} placeholder="Zoek leverancier of materiaal" />
+        <KnopPaneel label={`Filter${filter !== 'Alle' ? ' · 1' : ''}`} aan={filter !== 'Alle'}>
+          {(sluit) => <><span className="t-label">Toon</span><Chips waarde={filter} onChange={(v) => { setFilter(v); sluit(); }} opties={filters.map((x) => [x, x])} /></>}
+        </KnopPaneel>
+        <div className="pf-vul" />
+        <span className="pf-stil pf-klein pf-telling">{rijen.length} leveranciers · {nVast} vastgezet · <span className={nOpv ? 'pf-let' : ''}>{nOpv} op te volgen</span>{zonderLev.stuks ? <> · <span className="pf-let">{cijfer(zonderLev.stuks)} st. zonder leverancier</span></> : null}</span>
+        <button className="t-knop" onClick={exportAlles}>Excel</button>
+        <button className={`t-knop ${notOpen ? 'aan' : ''}`} onClick={() => setNotOpen(!notOpen)}>Notities{nNotities ? ` · ${nNotities}` : ''}</button>
+        {f.schrijven && <KnopPaneel label="+ Leverancier" hoofd rechts breed={340}>
+          {(sluit) => <><span className="t-label">Leverancier toevoegen aan deze site</span>
+            <Keuze waarde={null} vrij label="Leverancier toevoegen" placeholder="Kies of typ een nieuwe naam" style={{ width: '100%' }}
+              opties={f.d.leveranciers.filter((l) => !opSite.has(l.id) && !opKaart.has(l.id) && l.actief !== false).map((l) => ({ id: l.id, naam: l.naam, sub: l.categorieen?.join(', ') || '' }))}
+              onChange={(v) => { if (v) { voegLevToe(v); sluit(); } }} onVrij={(v) => { if (v) { nieuweNaam(v); sluit(); } }} />
+            <span className="pf-stil pf-klein">Wie materiaal op de kaart heeft, staat er al vanzelf.</span></>}
+        </KnopPaneel>}
       </div>
+      {filter !== 'Alle' && <div className="pf-chiprij"><button className="pf-chip aan" onClick={() => setFilter('Alle')}>{filter} ✕</button></div>}
       {weg.length > 0 && f.schrijven && (
         <div className="t-melding let-op pf-rij">
           <span style={{ flex: 1 }}>{weg.length} {weg.length === 1 ? 'leverancier heeft' : 'leveranciers hebben'} geen materiaal meer op de kaart en verder niets op deze site: {weg.map((x) => levMap.get(x.leverancier_id)?.naam).filter(Boolean).join(', ')}.</span>
           <button className="t-knop klein" onClick={() => f.wis('site_leveranciers', weg.map((x) => x.id))}>Weghalen</button>
         </div>
       )}
-      <div className="pf-rij">
-        <Zoek waarde={zoek} onChange={setZoek} placeholder="Zoek een leverancier of materiaal" />
-        <Chips waarde={filter} onChange={setFilter} opties={['Alle', 'Op te volgen', ...(fin ? ['Nog geen offerte', 'Factuur wijkt af'] : [])].map((x) => [x, x])} />
-        <div className="pf-vul" />
-        <button className="t-knop" onClick={exportAlles}>Excel</button>
-        {f.schrijven && <>
-          <Keuze waarde={null} vrij label="Leverancier toevoegen" placeholder="Leverancier toevoegen: kies of typ een nieuwe naam" style={{ width: 340 }}
-            opties={f.d.leveranciers.filter((l) => !opSite.has(l.id) && !opKaart.has(l.id) && l.actief !== false).map((l) => ({ id: l.id, naam: l.naam, sub: l.categorieen?.join(', ') || '' }))}
-            onChange={(v) => v && voegLevToe(v)} onVrij={(v) => v && nieuweNaam(v)} />
-        </>}
-      </div>
-      <div className="pf-tabvak">
+      <div className="pf-tabvak pf-planvak">
         <table className="pf-tabel" style={{ minWidth: fin ? 1040 : 820 }}>
-          <thead><tr><th>Leverancier</th><th style={{ width: 170 }}>Status</th><th className="getal" style={{ width: 60 }}>Regels</th><th className="getal" style={{ width: 120 }}>Geplaatst</th><th>Eerste levering → laatste ophaling</th><th style={{ width: 110 }}>Opvolgen</th>{fin && <><th className="getal">Offerte</th><th className="getal">Factuur</th></>}<th style={{ width: 24 }} /></tr></thead>
+          <thead><tr><th style={{ width: 52 }} /><th>Leverancier</th><th style={{ width: 170 }}>Status</th><th className="getal" style={{ width: 60 }}>Regels</th><th className="getal" style={{ width: 120 }}>Geplaatst</th><th>Eerste levering → laatste ophaling</th><th style={{ width: 110 }}>Opvolgen</th>{fin && <><th className="getal">Offerte</th><th className="getal">Factuur</th></>}</tr></thead>
           <tbody>
-            {!zichtbaar.length && <tr><td colSpan={kolommen} className="pf-leeg">{rijen.length ? 'Geen leverancier past bij deze filter.' : 'Nog geen leveranciers op deze site. Ze verschijnen vanzelf zodra er materiaal van een leverancier op de kaart staat.'}</td></tr>}
             {zonderLev.stuks > 0 && !q && filter === 'Alle' && (
               <tr className="pf-zonderlev">
-                <td><button className="pf-rijknop" onClick={() => { setStartZonder(true); setWeergave('toewijzen'); }}>Zonder leverancier</button><small>Materiaal op de kaart dat niemand levert</small></td>
-                <td colSpan={2}><span className="t-pil let-op">{zonderLev.regels} {zonderLev.regels === 1 ? 'regel' : 'regels'}</span></td>
-                <td className="getal"><b className="pf-let">{cijfer(zonderLev.stuks)}</b><span className="pf-stil"> st.</span></td>
-                <td colSpan={fin ? 4 : 2}>{f.schrijven && <button className="t-knop klein hoofd" onClick={() => { setStartZonder(true); setWeergave('toewijzen'); }}>Toewijzen</button>}</td>
                 <td />
+                <td><button className="pf-rijknop" onClick={() => { setStartZonder(true); setWeergave('toewijzen'); }}>Zonder leverancier</button><small>Materiaal op de kaart dat niemand levert</small></td>
+                <td>{f.schrijven && <button className="t-knop klein hoofd" onClick={() => { setStartZonder(true); setWeergave('toewijzen'); }}>Toewijzen</button>}</td>
+                <td className="getal">{zonderLev.regels}</td>
+                <td className="getal"><b className="pf-let">{cijfer(zonderLev.stuks)}</b><span className="pf-stil"> st.</span></td>
+                <td colSpan={fin ? 4 : 2} />
               </tr>
             )}
+            {!zichtbaar.length && <tr><td colSpan={kolommen} className="pf-leeg">{rijen.length ? 'Geen leverancier past bij deze filter.' : 'Nog geen leveranciers op deze site. Ze verschijnen vanzelf zodra er materiaal van een leverancier op de kaart staat.'}</td></tr>}
             {zichtbaar.map((r) => {
               const s = r.s; const st = s.vast ? (s.geplaatst < s.besteld ? 'weinig' : s.geplaatst > s.besteld ? 'veel' : 'klaar') : null;
-              return (
-                <tr key={r.x.id || r.x.leverancier_id}>
+              const k = r.x.id || r.x.leverancier_id; const isOpen = kaartOpen === k; const ids = isOpen ? levIds(r) : null;
+              return [
+                <tr key={k} className={isOpen ? 'gekozen' : ''}>
+                  <td className="pf-pijlcel"><span className="pf-vakjes"><span /><button className="pf-pijl" aria-expanded={isOpen} aria-label={`Toon het materiaal van ${r.lev.naam} op de luchtfoto`} onClick={() => setKaartOpen(isOpen ? null : k)}>{PIJL}</button></span></td>
                   <td><button className="pf-rijknop" onClick={() => openLijn(r)}>{r.lev.naam}</button><small>{r.x.wat || r.lev.categorieen?.join(', ') || ''}</small></td>
                   <td>{r.x.id
                     ? <StatusKeuze waarde={r.x.status} opties={STATUS_LEV} uit={!f.schrijven} label={`Status ${r.lev.naam}`} onChange={(v) => f.wijzig('site_leveranciers', r.x.id, { status: v })} />
@@ -214,14 +223,16 @@ export default function TabLeveranciers({ f }) {
                     ? <span className={`t-pil ${s.punten.some((p) => p.k === 'fout') ? 'fout' : 'let-op'}`} title={s.punten.map((p) => p.t).join('\n')}>{s.punten.length} {s.punten.length === 1 ? 'punt' : 'punten'}</span>
                     : s.regels ? <span className="pf-ok pf-klein">in orde</span> : <span className="pf-stil">–</span>}</td>
                   {fin && <><td className="getal">{euro(r.offT)}</td><td className={`getal ${r.verschil > 0.009 ? 'pf-fout' : ''}`}>{euro(r.facT)}</td></>}
-                  <td className="getal"><button className="pf-link" onClick={() => openLijn(r)} aria-label={`Open ${r.lev.naam}`}>›</button></td>
-                </tr>
-              );
+                </tr>,
+                isOpen && <tr key={`${k}-kaart`} className="pf-kaartrij"><td colSpan={kolommen}>
+                  {ids.length ? <RijKaart plan={f.plan} items={f.items} lagen={f.lagen} elementen={f.elementen} ids={ids} onSluit={() => setKaartOpen(null)} /> : <div className="pf-stil" style={{ padding: '8px 16px' }}>Niets van {r.lev.naam} op de kaart.</div>}
+                </td></tr>,
+              ];
             })}
           </tbody>
         </table>
       </div>
-      <TabNotities f={f} tab="leveranciers" />
+      {notOpen && <Paneel naast titel="Notities" sub="Leveranciers" onSluit={() => setNotOpen(false)}><TabNotities f={f} tab="leveranciers" /></Paneel>}
     </div>
   );
 }

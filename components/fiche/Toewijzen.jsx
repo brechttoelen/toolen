@@ -3,11 +3,12 @@
 // Leveranciers › Toewijzen: al het materiaal van de kaart, gegroepeerd per categorie, laag, groep of leverancier.
 // Per regel, per groep of voor een selectie kies je wie het levert; dat komt op de items zelf (velden.herkomst),
 // dezelfde plek als "Geleverd door" op de kaart. Vervangt het vroegere materiaalscherm van de kaart.
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { berekenStuklijst } from '../maps/Stuklijst';
 import { GEEN_LEV } from '../maps/stijl';
 import { getOrganisatie } from '../maps/merk';
-import { Keuze, Seg, Zoek } from './gedeeld';
+import { Keuze, Seg, Zoek, useVolHoogte } from './gedeeld';
+import { ZONDER_LEVERANCIER } from '../maps/categorieen';
 import { opId } from './data';
 import RijKaart from './RijKaart';
 
@@ -29,7 +30,7 @@ function regelsVan(items, els, lagen) {
 export function zonderLeverancier(f) {
   const { els, lagen, items } = materiaal(f);
   const im = new Map(items.map((i) => [i.id, i]));
-  const rs = regelsVan(items, els, lagen).filter((r) => !r.leverancier && [...(r.ids || [])].some((id) => { const it = im.get(id); return it?.element_id && els.has(it.element_id); }));
+  const rs = regelsVan(items, els, lagen).filter((r) => !r.leverancier && !ZONDER_LEVERANCIER.includes(r.categorie) && [...(r.ids || [])].some((id) => { const it = im.get(id); return it?.element_id && els.has(it.element_id); }));
   return { regels: rs.length, stuks: rs.reduce((t, r) => t + (Number(r.aantal) || 0), 0) };
 }
 
@@ -45,7 +46,8 @@ function LevKeuze({ waarde, namen, uit, onKies, label, breed = 200 }) {
   );
 }
 
-export default function Toewijzen({ f, startZonder = false, onBestelling, kopHoogte = 0 }) {
+export default function Toewijzen({ f, startZonder = false, onBestelling, schakel = null }) {
+  const romp = useRef(null); const hoogte = useVolHoogte(romp);
   const { els, lagen, items } = useMemo(() => materiaal(f), [f.elementen, f.lagen, f.items]); // eslint-disable-line react-hooks/exhaustive-deps
   const itemMap = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const [groep, setGroep] = useState('cat');
@@ -78,7 +80,7 @@ export default function Toewijzen({ f, startZonder = false, onBestelling, kopHoo
   // Items met een element in de bibliotheek: enkel die krijgen een leverancier.
   const metEl = (ids) => [...(ids || [])].filter((id) => { const it = itemMap.get(id); return it?.element_id && els.has(it.element_id); });
   const q = zoek.trim().toLowerCase();
-  const zichtbaar = groepen.map(([g, rs]) => [g, rs.filter((r) => metEl(r.ids).length && (!zonder || !r.leverancier) && (!q || r.naam.toLowerCase().includes(q) || (r.leverancier || '').toLowerCase().includes(q) || g.toLowerCase().includes(q)))]).filter(([, rs]) => rs.length);
+  const zichtbaar = groepen.map(([g, rs]) => [g, rs.filter((r) => metEl(r.ids).length && (!zonder || (!r.leverancier && !ZONDER_LEVERANCIER.includes(r.categorie))) && (!q || r.naam.toLowerCase().includes(q) || (r.leverancier || '').toLowerCase().includes(q) || g.toLowerCase().includes(q)))]).filter(([, rs]) => rs.length);
   const sleutel = (g, r) => `${g}|${r.naam}|${r.leverancier}|${[...(r.ids || [])][0] || ''}`;
   const namenVan = (r) => [...new Set(metEl(r.ids).map((id) => itemMap.get(id)?.naam).filter((n) => n && n !== r.naam))];
 
@@ -113,34 +115,33 @@ export default function Toewijzen({ f, startZonder = false, onBestelling, kopHoo
     window.location.href = `/maps/${f.plan.id}?toon=1`;
   };
   const totaal = zichtbaar.reduce((t, [, rs]) => t + rs.length, 0);
-  const nZonder = groepen.reduce((t, [, rs]) => t + rs.filter((r) => !r.leverancier && metEl(r.ids).length).reduce((u, r) => u + (Number(r.aantal) || 0), 0), 0);
+  const nZonder = groepen.reduce((t, [, rs]) => t + rs.filter((r) => !r.leverancier && !ZONDER_LEVERANCIER.includes(r.categorie) && metEl(r.ids).length).reduce((u, r) => u + (Number(r.aantal) || 0), 0), 0);
 
   return (
-    <div className="pf-toew">
-      <div className="pf-rij">
-        <span className="pf-stil pf-klein">Groeperen</span>
-        <Seg waarde={groep} onChange={setGroep} label="Groeperen" opties={[['cat', 'Categorie'], ['laag', 'Laag'], ['groep', 'Groep'], ['lev', 'Leverancier']]} />
-        <Zoek waarde={zoek} onChange={setZoek} placeholder="Zoek materiaal of leverancier" />
-        <button className={`pf-chip ${zonder ? 'aan let' : ''}`} aria-pressed={zonder} onClick={() => setZonder(!zonder)}>{ZONDER}{nZonder ? ` · ${getal(nZonder)}` : ''}{zonder ? ' ✕' : ''}</button>
-        <div className="pf-vul" />
-        <span className="pf-stil pf-klein">{totaal} regels{nZonder ? ` · ${getal(nZonder)} stuks zonder leverancier` : ''}</span>
-      </div>
-
-      {s && selIds.length > 0 && (
-        <div className="pf-vastbalk" style={{ top: kopHoogte }}>
-          <div className="pf-bulk" role="toolbar" aria-label="Selectie toewijzen">
-            <b>{selRegels.length} {selRegels.length === 1 ? 'regel' : 'regels'} · {getal(selIds.length)} items</b>
-            <span className="pf-klein" style={{ opacity: 0.85, whiteSpace: 'nowrap' }}>Leverancier</span>
-            <span className="pf-toew-bulkkeuze"><LevKeuze namen={namen} waarde="" label="Leverancier voor de selectie" breed={200} onKies={async (v) => { await toewijs(selIds, v); setSel(new Map()); }} /></span>
-            <button className="pf-bknop" onClick={() => toonOpKaart(selIds, `${selRegels.length} regels`)}>Toon op de kaart</button>
-            {selLev.length === 1 && selLev[0] && onBestelling && <button className="pf-bknop" onClick={() => onBestelling(selLev[0])}>Naar de bestelling</button>}
-            <span style={{ flex: 1 }} />
-            <button className="pf-bknop" onClick={() => setSel(new Map())} aria-label="Selectie wissen">✕</button>
-          </div>
+    <div className="pf-plan pf-toew" ref={romp} style={hoogte ? { height: hoogte } : undefined}>
+      {s && selIds.length > 0 ? (
+        <div className="pf-planbalk sel" role="toolbar" aria-label="Selectie toewijzen">
+          <b>{selRegels.length} {selRegels.length === 1 ? 'regel' : 'regels'} · {getal(selIds.length)} items</b>
+          <span className="pf-klein" style={{ opacity: 0.85, whiteSpace: 'nowrap', marginRight: 4 }}>Leverancier</span>
+          <span className="pf-toew-bulkkeuze"><LevKeuze namen={namen} waarde="" label="Leverancier voor de selectie" breed={200} onKies={async (v) => { await toewijs(selIds, v); setSel(new Map()); }} /></span>
+          <span className="sep" />
+          <button className="pf-bknop" onClick={() => toonOpKaart(selIds, `${selRegels.length} regels`)}>Toon op de kaart</button>
+          {selLev.length === 1 && selLev[0] && onBestelling && <button className="pf-bknop" onClick={() => onBestelling(selLev[0])}>Naar de bestelling</button>}
+          <span style={{ flex: 1 }} />
+          <button className="pf-bknop" onClick={() => setSel(new Map())} aria-label="Selectie wissen">✕</button>
+        </div>
+      ) : (
+        <div className="pf-planbalk">
+          {schakel}
+          <Seg waarde={groep} onChange={setGroep} label="Groeperen" opties={[['cat', 'Categorie'], ['laag', 'Laag'], ['groep', 'Groep'], ['lev', 'Leverancier']]} />
+          <Zoek waarde={zoek} onChange={setZoek} placeholder="Zoek materiaal of leverancier" />
+          <button className={`pf-chip ${zonder ? 'aan let' : ''}`} aria-pressed={zonder} onClick={() => setZonder(!zonder)}>{ZONDER}{nZonder ? ` · ${getal(nZonder)}` : ''}{zonder ? ' ✕' : ''}</button>
+          <div className="pf-vul" />
+          <span className="pf-stil pf-klein pf-telling">{totaal} regels{nZonder ? <> · <span className="pf-let">{getal(nZonder)} st. zonder leverancier</span></> : null}</span>
         </div>
       )}
 
-      <div className="pf-tabvak">
+      <div className="pf-tabvak pf-planvak">
         <table className="pf-tabel" style={{ minWidth: 760 }}>
           <thead><tr><th style={{ width: 52 }} /><th>Materiaal</th><th className="getal" style={{ width: 110 }}>Aantal</th><th style={{ width: 230 }}>Geleverd door</th></tr></thead>
           <tbody>
