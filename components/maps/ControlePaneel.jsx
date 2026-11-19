@@ -9,6 +9,7 @@ import { maps, foutTekst } from './db';
 import { instBrand, zoneVoorTekst, VELDEN, haal, zetEigen, STANDAARD_BRON } from './veiligheid';
 import { ZONES } from './brandweerzones';
 import { sorteerCategorieen } from './categorieen';
+import { SkeletRijen } from '../Skelet';
 
 const KLEUR = { fout: '#B91C1C', waarschuwing: '#D97706', info: '#686D76' };
 
@@ -145,7 +146,7 @@ function Opmerkingen({ items, schrijven, onKiesItem, onAantal }) {
   return (
     <Blok titel="Opmerkingen" open={aan} onWissel={setAan} rechts={opm ? <span className="fm-sub">{opm.filter((o) => o.status === 'open').length} open</span> : null}>
       {fout && <div className="fm-melding fout">{fout}</div>}
-      {opm === null && <div className="fm-sub">Laden…</div>}
+      {opm === null && <SkeletRijen rijen={4} kop={false} kolommen={['1fr', 60]} rijHoogte={40} />}
       {opm && !opm.length && <div className="fm-sub">Geen opmerkingen in dit plan.</div>}
       {opm?.map((o) => (
         <div key={o.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '6px 0', borderBottom: '1px solid #f4f4f2', opacity: o.status === 'open' ? 1 : 0.55 }}>

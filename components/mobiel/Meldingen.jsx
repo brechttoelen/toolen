@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { maps, foutTekst, magSchrijven } from '../maps/db';
 import { Ic } from './iconen';
+import { SkeletRijen } from '../Skelet';
 
 const tijd = (t) => new Date(t).toLocaleString('nl-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -56,7 +57,7 @@ export default function Meldingen({ profiel, onOpen, onAantal }) {
             <button type="button" className={toon === 'alle' ? 'aan' : ''} onClick={() => setToon('alle')}>Alle</button>
           </div>
           {fout && <div className="mb-melding fout">{fout}</div>}
-          {lijst === null && <p className="mb-sub">Laden…</p>}
+          {lijst === null && <SkeletRijen rijen={5} kop={false} kolommen={[28, '1fr']} rijHoogte={56} />}
           {lijst && !lijst.length && <p className="mb-leeg">{toon === 'open' ? 'Geen open meldingen.' : 'Nog geen meldingen.'}</p>}
           {lijst && lijst.length > 0 && (
             <div className="mb-lijst">

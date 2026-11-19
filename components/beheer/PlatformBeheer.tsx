@@ -9,6 +9,7 @@ import {
 } from "@/lib/pakketten";
 import { HOOFDDOMEIN } from "@/lib/org";
 import HuisstijlBeheer from "./HuisstijlBeheer";
+import { SkeletRijen } from '../Skelet';
 
 type Org = {
   id: string; slug: string; naam: string; kort: string | null; status: string; status_sinds: string; proef_tot: string | null;
@@ -142,7 +143,7 @@ export default function PlatformBeheer({ blad = "organisaties" }: { blad?: "orga
             <tr><th>Organisatie</th><th>Status</th><th>Pakket</th><th>Plaatsen</th><th>Lezers</th><th>Plannen</th><th>Eigenaar</th><th>Laatst actief</th></tr>
           </thead>
           <tbody>
-            {orgs === null && <tr><td colSpan={8} className="t-stil">Laden…</td></tr>}
+            {orgs === null && <tr><td colSpan={8} style={{ padding: 0 }}><SkeletRijen rijen={6} kop={false} kolommen={['1fr', '12%', '12%', '12%', '10%', 80]} /></td></tr>}
             {orgs && lijst.length === 0 && <tr><td colSpan={8} className="t-stil">Geen organisaties.</td></tr>}
             {lijst.map((o) => {
               const st = statusVan(o.status);

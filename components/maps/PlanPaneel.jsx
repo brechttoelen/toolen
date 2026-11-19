@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { maps, foutTekst, namenVan } from './db';
 import { nieuweOnderlegger, verwijderBestand } from './onderlegger';
 import { zichtbareBreedte } from './OnderleggerGrepen';
+import { SkeletRijen } from '../Skelet';
 
 // Vergelijking tussen een bewaarde versie en het huidige plan.
 export function verschil(oud, nu) {
@@ -231,7 +232,7 @@ export default function PlanPaneel({
 
       {deel === 'geschiedenis' && <>
       <Blok titel="Versies" open={open.versies} onWissel={() => wissel('versies')} rechts={<span className="fm-sub">nu v{plan.versie}</span>}>
-        {versies === null && <div className="fm-sub">Laden…</div>}
+        {versies === null && <SkeletRijen rijen={4} kop={false} kolommen={['1fr', 60]} rijHoogte={40} />}
         {versies && !versies.length && <div className="fm-sub">Nog geen bewaarde versies. Met "Versie bewaren" bovenaan leg je de huidige stand vast.</div>}
         {versies?.map((v) => (
           <div key={v.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 0', borderBottom: '1px solid #f4f4f2' }}>
@@ -285,7 +286,7 @@ function Prullenbak({ plan, schrijven, open, onWissel }) {
   return (
     <Blok titel="Verwijderde items" open={open} onWissel={onWissel} info="Wat de laatste 90 dagen verwijderd werd, door jou of een collega. Terugzetten zet het item op zijn oude plaats." rechts={lijst ? <span className="fm-sub">{lijst.length}{lijst.length === 50 ? '+' : ''}</span> : null}>
       {fout && <div className="fm-melding fout">{fout}</div>}
-      {lijst === null && <div className="fm-sub">Laden…</div>}
+      {lijst === null && <SkeletRijen rijen={4} kop={false} kolommen={['1fr', 60]} rijHoogte={40} />}
       {lijst && !lijst.length && <div className="fm-sub">Niets verwijderd.</div>}
       {lijst?.map((r) => (
         <div key={r.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '5px 0', borderBottom: '1px solid #f4f4f2' }}>

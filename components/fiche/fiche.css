@@ -304,3 +304,10 @@
 .pf-rijkaart .pf-lijstknop .detail { display: none; }
 .pf-rijkaart .pf-lijstknop:hover .detail, .pf-rijkaart .pf-lijstknop:focus-visible .detail { display: block; }
 .pf-tabel td.pf-uur small { display: block; color: var(--t-tekst-2); }
+/* Selectievakje en openklappijl altijd op dezelfde plaats */
+.pf-vakjes { display: grid; grid-template-columns: 16px 22px; gap: 4px; align-items: center; justify-items: center; }
+.pf-vakjes input { margin: 0; }
+.pf-tabel td.pf-pijlcel { padding-left: 12px; padding-right: 4px; }
+.pf-tabel tr.groep.dag td { padding-left: 12px; }
+.pf-dagvak { width: 16px; flex: none; display: inline-flex; justify-content: center; }
+.pf-dagvak input { margin: 0; }

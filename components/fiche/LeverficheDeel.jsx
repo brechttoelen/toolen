@@ -5,11 +5,12 @@ import { useEffect, useState } from 'react';
 import { sb } from '../maps/db';
 import { leverficheGroepen, eindeTekst, aantalTekst } from './bestelling';
 import './fiche.css';
+import { SkeletRijen } from '../Skelet';
 
 export default function LeverficheDeel({ token }) {
   const [d, setD] = useState(undefined);
   useEffect(() => { sb().schema('maps').rpc('leverfiche', { p_token: token }).then(({ data }) => setD(data || null), () => setD(null)); }, [token]);
-  if (d === undefined) return <main className="pf-lf"><p className="pf-stil">Laden…</p></main>;
+  if (d === undefined) return <main className="pf-lf"><SkeletRijen rijen={8} kolommen={['1fr', '20%', 80]} /></main>;
   if (!d) return <main className="pf-lf"><h1>Leverfiche</h1><p>Deze link bestaat niet of is ingetrokken.</p></main>;
   const plan = { naam: d.plan, wedstrijd_van: d.wedstrijd_van, wedstrijd_tot: d.wedstrijd_tot };
   const van = d.wedstrijd_van ? new Date(`${d.wedstrijd_van}T12:00:00`).toLocaleDateString('nl-BE', { day: 'numeric', month: 'long', year: 'numeric' }) : '';

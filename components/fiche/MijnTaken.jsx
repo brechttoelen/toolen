@@ -8,6 +8,7 @@ import './fiche.css';
 import { maps, foutTekst, wieBenIk } from '../maps/db';
 import { dagNaam, canoniek, sleutel, volgorde, uurKort, datumVan } from './dagen';
 import { StatusKeuze, STATUS_TAAK, Chips } from './gedeeld';
+import { SkeletRijen } from '../Skelet';
 
 export default function MijnTaken() {
   const [st, setSt] = useState({ laden: true, fout: '', rijen: [], plannen: new Map() });
@@ -51,7 +52,7 @@ export default function MijnTaken() {
       <div className="pf-romp">
         <Chips waarde={filter} onChange={setFilter} opties={[['komend', 'Vanaf vandaag'], ['open', 'Nog open'], ['alles', 'Alles']]} />
         {st.fout && <div className="t-melding fout">{st.fout}</div>}
-        {st.laden && <p className="pf-stil">Laden…</p>}
+        {st.laden && <div className="pf-tabvak"><SkeletRijen rijen={8} kolommen={[28, 64, '1fr', '20%', '16%', 110]} /></div>}
         {st.geenPersoon && <div className="t-melding">Je staat nog niet als persoon in een team. Vraag de projectmanager om je toe te voegen bij Contacten van een site.</div>}
         {!st.laden && !st.geenPersoon && !lijst.length && <p className="pf-stil">Geen taken in deze lijst.</p>}
         {lijst.map((g) => (

@@ -16,6 +16,7 @@ import TabContacten from './TabContacten';
 import { TabLocaties, TabMobiliteit } from './TabLocaties';
 import { TabOverzicht, TabNotitiesPagina, TabInfo, ALLE_TABS } from './TabOverig';
 import { opId } from './data';
+import { SkeletFiche } from '../Skelet';
 
 export default function FicheScherm({ planId }) {
   const f = useFiche(planId);
@@ -26,7 +27,7 @@ export default function FicheScherm({ planId }) {
   }, []);
   const naar = (t, extra = {}) => { const u = new URL(window.location.href); u.searchParams.delete('lev'); for (const [k, v] of Object.entries(extra)) u.searchParams.set(k, v); setTab(t); u.searchParams.set('tab', t); window.history.replaceState(null, '', u); window.scrollTo(0, 0); };
 
-  if (f.laden) return <div className="pf"><div className="pf-romp"><p className="pf-stil">Laden…</p></div></div>;
+  if (f.laden) return <SkeletFiche />;
   if (!f.plan) return <div className="pf"><div className="pf-romp"><div className="t-melding fout">{f.fout || 'Dit plan bestaat niet.'}</div></div></div>;
 
   const { plan, event } = f;

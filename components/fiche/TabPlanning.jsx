@@ -176,11 +176,11 @@ export default function TabPlanning({ f, planId, naar }) {
   const pijl = <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
   const rijVan = (r) => {
-    if (r.soort === 'prog') return <tr key={`p${r.p.id}`} className="prog"><td /><td className="pf-uur">{r.uur || '–'}</td><td colSpan={4}><span className="pf-soortik prog" aria-hidden="true" /><b>{r.p.wat}</b><small>Programma</small></td></tr>;
+    if (r.soort === 'prog') return <tr key={`p${r.p.id}`} className="prog"><td /><td className="pf-uur">{r.uur || '–'}{uurKort(r.p.uur_tot) && <small>{uurKort(r.p.uur_tot)}</small>}</td><td colSpan={4}><span className="pf-soortik prog" aria-hidden="true" /><b>{r.p.wat}</b><small>Programma</small></td></tr>;
     if (r.soort === 'levering') {
       const l = r.l; const lk = `${l.id}-${r.n || 0}`; const isOpen = levOpen === lk; const rs = regelsBij(l); const waar = levWaar(l);
       return [
-        <tr key={`l${lk}`} className={`${isOpen ? 'gekozen' : ''} ${l.status === 'klaar' ? 'klaar' : ''}`}><td className="pf-pijlcel">{(rs.length > 0 || f.schrijven) && <button className="pf-pijl" aria-expanded={isOpen} aria-label="Wat en waar tonen, met kaart en opmerking" onClick={() => setLevOpen(isOpen ? null : lk)}>{pijl}</button>}</td><td className="pf-uur">{r.uur || '–'}{uurKort(l.uur_tot) && <small>{uurKort(l.uur_tot)}</small>}</td>
+        <tr key={`l${lk}`} className={`${isOpen ? 'gekozen' : ''} ${l.status === 'klaar' ? 'klaar' : ''}`}><td className="pf-pijlcel"><span className="pf-vakjes"><span />{(rs.length > 0 || f.schrijven) ? <button className="pf-pijl" aria-expanded={isOpen} aria-label="Wat en waar tonen, met kaart en opmerking" onClick={() => setLevOpen(isOpen ? null : lk)}>{pijl}</button> : <span />}</span></td><td className="pf-uur">{r.uur || '–'}{uurKort(l.uur_tot) && <small>{uurKort(l.uur_tot)}</small>}</td>
           <td><span className={`pf-soortik ${l.werk ? 'werk' : 'lev'}`} aria-hidden="true" />{naar ? <button className="pf-rijknop wat" title="Open de bestelling bij deze leverancier" onClick={() => naar('leveranciers', { lev: l.site_leverancier_id })}>{levTitel(l)}</button> : <b>{levTitel(l)}</b>}
             {l.wat && <small style={{ color: 'var(--t-tekst)' }}>{l.wat}</small>}</td>
           <td>{waar || (l.werk ? <span className="pf-stil">–</span> : <span className="pf-stil">Leverpunt ontbreekt</span>)}</td>
@@ -199,7 +199,7 @@ export default function TabPlanning({ f, planId, naar }) {
     const tk = `t${d.id}`; const tOpen = levOpen === tk; const ids = w.gekoppeld ? taakIds(t) : [];
     return [
       <tr key={d.id} className={`${sel.has(d.id) || open === t.id || tOpen ? 'gekozen' : ''} ${d.status === 'klaar' ? 'klaar' : ''}`}>
-        <td className="pf-pijlcel"><span className="pf-rij" style={{ gap: 4, flexWrap: 'nowrap' }}>{f.schrijven && <input type="checkbox" checked={sel.has(d.id)} onChange={() => kies(d.id)} aria-label="Selecteren" />}{ids.length > 0 && <button className="pf-pijl" aria-expanded={tOpen} aria-label="Toon op de kaart" onClick={() => setLevOpen(tOpen ? null : tk)}>{pijl}</button>}</span></td>
+        <td className="pf-pijlcel"><span className="pf-vakjes">{f.schrijven ? <input type="checkbox" checked={sel.has(d.id)} onChange={() => kies(d.id)} aria-label="Selecteren" /> : <span />}{ids.length > 0 ? <button className="pf-pijl" aria-expanded={tOpen} aria-label="Toon op de kaart" onClick={() => setLevOpen(tOpen ? null : tk)}>{pijl}</button> : <span />}</span></td>
         <td className="pf-uur">{r.uur || '–'}{uurKort(d.uur_tot) && <small>{uurKort(d.uur_tot)}</small>}</td>
         <td><span className="pf-soortik taak" aria-hidden="true" /><button className="pf-rijknop wat" onClick={() => setOpen(t.id)}>{t.titel}</button>
           <small>{[t.soort, t.relatie === 'afbraak' && 'afbraak', meer > 1 && `${meer} dagen`, t.info].filter(Boolean).join(' · ')}</small></td>
@@ -291,7 +291,7 @@ export default function TabPlanning({ f, planId, naar }) {
                 return [
                   <tr key={`g${x.k}`} ref={(el) => { if (el) dagRij.current.set(x.k, el); else dagRij.current.delete(x.k); }} className={`groep dag ${fs} ${rs.length ? '' : 'leeg'} ${x.k === vandaagK ? 'vandaag' : ''}`}><td colSpan={6}>
                     <span className="pf-dagkop">
-                      {f.schrijven && ids.length > 0 && <input type="checkbox" checked={alle} onChange={() => setSel((s) => { const n = new Set(s); ids.forEach((id) => (alle ? n.delete(id) : n.add(id))); return n; })} aria-label="Hele dag selecteren" />}
+                      <span className="pf-dagvak">{f.schrijven && ids.length > 0 && <input type="checkbox" checked={alle} onChange={() => setSel((s) => { const n = new Set(s); ids.forEach((id) => (alle ? n.delete(id) : n.add(id))); return n; })} aria-label="Hele dag selecteren" />}</span>
                       <b>{dagNaam(plan, x.anker, x.dag)}</b><span>{FASE_NAAM[fs]}</span>{x.k === vandaagK && <span className="t-pil">Vandaag</span>}
                       {rs.length ? <span>{rs.length} {rs.length === 1 ? 'regel' : 'regels'}{o ? ` · ${o} open` : ''}</span> : <span>niets gepland</span>}
                       <span className="pf-vul" />

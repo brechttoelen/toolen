@@ -11,6 +11,7 @@ import { regioVan } from './geo';
 import { laadEvents, maakEvent, kleurVoor, eventDatum, groepeer } from './events';
 import EventDialoog from './EventDialoog';
 import { heeftModule, planStart } from './merk';
+import { SkeletRijen } from '../Skelet';
 
 const nieuwId = () => crypto.randomUUID();
 
@@ -361,7 +362,7 @@ export default function PlannenLijst() {
           </div>
 
           {fout && <div className="t-melding fout">{fout}</div>}
-          {laden && <p className="t-stil">Laden…</p>}
+          {laden && <div className="t-pltabel-vak"><SkeletRijen rijen={8} kolommen={['1fr', '16%', '14%', '12%', 90]} /></div>}
           {!laden && !fout && !lijst.length && <p className="t-sub">{prullenbak ? 'De prullenbak is leeg.' : plannen.length ? 'Geen plannen gevonden.' : 'Nog geen plannen. Maak het eerste aan met "Nieuw plan".'}</p>}
           {prullenbak && lijst.length > 0 && <p className="t-sub" style={{ margin: 0 }}>Plannen in de prullenbak blijven {BEWAAR} dagen bewaard voor je ze definitief kan verwijderen. Terugzetten kan altijd.</p>}
 

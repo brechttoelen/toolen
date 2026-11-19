@@ -15,6 +15,7 @@ import { heeft3d } from './drie3d';
 import { bestandsnaam } from './uitvoer';
 import PdfDialoog from './PdfDialoog';
 import { PlanVoorbeeld } from './PlanVoorbeeld';
+import { SkeletRijen } from '../Skelet';
 import {
   nieuwId, soortenVoorPakket, WERKPLEKKEN, SOORT_NAAM, onderdelenVan, linkAan, onderdeelMeta,
   rijMetOnderdelen, pdfVerouderd, pdfOnderdelen, itemsVanOnderdeel,
@@ -151,7 +152,7 @@ export default function Delen({
             {schrijven && <button className="t-knop hoofd klein" onClick={() => setNieuw(true)}>Nieuwe ontvanger</button>}
           </div>
           {(links?.length || 0) > 5 && <input className="t-veld fm-dl-zoek" value={zoek} onChange={(e) => setZoek(e.target.value)} placeholder="Zoek een ontvanger" aria-label="Zoek een ontvanger" />}
-          {links === null && <p className="fm-sub" style={{ padding: '4px 8px' }}>Laden…</p>}
+          {links === null && <SkeletRijen rijen={3} kop={false} kolommen={['1fr', 60]} rijHoogte={40} />}
           {zichtbaar.map((l) => {
             const p = l.opties?.laatste_pdf;
             return (

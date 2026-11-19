@@ -8,6 +8,7 @@ import { CATEGORIEEN } from './categorieen';
 import { laadLeveranciers } from './leveranciers';
 import { AppDialogen, bevestig } from './dialoog';
 import './maps.css';
+import { SkeletRijen } from '../Skelet';
 
 const REGIOS = ['O-VL', 'W-VL', 'ANT', 'VB', 'LIM'];
 const SOORTEN = [['extern', 'Leverancier'], ['eigen', 'Eigen materiaal'], ['stad', 'Stad of gemeente'], ['dienst', 'Dienst'], ['partner', 'Partner']];
@@ -110,7 +111,7 @@ export default function LeveranciersBeheer() {
         </aside>
         <main className="fm-levb-lijst">
           {fout && !vorm && <div className="fm-melding fout" style={{ margin: 12 }}>{fout}</div>}
-          {lijst === null ? <div className="fm-sub" style={{ padding: 16 }}>Laden…</div> : (
+          {lijst === null ? <SkeletRijen rijen={8} kolommen={['1fr', '18%', '14%', 80]} /> : (
             <table className="fm-mat-tabel">
               <thead><tr><th>Leverancier</th><th>Categorieën</th><th>Gemeente</th><th>Contact</th><th className="r">Elementen</th></tr></thead>
               <tbody>

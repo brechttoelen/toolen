@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { maps, publiekeUrl, foutTekst, wieBenIk } from './db';
 import { SOORTEN } from './Feedback';
 import './maps.css';
+import { SkeletRijen } from '../Skelet';
 
 const STATUS = [['nieuw', 'Nieuw'], ['bekeken', 'Bekeken'], ['gepland', 'Gepland'], ['opgelost', 'Opgelost'], ['niet', 'Niet doen']];
 const SOORT_NAAM = Object.fromEntries(SOORTEN.map(([k, n]) => [k, n]));
@@ -79,7 +80,7 @@ export default function FeedbackLijst() {
       </div>
       {fout && <div className="fm-melding fout">{fout}</div>}
       {perPlek.length > 1 && <div className="fm-fblijst-plekken">{perPlek.map(([k, n]) => <button key={k} type="button" className="fm-chip" onClick={() => setFilter((x) => ({ ...x, zoek: k }))} title="Filter hierop">{k} · {n}</button>)}</div>}
-      {rijen === null ? <div className="fm-sub">Laden…</div> : !lijst.length ? <div className="fm-sub" style={{ padding: 20 }}>Geen feedback{filter.status === 'open' ? ' die nog open staat' : ''}.</div> : (
+      {rijen === null ? <SkeletRijen rijen={6} kop={false} kolommen={['1fr', '20%', 90]} rijHoogte={56} /> : !lijst.length ? <div className="fm-sub" style={{ padding: 20 }}>Geen feedback{filter.status === 'open' ? ' die nog open staat' : ''}.</div> : (
         <div className="fm-fbrijen">
           {lijst.map((f) => {
             const c = f.context || {}; const link = gaNaar(f);

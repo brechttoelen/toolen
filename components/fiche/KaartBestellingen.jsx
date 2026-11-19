@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 import { samenvatting, stand, momentKort, momentNaam, locatieTekst } from './bestelling';
 import { useKaartStand, useBestelData } from './kaartStand';
 import './fiche.css';
+import { SkeletRijen } from '../Skelet';
 
 const cijfer = (n) => new Intl.NumberFormat('nl-BE', { maximumFractionDigits: 1 }).format(n);
 function Balk({ n, tot, st }) {
@@ -30,7 +31,7 @@ const tekort = (rij) => { const st = stand(rij); return st === 'weinig' ? `nog $
 
 export default function KaartBestellingen({ planId, schrijven, onKiesItems, onPlaats }) {
   const { lijst, herlaad, k } = useBestellingen(planId);
-  if (!lijst) return <div className="fm-paneel-inhoud"><p className="fm-sub">Laden…</p></div>;
+  if (!lijst) return <div className="fm-paneel-inhoud"><SkeletRijen rijen={6} kop={false} kolommen={['1fr', 40]} rijHoogte={40} /></div>;
   return (
     <div className="fm-paneel-inhoud" style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 12px' }}>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingBottom: 6 }}>

@@ -347,3 +347,13 @@ section.t-kaart:has(> .t-sys-kop), section.t-kaart:has(> .t-rij .t-sys-kop) { pa
   .t-404-scene { display: block; order: -1; max-height: 30vh; }
   .t-404-hoofd { align-content: start; }
 }
+
+/* Laadschermen: pulserende vakken */
+.t-sk { display: block; flex: none; background: #E7EBF1; animation: t-sk-puls 1.2s ease-in-out infinite; }
+@keyframes t-sk-puls { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .t-sk { animation: none; } }
+.t-sk-tabel { display: flex; flex-direction: column; background: #fff; }
+.t-sk-rij { display: grid; gap: 16px; align-items: center; padding: 0 16px; border-top: 1px solid #EEF1F5; }
+.t-sk-rij.kop { height: 38px; border-top: 0; border-bottom: 1px solid var(--t-rand, #E3E8EF); }
+.t-sk-kaarten { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.t-sk-kaart { background: #fff; border: 1px solid var(--t-rand, #E3E8EF); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }

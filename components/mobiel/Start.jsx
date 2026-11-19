@@ -7,6 +7,7 @@ import { ToolenWoordmerk } from '../ToolenLogo';
 import { OrgLogo, MetToolen } from '../Huisstijl';
 import { Ic } from './iconen';
 import { initialen } from './MobielApp';
+import { SkeletKaarten } from '../Skelet';
 
 const vandaag = () => new Date().toISOString().slice(0, 10);
 const datum = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString('nl-BE', { day: 'numeric', month: 'long', year: 'numeric' }) : '');
@@ -77,7 +78,7 @@ export default function Start({ huisstijl, profiel, planId, onPlan, onMeer }) {
         <div className="mb-pad">
           <label className="mb-zoek"><Ic.zoek /><input type="search" placeholder="Zoek een plan of event" value={zoek} onChange={(e) => setZoek(e.target.value)} aria-label="Zoeken" /></label>
           {fout && <div className="mb-melding">{fout}</div>}
-          {events === null && <p className="mb-sub">Laden…</p>}
+          {events === null && <SkeletKaarten n={2} hoogte={120} />}
           {gevonden && (
             gevonden.length ? <div className="mb-lijst">{gevonden.map((p) => <Rij key={p.id} p={p} />)}</div> : <p className="mb-leeg">Niets gevonden.</p>
           )}

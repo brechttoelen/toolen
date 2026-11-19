@@ -12,6 +12,7 @@ import { NieuwPlan } from './PlannenLijst';
 import EventDialoog from './EventDialoog';
 import { planStart } from './merk';
 import { laadEvents, groepeer, eventDatum, dagenTot } from './events';
+import { SkeletKaarten } from '../Skelet';
 
 function wieIn(state) {
   const per = new Map();
@@ -121,7 +122,7 @@ export default function Overzicht() {
 
         {fout && <div className="t-melding fout">{fout}</div>}
         {!ev.ok && !laden && <div className="t-melding let-op">Events zijn nog niet ingesteld in de databank (migratie 0007). Plannen worden voorlopig gegroepeerd op hun editie.</div>}
-        {laden && <p style={sub}>Laden…</p>}
+        {laden && <SkeletKaarten n={3} />}
 
         {!laden && !plannen.length && (
           <section style={{ ...kaart, padding: 28, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
