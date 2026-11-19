@@ -462,14 +462,27 @@ export default function Editor({ planId }) {
     const vs = verdiepingenVan(host);
     setBinnenScherm({ host: host.id, verd: vs.some((v) => v.id === w.verd) ? w.verd : vs[0].id });
   }, [laden]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Binnenplan openen of sluiten is een stap in de geschiedenis (vorige = terug naar de kaart); een andere verdieping niet.
   useEffect(() => {
     if (laden || urlBinnen.current) return;
     try {
-      const u = new URL(window.location.href);
+      const u = new URL(window.location.href); const was = u.searchParams.get('binnen');
       if (binnenScherm) { u.searchParams.set('binnen', binnenScherm.host); u.searchParams.set('verd', binnenScherm.verd); } else { u.searchParams.delete('binnen'); u.searchParams.delete('verd'); }
-      if (u.href !== window.location.href) window.history.replaceState(window.history.state, '', u.href);
+      if (u.href === window.location.href) return;
+      if ((was || null) !== (binnenScherm?.host || null)) window.history.pushState(null, '', u.href);
+      else window.history.replaceState(window.history.state, '', u.href);
     } catch {}
   }, [binnenScherm?.host, binnenScherm?.verd, laden]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const terug = () => {
+      const q = new URLSearchParams(window.location.search); const h = q.get('binnen');
+      if (!h) { setBinnenScherm(null); return; }
+      const host = st.current.items.find((x) => x.id === h); if (!host) return;
+      const vs = verdiepingenVan(host); const v = q.get('verd');
+      setBinnenScherm({ host: host.id, verd: vs.some((x) => x.id === v) ? v : vs[0].id });
+    };
+    window.addEventListener('popstate', terug); return () => window.removeEventListener('popstate', terug);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bibliotheek opnieuw ophalen als ze elders gewijzigd is (bibliotheekbeheer in een ander tabblad)
   // of als je terugkomt naar dit tabblad: nieuwe elementen en doeken zijn dan meteen te gebruiken.

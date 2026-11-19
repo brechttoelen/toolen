@@ -8,6 +8,7 @@ import { locatieTekst, momentNaam, momentDagen, bestelRijen } from './bestelling
 import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities, DagKiezer, Keuze, Zoek, Paneel } from './gedeeld';
 import { opId } from './data';
 import TaakPaneel from './TaakPaneel';
+import { useUrlStaat } from '../urlStaat';
 import RijKaart from './RijKaart';
 import { bevestig } from '../maps/dialoog';
 
@@ -24,9 +25,12 @@ export function waarTekst(t, f) {
   return { tekst: namen.length ? namen.join(', ') : (t.waar_tekst || ''), verloren: k.some((x) => !x.item_id && !x.laag_id && !x.laaggroep && x.soort !== 'groep'), gekoppeld: k.length > 0 };
 }
 
+const ONDERDEEL_GELDIG = (v) => ['opbouw', 'voorbereiding', 'programma'].includes(v);
+
 export default function TabPlanning({ f, planId, naar }) {
   const { plan } = f;
-  const [sub, setSub] = useState('opbouw');
+  // In de adresbalk: ?onderdeel=voorbereiding|programma en ?taak=<id> (open taak). Vorige sluit de taak weer.
+  const [sub, setSub] = useUrlStaat('onderdeel', 'opbouw', { geldig: ONDERDEEL_GELDIG });
   const [soort, setSoort] = useState('Alles');
   const [enkelOpen, setEnkelOpen] = useState(false);
   const [toonProg, setToonProg] = useState(true);
@@ -36,7 +40,7 @@ export default function TabPlanning({ f, planId, naar }) {
   const [notOpen, setNotOpen] = useState(false);
   const [sel, setSel] = useState(new Set());
   const [levOpen, setLevOpen] = useState(null);   // opengeklapte levering of opbouw (één tegelijk: er is één kaart)
-  const [open, setOpen] = useState(null);
+  const [open, setOpen] = useUrlStaat('taak', null);
   const [actiefK, setActiefK] = useState(null);   // de dag die bovenaan de lijst staat
   const [hoogte, setHoogte] = useState(null);
   const romp = useRef(null); const vak = useRef(null); const strook = useRef(null); const filterRef = useRef(null);
@@ -215,7 +219,7 @@ export default function TabPlanning({ f, planId, naar }) {
   };
 
   const taakVolg = [...new Set(groepen.flatMap((g) => g.rijen).filter((r) => r.soort === 'taak').map((r) => r.t.id))];
-  const stapTaak = (n) => { const i = taakVolg.indexOf(open); const v = taakVolg[i + n]; if (v) setOpen(v); };
+  const stapTaak = (n) => { const i = taakVolg.indexOf(open); const v = taakVolg[i + n]; if (v) setOpen(v, { vervang: true }); };
   const balk = selIds.length > 0 && f.schrijven && sub === 'opbouw' ? (
     <div className="pf-planbalk sel" role="toolbar" aria-label="Acties op de selectie">
       <b>{selIds.length} geselecteerd</b>

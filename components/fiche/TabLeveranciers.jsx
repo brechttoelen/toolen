@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StatusKeuze, Bewaarveld, Bewaartekst, Kiezer, Keuze, DagKiezer, Chips, Zoek, Seg, TabNotities, Paneel, KnopPaneel, useVolHoogte } from './gedeeld';
 import Toewijzen, { zonderLeverancier } from './Toewijzen';
+import { useUrlStaat, zetUrl } from '../urlStaat';
 import { opId, euro, getal, getalTekst } from './data';
 import { uurKort, leesUur, volgorde } from './dagen';
 import { STATUS_LEV, EENHEDEN, materiaalVan, leveranciersOpKaart, betrokken, matTekst, itemsVanLevering, somVan,
@@ -71,10 +72,14 @@ function waarBlad(f, lev) {
 
 export default function TabLeveranciers({ f }) {
   // ?lev=<id> opent meteen die bestelling (link vanop de kaart).
-  const [open, setOpen] = useState(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('lev') : null));
+  // In de adresbalk: ?lev=<id> (open bestelling), ?weergave=toewijzen, ?zonder=1. Vorige en vernieuwen brengen je terug.
+  const [open, setOpen] = useUrlStaat('lev', null);
   // Per leverancier (lijst en bestelling) of Toewijzen (al het materiaal van de kaart). ?weergave=toewijzen vanop de kaart.
-  const [weergave, setWeergave] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('weergave') === 'toewijzen' ? 'toewijzen' : 'lijst'));
-  const [startZonder, setStartZonder] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('zonder') === '1'));
+  const [weergaveU] = useUrlStaat('weergave', 'lijst');
+  const weergave = weergaveU === 'toewijzen' ? 'toewijzen' : 'lijst';
+  const [zonderU] = useUrlStaat('zonder', null);
+  const startZonder = zonderU === '1';
+  const setWeergave = (v, zonder = false) => zetUrl({ weergave: v === 'toewijzen' ? 'toewijzen' : null, zonder: v === 'toewijzen' && zonder ? '1' : null, lev: null });
   const [notOpen, setNotOpen] = useState(false);
   const [kaartOpen, setKaartOpen] = useState(null);
   const romp = useRef(null);
@@ -141,8 +146,8 @@ export default function TabLeveranciers({ f }) {
   };
 
   const zonderLev = useMemo(() => zonderLeverancier(f), [f.items, f.elementen, f.lagen]); // eslint-disable-line react-hooks/exhaustive-deps
-  const naarBestelling = (naam) => { const r = rijen.find((x) => x.lev.naam.toLowerCase() === String(naam).toLowerCase()); if (r) { setWeergave('lijst'); openLijn(r); } };
-  const schakel = <Seg waarde={weergave} onChange={(v) => { setWeergave(v); if (v === 'lijst') setStartZonder(false); }} label="Weergave" opties={[['lijst', 'Per leverancier'], ['toewijzen', 'Toewijzen']]} />;
+  const naarBestelling = (naam) => { const r = rijen.find((x) => x.lev.naam.toLowerCase() === String(naam).toLowerCase()); if (r) { if (r.x.id) zetUrl({ weergave: null, zonder: null, lev: r.x.id }); else { setWeergave('lijst'); openLijn(r); } } };
+  const schakel = <Seg waarde={weergave} onChange={(v) => setWeergave(v)} label="Weergave" opties={[['lijst', 'Per leverancier'], ['toewijzen', 'Toewijzen']]} />;
   if (weergave === 'toewijzen') {
     return (
       <Toewijzen f={f} startZonder={startZonder} onBestelling={naarBestelling} schakel={schakel} />
@@ -197,8 +202,8 @@ export default function TabLeveranciers({ f }) {
             {zonderLev.stuks > 0 && !q && filter === 'Alle' && (
               <tr className="pf-zonderlev">
                 <td />
-                <td><button className="pf-rijknop" onClick={() => { setStartZonder(true); setWeergave('toewijzen'); }}>Zonder leverancier</button><small>Materiaal op de kaart dat niemand levert</small></td>
-                <td>{f.schrijven && <button className="t-knop klein hoofd" onClick={() => { setStartZonder(true); setWeergave('toewijzen'); }}>Toewijzen</button>}</td>
+                <td><button className="pf-rijknop" onClick={() => setWeergave('toewijzen', true)}>Zonder leverancier</button><small>Materiaal op de kaart dat niemand levert</small></td>
+                <td>{f.schrijven && <button className="t-knop klein hoofd" onClick={() => setWeergave('toewijzen', true)}>Toewijzen</button>}</td>
                 <td className="getal">{zonderLev.regels}</td>
                 <td className="getal"><b className="pf-let">{cijfer(zonderLev.stuks)}</b><span className="pf-stil"> st.</span></td>
                 <td colSpan={fin ? 4 : 2} />

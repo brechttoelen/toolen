@@ -1,7 +1,7 @@
 'use client';
 
 // Projectfiche van één site (plan): kop met tabs, elke tab een onderdeel van de fiche.
-import { useEffect, useState } from 'react';
+import { useUrlStaat, zetUrl } from '../urlStaat';
 import '../maps/maps.css';
 import './fiche.css';
 import { useFiche } from './data';
@@ -18,14 +18,13 @@ import { TabOverzicht, TabNotitiesPagina, TabInfo, ALLE_TABS } from './TabOverig
 import { opId } from './data';
 import { SkeletFiche } from '../Skelet';
 
+const TAB_GELDIG = (t) => ALLE_TABS.some(([k]) => k === t);
+
 export default function FicheScherm({ planId }) {
   const f = useFiche(planId);
-  const [tab, setTab] = useState('overzicht');
-  useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get('tab');
-    if (t && ALLE_TABS.some(([k]) => k === t)) setTab(t);
-  }, []);
-  const naar = (t, extra = {}) => { const u = new URL(window.location.href); u.searchParams.delete('lev'); for (const [k, v] of Object.entries(extra)) u.searchParams.set(k, v); setTab(t); u.searchParams.set('tab', t); window.history.replaceState(null, '', u); window.scrollTo(0, 0); };
+  // De tab en wat erin open staat, staan in de adresbalk: vorige, volgende en vernieuwen werken.
+  const [tab] = useUrlStaat('tab', 'overzicht', { geldig: TAB_GELDIG });
+  const naar = (t, extra = {}) => { zetUrl({ tab: t === 'overzicht' ? null : t, lev: null, weergave: null, zonder: null, onderdeel: null, taak: null, ...extra }); window.scrollTo(0, 0); };
 
   if (f.laden) return <SkeletFiche />;
   if (!f.plan) return <div className="pf"><div className="pf-romp"><div className="t-melding fout">{f.fout || 'Dit plan bestaat niet.'}</div></div></div>;
