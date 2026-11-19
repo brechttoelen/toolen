@@ -172,7 +172,7 @@ export default function TabLeveranciers({ f }) {
           {(sluit) => <><span className="t-label">Toon</span><Chips waarde={filter} onChange={(v) => { setFilter(v); sluit(); }} opties={filters.map((x) => [x, x])} /></>}
         </KnopPaneel>
         <div className="pf-vul" />
-        <span className="pf-stil pf-klein pf-telling">{rijen.length} leveranciers · {nVast} vastgezet · <span className={nOpv ? 'pf-let' : ''}>{nOpv} op te volgen</span>{zonderLev.stuks ? <> · <span className="pf-let">{cijfer(zonderLev.stuks)} st. zonder leverancier</span></> : null}</span>
+        <span className="pf-stil pf-klein pf-telling">{rijen.length} leveranciers{nVast ? ` · ${nVast} vastgezet` : ''}{nOpv ? <> · <span className="pf-let">{nOpv} op te volgen</span></> : null}</span>
         <button className="t-knop" onClick={exportAlles}>Excel</button>
         <button className={`t-knop ${notOpen ? 'aan' : ''}`} onClick={() => setNotOpen(!notOpen)}>Notities{nNotities ? ` · ${nNotities}` : ''}</button>
         {f.schrijven && <KnopPaneel label="+ Leverancier" hoofd rechts breed={340}>
@@ -215,7 +215,7 @@ export default function TabLeveranciers({ f }) {
                   <td>{r.x.id
                     ? <StatusKeuze waarde={r.x.status} opties={STATUS_LEV} uit={!f.schrijven} label={`Status ${r.lev.naam}`} onChange={(v) => f.wijzig('site_leveranciers', r.x.id, { status: v })} />
                     : <span className="t-pil">Op de kaart</span>}
-                    {s.telbaar > 0 && <small>{s.vast ? 'vastgezet' : 'loopt mee met de kaart'}</small>}</td>
+                    {s.vast && <small>vastgezet</small>}</td>
                   <td className="getal">{s.regels || <span className="pf-stil">–</span>}</td>
                   <td className="getal">{s.telbaar ? <><b className={standKlas[st] || ''}>{cijfer(s.geplaatst)}</b><span className="pf-stil"> / {cijfer(s.besteld)}</span></> : <span className="pf-stil">{s.regels ? 'niet getekend' : '–'}</span>}</td>
                   <td>{s.eerste || s.laatste ? <>{periodeTekst(f, s.eerste, s.laatste)}{s.meer > 0 && <span className="pf-stil pf-klein"> +{s.meer}</span>}</> : <span className="pf-stil">–</span>}</td>

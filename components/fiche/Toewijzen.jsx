@@ -114,7 +114,6 @@ export default function Toewijzen({ f, startZonder = false, onBestelling, schake
     try { localStorage.setItem(`fm-toon-${f.plan.id}`, JSON.stringify({ ids, label, op: Date.now() })); } catch { /* geen opslag */ }
     window.location.href = `/maps/${f.plan.id}?toon=1`;
   };
-  const totaal = zichtbaar.reduce((t, [, rs]) => t + rs.length, 0);
   const nZonder = groepen.reduce((t, [, rs]) => t + rs.filter((r) => !r.leverancier && !ZONDER_LEVERANCIER.includes(r.categorie) && metEl(r.ids).length).reduce((u, r) => u + (Number(r.aantal) || 0), 0), 0);
 
   return (
@@ -137,7 +136,6 @@ export default function Toewijzen({ f, startZonder = false, onBestelling, schake
           <Zoek waarde={zoek} onChange={setZoek} placeholder="Zoek materiaal of leverancier" />
           <button className={`pf-chip ${zonder ? 'aan let' : ''}`} aria-pressed={zonder} onClick={() => setZonder(!zonder)}>{ZONDER}{nZonder ? ` · ${getal(nZonder)}` : ''}{zonder ? ' ✕' : ''}</button>
           <div className="pf-vul" />
-          <span className="pf-stil pf-klein pf-telling">{totaal} regels{nZonder ? <> · <span className="pf-let">{getal(nZonder)} st. zonder leverancier</span></> : null}</span>
         </div>
       )}
 
@@ -156,7 +154,7 @@ export default function Toewijzen({ f, startZonder = false, onBestelling, schake
                   <tr className={`groep pf-toew-groep ${g === ZONDER ? 'let-op' : ''}`}><td colSpan={4}>
                     <span className="pf-dagkop">
                       <span className="pf-dagvak">{s && <input type="checkbox" checked={alle} onChange={() => kiesGroep(g, rs, !alle)} aria-label={`Alles van ${g} selecteren`} />}</span>
-                      <b>{g}</b><span>{getal(stuks)} st.{meter ? ` · ${getal(meter)} m` : ''} · {rs.length} {rs.length === 1 ? 'regel' : 'regels'}</span>
+                      <b>{g}</b>{ZONDER_LEVERANCIER.includes(g) && <span className="pf-klein">van de locatie, telt niet als zonder leverancier</span>}<span>{getal(stuks)} st.{meter ? ` · ${getal(meter)} m` : ''} · {rs.length} {rs.length === 1 ? 'regel' : 'regels'}</span>
                       <span className="pf-vul" />
                       {s && groep !== 'lev' && <><span className="pf-klein">Hele groep naar</span><LevKeuze namen={namen} waarde={levs.length === 1 ? levs[0] : ''} label={`Leverancier voor heel ${g}`} breed={190} onKies={(v) => toewijs(ids, v)} /></>}
                     </span>
@@ -165,7 +163,7 @@ export default function Toewijzen({ f, startZonder = false, onBestelling, schake
                     const k = sleutel(g, r); const rIds = metEl(r.ids); const isOpen = open === k; const nm = namenVan(r);
                     return (
                       <Fragment key={k}>
-                        <tr className={`${sel.has(k) || isOpen ? 'gekozen' : ''} ${r.leverancier ? '' : 'pf-toew-zonder'}`}>
+                        <tr className={`${sel.has(k) || isOpen ? 'gekozen' : ''} ${r.leverancier || ZONDER_LEVERANCIER.includes(r.categorie) ? '' : 'pf-toew-zonder'}`}>
                           <td className="pf-pijlcel"><span className="pf-vakjes">{s ? <input type="checkbox" checked={sel.has(k)} onChange={() => kies(k, rIds)} aria-label={`${r.naam} selecteren`} /> : <span />}<button className="pf-pijl" aria-expanded={isOpen} aria-label="Toon op de luchtfoto" onClick={() => setOpen(isOpen ? null : k)}>{pijl}</button></span></td>
                           <td><b>{r.naam}</b><small>{[groep !== 'cat' && r.categorie, nm.length && `${nm.slice(0, 6).join(', ')}${nm.length > 6 ? ` +${nm.length - 6}` : ''}`].filter(Boolean).join(' · ') || `${rIds.length} ${rIds.length === 1 ? 'item' : 'items'} op de kaart`}</small></td>
                           <td className="getal">{getal(r.aantal)} st.{r.tekenwijze === 'lijn' && r.meter ? <small>{getal(r.meter, 1)} m</small> : null}</td>
