@@ -297,3 +297,10 @@
 .pf-paneel .pf-rijkaart { grid-template-columns: 1fr; grid-template-rows: 200px auto; height: auto; }
 .pf-paneel .pf-rijkaart .lijst { border-left: 0; border-top: 1px solid var(--t-rand); max-height: 150px; overflow: auto; }
 .t-knop.aan { background: var(--t-navy); border-color: var(--t-navy); color: #fff; }
+/* Openklaprij in de planning: minder kaart, meer plaats voor de lijst; details bij hover */
+.pf-kaartrij .pf-rijkaart { grid-template-columns: minmax(0, 1fr) minmax(280px, 38%); height: 280px; }
+.pf-rijkaart .namen { display: flex; flex-direction: column; gap: 4px; overflow: auto; min-height: 0; flex: 1; }
+.pf-rijkaart .pf-lijstknop { padding: 6px 10px; }
+.pf-rijkaart .pf-lijstknop .detail { display: none; }
+.pf-rijkaart .pf-lijstknop:hover .detail, .pf-rijkaart .pf-lijstknop:focus-visible .detail { display: block; }
+.pf-tabel td.pf-uur small { display: block; color: var(--t-tekst-2); }

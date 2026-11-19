@@ -4,7 +4,7 @@
 // en ophalingen van leveranciers, en het programma van de wedstrijd.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { dagLijst, label, dagNaam, sleutel, uitSleutel, canoniek, uurKort, leesUur, wedstrijd, fase, FASE_NAAM } from './dagen';
-import { locatieTekst, momentNaam, momentDagen, namenTekst, bestelRijen } from './bestelling';
+import { locatieTekst, momentNaam, momentDagen, bestelRijen } from './bestelling';
 import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities, DagKiezer, Keuze, Zoek, Paneel } from './gedeeld';
 import { opId } from './data';
 import TaakPaneel from './TaakPaneel';
@@ -52,14 +52,12 @@ export default function TabPlanning({ f, planId, naar }) {
   const regelsBij = (l) => (f.d.bestelregels || []).filter((r) => r.levering_id === l.id || r.ophaling_id === l.id);
   const regelTekst = (l) => { const rs = regelsBij(l); return rs.map((r) => `${r.aantal != null ? `${Number(r.aantal)} × ` : ''}${r.wat}`).join(' · '); };
   // Namen van de items (CAM 1, CAM 2) bij een moment; de telling per leverancier en per moment één keer per weergave.
-  const rijenPerSl = new Map(); const namenPerMoment = new Map();
-  const regelNamen = (l) => {
-    if (namenPerMoment.has(l.id)) return namenPerMoment.get(l.id);
-    const sl = slMap.get(l.site_leverancier_id); const rs = regelsBij(l); let t = '';
-    if (sl && rs.length) { if (!rijenPerSl.has(sl.id)) rijenPerSl.set(sl.id, bestelRijen(f, sl).rijen); const ids = new Set(rs.map((r) => r.id)); t = namenTekst([...new Set(rijenPerSl.get(sl.id).filter((x) => ids.has(x.r.id)).flatMap((x) => x.namen || []))], 16); }
-    namenPerMoment.set(l.id, t); return t;
-  };
+  const rijenPerSl = new Map();
   const regelIds = (l) => { const sl = slMap.get(l.site_leverancier_id); const rs = regelsBij(l); if (!sl || !rs.length) return []; if (!rijenPerSl.has(sl.id)) rijenPerSl.set(sl.id, bestelRijen(f, sl).rijen); const ids = new Set(rs.map((r) => r.id)); return [...new Set(rijenPerSl.get(sl.id).filter((x) => ids.has(x.r.id)).flatMap((x) => x.ids || []))]; };
+  const regelDetails = (l) => { const sl = slMap.get(l.site_leverancier_id); const rs = regelsBij(l); const m = new Map(); if (!sl || !rs.length) return m; if (!rijenPerSl.has(sl.id)) rijenPerSl.set(sl.id, bestelRijen(f, sl).rijen); const ids = new Set(rs.map((r) => r.id)); for (const x of rijenPerSl.get(sl.id)) if (ids.has(x.r.id)) for (const id of x.ids || []) m.set(id, x.r.wat); return m; };
+  // Items achter de koppelingen van een taak (item, laag, groep of laaggroep).
+  const laagMap = opId(f.lagen);
+  const taakIds = (t) => [...new Set((f.d.taak_koppelingen || []).filter((k) => k.taak_id === t.id).flatMap((k) => (k.item_id ? [k.item_id] : k.laag_id ? f.items.filter((i) => i.laag_id === k.laag_id).map((i) => i.id) : k.soort === 'groep' && k.groep_id ? f.items.filter((i) => i.groep_id === k.groep_id).map((i) => i.id) : k.laaggroep ? f.items.filter((i) => laagMap.get(i.laag_id)?.map === k.laaggroep).map((i) => i.id) : [])))];
   const regelPlaats = (l) => [...new Set(regelsBij(l).map((r) => locatieTekst(f, r)).filter(Boolean))].join(', ');
   const levWaar = (l) => { const rs = regelsBij(l); return (l.leverpunt_item_id && f.items.find((x) => x.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst || regelPlaats(l) || [...new Set(rs.map((x) => x.groep).filter(Boolean))].join(', '); };
   const levTitel = (l) => `${momentNaam(l)}${l.werk && slMap.get(l.site_leverancier_id)?.wat ? ` ${slMap.get(l.site_leverancier_id).wat}` : ''} · ${l.lev?.naam || 'leverancier'}`;
@@ -182,9 +180,9 @@ export default function TabPlanning({ f, planId, naar }) {
     if (r.soort === 'levering') {
       const l = r.l; const lk = `${l.id}-${r.n || 0}`; const isOpen = levOpen === lk; const rs = regelsBij(l); const waar = levWaar(l);
       return [
-        <tr key={`l${lk}`} className={`${isOpen ? 'gekozen' : ''} ${l.status === 'klaar' ? 'klaar' : ''}`}><td className="pf-pijlcel">{(rs.length > 0 || f.schrijven) && <button className="pf-pijl" aria-expanded={isOpen} aria-label="Wat en waar tonen, met kaart en opmerking" onClick={() => setLevOpen(isOpen ? null : lk)}>{pijl}</button>}</td><td className="pf-uur">{r.uur || '–'}</td>
+        <tr key={`l${lk}`} className={`${isOpen ? 'gekozen' : ''} ${l.status === 'klaar' ? 'klaar' : ''}`}><td className="pf-pijlcel">{(rs.length > 0 || f.schrijven) && <button className="pf-pijl" aria-expanded={isOpen} aria-label="Wat en waar tonen, met kaart en opmerking" onClick={() => setLevOpen(isOpen ? null : lk)}>{pijl}</button>}</td><td className="pf-uur">{r.uur || '–'}{uurKort(l.uur_tot) && <small>{uurKort(l.uur_tot)}</small>}</td>
           <td><span className={`pf-soortik ${l.werk ? 'werk' : 'lev'}`} aria-hidden="true" />{naar ? <button className="pf-rijknop wat" title="Open de bestelling bij deze leverancier" onClick={() => naar('leveranciers', { lev: l.site_leverancier_id })}>{levTitel(l)}</button> : <b>{levTitel(l)}</b>}
-            <small>{[r.van > 1 && `dag ${r.n + 1} van ${r.van}`, uurKort(l.uur_tot) && `tot ${uurKort(l.uur_tot)}`, rs.length > 0 && `${rs.length} ${rs.length === 1 ? 'regel' : 'regels'}`].filter(Boolean).join(' · ')}</small>
+            {rs.length > 0 && <small>{rs.length} {rs.length === 1 ? 'regel' : 'regels'}</small>}
             {l.wat && <small style={{ color: 'var(--t-tekst)' }}>{l.wat}</small>}</td>
           <td>{waar || (l.werk ? <span className="pf-stil">–</span> : <span className="pf-stil">Leverpunt ontbreekt</span>)}</td>
           <td>{l.lev?.naam && naar ? <button className="pf-link" onClick={() => naar('leveranciers', { lev: l.site_leverancier_id })}>{l.lev.naam}</button> : l.lev?.naam}</td>
@@ -192,17 +190,17 @@ export default function TabPlanning({ f, planId, naar }) {
         isOpen && <tr key={`l${lk}-open`} className="pf-kaartrij"><td colSpan={6}>
           <div className="pf-momentopen">
             <label className="pf-rij" style={{ flexWrap: 'nowrap' }}><span className="pf-stil">Opmerking</span><Bewaarveld klasse="t-veld" style={{ flex: 1 }} waarde={l.wat || ''} uit={!f.schrijven} label="Opmerking bij dit moment" placeholder="bv. over de tramsporen" onBewaar={(v) => f.wijzig('leveringen', l.id, { wat: v.trim() || null })} /></label>
-            {rs.length > 0 && <span>{regelTekst(l)}</span>}{regelNamen(l) && <span className="pf-stil">{regelNamen(l)}</span>}
           </div>
-          {rs.length > 0 && <RijKaart plan={f.plan} items={f.items} lagen={f.lagen} elementen={f.elementen} ids={regelIds(l)} onSluit={() => setLevOpen(null)} />}
+          {rs.length > 0 && <RijKaart plan={f.plan} items={f.items} lagen={f.lagen} elementen={f.elementen} ids={regelIds(l)} details={regelDetails(l)} onSluit={() => setLevOpen(null)} />}
         </td></tr>,
       ];
     }
     const { t, d } = r; const w = waarTekst(t, f); const wie = wieTekst(t, d, f);
     const meer = dagen.filter((x) => x.taak_id === t.id).length;
-    return (
-      <tr key={d.id} className={`${sel.has(d.id) || open === t.id ? 'gekozen' : ''} ${d.status === 'klaar' ? 'klaar' : ''}`}>
-        <td>{f.schrijven && <input type="checkbox" checked={sel.has(d.id)} onChange={() => kies(d.id)} aria-label="Selecteren" />}</td>
+    const tk = `t${d.id}`; const tOpen = levOpen === tk; const ids = w.gekoppeld ? taakIds(t) : [];
+    return [
+      <tr key={d.id} className={`${sel.has(d.id) || open === t.id || tOpen ? 'gekozen' : ''} ${d.status === 'klaar' ? 'klaar' : ''}`}>
+        <td className="pf-pijlcel"><span className="pf-rij" style={{ gap: 4, flexWrap: 'nowrap' }}>{f.schrijven && <input type="checkbox" checked={sel.has(d.id)} onChange={() => kies(d.id)} aria-label="Selecteren" />}{ids.length > 0 && <button className="pf-pijl" aria-expanded={tOpen} aria-label="Toon op de kaart" onClick={() => setLevOpen(tOpen ? null : tk)}>{pijl}</button>}</span></td>
         <td className="pf-uur">{r.uur || '–'}{uurKort(d.uur_tot) && <small>{uurKort(d.uur_tot)}</small>}</td>
         <td><span className="pf-soortik taak" aria-hidden="true" /><button className="pf-rijknop wat" onClick={() => setOpen(t.id)}>{t.titel}</button>
           <small>{[t.soort, t.relatie === 'afbraak' && 'afbraak', meer > 1 && `${meer} dagen`, t.info].filter(Boolean).join(' · ')}</small></td>
@@ -210,8 +208,11 @@ export default function TabPlanning({ f, planId, naar }) {
         <td className={wie ? '' : 'pf-let'}>{wie || 'Niemand'}</td>
         <td><StatusKeuze waarde={d.status} opties={STATUS_TAAK} label={`Status van ${t.titel}`} uit={!f.schrijven}
           onChange={(v) => f.wijzig('taak_dagen', d.id, { status: v, klaar_op: v === 'klaar' ? new Date().toISOString() : null })} /></td>
-      </tr>
-    );
+      </tr>,
+      tOpen && <tr key={`${tk}-open`} className="pf-kaartrij"><td colSpan={6}>
+        <RijKaart plan={f.plan} items={f.items} lagen={f.lagen} elementen={f.elementen} ids={ids} onSluit={() => setLevOpen(null)} />
+      </td></tr>,
+    ];
   };
 
   const taakVolg = [...new Set(groepen.flatMap((g) => g.rijen).filter((r) => r.soort === 'taak').map((r) => r.t.id))];
@@ -281,7 +282,7 @@ export default function TabPlanning({ f, planId, naar }) {
         </div>
         <div className="pf-tabvak pf-planvak" ref={vak} onScroll={opScroll}>
           <table className="pf-tabel" style={{ minWidth: 860 }}>
-            <thead><tr><th style={{ width: 34 }} /><th style={{ width: 64 }}>Uur</th><th>Wat</th><th style={{ width: '20%' }}>Waar</th><th style={{ width: '16%' }}>Wie</th><th style={{ width: 130 }}>Status</th></tr></thead>
+            <thead><tr><th style={{ width: 52 }} /><th style={{ width: 64 }}>Uur</th><th>Wat</th><th style={{ width: '20%' }}>Waar</th><th style={{ width: '16%' }}>Wie</th><th style={{ width: 130 }}>Status</th></tr></thead>
             <tbody>
               {!groepen.length && <tr><td colSpan={6} className="pf-leeg">{filterAan ? 'Niets gevonden met deze filter.' : `Nog geen taken${f.schrijven ? '. Maak er een met + Taak.' : '.'}`}</td></tr>}
               {groepen.map(({ x, rijen: rs }) => {

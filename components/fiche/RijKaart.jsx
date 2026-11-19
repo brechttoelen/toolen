@@ -39,7 +39,7 @@ async function maakKaart(plan) {
   return { map, doos, klaar, markers: [], maplibregl, stijl };
 }
 
-export default function RijKaart({ plan, items, lagen = [], elementen = [], ids, onSluit }) {
+export default function RijKaart({ plan, items, lagen = [], elementen = [], ids, onSluit, details = null }) {
   const gast = useRef(null);
   const vak = useRef(null);
   // Bij het openen meeschuiven tot de onderkant van de luchtfoto in beeld staat.
@@ -100,7 +100,7 @@ export default function RijKaart({ plan, items, lagen = [], elementen = [], ids,
       <div className="kaart" ref={gast}>{stand !== 'ok' && <span className="stand">{stand === 'laden' ? 'Kaart laden…' : stand === 'leeg' ? 'Deze regel heeft geen elementen met een plaats op de kaart.' : 'De kaart kon niet laden.'}</span>}</div>
       <div className="lijst">
         <div className="pf-rij" style={{ flexWrap: 'nowrap' }}><b style={{ flex: 1, fontWeight: 600 }}>{gekozen.length} {gekozen.length === 1 ? 'element' : 'elementen'}</b>{onSluit && <button className="pf-sluit" onClick={onSluit} aria-label="Kaart sluiten">✕</button>}</div>
-        <div className="namen">{lijst.map((x) => <button key={x.i.id} className="pf-lijstknop" onClick={() => naar(x.i)}><b>{x.n > 1 ? `${x.n} × ` : ''}{x.i.naam || 'Zonder naam'}</b>{x.binnen && <span>binnen · de opstelling staat in het binnenplan</span>}</button>)}</div>
+        <div className="namen">{lijst.map((x) => <button key={x.i.id} className="pf-lijstknop" onClick={() => naar(x.i)}><b>{x.n > 1 ? `${x.n} × ` : ''}{x.i.naam || 'Zonder naam'}</b>{details?.get(x.i.id) && <span className="detail">{details.get(x.i.id)}</span>}{x.binnen && <span>binnen · de opstelling staat in het binnenplan</span>}</button>)}</div>
         {gekozen[0] && <a className="t-knop klein" href={`/maps/${plan.id}?item=${gekozen[0].id}`} style={{ textDecoration: 'none' }}>Open op de kaart</a>}
       </div>
     </div>
