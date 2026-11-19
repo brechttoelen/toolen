@@ -471,20 +471,19 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
         <div className="pf-tabvak" style={{ maxHeight: 'none', border: 0, borderRadius: 0 }}>
           <table className="pf-tabel pf-bestel" style={{ minWidth: 980 }}>
             <thead><tr>
-              <th style={{ width: 26 }} /><th style={{ width: 30 }}>{s && <input type="checkbox" checked={alleAan} onChange={() => setSel(alleAan ? new Set() : new Set(b.rijen.map((x) => x.id)))} aria-label="Alles selecteren" />}</th>
+              <th style={{ width: 52 }}><span className="pf-vakjes">{s ? <input type="checkbox" checked={alleAan} onChange={() => setSel(alleAan ? new Set() : new Set(b.rijen.map((x) => x.id)))} aria-label="Alles selecteren" /> : <span />}<span /></span></th>
               <th className="getal" style={{ width: 104 }}>Aantal</th><th>Wat</th><th style={{ width: 160 }}>Groep</th><th style={{ width: 160 }}>Locatie</th><th style={{ width: 270 }}>Periode · begin → einde</th><th style={{ width: 150 }}><button className={`pf-kolknop ${kolom === 'geplaatst' ? 'aan' : ''}`} onClick={() => setKolom('geplaatst')} title="Hoeveel staat er op de kaart">Geplaatst</button><button className={`pf-kolknop ${kolom === 'geleverd' ? 'aan' : ''}`} onClick={() => setKolom('geleverd')} title="Ontvangst op het terrein afvinken">Geleverd</button></th>
             </tr></thead>
             <tbody>
-              {!b.rijen.length && <tr><td colSpan={8} className="pf-leeg">Nog geen regels. Materiaal van {lev.naam} op de kaart komt hier vanzelf; voeg hieronder toe wat je niet tekent.</td></tr>}
+              {!b.rijen.length && <tr><td colSpan={7} className="pf-leeg">Nog geen regels. Materiaal van {lev.naam} op de kaart komt hier vanzelf; voeg hieronder toe wat je niet tekent.</td></tr>}
               {getoond.map((g) => {
-                if (g.kop != null) return <tr key={`kop-${g.kop}`} className="groep"><td colSpan={8}>{g.kop} · {g.n} {g.n === 1 ? 'regel' : 'regels'}</td></tr>;
+                if (g.kop != null) return <tr key={`kop-${g.kop}`} className="groep"><td colSpan={7}>{g.kop} · {g.n} {g.n === 1 ? 'regel' : 'regels'}</td></tr>;
                 const x = g.x; const r = x.r; const st = stand(x); const aan = sel.has(x.id);
                 const l = lvMap.get(r.levering_id), o = lvMap.get(r.ophaling_id);
                 const metMeter = !x.vrij && (b.mat.get(x.k)?.meter || 0) > 0;
                 return [
                   <tr key={x.id} className={aan ? 'gekozen' : ''}>
-                    <td className="pf-pijlcel">{x.ids?.length > 0 && <button className="pf-pijl" aria-expanded={kaartRij === x.id} aria-label={`${kaartRij === x.id ? 'Kaart sluiten' : 'Toon op de kaart'}: ${r.wat}`} title="Toon deze elementen op de luchtfoto" onClick={() => setKaartRij(kaartRij === x.id ? null : x.id)}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg></button>}</td>
-                    <td>{s && <input type="checkbox" checked={aan} onChange={() => setSel((v) => { const n = new Set(v); if (n.has(x.id)) n.delete(x.id); else n.add(x.id); return n; })} aria-label={`Selecteer ${r.wat}`} />}</td>
+                    <td className="pf-pijlcel"><span className="pf-vakjes">{s ? <input type="checkbox" checked={aan} onChange={() => setSel((v) => { const n = new Set(v); if (n.has(x.id)) n.delete(x.id); else n.add(x.id); return n; })} aria-label={`Selecteer ${r.wat}`} /> : <span />}{x.ids?.length > 0 ? <button className="pf-pijl" aria-expanded={kaartRij === x.id} aria-label={`${kaartRij === x.id ? 'Kaart sluiten' : 'Toon op de kaart'}: ${r.wat}`} title="Toon deze elementen op de luchtfoto" onClick={() => setKaartRij(kaartRij === x.id ? null : x.id)}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg></button> : <span />}</span></td>
                     <td className="getal">
                       <Veld klasse="pf-cel" style={{ width: 62, fontWeight: 600 }} waarde={x.volgt ? '' : getalTekst(r.aantal)} placeholder={x.volgt && x.geplaatst != null ? cijfer(x.geplaatst) : ''} uit={!s} label={`Aantal ${r.wat}`} onBewaar={(v) => zet(x, { aantal: getal(v) })} />
                       {metMeter && s
@@ -521,7 +520,7 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
                       </>)}
                     </td>
                   </tr>,
-                  kaartRij === x.id && <tr key={`${x.id}-kaart`} className="pf-kaartrij"><td colSpan={8}><RijKaart plan={f.plan} items={f.items} lagen={f.lagen} elementen={f.elementen} ids={x.ids || []} onSluit={() => setKaartRij(null)} /></td></tr>,
+                  kaartRij === x.id && <tr key={`${x.id}-kaart`} className="pf-kaartrij"><td colSpan={7}><RijKaart plan={f.plan} items={f.items} lagen={f.lagen} elementen={f.elementen} ids={x.ids || []} onSluit={() => setKaartRij(null)} /></td></tr>,
                 ];
               })}
             </tbody>
