@@ -323,7 +323,19 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
     if (wat === 'locatie') await f.wijzig('bestelregels', ids, locatiePatch(tekst));
     if (wat === 'groep') await f.wijzig('bestelregels', ids, { groep: tekst.trim() || null });
     if (wat === 'opmerking') await f.wijzig('bestelregels', ids, { opmerking: tekst.trim() || null });
-    if (wat === 'naar' && tekst) await f.wijzig('bestelregels', ids, { site_leverancier_id: tekst, levering_id: null, ophaling_id: null });
+    if (wat === 'naar' && tekst) {
+      // Regels die van de kaart komen, hangen aan de leverancier van de items: die verhuizen mee,
+      // anders tellen de items nog bij de oude leverancier en staat de regel bij de nieuwe op nul.
+      // tekst = leverancier-id; nog niet op de site: de lijn wordt aangemaakt.
+      let doel = (f.d.site_leveranciers || []).find((x) => x.leverancier_id === tekst);
+      if (!doel) doel = await f.voegToe('site_leveranciers', { leverancier_id: tekst });
+      if (!doel) return;
+      const naam = f.d.leveranciers.find((l) => l.id === tekst)?.naam;
+      const itemIds = [...new Set(gekozen.flatMap((x) => (x.vrij ? [] : [...(x.ids || [])])))];
+      if (naam && itemIds.length) await f.herkomstZet([[naam, itemIds]]);
+      await f.wijzig('bestelregels', ids, { site_leverancier_id: doel.id, levering_id: null, ophaling_id: null });
+      f.meld(`${ids.length} ${ids.length === 1 ? 'regel' : 'regels'}${itemIds.length ? ` en ${itemIds.length} ${itemIds.length === 1 ? 'item' : 'items'} op de kaart` : ''} naar ${naam || 'de andere leverancier'}`);
+    }
     klaar();
   });
   const leegMoment = (soort) => metBezig(async () => { await zetMoment(f, sl, gekozen.filter((x) => !x.virtueel).map((x) => x.r), soort, null); klaar(); });
@@ -460,8 +472,8 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
                 placeholder={actie === 'locatie' ? 'Laag op de kaart of vrije tekst' : actie === 'groep' ? 'bv. Parcours, Event, HR' : 'Opmerking'} aria-label={actie} />
             )}
             {actie === 'naar' && (
-              <Keuze waarde={tekst || null} onChange={(v) => setTekst(v || '')} label="Andere leverancier" leeg="Kies een leverancier van deze site" style={{ flex: '1 1 260px' }}
-                opties={(f.d.site_leveranciers || []).filter((x) => x.id !== sl.id).map((x) => ({ id: x.id, naam: f.d.leveranciers.find((l) => l.id === x.leverancier_id)?.naam || '?' }))} />
+              <Keuze waarde={tekst || null} onChange={(v) => setTekst(v || '')} label="Andere leverancier" leeg="Kies een leverancier" style={{ flex: '1 1 260px' }}
+                opties={(() => { const op = new Set((f.d.site_leveranciers || []).map((x) => x.leverancier_id)); return f.d.leveranciers.filter((l) => l.id !== sl.leverancier_id && (l.actief !== false || op.has(l.id))).sort((a, b2) => (op.has(b2.id) - op.has(a.id)) || a.naam.localeCompare(b2.naam, 'nl')).map((l) => ({ id: l.id, naam: l.naam, groep: op.has(l.id) ? 'Op deze site' : 'Andere leveranciers' })); })()} />
             )}
             <div className="pf-rij" style={{ gap: 6 }}>
               <button className="t-knop klein hoofd" disabled={bezig} onClick={() => pasToe(actie)}>Toepassen op {gekozen.length} {gekozen.length === 1 ? 'regel' : 'regels'}</button>
