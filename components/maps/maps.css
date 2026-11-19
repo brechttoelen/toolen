@@ -791,7 +791,7 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-bs-titel { font-size: 15px; }
 .fm-bs-verd { width: auto; }
 .fm-bs-verd button { padding: 0 10px; }
-.fm-bs-lijf { flex: 1; display: flex; min-height: 0; }
+.fm-bs-lijf { flex: 1; display: flex; min-height: 0; position: relative; }  /* panelen openen onder de kop, niet erover */
 .fm-bs-links { width: 230px; background: #fff; border-right: 1px solid #E5E7EB; overflow: auto; padding-bottom: 12px; font-size: 12px; }
 .fm-bs-ruimte { display: flex; justify-content: space-between; gap: 6px; width: 100%; padding: 6px 10px; border: 0; background: none; text-align: left; cursor: pointer; font-size: 12.5px; }
 .fm-bs-ruimte:hover { background: #F3F4F6; }
