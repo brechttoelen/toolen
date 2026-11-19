@@ -997,6 +997,11 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-deel-wat .fm-segment button { height: 32px; padding: 0 14px; }
 .fm-deel-wat select { height: 32px; min-width: 220px; border: 1px solid #DADDE3; border-radius: 0; padding: 0 10px; font: inherit; font-size: 13px; background: #fff; color: var(--fm-zwart); }
 
+/* Leesweergave op een breed scherm: ruimtekolom in te klappen, detailkolom enkel als er iets gekozen is. */
+@media (min-width: 1025px) {
+  .fm-binnenscherm.lezen.links-dicht .fm-bs-links { display: none; }
+  .fm-binnenscherm.lezen:not(.met-detail) .fm-bs-rechts { display: none; }
+}
 /* ---------- Binnenplan in een deel-link op gsm en tablet (staand) ---------- */
 .fm-bs-greep { display: none; }
 .fm-binnenscherm.lezen .fm-bs-doek { touch-action: none; }

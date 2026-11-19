@@ -186,6 +186,7 @@ export default function BinnenScherm({ opmerkingBlok = null, veldpunten = null, 
   const [menu, setMenu] = useState(false);
   const [gebouwKaart, setGebouwKaart] = useState(false);
   const [lijstOpen, setLijstOpen] = useState(false); // gsm: onderblad met zalen en lijst open
+  const [linksDicht, setLinksDicht] = useState(false); // breed scherm: kolom met ruimtes ingeklapt
   // Leesweergave (deel-link): meten en punten met een opmerking, zoals op de kaart.
   const [leesTool, setLeesTool] = useState(null); // null | 'meet' | 'punt'
   const [meetPts, setMeetPts] = useState([]); const [meetVlak, setMeetVlak] = useState(false);
@@ -2140,7 +2141,7 @@ export default function BinnenScherm({ opmerkingBlok = null, veldpunten = null, 
   ) : null;
 
   const inhoud = (
-    <div className={`fm fm-binnenscherm${schrijven ? '' : ' lezen'}${!schrijven && (selItems.length === 1 || actR || gebouwKaart) ? ' met-detail' : ''}${lijstOpen ? ' lijst-open' : ''}${!schrijven && (leesTool || vpKeuze) ? ' met-tool' : ''}`} role="dialog" aria-label={`Binnenplan ${naamHost}`}>
+    <div className={`fm fm-binnenscherm${schrijven ? '' : ' lezen'}${!schrijven && (selItems.length === 1 || actR || gebouwKaart) ? ' met-detail' : ''}${lijstOpen ? ' lijst-open' : ''}${!schrijven && (leesTool || vpKeuze) ? ' met-tool' : ''}${linksDicht ? ' links-dicht' : ''}`} role="dialog" aria-label={`Binnenplan ${naamHost}`}>
       {camBeeld && (() => {
         const it = inrichting.find((x) => x.id === camBeeld); if (!it) return null;
         const nu = (id) => inrichtingRef.current.find((y) => y.id === id); // altijd de laatste stand (bewaren gebeurt met vertraging)
@@ -2584,6 +2585,7 @@ export default function BinnenScherm({ opmerkingBlok = null, veldpunten = null, 
           {!toonSetup && !wachtOpPlan && (
             <>
               {!schrijven && <div className="fm-bs-zweef links">
+                <button className={linksDicht ? '' : 'aan'} aria-pressed={!linksDicht} title={linksDicht ? `${tx.ruimtes} tonen` : `${tx.ruimtes} verbergen`} onClick={() => setLinksDicht((x) => !x)}>☰ {tx.ruimtes}</button>
                 <button className={!modus && !leesTool ? 'aan' : ''} onClick={() => { startModus(null); if (leesTool) kiesLeesTool(leesTool); }}>{tx.selecteren}</button>
                 <button className={leesTool === 'meet' ? 'aan' : ''} onClick={() => kiesLeesTool('meet')}>{tx.meten}</button>
                 {onPunt && <button className={leesTool === 'punt' ? 'aan' : ''} onClick={() => kiesLeesTool('punt')}>{vpT.knop}</button>}
