@@ -274,3 +274,7 @@
   .pf-telling { display: none; }
   .pf-planbalk .pf-zoek { flex: 1 1 160px; }
 }
+.pf-planbalk.sel { flex-wrap: wrap; }
+.pf-planbalk.sel .pf-keuze { flex: none; }
+.pf-planbalk.sel .pf-keuze .pf-bsel { width: 100%; box-sizing: border-box; padding-right: 26px; }
+.pf-planbalk.sel .pf-keuze .pijl { color: #fff; }
