@@ -182,7 +182,6 @@ export default function TabPlanning({ f, planId, naar }) {
       return [
         <tr key={`l${lk}`} className={`${isOpen ? 'gekozen' : ''} ${l.status === 'klaar' ? 'klaar' : ''}`}><td className="pf-pijlcel">{(rs.length > 0 || f.schrijven) && <button className="pf-pijl" aria-expanded={isOpen} aria-label="Wat en waar tonen, met kaart en opmerking" onClick={() => setLevOpen(isOpen ? null : lk)}>{pijl}</button>}</td><td className="pf-uur">{r.uur || '–'}{uurKort(l.uur_tot) && <small>{uurKort(l.uur_tot)}</small>}</td>
           <td><span className={`pf-soortik ${l.werk ? 'werk' : 'lev'}`} aria-hidden="true" />{naar ? <button className="pf-rijknop wat" title="Open de bestelling bij deze leverancier" onClick={() => naar('leveranciers', { lev: l.site_leverancier_id })}>{levTitel(l)}</button> : <b>{levTitel(l)}</b>}
-            {rs.length > 0 && <small>{rs.length} {rs.length === 1 ? 'regel' : 'regels'}</small>}
             {l.wat && <small style={{ color: 'var(--t-tekst)' }}>{l.wat}</small>}</td>
           <td>{waar || (l.werk ? <span className="pf-stil">–</span> : <span className="pf-stil">Leverpunt ontbreekt</span>)}</td>
           <td>{l.lev?.naam && naar ? <button className="pf-link" onClick={() => naar('leveranciers', { lev: l.site_leverancier_id })}>{l.lev.naam}</button> : l.lev?.naam}</td>
