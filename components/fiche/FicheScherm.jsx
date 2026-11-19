@@ -24,7 +24,7 @@ export default function FicheScherm({ planId }) {
     const t = new URLSearchParams(window.location.search).get('tab');
     if (t && ALLE_TABS.some(([k]) => k === t)) setTab(t);
   }, []);
-  const naar = (t) => { setTab(t); const u = new URL(window.location.href); u.searchParams.set('tab', t); window.history.replaceState(null, '', u); window.scrollTo(0, 0); };
+  const naar = (t, extra = {}) => { const u = new URL(window.location.href); u.searchParams.delete('lev'); for (const [k, v] of Object.entries(extra)) u.searchParams.set(k, v); setTab(t); u.searchParams.set('tab', t); window.history.replaceState(null, '', u); window.scrollTo(0, 0); };
 
   if (f.laden) return <div className="pf"><div className="pf-romp"><p className="pf-stil">Laden…</p></div></div>;
   if (!f.plan) return <div className="pf"><div className="pf-romp"><div className="t-melding fout">{f.fout || 'Dit plan bestaat niet.'}</div></div></div>;
@@ -55,7 +55,7 @@ export default function FicheScherm({ planId }) {
       </div>
       {f.fout && <div className="pf-romp" style={{ paddingBottom: 0 }}><div className="t-melding fout">{f.fout}</div></div>}
       {actief === 'overzicht' && <TabOverzicht f={f} naar={naar} />}
-      {actief === 'planning' && <TabPlanning f={f} planId={planId} />}
+      {actief === 'planning' && <TabPlanning f={f} planId={planId} naar={naar} />}
       {actief === 'leveranciers' && <TabLeveranciers f={f} />}
       {actief === 'laadlijst' && <TabLaadlijst f={f} />}
       {actief === 'catering' && <TabCatering f={f} />}

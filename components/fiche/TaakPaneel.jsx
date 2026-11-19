@@ -4,14 +4,15 @@
 // afbraak, levering waar ze bij hoort, en waar op de kaart (item, groep, laag, laaggroep).
 import { useState } from 'react';
 import { Paneel, Bewaarveld, Bewaartekst, StatusKeuze, STATUS_TAAK, Kiezer, Keuze, DagKiezer } from './gedeeld';
-import { dagLijst, dagNaam, canoniek, sleutel, uurKort, leesUur, label, wedstrijd, volgorde } from './dagen';
+import { dagLijst, dagNaam, canoniek, sleutel, uurKort, leesUur, wedstrijd, volgorde } from './dagen';
 import { opId } from './data';
 import { momentNaam } from './bestelling';
+import RijKaart from './RijKaart';
 import { bevestig } from '../maps/dialoog';
 
-export default function TaakPaneel({ f, taakId, onSluit, naast = false }) {
+export default function TaakPaneel({ f, taakId, onSluit, naast = false, vorige = null, volgende = null }) {
   const t = (f.d.taken || []).find((x) => x.id === taakId);
-  const [tot, setTot] = useState(null);
+  const [extra, setExtra] = useState(null);   // 'dag' of 'reeks': het datumveld onder de knoppen
   const dagen = (f.d.taak_dagen || []).filter((d) => d.taak_id === taakId).sort((a, b) => (a.anker === b.anker ? a.dag - b.dag : a.anker === 'start' ? -1 : 1));
   const kop = (f.d.taak_koppelingen || []).filter((k) => k.taak_id === taakId);
   if (!t) return null;
@@ -35,7 +36,7 @@ export default function TaakPaneel({ f, taakId, onSluit, naast = false }) {
     await f.voegToe('taak_dagen', { taak_id: t.id, ...canoniek(f.plan, x.anker, x.dag), uur_van: eerste?.uur_van || null, uur_tot: eerste?.uur_tot || null, uitvoerder_persoon_id: eerste?.uitvoerder_persoon_id || null });
   };
   // Reeks: elke dag van de eerste dag tot en met de gekozen dag.
-  const reeks = async () => {
+  const reeks = async (tot) => {
     if (!tot || !dagen.length) return;
     const start = dagen[0];
     if (volgorde(f.plan, tot, start) <= 0) return f.meld('Kies een dag na de eerste dag');
@@ -45,7 +46,6 @@ export default function TaakPaneel({ f, taakId, onSluit, naast = false }) {
       : Array.from({ length: Math.max(0, tot.dag - start.dag) }, (_, n) => ({ anker: 'start', dag: start.dag + n + 1 }));
     const nieuw = tussen.filter((x) => !bestaand.has(k(x))).map((x) => ({ taak_id: t.id, anker: x.anker, dag: x.dag, uur_van: start.uur_van, uur_tot: start.uur_tot, uitvoerder_persoon_id: start.uitvoerder_persoon_id }));
     if (nieuw.length) await f.voegToe('taak_dagen', nieuw);
-    setTot(null);
   };
   const afbraak = (f.d.taken || []).find((x) => x.ouder_id === t.id && x.relatie === 'afbraak');
   const maakAfbraak = async () => {
@@ -79,13 +79,15 @@ export default function TaakPaneel({ f, taakId, onSluit, naast = false }) {
   const woorden = t.titel.toLowerCase().split(/[^a-z0-9à-ÿ]+/).filter((x) => x.length > 3 && !['opbouw', 'plaatsen', 'afbraak', 'levering', 'ophalen'].includes(x));
   const voorstel = woorden.length ? f.items.filter((i) => i.naam && woorden.some((wd) => i.naam.toLowerCase().includes(wd)) && !kop.some((k) => k.item_id === i.id)).slice(0, 4) : [];
 
+  // De items achter de koppelingen, voor de luchtfoto.
+  const kaartIds = [...new Set(kop.flatMap((k) => (k.item_id ? [k.item_id] : k.laag_id ? f.items.filter((i) => i.laag_id === k.laag_id).map((i) => i.id) : k.soort === 'groep' && k.groep_id ? f.items.filter((i) => i.groep_id === k.groep_id).map((i) => i.id) : k.laaggroep ? f.items.filter((i) => laagMap.get(i.laag_id)?.map === k.laaggroep).map((i) => i.id) : [])))];
   const verwijder = async () => {
     if (!(await bevestig(`Taak "${t.titel}" verwijderen, met al haar dagen?`, { ok: 'Verwijderen', gevaar: true }))) return;
     await f.wis('taken', t.id); onSluit();
   };
 
   return (
-    <Paneel naast={naast} titel={t.titel} sub={[t.soort, t.relatie === 'afbraak' ? 'Afbraak' : null].filter(Boolean).join(' · ') || 'Taak'} onSluit={onSluit}
+    <Paneel naast={naast} knoppen={(vorige || volgende) && <><button className="pf-sluit" onClick={vorige || undefined} disabled={!vorige} aria-label="Vorige taak">‹</button><button className="pf-sluit" onClick={volgende || undefined} disabled={!volgende} aria-label="Volgende taak">›</button></>} titel={t.titel} sub={[t.soort, t.relatie === 'afbraak' ? 'Afbraak' : null].filter(Boolean).join(' · ') || 'Taak'} onSluit={onSluit}
       voet={<>{s && <button className="t-knop gevaar" onClick={verwijder}>Verwijderen</button>}<span style={{ flex: 1 }} /><button className="t-knop hoofd" onClick={onSluit}>Klaar</button></>}>
       <div className="pf-blok">
         <label className="pf-veld"><span className="t-label">Taak</span><Bewaarveld klasse="t-veld" waarde={t.titel} uit={!s} label="Taak" onBewaar={(v) => v.trim() && w({ titel: v.trim() })} /></label>
@@ -108,28 +110,25 @@ export default function TaakPaneel({ f, taakId, onSluit, naast = false }) {
         </div>
       ) : (
         <div className="pf-blok"><b>Wanneer</b>
-          {dagen.map((d) => {
-            return (
-              <div key={d.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 70px 70px', gap: 6, alignItems: 'end', paddingBottom: 6, borderBottom: '1px solid #EEF1F5' }}>
-                <label className="pf-veld"><span className="t-label">Dag</span>
-                  <DagKiezer plan={f.plan} anker={d.anker} dag={d.dag} uit={!s} onChange={(x) => zetDag(d, x)} /></label>
-                <label className="pf-veld"><span className="t-label">Van</span><Bewaarveld klasse="t-veld" waarde={uurKort(d.uur_van)} uit={!s} label="Van" placeholder="uur" onBewaar={(v) => { const u = leesUur(v); if (v && !u) return f.meld('Uur niet herkend, bv. 07:30'); f.wijzig('taak_dagen', d.id, { uur_van: u }); }} /></label>
-                <label className="pf-veld"><span className="t-label">Tot</span><Bewaarveld klasse="t-veld" waarde={uurKort(d.uur_tot)} uit={!s} label="Tot" placeholder="uur" onBewaar={(v) => { const u = leesUur(v); if (v && !u) return f.meld('Uur niet herkend, bv. 17:00'); f.wijzig('taak_dagen', d.id, { uur_tot: u }); }} /></label>
-                <div className="pf-rij" style={{ gridColumn: '1 / -1' }}>
-                  <StatusKeuze waarde={d.status} opties={STATUS_TAAK} uit={!s} label="Status" onChange={(v) => f.wijzig('taak_dagen', d.id, { status: v, klaar_op: v === 'klaar' ? new Date().toISOString() : null })} />
-                  <span style={{ flex: 1, minWidth: 140 }}><Kiezer waarde={d.uitvoerder_persoon_id} opties={persOpties} uit={!s} label="Uitvoerder op deze dag" leeg="Uitvoerder: zelfde als taak" onChange={(v) => f.wijzig('taak_dagen', d.id, { uitvoerder_persoon_id: v })} /></span>
-                  {s && dagen.length > 1 && <button className="t-knop klein stil" onClick={() => f.wis('taak_dagen', d.id)}>Dag weg</button>}
-                </div>
-              </div>
-            );
-          })}
-          {s && <>
-            <div className="pf-rij" style={{ flexWrap: 'nowrap' }}><span className="pf-stil" style={{ width: 96, flex: 'none' }}>Reeks tot en met</span><DagKiezer plan={f.plan} anker={tot?.anker} dag={tot?.dag} leeg onChange={setTot} label="Reeks tot en met" style={{ flex: 1 }} /><button className="t-knop klein" onClick={reeks} disabled={!tot}>Reeks maken</button></div>
-            <div className="pf-rij" style={{ flexWrap: 'nowrap' }}><span className="pf-stil" style={{ width: 96, flex: 'none' }}>Losse dag erbij</span><DagKiezer plan={f.plan} leeg metLabel={false} onChange={(x) => x && voegDagToe(x)} label="Losse dag toevoegen" style={{ flex: 1 }} /></div>
-          </>}
-          {dagen.length > 1 && <div className="t-melding">Op {dagen.length} dagen: {dagen.map((d) => label(f.plan, d.anker, d.dag)).join(', ')}. Elke dag heeft een eigen status en uur.</div>}
-          <div className="pf-stil pf-klein">Bewaard tegenover de wedstrijddag{wedstrijd(f.plan) ? '' : ' (nog niet ingesteld)'}: schuift mee naar een volgende editie.</div>
-          {s && <button className="pf-link" onClick={() => w({ voorbereiding: true })}>Naar voorbereiding (zonder dag)</button>}
+          {dagen.map((d) => (
+            <div key={d.id} className="pf-dagregel">
+              <DagKiezer plan={f.plan} anker={d.anker} dag={d.dag} uit={!s} label="Dag" onChange={(x) => zetDag(d, x)} />
+              <Bewaarveld klasse="t-veld" waarde={uurKort(d.uur_van)} uit={!s} label="Van" placeholder="van" onBewaar={(v) => { const u = leesUur(v); if (v && !u) return f.meld('Uur niet herkend, bv. 07:30'); f.wijzig('taak_dagen', d.id, { uur_van: u }); }} />
+              <Bewaarveld klasse="t-veld" waarde={uurKort(d.uur_tot)} uit={!s} label="Tot" placeholder="tot" onBewaar={(v) => { const u = leesUur(v); if (v && !u) return f.meld('Uur niet herkend, bv. 17:00'); f.wijzig('taak_dagen', d.id, { uur_tot: u }); }} />
+              <StatusKeuze waarde={d.status} opties={STATUS_TAAK} uit={!s} label="Status" onChange={(v) => f.wijzig('taak_dagen', d.id, { status: v, klaar_op: v === 'klaar' ? new Date().toISOString() : null })} />
+              {s && dagen.length > 1 ? <button className="pf-sluit klein" onClick={() => f.wis('taak_dagen', d.id)} aria-label="Deze dag weghalen">✕</button> : <span />}
+              {d.uitvoerder_persoon_id && <span className="pf-dagwie"><Kiezer waarde={d.uitvoerder_persoon_id} opties={persOpties} uit={!s} label="Uitvoerder op deze dag" leeg="Uitvoerder: zelfde als taak" onChange={(v) => f.wijzig('taak_dagen', d.id, { uitvoerder_persoon_id: v })} /></span>}
+            </div>
+          ))}
+          {s && <div className="pf-rij" style={{ gap: 6 }}>
+            <button className={`t-knop klein ${extra === 'dag' ? 'aan' : ''}`} onClick={() => setExtra(extra === 'dag' ? null : 'dag')}>+ Dag</button>
+            {dagen.length > 0 && <button className={`t-knop klein ${extra === 'reeks' ? 'aan' : ''}`} onClick={() => setExtra(extra === 'reeks' ? null : 'reeks')}>Reeks tot…</button>}
+            {!t.ouder_id && !afbraak && <button className="t-knop klein" onClick={maakAfbraak}>Afbraak toevoegen</button>}
+            <span className="pf-vul" />
+            <button className="pf-link pf-klein" onClick={() => w({ voorbereiding: true })}>Zonder dag</button>
+          </div>}
+          {extra && <div className="pf-rij" style={{ flexWrap: 'nowrap' }}><span className="pf-stil" style={{ flex: 'none' }}>{extra === 'dag' ? 'Dag erbij' : 'Elke dag tot en met'}</span>
+            <DagKiezer plan={f.plan} leeg label={extra === 'dag' ? 'Dag toevoegen' : 'Reeks tot en met'} style={{ flex: 1 }} onChange={async (x) => { if (!x) return; if (extra === 'dag') await voegDagToe(x); else await reeks(x); setExtra(null); }} /></div>}
         </div>
       )}
 
@@ -137,28 +136,22 @@ export default function TaakPaneel({ f, taakId, onSluit, naast = false }) {
         {ouder && <div className="pf-lijstknop" style={{ cursor: 'default' }}><b>{t.relatie === 'afbraak' ? 'Afbraak van' : 'Hoort bij'}: {ouder.titel}</b></div>}
         {!t.ouder_id && (afbraak
           ? <div className="pf-lijstknop" style={{ cursor: 'default', background: '#F7FBFF', borderColor: '#108AED' }}><b>{afbraak.titel}</b><span>Afbraak, gekoppeld aan deze taak</span></div>
-          : s && <div className="pf-rij"><button className="t-knop klein" onClick={maakAfbraak}>Afbraak toevoegen</button><span className="pf-stil pf-klein">Zelfde plek en uitvoerder, op D+1.</span></div>)}
-        <label className="pf-veld"><span className="t-label">Na levering (bv. plaatsing na levering trailer)</span>
+          : null)}
+        <label className="pf-veld"><span className="t-label">Na levering</span>
           <Kiezer waarde={t.levering_id} opties={leveringen} leeg="Geen levering" uit={!s} label="Levering" onChange={(v) => w({ levering_id: v, relatie: v ? (t.relatie || 'plaatsing') : (t.relatie === 'plaatsing' ? null : t.relatie) })} /></label>
       </div>
 
       <div className="pf-blok"><b>Waar</b>
-        {kop.map((k) => {
+        {kop.length > 0 && <div className="pf-pillen">{kop.map((k) => {
           const naam = (k.item_id && itemMap.get(k.item_id)?.naam) || (k.laag_id && `Laag ${laagMap.get(k.laag_id)?.naam || ''}`) || (k.laaggroep && `Laaggroep ${k.laaggroep}`) || (k.soort === 'groep' && `Groep ${k.label || ''}`) || null;
-          return (
-            <div key={k.id} className="pf-rij" style={{ flexWrap: 'nowrap' }}>
-              <span style={{ flex: 1 }} className={naam ? '' : 'pf-let'}>{naam || `${k.label || 'Koppeling'} · niet meer op de kaart`}</span>
-              {k.item_id && <a className="pf-link" href={`/maps/${f.plan.id}?item=${k.item_id}`}>Op de kaart</a>}
-              {s && <button className="t-knop klein stil" onClick={() => f.wis('taak_koppelingen', k.id)}>Los</button>}
-            </div>
-          );
-        })}
+          return <span key={k.id} className={`pf-pil ${naam ? '' : 'let'}`}>{naam || `${k.label || 'Koppeling'} · niet meer op de kaart`}{s && <button onClick={() => f.wis('taak_koppelingen', k.id)} aria-label="Loskoppelen">✕</button>}</span>;
+        })}</div>}
+        {kaartIds.length > 0 && <RijKaart plan={f.plan} items={f.items} lagen={f.lagen} elementen={f.elementen} ids={kaartIds} />}
         {s && voorstel.length > 0 && <div className="pf-blok" style={{ gap: 4 }}><span className="pf-stil pf-klein">Voorstellen uit het plan op basis van de naam:</span>
           {voorstel.map((i) => <button key={i.id} className="pf-lijstknop" onClick={() => koppel({ soort: 'item', item_id: i.id, label: i.naam })}><b>{i.naam}</b><span>{laagMap.get(i.laag_id)?.naam || (i.vast ? 'Vast item van de locatie' : '')}</span></button>)}</div>}
         {s && <>
           <Keuze waarde={null} opties={waarOpties} vrij tekst={t.waar_tekst || ''} label="Waar" leeg="Vrije tekst wissen" placeholder="Zoek een item, laag of groep op de kaart, of typ een plaats"
             onChange={kiesWaar} onVrij={(v) => w({ waar_tekst: v || null })} style={{ width: '100%' }} />
-          <span className="pf-stil pf-klein">Kies uit de kaart om te koppelen (meerdere kan), of typ een plaats die niet op de kaart staat.</span>
         </>}
       </div>
     </Paneel>

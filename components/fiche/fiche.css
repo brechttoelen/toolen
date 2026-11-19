@@ -241,7 +241,8 @@
 .pf-knoppen { display: inline-flex; gap: 6px; }
 .pf-filterwrap { position: relative; }
 .pf-filterpop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; width: 300px; background: #fff; border: 1px solid var(--t-rand); border-radius: 12px; box-shadow: var(--t-schaduw-zweef); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-.pf-dagstrook { flex: none; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+.pf-dagstrook { flex: none; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.pf-dagstrook::-webkit-scrollbar { display: none; }
 .pf-dagstrook button { all: unset; box-sizing: border-box; cursor: pointer; flex: none; min-width: 62px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--t-rand); background: #fff; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
 .pf-dagstrook button small { display: flex; gap: 4px; align-items: center; font-size: 11px; font-weight: 400; color: var(--t-tekst-2); }
 .pf-dagstrook button i { font-style: normal; font-weight: 600; background: var(--t-let-op-zacht); color: var(--t-let-op); border-radius: 8px; padding: 0 5px; }
@@ -278,3 +279,21 @@
 .pf-planbalk.sel .pf-keuze { flex: none; }
 .pf-planbalk.sel .pf-keuze .pf-bsel { width: 100%; box-sizing: border-box; padding-right: 26px; }
 .pf-planbalk.sel .pf-keuze .pijl { color: #fff; }
+/* Taakpaneel naast de planning */
+.pf-achter.naast .pf-paneel { width: 420px; }
+@media (min-width: 1200px) { .pf-plan.met-paneel { padding-right: 448px; } }
+.pf-paneelkop .pf-sluit:disabled { opacity: .3; cursor: default; background: none; }
+.pf-dagregel { display: grid; grid-template-columns: minmax(0, 1fr) 58px 58px 100px 28px; gap: 6px; align-items: center; }
+.pf-dagregel .t-veld { height: 32px; box-sizing: border-box; width: 100%; padding: 0 8px; }
+.pf-dagregel .pf-dag { min-width: 0; }
+.pf-dagregel .pf-dag .t-veld { padding: 0 6px; }
+.pf-dagregel .pf-dagwie { grid-column: 1 / -1; }
+.pf-sluit.klein { width: 28px; height: 28px; font-size: 12px; }
+.pf-pillen { display: flex; gap: 6px; flex-wrap: wrap; }
+.pf-pil { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border-radius: 13px; background: var(--t-blauw-zacht); color: var(--t-blauw-donker); font-size: 12.5px; font-weight: 500; }
+.pf-pil.let { background: var(--t-let-op-zacht); color: var(--t-let-op); }
+.pf-pil button { all: unset; cursor: pointer; width: 20px; height: 20px; border-radius: 10px; display: grid; place-items: center; font-size: 11px; }
+.pf-pil button:hover { background: rgba(0,0,0,.08); }
+.pf-paneel .pf-rijkaart { grid-template-columns: 1fr; grid-template-rows: 200px auto; height: auto; }
+.pf-paneel .pf-rijkaart .lijst { border-left: 0; border-top: 1px solid var(--t-rand); max-height: 150px; overflow: auto; }
+.t-knop.aan { background: var(--t-navy); border-color: var(--t-navy); color: #fff; }

@@ -99,7 +99,7 @@ export default function RijKaart({ plan, items, lagen = [], elementen = [], ids,
     <div className="pf-rijkaart" ref={vak}>
       <div className="kaart" ref={gast}>{stand !== 'ok' && <span className="stand">{stand === 'laden' ? 'Kaart laden…' : stand === 'leeg' ? 'Deze regel heeft geen elementen met een plaats op de kaart.' : 'De kaart kon niet laden.'}</span>}</div>
       <div className="lijst">
-        <div className="pf-rij" style={{ flexWrap: 'nowrap' }}><b style={{ flex: 1, fontWeight: 600 }}>{gekozen.length} {gekozen.length === 1 ? 'element' : 'elementen'}</b><button className="pf-sluit" onClick={onSluit} aria-label="Kaart sluiten">✕</button></div>
+        <div className="pf-rij" style={{ flexWrap: 'nowrap' }}><b style={{ flex: 1, fontWeight: 600 }}>{gekozen.length} {gekozen.length === 1 ? 'element' : 'elementen'}</b>{onSluit && <button className="pf-sluit" onClick={onSluit} aria-label="Kaart sluiten">✕</button>}</div>
         <div className="namen">{lijst.map((x) => <button key={x.i.id} className="pf-lijstknop" onClick={() => naar(x.i)}><b>{x.n > 1 ? `${x.n} × ` : ''}{x.i.naam || 'Zonder naam'}</b>{x.binnen && <span>binnen · de opstelling staat in het binnenplan</span>}</button>)}</div>
         {gekozen[0] && <a className="t-knop klein" href={`/maps/${plan.id}?item=${gekozen[0].id}`} style={{ textDecoration: 'none' }}>Open op de kaart</a>}
       </div>

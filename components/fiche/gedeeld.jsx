@@ -39,13 +39,14 @@ export function Bewaartekst({ waarde, onBewaar, placeholder = '', label, uit = f
     onChange={(e) => setV(e.target.value)} onBlur={() => { if ((waarde ?? '') !== v) onBewaar(v); }} />;
 }
 
-export function Paneel({ titel, sub, onSluit, children, voet, naast = false }) {
+export function Paneel({ titel, sub, onSluit, children, voet, naast = false, knoppen = null }) {
   useEffect(() => { const k = (e) => { if (e.key === 'Escape') onSluit(); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [onSluit]);
   return (
     <div className={`pf-achter ${naast ? 'naast' : ''}`} onClick={(e) => { if (e.target === e.currentTarget) onSluit(); }}>
       <aside className="pf-paneel" role="dialog" aria-label={titel}>
         <div className="pf-paneelkop">
           <div style={{ flex: 1, minWidth: 0 }}>{sub && <div className="pf-stil pf-klein">{sub}</div>}<h2>{titel}</h2></div>
+          {knoppen}
           <button className="pf-sluit" onClick={onSluit} aria-label="Sluiten">✕</button>
         </div>
         <div className="pf-paneelromp">{children}</div>

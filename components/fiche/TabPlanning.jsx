@@ -24,7 +24,7 @@ export function waarTekst(t, f) {
   return { tekst: namen.length ? namen.join(', ') : (t.waar_tekst || ''), verloren: k.some((x) => !x.item_id && !x.laag_id && !x.laaggroep && x.soort !== 'groep'), gekoppeld: k.length > 0 };
 }
 
-export default function TabPlanning({ f, planId }) {
+export default function TabPlanning({ f, planId, naar }) {
   const { plan } = f;
   const [sub, setSub] = useState('opbouw');
   const [soort, setSoort] = useState('Alles');
@@ -183,11 +183,11 @@ export default function TabPlanning({ f, planId }) {
       const l = r.l; const lk = `${l.id}-${r.n || 0}`; const isOpen = levOpen === lk; const rs = regelsBij(l); const waar = levWaar(l);
       return [
         <tr key={`l${lk}`} className={`${isOpen ? 'gekozen' : ''} ${l.status === 'klaar' ? 'klaar' : ''}`}><td className="pf-pijlcel">{(rs.length > 0 || f.schrijven) && <button className="pf-pijl" aria-expanded={isOpen} aria-label="Wat en waar tonen, met kaart en opmerking" onClick={() => setLevOpen(isOpen ? null : lk)}>{pijl}</button>}</td><td className="pf-uur">{r.uur || '–'}</td>
-          <td><span className={`pf-soortik ${l.werk ? 'werk' : 'lev'}`} aria-hidden="true" /><b>{levTitel(l)}</b>
+          <td><span className={`pf-soortik ${l.werk ? 'werk' : 'lev'}`} aria-hidden="true" />{naar ? <button className="pf-rijknop wat" title="Open de bestelling bij deze leverancier" onClick={() => naar('leveranciers', { lev: l.site_leverancier_id })}>{levTitel(l)}</button> : <b>{levTitel(l)}</b>}
             <small>{[r.van > 1 && `dag ${r.n + 1} van ${r.van}`, uurKort(l.uur_tot) && `tot ${uurKort(l.uur_tot)}`, rs.length > 0 && `${rs.length} ${rs.length === 1 ? 'regel' : 'regels'}`].filter(Boolean).join(' · ')}</small>
             {l.wat && <small style={{ color: 'var(--t-tekst)' }}>{l.wat}</small>}</td>
           <td>{waar || (l.werk ? <span className="pf-stil">–</span> : <span className="pf-stil">Leverpunt ontbreekt</span>)}</td>
-          <td>{l.lev?.naam}</td>
+          <td>{l.lev?.naam && naar ? <button className="pf-link" onClick={() => naar('leveranciers', { lev: l.site_leverancier_id })}>{l.lev.naam}</button> : l.lev?.naam}</td>
           <td><StatusKeuze waarde={l.status} opties={STATUS_TAAK} uit={!f.schrijven} label="Status levering" onChange={(v) => f.wijzig('leveringen', l.id, { status: v })} /></td></tr>,
         isOpen && <tr key={`l${lk}-open`} className="pf-kaartrij"><td colSpan={6}>
           <div className="pf-momentopen">
@@ -214,12 +214,14 @@ export default function TabPlanning({ f, planId }) {
     );
   };
 
+  const taakVolg = [...new Set(groepen.flatMap((g) => g.rijen).filter((r) => r.soort === 'taak').map((r) => r.t.id))];
+  const stapTaak = (n) => { const i = taakVolg.indexOf(open); const v = taakVolg[i + n]; if (v) setOpen(v); };
   const balk = selIds.length > 0 && f.schrijven && sub === 'opbouw' ? (
     <div className="pf-planbalk sel" role="toolbar" aria-label="Acties op de selectie">
       <b>{selIds.length} geselecteerd</b>
       {STATUS_TAAK.map(([k, n]) => <button key={k} className="pf-bknop" onClick={() => bulk.status(k)}>{n}</button>)}
       <span className="sep" />
-      <Keuze waarde={null} opties={wieOpties} label="Wie toewijzen" placeholder="Wie…" wisbaar={false} klasse="pf-bsel" style={{ width: 150 }} onChange={bulk.wie} />
+      <Keuze waarde={null} opties={wieOpties} label="Wie toewijzen" leeg="Wie…" placeholder="Wie…" wisbaar={false} klasse="pf-bsel" style={{ width: 150 }} onChange={bulk.wie} />
       <span className="sep" />
       <button className="pf-bknop" onClick={() => bulk.schuif(-1)} title="Een dag vroeger">− 1 dag</button>
       <button className="pf-bknop" onClick={() => bulk.schuif(1)} title="Een dag later">+ 1 dag</button>
@@ -268,7 +270,7 @@ export default function TabPlanning({ f, planId }) {
           {enkelOpen && <button className="pf-chip aan" onClick={() => setEnkelOpen(false)}>Enkel open ✕</button>}
           {!toonProg && <button className="pf-chip aan" onClick={() => setToonProg(true)}>Zonder programma ✕</button>}
         </div>}
-        <div className="pf-dagstrook" ref={strook} role="tablist" aria-label="Spring naar een dag">
+        <div className="pf-dagstrook" ref={strook} role="tablist" aria-label="Spring naar een dag" onWheel={(e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && strook.current) strook.current.scrollLeft += e.deltaY; }}>
           {lijst.map((x) => {
             const rs = perDag.get(x.k) || []; const o = rs.filter(openOp).length; const fs = fase(plan, x.anker, x.dag);
             return <button key={x.k} data-k={x.k} role="tab" aria-selected={actiefK === x.k} className={`${actiefK === x.k ? 'aan' : ''} ${fs} ${x.k === vandaagK ? 'vandaag' : ''} ${rs.length ? '' : 'leeg'}`} onClick={() => naarDag(x.k)}>
@@ -308,7 +310,7 @@ export default function TabPlanning({ f, planId }) {
       {sub === 'voorbereiding' && <Voorbereiding f={f} onOpen={setOpen} />}
       {sub === 'programma' && <Programma f={f} />}
       {notOpen && !open && <Paneel naast titel="Notities" sub="Planning" onSluit={() => setNotOpen(false)}><TabNotities f={f} tab="planning" /></Paneel>}
-      {open && <TaakPaneel naast f={f} taakId={open} onSluit={() => setOpen(null)} />}
+      {open && <TaakPaneel naast f={f} taakId={open} onSluit={() => setOpen(null)} vorige={sub === 'opbouw' && taakVolg.indexOf(open) > 0 ? () => stapTaak(-1) : null} volgende={sub === 'opbouw' && taakVolg.indexOf(open) >= 0 && taakVolg.indexOf(open) < taakVolg.length - 1 ? () => stapTaak(1) : null} />}
     </div>
   );
 }
