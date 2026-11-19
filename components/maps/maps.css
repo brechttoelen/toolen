@@ -1067,7 +1067,9 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
   .fm-fotogroot-balk .fm-knop { flex-shrink: 0; height: 36px; }
 }
 @media (min-width: 700px) and (max-width: 1024px) {
-  .fm-binnenscherm.lezen .fm-bs-links, .fm-binnenscherm.lezen .fm-bs-rechts { left: 16px; right: auto; width: 420px; max-height: 70dvh; border-radius: 14px 14px 0 0; }
+  /* Enkel breedte en plaats: de hoogte (dicht = enkel de greep) blijft die van de gsm-regels. */
+  .fm-binnenscherm.lezen .fm-bs-links, .fm-binnenscherm.lezen .fm-bs-rechts { left: 16px; right: auto; width: 420px; border-radius: 14px 14px 0 0; }
+  .fm-binnenscherm.lezen .fm-bs-rechts { max-height: 70dvh; }
   .fm-binnenscherm.lezen.lijst-open .fm-bs-links { max-height: 70dvh; }
   .fm-binnenscherm.lezen .fm-bs-zweef.rechts { right: 16px; left: auto; bottom: 16px; }
   .fm-binnenscherm.lezen.met-tool .fm-bs-zweef.rechts { bottom: 16px; }
