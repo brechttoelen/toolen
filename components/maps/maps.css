@@ -1004,7 +1004,7 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-binnenscherm.lezen.lijst-open .fm-bs-links { display: block; }
 .fm-binnenscherm.lezen .fm-bs-lijstkop { padding: 8px 12px; margin: 0; top: 0; }
 .fm-binnenscherm.lezen .fm-bs-lijstkop strong { font-size: 13px; }
-.fm-bs-ruimteknop[aria-pressed=true] { background: var(--fm-zwart); color: #fff; border-color: var(--fm-zwart); }
+.fm-binnenscherm .fm-bs-kop .fm-knop.fm-bs-ruimteknop[aria-pressed=true] { background: var(--fm-zwart); color: #fff !important; border-color: var(--fm-zwart); }
 @media (min-width: 1025px) {
   .fm-binnenscherm.lezen:not(.met-detail) .fm-bs-rechts { display: none; }
 }
