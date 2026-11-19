@@ -260,7 +260,7 @@
 .pf-tabel tr.groep.dag.vandaag td { box-shadow: inset 3px 0 0 var(--t-blauw); }
 .pf-uur { font-variant-numeric: tabular-nums; }
 .pf-soortik { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 8px; vertical-align: 1px; }
-.pf-soortik.taak { background: var(--t-blauw); }
+.pf-soortik.taak { background: #2F6FED; }
 .pf-soortik.lev { background: #E8862A; border-radius: 50%; }
 .pf-soortik.werk { background: #2E9E6B; }
 .pf-soortik.prog { background: #7B5CE0; border-radius: 50%; }

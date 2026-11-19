@@ -107,7 +107,7 @@ export default function TabPlanning({ f, planId }) {
 
   const theadH = () => vak.current?.querySelector('thead')?.offsetHeight || 37;
   const naarDag = (k, glad = true) => {
-    const el = dagRij.current.get(k); const v = vak.current; if (!el || !v) return;
+    const el = dagRij.current.get(k); const v = vak.current; if (!el || !v) return; setActiefK(k);
     v.scrollTo({ top: el.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop - theadH(), behavior: glad ? 'smooth' : 'auto' });
   };
   const spy = useRef(0);
@@ -301,6 +301,7 @@ export default function TabPlanning({ f, planId }) {
               })}
             </tbody>
           </table>
+          <div className="pf-staart" style={{ height: Math.max(0, (hoogte || 600) - 320) }} aria-hidden="true" />
         </div>
       </>}
 
