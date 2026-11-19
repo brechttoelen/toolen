@@ -2,17 +2,15 @@
 
 // Planning van de site: taken per dag (een taak kan op meerdere dagen staan), leveringen
 // en ophalingen van leveranciers, en het programma van de wedstrijd.
-import { useMemo, useState } from 'react';
-import { dagLijst, label, dagNaam, isoWeek, sleutel, uitSleutel, canoniek, uurKort, leesUur, wedstrijd, fase, FASE_NAAM, datumTekst } from './dagen';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { dagLijst, label, dagNaam, sleutel, uitSleutel, canoniek, uurKort, leesUur, wedstrijd, fase, FASE_NAAM } from './dagen';
 import { locatieTekst, momentNaam, momentDagen, namenTekst, bestelRijen } from './bestelling';
-import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities, DagKiezer } from './gedeeld';
+import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities, DagKiezer, Keuze, Zoek, Paneel } from './gedeeld';
 import { opId } from './data';
 import TaakPaneel from './TaakPaneel';
 import RijKaart from './RijKaart';
 import { bevestig } from '../maps/dialoog';
 
-const DEEL = ['Voormiddag', 'Namiddag', 'Avond', 'Zonder uur'];
-const deelVan = (u) => { if (!u) return 3; const h = Number(String(u).slice(0, 2)); return h < 12 ? 0 : h < 18 ? 1 : 2; };
 const opUur = (a, b) => String(a.uur || '99').localeCompare(String(b.uur || '99'));
 
 export function wieTekst(t, d, f) {
@@ -29,14 +27,20 @@ export function waarTekst(t, f) {
 export default function TabPlanning({ f, planId }) {
   const { plan } = f;
   const [sub, setSub] = useState('opbouw');
-  const [weerg, setWeerg] = useState(() => (wedstrijd(plan) ? 'dag' : 'alles'));
-  const [dagK, setDagK] = useState(null);
   const [soort, setSoort] = useState('Alles');
   const [enkelOpen, setEnkelOpen] = useState(false);
   const [toonProg, setToonProg] = useState(true);
+  const [legeDagen, setLegeDagen] = useState(true);
+  const [zoek, setZoek] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [notOpen, setNotOpen] = useState(false);
   const [sel, setSel] = useState(new Set());
   const [levOpen, setLevOpen] = useState(null);   // opengeklapte levering of opbouw (één tegelijk: er is één kaart)
   const [open, setOpen] = useState(null);
+  const [actiefK, setActiefK] = useState(null);   // de dag die bovenaan de lijst staat
+  const [hoogte, setHoogte] = useState(null);
+  const romp = useRef(null); const vak = useRef(null); const strook = useRef(null); const filterRef = useRef(null);
+  const dagRij = useRef(new Map());
 
   const taken = f.d.taken || [];
   const takenMap = useMemo(() => opId(taken), [taken]);
@@ -57,57 +61,96 @@ export default function TabPlanning({ f, planId }) {
   };
   const regelIds = (l) => { const sl = slMap.get(l.site_leverancier_id); const rs = regelsBij(l); if (!sl || !rs.length) return []; if (!rijenPerSl.has(sl.id)) rijenPerSl.set(sl.id, bestelRijen(f, sl).rijen); const ids = new Set(rs.map((r) => r.id)); return [...new Set(rijenPerSl.get(sl.id).filter((x) => ids.has(x.r.id)).flatMap((x) => x.ids || []))]; };
   const regelPlaats = (l) => [...new Set(regelsBij(l).map((r) => locatieTekst(f, r)).filter(Boolean))].join(', ');
+  const levWaar = (l) => { const rs = regelsBij(l); return (l.leverpunt_item_id && f.items.find((x) => x.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst || regelPlaats(l) || [...new Set(rs.map((x) => x.groep).filter(Boolean))].join(', '); };
+  const levTitel = (l) => `${momentNaam(l)}${l.werk && slMap.get(l.site_leverancier_id)?.wat ? ` ${slMap.get(l.site_leverancier_id).wat}` : ''} · ${l.lev?.naam || 'leverancier'}`;
 
-  const lijst = useMemo(() => dagLijst(plan, [...dagen, ...leveringen.flatMap((l) => momentDagen(plan, l)), ...programma, { anker: 'start', dag: 0 }, ...(dagK ? [uitSleutel(dagK)] : [])]), [plan, dagen, leveringen, programma, dagK]);
-  const huidig = lijst.find((x) => x.k === dagK) || lijst.find((x) => x.k === 'start:0') || lijst[0];
-  const idx = Math.max(0, lijst.indexOf(huidig));
-  const metWeek = !!wedstrijd(plan);
-  const inBereik = (x) => weerg === 'alles' || (weerg === 'week' ? (metWeek ? isoWeek(x.datum) === isoWeek(huidig.datum) && Math.abs(x.datum - huidig.datum) < 8 * 864e5 : true) : x.k === huidig.k);
-  const bereik = lijst.filter(inBereik);
-  const bereikK = new Set(bereik.map((x) => x.k));
+  // Alle dagen van de eerste tot de laatste, in één doorlopende lijst.
+  const lijst = useMemo(() => dagLijst(plan, [...dagen, ...leveringen.flatMap((l) => momentDagen(plan, l)), ...programma, { anker: 'start', dag: 0 }]), [plan, dagen, leveringen, programma]);
+  const vandaagK = lijst.find((x) => x.datum && x.datum.toDateString() === new Date().toDateString())?.k || null;
+  const wedK = sleutel(canoniek(plan, 'start', 0).anker, canoniek(plan, 'start', 0).dag);
 
   const soorten = ['Alles', ...new Set([...taken.map((t) => t.soort).filter(Boolean), ...(leveringen.length ? ['Levering'] : [])])];
-  const filt = (t, d) => (soort === 'Alles' || t.soort === soort) && (!enkelOpen || d.status !== 'klaar');
+  const q = zoek.trim().toLowerCase();
+  const past = (...s) => !q || s.some((x) => x && String(x).toLowerCase().includes(q));
 
   const rijen = [];
   for (const d of dagen) {
     const c = canoniek(plan, d.anker, d.dag); const k = sleutel(c.anker, c.dag);
     const t = takenMap.get(d.taak_id);
-    if (bereikK.has(k) && !t.voorbereiding && filt(t, d)) rijen.push({ soort: 'taak', k, uur: uurKort(d.uur_van), d, t });
+    if (t.voorbereiding || !(soort === 'Alles' || t.soort === soort) || (enkelOpen && d.status === 'klaar')) continue;
+    if (q && !past(t.titel, t.info, t.soort, waarTekst(t, f).tekst, wieTekst(t, d, f))) continue;
+    rijen.push({ soort: 'taak', k, uur: uurKort(d.uur_van), d, t });
   }
   // Een opbouw of afbraak over meerdere dagen staat op elke dag van de periode.
-  if (soort === 'Alles' || soort === 'Levering') for (const l of leveringen) momentDagen(plan, l).forEach((c, n, alle) => {
-    const k = sleutel(c.anker, c.dag);
-    if (bereikK.has(k) && (!enkelOpen || l.status !== 'klaar')) rijen.push({ soort: 'levering', k, uur: uurKort(l.uur_van), l, n, van: alle.length });
-  });
-  if (toonProg && soort === 'Alles') for (const p of programma) {
-    const c = canoniek(plan, p.anker, p.dag); const k = sleutel(c.anker, c.dag);
-    if (bereikK.has(k)) rijen.push({ soort: 'prog', k, uur: uurKort(p.uur_van), p });
+  if (soort === 'Alles' || soort === 'Levering') for (const l of leveringen) {
+    if ((enkelOpen && l.status === 'klaar') || (q && !past(levTitel(l), l.wat, levWaar(l), regelTekst(l)))) continue;
+    momentDagen(plan, l).forEach((c, n, alle) => rijen.push({ soort: 'levering', k: sleutel(c.anker, c.dag), uur: uurKort(l.uur_van), l, n, van: alle.length }));
   }
-  const groepen = weerg === 'dag'
-    ? [0, 1, 2, 3].map((g) => ({ naam: DEEL[g], klas: g === 3 ? 'let-op' : '', rijen: rijen.filter((r) => deelVan(r.uur) === g).sort(opUur) })).filter((g) => g.rijen.length)
-    : bereik.map((x) => ({ naam: `${dagNaam(plan, x.anker, x.dag)} · ${FASE_NAAM[fase(plan, x.anker, x.dag)]}`, rijen: rijen.filter((r) => r.k === x.k).sort(opUur) })).filter((g) => g.rijen.length);
-  const takenInBereik = rijen.filter((r) => r.soort === 'taak');
-  const nOpen = takenInBereik.filter((r) => r.d.status === 'open').length;
+  if (toonProg && soort === 'Alles') for (const p of programma) {
+    if (q && !past(p.wat)) continue;
+    const c = canoniek(plan, p.anker, p.dag); rijen.push({ soort: 'prog', k: sleutel(c.anker, c.dag), uur: uurKort(p.uur_van), p });
+  }
+  const perDag = new Map(lijst.map((x) => [x.k, []]));
+  for (const r of rijen) (perDag.get(r.k) || perDag.set(r.k, []).get(r.k)).push(r);
+  const filterAan = soort !== 'Alles' || enkelOpen || !toonProg || !!q;
+  const groepen = lijst.map((x) => ({ x, rijen: (perDag.get(x.k) || []).sort(opUur) })).filter((g) => g.rijen.length || (legeDagen && !filterAan));
+  const openOp = (r) => (r.soort === 'taak' && r.d.status !== 'klaar') || (r.soort === 'levering' && r.l.status !== 'klaar');
+  const takenTotaal = rijen.filter((r) => r.soort === 'taak');
+  const nOpen = takenTotaal.filter((r) => r.d.status !== 'klaar').length;
 
-  const stap = (r) => {
-    if (weerg === 'week' && metWeek) { const w = bereik; const ni = r > 0 ? lijst.indexOf(w[w.length - 1]) + 1 : lijst.indexOf(w[0]) - 1; setDagK(lijst[Math.min(lijst.length - 1, Math.max(0, ni))].k); }
-    else setDagK(lijst[Math.min(lijst.length - 1, Math.max(0, idx + r))].k);
+  // Hoogte: het scherm vult de rest van het venster, de tabel scrolt binnenin.
+  useLayoutEffect(() => {
+    if (sub !== 'opbouw') return undefined;
+    const meet = () => { if (romp.current) setHoogte(Math.max(360, window.innerHeight - romp.current.getBoundingClientRect().top)); };
+    meet(); window.addEventListener('resize', meet); return () => window.removeEventListener('resize', meet);
+  }, [sub]);
+
+  const theadH = () => vak.current?.querySelector('thead')?.offsetHeight || 37;
+  const naarDag = (k, glad = true) => {
+    const el = dagRij.current.get(k); const v = vak.current; if (!el || !v) return;
+    v.scrollTo({ top: el.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop - theadH(), behavior: glad ? 'smooth' : 'auto' });
   };
-  const titel = weerg === 'dag' ? `${dagNaam(plan, huidig.anker, huidig.dag)} · ${FASE_NAAM[fase(plan, huidig.anker, huidig.dag)]}`
-    : weerg === 'week' && metWeek ? `Week ${isoWeek(huidig.datum)} · ${datumTekst(bereik[0].datum)} tot ${datumTekst(bereik[bereik.length - 1].datum)}`
-      : lijst.length ? `${dagNaam(plan, lijst[0].anker, lijst[0].dag)} tot ${dagNaam(plan, lijst[lijst.length - 1].anker, lijst[lijst.length - 1].dag)}` : '';
+  const spy = useRef(0);
+  const opScroll = () => {
+    cancelAnimationFrame(spy.current);
+    spy.current = requestAnimationFrame(() => {
+      const v = vak.current; if (!v) return; const grens = v.getBoundingClientRect().top + theadH() + 4; let k = null;
+      for (const [kk, el] of dagRij.current) { if (!el.isConnected) continue; if (el.getBoundingClientRect().top <= grens) k = kk; }
+      setActiefK(k || groepen[0]?.x.k || null);
+    });
+  };
+  // De dagstrook volgt mee met de dag bovenaan.
+  useEffect(() => {
+    const s = strook.current; const b = s?.querySelector(`[data-k="${actiefK}"]`); if (!s || !b) return;
+    if (b.offsetLeft < s.scrollLeft + 40 || b.offsetLeft + b.offsetWidth > s.scrollLeft + s.clientWidth - 40) s.scrollTo({ left: b.offsetLeft - s.clientWidth / 3, behavior: 'smooth' });
+  }, [actiefK]);
+  // Bij het openen: naar vandaag als die in de planning valt, anders bovenaan.
+  const eerst = useRef(true);
+  useEffect(() => {
+    if (sub !== 'opbouw' || !hoogte) return;
+    if (eerst.current) { eerst.current = false; if (vandaagK) requestAnimationFrame(() => naarDag(vandaagK, false)); }
+    opScroll();
+  }, [sub, hoogte]);
+  useEffect(() => {
+    if (!filterOpen) return undefined;
+    const weg = (e) => { if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false); };
+    document.addEventListener('mousedown', weg); return () => document.removeEventListener('mousedown', weg);
+  }, [filterOpen]);
 
   // Selectie (taakdagen)
   const selIds = [...sel].filter((id) => dagen.some((d) => d.id === id));
   const kies = (id) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const bulk = {
     status: (st) => f.wijzig('taak_dagen', selIds, { status: st, klaar_op: st === 'klaar' ? new Date().toISOString() : null }),
-    wie: (pid) => f.wijzig('taak_dagen', selIds, { uitvoerder_persoon_id: pid || null }),
+    wie: (pid) => pid && f.wijzig('taak_dagen', selIds, { uitvoerder_persoon_id: pid }),
     schuif: async (n) => {
       for (const id of selIds) { const d = dagen.find((x) => x.id === id); const c = canoniek(plan, d.anker, d.dag + n); await f.wijzig('taak_dagen', id, { anker: c.anker, dag: c.dag }); }
-      if (weerg === 'dag') { const c = canoniek(plan, huidig.anker, huidig.dag + n); setDagK(sleutel(c.anker, c.dag)); }
       f.meld(`${selIds.length} ${selIds.length === 1 ? 'taak' : 'taken'} een dag ${n > 0 ? 'later' : 'vroeger'}`);
+    },
+    naar: async (x) => {
+      if (!x) return; const c = canoniek(plan, x.anker, x.dag);
+      await f.wijzig('taak_dagen', selIds, { anker: c.anker, dag: c.dag });
+      f.meld(`${selIds.length} ${selIds.length === 1 ? 'taak' : 'taken'} naar ${dagNaam(plan, c.anker, c.dag)}`);
     },
     weg: async () => {
       if (!(await bevestig(`${selIds.length} ${selIds.length === 1 ? 'dag' : 'dagen'} van taken verwijderen? Een taak zonder dagen verdwijnt mee.`, { ok: 'Verwijderen', gevaar: true }))) return;
@@ -119,121 +162,152 @@ export default function TabPlanning({ f, planId }) {
     },
   };
 
-  const nieuweTaak = async () => {
+  const nieuweTaak = async (k) => {
+    const x = uitSleutel(k || actiefK || vandaagK || wedK);
     const t = await f.voegToe('taken', { titel: 'Nieuwe taak', soort: soort !== 'Alles' && soort !== 'Levering' ? soort : null });
     if (!t) return;
-    const d = await f.voegToe('taak_dagen', { taak_id: t.id, anker: huidig?.anker || 'start', dag: huidig?.dag || 0 });
+    const d = await f.voegToe('taak_dagen', { taak_id: t.id, anker: x?.anker || 'start', dag: x?.dag ?? 0 });
     if (d) setOpen(t.id);
   };
 
   const personen = f.d.personen || [];
   const team = new Set((f.d.site_rollen || []).map((r) => r.persoon_id));
-  const wieOpties = [...personen].sort((a, b) => (team.has(b.id) - team.has(a.id)) || a.naam.localeCompare(b.naam));
+  const wieOpties = [...personen].sort((a, b) => (team.has(b.id) - team.has(a.id)) || a.naam.localeCompare(b.naam)).map((p) => ({ id: p.id, naam: p.naam, groep: team.has(p.id) ? 'Team van de site' : 'Anderen' }));
+  const nNotities = (f.d.notities || []).filter((n) => n.tab === 'planning' && !n.klaar).length;
+  const nFilters = [soort !== 'Alles', enkelOpen, !toonProg].filter(Boolean).length;
+  const pijl = <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+
+  const rijVan = (r) => {
+    if (r.soort === 'prog') return <tr key={`p${r.p.id}`} className="prog"><td /><td className="pf-uur">{r.uur || '–'}</td><td colSpan={4}><span className="pf-soortik prog" aria-hidden="true" /><b>{r.p.wat}</b><small>Programma</small></td></tr>;
+    if (r.soort === 'levering') {
+      const l = r.l; const lk = `${l.id}-${r.n || 0}`; const isOpen = levOpen === lk; const rs = regelsBij(l); const waar = levWaar(l);
+      return [
+        <tr key={`l${lk}`} className={`${isOpen ? 'gekozen' : ''} ${l.status === 'klaar' ? 'klaar' : ''}`}><td className="pf-pijlcel">{(rs.length > 0 || f.schrijven) && <button className="pf-pijl" aria-expanded={isOpen} aria-label="Wat en waar tonen, met kaart en opmerking" onClick={() => setLevOpen(isOpen ? null : lk)}>{pijl}</button>}</td><td className="pf-uur">{r.uur || '–'}</td>
+          <td><span className={`pf-soortik ${l.werk ? 'werk' : 'lev'}`} aria-hidden="true" /><b>{levTitel(l)}</b>
+            <small>{[r.van > 1 && `dag ${r.n + 1} van ${r.van}`, uurKort(l.uur_tot) && `tot ${uurKort(l.uur_tot)}`, rs.length > 0 && `${rs.length} ${rs.length === 1 ? 'regel' : 'regels'}`].filter(Boolean).join(' · ')}</small>
+            {l.wat && <small style={{ color: 'var(--t-tekst)' }}>{l.wat}</small>}</td>
+          <td>{waar || (l.werk ? <span className="pf-stil">–</span> : <span className="pf-stil">Leverpunt ontbreekt</span>)}</td>
+          <td>{l.lev?.naam}</td>
+          <td><StatusKeuze waarde={l.status} opties={STATUS_TAAK} uit={!f.schrijven} label="Status levering" onChange={(v) => f.wijzig('leveringen', l.id, { status: v })} /></td></tr>,
+        isOpen && <tr key={`l${lk}-open`} className="pf-kaartrij"><td colSpan={6}>
+          <div className="pf-momentopen">
+            <label className="pf-rij" style={{ flexWrap: 'nowrap' }}><span className="pf-stil">Opmerking</span><Bewaarveld klasse="t-veld" style={{ flex: 1 }} waarde={l.wat || ''} uit={!f.schrijven} label="Opmerking bij dit moment" placeholder="bv. over de tramsporen" onBewaar={(v) => f.wijzig('leveringen', l.id, { wat: v.trim() || null })} /></label>
+            {rs.length > 0 && <span>{regelTekst(l)}</span>}{regelNamen(l) && <span className="pf-stil">{regelNamen(l)}</span>}
+          </div>
+          {rs.length > 0 && <RijKaart plan={f.plan} items={f.items} lagen={f.lagen} elementen={f.elementen} ids={regelIds(l)} onSluit={() => setLevOpen(null)} />}
+        </td></tr>,
+      ];
+    }
+    const { t, d } = r; const w = waarTekst(t, f); const wie = wieTekst(t, d, f);
+    const meer = dagen.filter((x) => x.taak_id === t.id).length;
+    return (
+      <tr key={d.id} className={`${sel.has(d.id) || open === t.id ? 'gekozen' : ''} ${d.status === 'klaar' ? 'klaar' : ''}`}>
+        <td>{f.schrijven && <input type="checkbox" checked={sel.has(d.id)} onChange={() => kies(d.id)} aria-label="Selecteren" />}</td>
+        <td className="pf-uur">{r.uur || '–'}{uurKort(d.uur_tot) && <small>{uurKort(d.uur_tot)}</small>}</td>
+        <td><span className="pf-soortik taak" aria-hidden="true" /><button className="pf-rijknop wat" onClick={() => setOpen(t.id)}>{t.titel}</button>
+          <small>{[t.soort, t.relatie === 'afbraak' && 'afbraak', meer > 1 && `${meer} dagen`, t.info].filter(Boolean).join(' · ')}</small></td>
+        <td>{w.tekst ? <span className={w.verloren ? 'pf-let' : ''}>{w.tekst}{w.verloren && <small>koppeling met de kaart verloren</small>}</span> : <span className="pf-stil">–</span>}</td>
+        <td className={wie ? '' : 'pf-let'}>{wie || 'Niemand'}</td>
+        <td><StatusKeuze waarde={d.status} opties={STATUS_TAAK} label={`Status van ${t.titel}`} uit={!f.schrijven}
+          onChange={(v) => f.wijzig('taak_dagen', d.id, { status: v, klaar_op: v === 'klaar' ? new Date().toISOString() : null })} /></td>
+      </tr>
+    );
+  };
+
+  const balk = selIds.length > 0 && f.schrijven && sub === 'opbouw' ? (
+    <div className="pf-planbalk sel" role="toolbar" aria-label="Acties op de selectie">
+      <b>{selIds.length} geselecteerd</b>
+      {STATUS_TAAK.map(([k, n]) => <button key={k} className="pf-bknop" onClick={() => bulk.status(k)}>{n}</button>)}
+      <span className="sep" />
+      <Keuze waarde={null} opties={wieOpties} label="Wie toewijzen" placeholder="Wie…" wisbaar={false} klasse="pf-bsel" style={{ width: 150 }} onChange={bulk.wie} />
+      <span className="sep" />
+      <button className="pf-bknop" onClick={() => bulk.schuif(-1)} title="Een dag vroeger">− 1 dag</button>
+      <button className="pf-bknop" onClick={() => bulk.schuif(1)} title="Een dag later">+ 1 dag</button>
+      <span className="pf-bdag"><DagKiezer plan={plan} anker={null} dag={null} metLabel={false} label="Naar een dag" onChange={bulk.naar} /></span>
+      <span className="sep" />
+      <button className="pf-bknop" onClick={bulk.weg}>Verwijderen</button>
+      <span style={{ flex: 1 }} />
+      <button className="pf-bknop" onClick={() => setSel(new Set())} aria-label="Selectie wissen">✕</button>
+    </div>
+  ) : (
+    <div className="pf-planbalk">
+      <Seg waarde={sub} onChange={setSub} label="Onderdeel" opties={[['opbouw', 'Opbouw tot afbraak'], ['voorbereiding', 'Voorbereiding'], ['programma', 'Programma']]} />
+      {sub === 'opbouw' && <>
+        <Zoek waarde={zoek} onChange={setZoek} placeholder="Zoek taak, wie of waar" />
+        <span className="pf-filterwrap" ref={filterRef}>
+          <button className={`t-knop ${nFilters ? 'aan' : ''}`} aria-expanded={filterOpen} onClick={() => setFilterOpen(!filterOpen)}>Filter{nFilters ? ` · ${nFilters}` : ''}</button>
+          {filterOpen && <div className="pf-filterpop" role="dialog" aria-label="Filter">
+            <span className="t-label">Soort</span>
+            <Chips waarde={soort} onChange={setSoort} opties={soorten.map((s) => [s, s])} />
+            <label className="pf-rij" style={{ gap: 8 }}><input type="checkbox" checked={enkelOpen} onChange={() => setEnkelOpen(!enkelOpen)} /> Enkel wat nog open is</label>
+            <label className="pf-rij" style={{ gap: 8 }}><input type="checkbox" checked={toonProg} onChange={() => setToonProg(!toonProg)} /> Programma tonen</label>
+            <label className="pf-rij" style={{ gap: 8 }}><input type="checkbox" checked={legeDagen} onChange={() => setLegeDagen(!legeDagen)} /> Lege dagen tonen</label>
+          </div>}
+        </span>
+        <span className="pf-knoppen">
+          {vandaagK && <button className="t-knop" onClick={() => naarDag(vandaagK)}>Vandaag</button>}
+          <button className="t-knop" onClick={() => naarDag(wedK)}>Wedstrijd</button>
+        </span>
+      </>}
+      <div className="pf-vul" />
+      {sub === 'opbouw' && <span className="pf-stil pf-klein pf-telling">{takenTotaal.length} taken · {nOpen} open</span>}
+      <button className={`t-knop ${notOpen ? 'aan' : ''}`} onClick={() => setNotOpen(!notOpen)}>Notities{nNotities ? ` · ${nNotities}` : ''}</button>
+      {sub === 'opbouw' && f.schrijven && <button className="t-knop hoofd" onClick={() => nieuweTaak()}>+ Taak</button>}
+    </div>
+  );
 
   return (
-    <div className="pf-romp">
-      <div className="pf-rij">
-        <Seg waarde={sub} onChange={setSub} label="Onderdeel" opties={[['opbouw', 'Opbouw tot afbraak'], ['voorbereiding', 'Voorbereiding'], ['programma', 'Programma']]} />
-        <div className="pf-vul" />
-        {sub === 'opbouw' && f.schrijven && <button className="t-knop hoofd" onClick={nieuweTaak}>Nieuwe taak</button>}
-      </div>
+    <div className={`pf-plan ${open || notOpen ? 'met-paneel' : ''}`} ref={romp} style={sub === 'opbouw' && hoogte ? { height: hoogte } : undefined}>
+      {balk}
       {!wedstrijd(plan) && <div className="t-melding let-op">De wedstrijddag van deze site is nog niet ingesteld (tab Info). Dagen staan voorlopig als D-2, D, D+1 zonder datum.</div>}
 
       {sub === 'opbouw' && <>
-        <div className="pf-kaart" style={{ padding: '8px 12px', gap: 8 }}>
-          <div className="pf-rij">
-            <Seg waarde={weerg} onChange={setWeerg} label="Weergave" opties={[['dag', 'Dag'], ['week', 'Week'], ['alles', 'Alles']]} />
-            {weerg !== 'alles' && <><button className="t-knop klein" onClick={() => stap(-1)} aria-label="Vorige">‹</button>
-              <b style={{ fontWeight: 600, minWidth: 200 }}>{titel}</b>
-              <button className="t-knop klein" onClick={() => stap(1)} aria-label="Volgende">›</button>
-              <button className="t-knop klein" onClick={() => setDagK('start:0')}>Wedstrijddag</button></>}
-            {weerg === 'alles' && <b style={{ fontWeight: 600 }}>{titel}</b>}
-            <DagKiezer plan={plan} anker={huidig?.anker} dag={huidig?.dag} metLabel={false} label="Ga naar een dag" onChange={(x) => { const c = canoniek(plan, x.anker, x.dag); setDagK(sleutel(c.anker, c.dag)); if (weerg === 'alles') setWeerg('dag'); }} />
-            <div className="pf-vul" />
-            <span className="pf-stil">{takenInBereik.length} taken · {nOpen} open</span>
-          </div>
+        {filterAan && <div className="pf-chiprij">
+          {q && <button className="pf-chip aan" onClick={() => setZoek('')}>“{zoek.trim()}” ✕</button>}
+          {soort !== 'Alles' && <button className="pf-chip aan" onClick={() => setSoort('Alles')}>{soort} ✕</button>}
+          {enkelOpen && <button className="pf-chip aan" onClick={() => setEnkelOpen(false)}>Enkel open ✕</button>}
+          {!toonProg && <button className="pf-chip aan" onClick={() => setToonProg(true)}>Zonder programma ✕</button>}
+        </div>}
+        <div className="pf-dagstrook" ref={strook} role="tablist" aria-label="Spring naar een dag">
+          {lijst.map((x) => {
+            const rs = perDag.get(x.k) || []; const o = rs.filter(openOp).length; const fs = fase(plan, x.anker, x.dag);
+            return <button key={x.k} data-k={x.k} role="tab" aria-selected={actiefK === x.k} className={`${actiefK === x.k ? 'aan' : ''} ${fs} ${x.k === vandaagK ? 'vandaag' : ''} ${rs.length ? '' : 'leeg'}`} onClick={() => naarDag(x.k)}>
+              <span>{x.datum ? x.datum.toLocaleDateString('nl-BE', { weekday: 'short', day: 'numeric' }) : label(plan, x.anker, x.dag)}</span>
+              <small>{x.datum ? label(plan, x.anker, x.dag) : ''}{o ? <i>{o}</i> : null}</small>
+            </button>;
+          })}
         </div>
-        <div className="pf-rij">
-          <Chips waarde={soort} onChange={setSoort} opties={soorten.map((s) => [s, s])} />
-          <label className="pf-rij" style={{ gap: 6, marginLeft: 8 }}><input type="checkbox" checked={enkelOpen} onChange={() => setEnkelOpen(!enkelOpen)} /> Enkel open</label>
-          <label className="pf-rij" style={{ gap: 6, marginLeft: 8 }}><input type="checkbox" checked={toonProg} onChange={() => setToonProg(!toonProg)} /> Programma tonen</label>
-        </div>
-        {selIds.length > 0 && f.schrijven && (
-          <div className="pf-bulk" role="toolbar" aria-label="Acties op de selectie">
-            <b>{selIds.length} geselecteerd</b>
-            {STATUS_TAAK.map(([k, n]) => <button key={k} className="pf-bknop" onClick={() => bulk.status(k)}>{n}</button>)}
-            <span className="sep" />
-            <label className="pf-rij" style={{ gap: 6, fontSize: 13 }}>Wie<select className="pf-bsel" value="" onChange={(e) => bulk.wie(e.target.value)} aria-label="Wie toewijzen"><option value="">Kies…</option>{wieOpties.map((p) => <option key={p.id} value={p.id}>{p.naam}</option>)}</select></label>
-            <span className="sep" />
-            <button className="pf-bknop" onClick={() => bulk.schuif(-1)}>− 1 dag</button>
-            <button className="pf-bknop" onClick={() => bulk.schuif(1)}>+ 1 dag</button>
-            <span className="sep" />
-            <button className="pf-bknop" onClick={bulk.weg}>Verwijderen</button>
-            <span style={{ flex: 1 }} />
-            <button className="pf-bknop" onClick={() => setSel(new Set())}>Selectie wissen</button>
-          </div>
-        )}
-        <div className="pf-tabvak">
-          <table className="pf-tabel" style={{ minWidth: 900 }}>
-            <thead><tr><th style={{ width: 34 }} /><th style={{ width: 64 }}>Uur</th><th>Taak</th><th style={{ width: '20%' }}>Waar</th><th style={{ width: '16%' }}>Wie</th><th style={{ width: 130 }}>Status</th></tr></thead>
+        <div className="pf-tabvak pf-planvak" ref={vak} onScroll={opScroll}>
+          <table className="pf-tabel" style={{ minWidth: 860 }}>
+            <thead><tr><th style={{ width: 34 }} /><th style={{ width: 64 }}>Uur</th><th>Wat</th><th style={{ width: '20%' }}>Waar</th><th style={{ width: '16%' }}>Wie</th><th style={{ width: 130 }}>Status</th></tr></thead>
             <tbody>
-              {!groepen.length && <tr><td colSpan={6} className="pf-leeg">Geen taken {weerg === 'dag' ? 'op deze dag' : 'in deze periode'}{f.schrijven ? '. Maak er een met Nieuwe taak.' : '.'}</td></tr>}
-              {groepen.map((g) => {
-                const ids = g.rijen.filter((r) => r.soort === 'taak').map((r) => r.d.id);
+              {!groepen.length && <tr><td colSpan={6} className="pf-leeg">{filterAan ? 'Niets gevonden met deze filter.' : `Nog geen taken${f.schrijven ? '. Maak er een met + Taak.' : '.'}`}</td></tr>}
+              {groepen.map(({ x, rijen: rs }) => {
+                const ids = rs.filter((r) => r.soort === 'taak').map((r) => r.d.id);
                 const alle = ids.length > 0 && ids.every((id) => sel.has(id));
+                const o = rs.filter(openOp).length; const fs = fase(plan, x.anker, x.dag);
                 return [
-                  <tr key={`g${g.naam}`} className={`groep ${g.klas || ''}`}><td colSpan={6}>
-                    <label className="pf-rij" style={{ gap: 8 }}>{f.schrijven && ids.length > 0 && <input type="checkbox" checked={alle} onChange={() => setSel((s) => { const n = new Set(s); ids.forEach((id) => (alle ? n.delete(id) : n.add(id))); return n; })} aria-label="Hele groep selecteren" />}{g.naam} · {ids.length} {ids.length === 1 ? 'taak' : 'taken'}</label>
+                  <tr key={`g${x.k}`} ref={(el) => { if (el) dagRij.current.set(x.k, el); else dagRij.current.delete(x.k); }} className={`groep dag ${fs} ${rs.length ? '' : 'leeg'} ${x.k === vandaagK ? 'vandaag' : ''}`}><td colSpan={6}>
+                    <span className="pf-dagkop">
+                      {f.schrijven && ids.length > 0 && <input type="checkbox" checked={alle} onChange={() => setSel((s) => { const n = new Set(s); ids.forEach((id) => (alle ? n.delete(id) : n.add(id))); return n; })} aria-label="Hele dag selecteren" />}
+                      <b>{dagNaam(plan, x.anker, x.dag)}</b><span>{FASE_NAAM[fs]}</span>{x.k === vandaagK && <span className="t-pil">Vandaag</span>}
+                      {rs.length ? <span>{rs.length} {rs.length === 1 ? 'regel' : 'regels'}{o ? ` · ${o} open` : ''}</span> : <span>niets gepland</span>}
+                      <span className="pf-vul" />
+                      {f.schrijven && <button className="pf-link" onClick={() => nieuweTaak(x.k)}>+ taak op deze dag</button>}
+                    </span>
                   </td></tr>,
-                  ...g.rijen.map((r) => {
-                    if (r.soort === 'prog') return <tr key={`p${r.p.id}`} className="prog"><td /><td style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{r.uur || '–'}</td><td colSpan={4}><b>{r.p.wat}</b><small>Programma</small></td></tr>;
-                    if (r.soort === 'levering') {
-                      const l = r.l; const lk = `${l.id}-${r.n || 0}`; const isOpen = levOpen === lk; const rs = regelsBij(l);
-                      const groepen = [...new Set(rs.map((x) => x.groep).filter(Boolean))].join(', ');
-                      const waar = (l.leverpunt_item_id && f.items.find((x) => x.id === l.leverpunt_item_id)?.naam) || l.leverpunt_tekst || regelPlaats(l) || groepen;
-                      return [
-                        <tr key={`l${lk}`} className={isOpen ? 'gekozen' : ''}><td className="pf-pijlcel">{(rs.length > 0 || f.schrijven) && <button className="pf-pijl" aria-expanded={isOpen} aria-label="Wat en waar tonen, met kaart en opmerking" onClick={() => setLevOpen(isOpen ? null : lk)}><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg></button>}</td><td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.uur || '–'}</td>
-                          <td><b>{momentNaam(l)}{l.werk && slMap.get(l.site_leverancier_id)?.wat ? ` ${slMap.get(l.site_leverancier_id).wat}` : ''} · {l.lev?.naam || 'leverancier'}</b>
-                            <small>{[r.van > 1 && `dag ${r.n + 1} van ${r.van}`, uurKort(l.uur_tot) && `tot ${uurKort(l.uur_tot)}`, rs.length > 0 && `${rs.length} ${rs.length === 1 ? 'regel' : 'regels'}`].filter(Boolean).join(' · ')}</small>
-                            {l.wat && <small style={{ color: 'var(--t-tekst)' }}>{l.wat}</small>}</td>
-                          <td>{waar || (l.werk ? <span className="pf-stil">–</span> : <span className="pf-stil">Leverpunt ontbreekt</span>)}</td>
-                          <td>{l.lev?.naam}</td>
-                          <td><StatusKeuze waarde={l.status} opties={STATUS_TAAK} uit={!f.schrijven} label="Status levering" onChange={(v) => f.wijzig('leveringen', l.id, { status: v })} /></td></tr>,
-                        isOpen && <tr key={`l${lk}-open`} className="pf-kaartrij"><td colSpan={6}>
-                          <div className="pf-momentopen">
-                            <label className="pf-rij" style={{ flexWrap: 'nowrap' }}><span className="pf-stil">Opmerking</span><Bewaarveld klasse="t-veld" style={{ flex: 1 }} waarde={l.wat || ''} uit={!f.schrijven} label="Opmerking bij dit moment" placeholder="bv. over de tramsporen" onBewaar={(v) => f.wijzig('leveringen', l.id, { wat: v.trim() || null })} /></label>
-                            {rs.length > 0 && <span>{regelTekst(l)}</span>}{regelNamen(l) && <span className="pf-stil">{regelNamen(l)}</span>}
-                          </div>
-                          {rs.length > 0 && <RijKaart plan={f.plan} items={f.items} lagen={f.lagen} elementen={f.elementen} ids={regelIds(l)} onSluit={() => setLevOpen(null)} />}
-                        </td></tr>,
-                      ];
-                    }
-                    const { t, d } = r; const w = waarTekst(t, f); const wie = wieTekst(t, d, f);
-                    const meer = dagen.filter((x) => x.taak_id === t.id).length;
-                    return (
-                      <tr key={d.id} className={`${sel.has(d.id) ? 'gekozen' : ''} ${d.status === 'klaar' ? 'klaar' : ''}`}>
-                        <td>{f.schrijven && <input type="checkbox" checked={sel.has(d.id)} onChange={() => kies(d.id)} aria-label="Selecteren" />}</td>
-                        <td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.uur || '–'}{uurKort(d.uur_tot) && <small>{uurKort(d.uur_tot)}</small>}</td>
-                        <td><button className="pf-rijknop wat" onClick={() => setOpen(t.id)}>{t.titel}</button>
-                          <small>{[t.soort, t.relatie === 'afbraak' && 'afbraak', meer > 1 && `${meer} dagen`, t.info].filter(Boolean).join(' · ')}</small></td>
-                        <td>{w.tekst ? <span className={w.verloren ? 'pf-let' : ''}>{w.tekst}{w.verloren && <small>koppeling met de kaart verloren</small>}</span> : <span className="pf-stil">–</span>}</td>
-                        <td className={wie ? '' : 'pf-let'}>{wie || 'Niemand'}</td>
-                        <td><StatusKeuze waarde={d.status} opties={STATUS_TAAK} label={`Status van ${t.titel}`} uit={!f.schrijven}
-                          onChange={(v) => f.wijzig('taak_dagen', d.id, { status: v, klaar_op: v === 'klaar' ? new Date().toISOString() : null })} /></td>
-                      </tr>
-                    );
-                  }),
+                  ...rs.map(rijVan),
                 ];
               })}
             </tbody>
           </table>
         </div>
-        <TabNotities f={f} tab="planning" />
       </>}
 
       {sub === 'voorbereiding' && <Voorbereiding f={f} onOpen={setOpen} />}
       {sub === 'programma' && <Programma f={f} />}
-      {open && <TaakPaneel f={f} taakId={open} onSluit={() => setOpen(null)} />}
+      {notOpen && !open && <Paneel naast titel="Notities" sub="Planning" onSluit={() => setNotOpen(false)}><TabNotities f={f} tab="planning" /></Paneel>}
+      {open && <TaakPaneel naast f={f} taakId={open} onSluit={() => setOpen(null)} />}
     </div>
   );
 }

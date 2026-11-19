@@ -9,7 +9,7 @@ import { opId } from './data';
 import { momentNaam } from './bestelling';
 import { bevestig } from '../maps/dialoog';
 
-export default function TaakPaneel({ f, taakId, onSluit }) {
+export default function TaakPaneel({ f, taakId, onSluit, naast = false }) {
   const t = (f.d.taken || []).find((x) => x.id === taakId);
   const [tot, setTot] = useState(null);
   const dagen = (f.d.taak_dagen || []).filter((d) => d.taak_id === taakId).sort((a, b) => (a.anker === b.anker ? a.dag - b.dag : a.anker === 'start' ? -1 : 1));
@@ -85,7 +85,7 @@ export default function TaakPaneel({ f, taakId, onSluit }) {
   };
 
   return (
-    <Paneel titel={t.titel} sub={[t.soort, t.relatie === 'afbraak' ? 'Afbraak' : null].filter(Boolean).join(' · ') || 'Taak'} onSluit={onSluit}
+    <Paneel naast={naast} titel={t.titel} sub={[t.soort, t.relatie === 'afbraak' ? 'Afbraak' : null].filter(Boolean).join(' · ') || 'Taak'} onSluit={onSluit}
       voet={<>{s && <button className="t-knop gevaar" onClick={verwijder}>Verwijderen</button>}<span style={{ flex: 1 }} /><button className="t-knop hoofd" onClick={onSluit}>Klaar</button></>}>
       <div className="pf-blok">
         <label className="pf-veld"><span className="t-label">Taak</span><Bewaarveld klasse="t-veld" waarde={t.titel} uit={!s} label="Taak" onBewaar={(v) => v.trim() && w({ titel: v.trim() })} /></label>

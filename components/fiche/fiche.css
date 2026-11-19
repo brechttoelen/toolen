@@ -219,3 +219,58 @@
   .pf-romp { padding: 14px 16px 40px; }
   .pf-kopregel .t-titel { font-size: 22px; }
 }
+
+/* Planning: compacte kop, één balk, dagstrook en één doorlopende lijst van alle dagen */
+.pf-kop.compact { flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 18px; padding: 0 28px; min-height: 48px; }
+.pf-kop.compact .pf-kruimel, .pf-kop.compact .pf-meta { display: none; }
+.pf-kop.compact .pf-kopregel { display: contents; }
+.pf-kop.compact .t-titel { order: 0; flex: none; max-width: 32%; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pf-kop.compact .t-tabs { order: 1; flex: 1; min-width: 0; margin: 0; align-self: stretch; }
+.pf-kop.compact .t-knop.hoofd { order: 2; flex: none; }
+.pf-plan { padding: 12px 28px; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; width: 100%; min-height: 0; }
+.pf-plan .pf-planvak { flex: 1; max-height: none; min-height: 200px; }
+.pf-planbalk { flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #fff; border: 1px solid var(--t-rand); border-radius: 12px; padding: 7px 10px; min-height: 48px; box-sizing: border-box; }
+.pf-planbalk .pf-zoek { flex: 0 1 240px; }
+.pf-planbalk .t-knop.aan { background: var(--t-navy); border-color: var(--t-navy); color: #fff; }
+.pf-planbalk.sel { background: var(--t-navy); border-color: var(--t-navy); color: #fff; flex-wrap: nowrap; overflow-x: auto; gap: 2px; padding-left: 16px; }
+.pf-planbalk.sel b { white-space: nowrap; margin-right: 8px; font-weight: 600; }
+.pf-planbalk.sel .sep { flex: none; width: 1px; height: 22px; background: rgba(255,255,255,.2); margin: 0 6px; }
+.pf-planbalk.sel .pf-bknop { white-space: nowrap; }
+.pf-planbalk .pf-bsel::placeholder { color: rgba(255,255,255,.75); }
+.pf-bdag .t-veld { height: 30px; border: 0; background: rgba(255,255,255,.12); color: #fff; color-scheme: dark; margin-left: 4px; }
+.pf-knoppen { display: inline-flex; gap: 6px; }
+.pf-filterwrap { position: relative; }
+.pf-filterpop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; width: 300px; background: #fff; border: 1px solid var(--t-rand); border-radius: 12px; box-shadow: var(--t-schaduw-zweef); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.pf-dagstrook { flex: none; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+.pf-dagstrook button { all: unset; box-sizing: border-box; cursor: pointer; flex: none; min-width: 62px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--t-rand); background: #fff; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.pf-dagstrook button small { display: flex; gap: 4px; align-items: center; font-size: 11px; font-weight: 400; color: var(--t-tekst-2); }
+.pf-dagstrook button i { font-style: normal; font-weight: 600; background: var(--t-let-op-zacht); color: var(--t-let-op); border-radius: 8px; padding: 0 5px; }
+.pf-dagstrook button.leeg { color: var(--t-tekst-2); font-weight: 400; }
+.pf-dagstrook button.wedstrijd { background: #F6F3FF; border-color: #D8CCFF; }
+.pf-dagstrook button.vandaag { box-shadow: inset 0 -3px 0 var(--t-blauw); }
+.pf-dagstrook button.aan { background: var(--t-navy); border-color: var(--t-navy); color: #fff; }
+.pf-dagstrook button.aan small { color: rgba(255,255,255,.75); }
+.pf-dagstrook button:focus-visible { outline: 2px solid var(--t-blauw); outline-offset: 1px; }
+.pf-dagkop { display: flex; align-items: center; gap: 10px; }
+.pf-dagkop b { color: var(--t-tekst); font-size: 13px; }
+.pf-dagkop .pf-link { font-size: 12px; opacity: 0; }
+.pf-tabel tr.groep.dag:hover .pf-link, .pf-tabel tr.groep.dag.leeg .pf-link, .pf-dagkop .pf-link:focus-visible { opacity: 1; }
+.pf-tabel tr.groep.dag.wedstrijd td { background: #F1EDFF; }
+.pf-tabel tr.groep.dag.leeg td { padding-top: 4px; padding-bottom: 4px; font-weight: 400; }
+.pf-tabel tr.groep.dag.vandaag td { box-shadow: inset 3px 0 0 var(--t-blauw); }
+.pf-uur { font-variant-numeric: tabular-nums; }
+.pf-soortik { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 8px; vertical-align: 1px; }
+.pf-soortik.taak { background: var(--t-blauw); }
+.pf-soortik.lev { background: #E8862A; border-radius: 50%; }
+.pf-soortik.werk { background: #2E9E6B; }
+.pf-soortik.prog { background: #7B5CE0; border-radius: 50%; }
+.pf-achter.naast { background: transparent; pointer-events: none; }
+.pf-achter.naast .pf-paneel { pointer-events: auto; border-left: 1px solid var(--t-rand); }
+@media (min-width: 1200px) { .pf-plan.met-paneel { padding-right: 508px; } }
+@media (max-width: 720px) {
+  .pf-kop.compact { padding: 0 12px; gap: 10px; }
+  .pf-kop.compact .t-knop.hoofd { display: none; }
+  .pf-plan { padding: 8px 10px; }
+  .pf-telling { display: none; }
+  .pf-planbalk .pf-zoek { flex: 1 1 160px; }
+}

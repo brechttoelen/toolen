@@ -65,7 +65,9 @@ describe('schermen van de fiche renderen zonder fouten', () => {
   it('planning toont taak, levering en programma op de juiste dag', () => {
     const f = fiche(true);
     const html = renderToString(<TabPlanning f={f} planId={f.plan.id} />);
-    expect(html).toContain('Wedstrijddag');
+    // Standaard alle dagen in één lijst, met een dagstrook om te springen.
+    for (const t of ['pf-dagstrook', 'do 26 mrt · D-3', 'za 28 mrt · D-1', 'ma 30 mrt · D+1', 'Levering · Delrue', 'Afbraak hekken', 'Start']) expect(html).toContain(t);
+    expect(html.indexOf('do 26 mrt · D-3')).toBeLessThan(html.indexOf('ma 30 mrt · D+1'));
   });
   it('budget telt facturen en catering', () => {
     const html = renderToString(<TabBudget f={fiche(true)} />);
