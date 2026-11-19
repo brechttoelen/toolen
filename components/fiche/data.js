@@ -30,31 +30,29 @@ export function useFiche(planId) {
   const meld = useCallback((t) => { setMelding(t); clearTimeout(meldTimer.current); meldTimer.current = setTimeout(() => setMelding(''), 4000); }, []);
 
   const laad = useCallback(async () => {
+    // Alles wat enkel het plan-id nodig heeft, vertrekt meteen; de rest zodra het plan er is.
+    const vast = Promise.all([
+      alles(() => maps().from('items').select('*').eq('plan_id', planId)),
+      maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
+      wieBenIk(),
+      maps().rpc('plan_leveranciers', { p_plan: planId }),
+      maps().rpc('plan_bibliotheek', { p_plan: planId }),
+      ...PLAN_TABELLEN.map((t) => alles(() => maps().from(t).select('*').eq('plan_id', planId).order(VOLGORDE[t] || 'created_at', { ascending: true }))),
+    ]);
     const p = await maps().from('plannen').select('*').eq('id', planId).maybeSingle();
     if (p.error || !p.data) { setSt((s) => ({ ...s, laden: false, fout: p.error ? foutTekst(p.error) : 'Dit plan bestaat niet of je hebt er geen toegang toe.' })); return; }
     const plan = p.data;
-    const vragen = [
+    const [[it, lg, wie, pl, bibR, ...planR], [ev, plek, fin, ...orgR]] = await Promise.all([vast, Promise.all([
       plan.event_id ? maps().from('events').select('*').eq('id', plan.event_id).maybeSingle() : Promise.resolve({ data: null }),
-      alles(() => maps().from('items').select('*').eq('plan_id', planId)),
       plan.plek_id ? alles(() => maps().from('items').select('*').eq('plek_id', plan.plek_id).is('plan_id', null)) : Promise.resolve({ data: [] }),
-      maps().from('lagen').select('*').eq('plan_id', planId).order('volgorde'),
-      wieBenIk(),
       maps().rpc('mag_financieel', { p_org: plan.organisatie_id }),
-      maps().rpc('plan_leveranciers', { p_plan: planId }),
-      ...PLAN_TABELLEN.map((t) => alles(() => maps().from(t).select('*').eq('plan_id', planId).order(VOLGORDE[t] || 'created_at', { ascending: true }))),
       ...ORG_TABELLEN.map((t) => alles(() => maps().from(t).select('*').eq('organisatie_id', plan.organisatie_id).order(VOLGORDE[t] || 'naam'))),
-    ];
-    const r = await Promise.all(vragen);
-    const [ev, it, plek, lg, wie, fin, pl] = r;
-    const elIds = [...new Set([...(it.data || []), ...(plek.data || [])].map((x) => x.element_id).filter(Boolean))];
-    const bib = [];
-    for (let k = 0; k < elIds.length; k += 200) {
-      const b = await maps().from('bibliotheek').select('*').in('id', elIds.slice(k, k + 200));
-      if (!b.error) bib.push(...(b.data || []));
-    }
+    ])]);
+    const r = [...planR, ...orgR];
+    const bib = bibR.error ? [] : (bibR.data || []);
     const d = {};
     const fouten = [];
-    [...PLAN_TABELLEN, ...ORG_TABELLEN].forEach((t, i) => { const x = r[7 + i]; if (x.error) fouten.push(`${t}: ${foutTekst(x.error)}`); d[t] = x.data || []; });
+    [...PLAN_TABELLEN, ...ORG_TABELLEN].forEach((t, i) => { const x = r[i]; if (x.error) fouten.push(`${t}: ${foutTekst(x.error)}`); d[t] = x.data || []; });
     setSt({
       laden: false, fout: fouten.length ? fouten.join(' · ') : '', plan, event: ev.data || null,
       items: [...(it.data || []), ...(plek.data || []).map((x) => ({ ...x, vast: true }))].filter((x) => !x.verborgen),
