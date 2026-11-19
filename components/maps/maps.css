@@ -997,9 +997,15 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-deel-wat .fm-segment button { height: 32px; padding: 0 14px; }
 .fm-deel-wat select { height: 32px; min-width: 220px; border: 1px solid #DADDE3; border-radius: 0; padding: 0 10px; font: inherit; font-size: 13px; background: #fff; color: var(--fm-zwart); }
 
-/* Leesweergave op een breed scherm: ruimtekolom in te klappen, detailkolom enkel als er iets gekozen is. */
+/* Leesweergave (deel-link): de ruimtes zitten achter een knop bovenaan en openen als zwevend paneel, zoals Lagen op
+   de kaart. Detailkolom enkel als er iets gekozen is. */
+.fm-binnenscherm.lezen .fm-bs-lijf { position: relative; }
+.fm-binnenscherm.lezen .fm-bs-links { display: none; position: absolute; left: 10px; top: 46px; z-index: 6; width: 300px; max-height: calc(100% - 58px); overflow: auto; border: 1px solid #DADDE3; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.16); padding: 0 0 8px; }
+.fm-binnenscherm.lezen.lijst-open .fm-bs-links { display: block; }
+.fm-binnenscherm.lezen .fm-bs-lijstkop { padding: 8px 12px; margin: 0; top: 0; }
+.fm-binnenscherm.lezen .fm-bs-lijstkop strong { font-size: 13px; }
+.fm-bs-ruimteknop[aria-pressed=true] { background: var(--fm-zwart); color: #fff; border-color: var(--fm-zwart); }
 @media (min-width: 1025px) {
-  .fm-binnenscherm.lezen.links-dicht .fm-bs-links { display: none; }
   .fm-binnenscherm.lezen:not(.met-detail) .fm-bs-rechts { display: none; }
 }
 /* ---------- Binnenplan in een deel-link op gsm en tablet (staand) ---------- */
@@ -1047,8 +1053,10 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
   .fm-binnenscherm.lezen .fm-bs-links, .fm-binnenscherm.lezen .fm-bs-rechts {
     position: absolute; left: 0; right: 0; bottom: 0; width: auto; z-index: 5; border: 0; border-radius: 14px 14px 0 0;
     box-shadow: 0 -4px 24px rgba(0,0,0,.14); padding-bottom: env(safe-area-inset-bottom); overscroll-behavior: contain; font-size: 14px; }
-  .fm-binnenscherm.lezen .fm-bs-links { max-height: calc(56px + env(safe-area-inset-bottom)); overflow: hidden; transition: max-height .25s ease; }
-  .fm-binnenscherm.lezen.lijst-open .fm-bs-links { max-height: 62dvh; overflow: auto; }
+  .fm-binnenscherm.lezen .fm-bs-links { top: auto; display: none; }
+  .fm-binnenscherm.lezen.lijst-open .fm-bs-links { display: block; max-height: 62dvh; overflow: auto; animation: fm-blad-op .22s ease-out; }
+  .fm-binnenscherm.lezen .fm-bs-lijstkop { position: sticky; padding: 12px 16px; font-size: 15px; }
+  .fm-binnenscherm.lezen .fm-bs-lijstkop strong { font-size: 15px; }
   .fm-binnenscherm.lezen.met-detail .fm-bs-links { display: none; }
   .fm-binnenscherm.lezen .fm-bs-rechts { display: none; max-height: 62dvh; overflow: auto; }
   .fm-binnenscherm.lezen.met-detail .fm-bs-rechts { display: block; animation: fm-blad-op .22s ease-out; }
@@ -1076,6 +1084,7 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
   .fm-binnenscherm.lezen .fm-bs-links, .fm-binnenscherm.lezen .fm-bs-rechts { left: 16px; right: auto; width: 420px; border-radius: 14px 14px 0 0; }
   .fm-binnenscherm.lezen .fm-bs-rechts { max-height: 70dvh; }
   .fm-binnenscherm.lezen.lijst-open .fm-bs-links { max-height: 70dvh; }
+  .fm-binnenscherm.lezen .fm-bs-links { width: 360px; }
   .fm-binnenscherm.lezen .fm-bs-zweef.rechts { right: 16px; left: auto; bottom: 16px; }
   .fm-binnenscherm.lezen.met-tool .fm-bs-zweef.rechts { bottom: 16px; }
   .fm-binnenscherm.lezen.met-detail .fm-bs-zweef.rechts, .fm-binnenscherm.lezen.lijst-open .fm-bs-zweef.rechts { display: flex; }
