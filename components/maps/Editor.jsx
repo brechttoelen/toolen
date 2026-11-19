@@ -98,7 +98,6 @@ import { legLangsWeg } from './wegVolgen';
 import tekenhulp from './tekenhulp';
 
 // Zware schermen pas laden als je ze opent (materiaallijst, PDF, delen en exporteren, CAD-import): de kaart staat er sneller.
-const MateriaalScherm = dynamic(() => import('./MateriaalScherm'), { ssr: false });
 const PdfDialoog = dynamic(() => import('./PdfDialoog'), { ssr: false });
 const Uitvoer = dynamic(() => import('./Uitvoer'), { ssr: false });
 const CadImport = dynamic(() => import('./CadImport'), { ssr: false });
@@ -223,8 +222,9 @@ export default function Editor({ planId }) {
   useEffect(() => { setPlaatsFractie(null); }, [gekozenElement?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [doekPenseel, setDoekPenseel] = useState(null); // { itemId, doekId } om hekken op de kaart aan te klikken
   const [herkomstFilter, setHerkomstFilter] = useState(null); // enkel items van deze leverancier scherp (Lijsten › Stuklijst)
-  const [materiaalOpen, setMateriaalOpen] = useState(false); // materiaalscherm (volledig scherm)
-  const [focusLijst, setFocusLijst] = useState(null); // { ids: Set, label }: enkel deze items scherp (Toon op kaart uit het materiaalscherm)
+  const [focusLijst, setFocusLijst] = useState(null); // { ids: Set, label }: enkel deze items scherp (Toon op de kaart vanuit Leveranciers › Toewijzen)
+  // Wie levert wat regel je in de fiche: Leveranciers › Toewijzen (vervangt het vroegere materiaalscherm).
+  const naarToewijzen = () => { window.location.href = `/maps/${planId}/fiche?tab=leveranciers&weergave=toewijzen`; };
   const [brandPenseel, setBrandPenseel] = useState(null); // { id: ontwerp of null (gom), drager } · werkruimte Branding
   const [penseelTip, setPenseelTip] = useState(null); // { x, y, tekst }
   const [vasthouden, setVasthouden] = useState(false);
@@ -4412,6 +4412,20 @@ export default function Editor({ planId }) {
     return () => window.removeEventListener('keydown', toets);
   }, [ongedaan, dupliceer, verwijderItems]);
 
+  // ?toon=1: items die Leveranciers › Toewijzen wil tonen (lijst via localStorage, een adres is te kort).
+  const toonGedaan = useRef(false);
+  useEffect(() => {
+    if (laden || toonGedaan.current || !items.length || typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('toon') !== '1') return;
+    toonGedaan.current = true;
+    let x = null; try { x = JSON.parse(localStorage.getItem(`fm-toon-${planId}`) || 'null'); localStorage.removeItem(`fm-toon-${planId}`); } catch { /* geen opslag */ }
+    if (!x?.ids?.length) return;
+    const set = new Set(x.ids); setHerkomstFilter(null); setFocusLijst({ ids: set, label: x.label || `${set.size} items` });
+    const k = geo.kader(items.filter((i) => set.has(i.id)).map((i) => i.geometrie));
+    const zoom = () => { const map = mapRef.current; if (!k || !map) return false; if (k[0] === k[2] && k[1] === k[3]) map.easeTo({ center: [k[0], k[1]], zoom: Math.max(map.getZoom(), 18) }); else map.fitBounds(k, { padding: 80, maxZoom: 20 }); return true; };
+    if (!zoom()) setTimeout(zoom, 800);
+  }, [laden, items, planId]);
+
   // Waarschuwen bij verlaten met openstaande bewaringen.
   useEffect(() => {
     const weg = (e) => { if (bewaarTimers.current.size) { e.preventDefault(); e.returnValue = ''; } };
@@ -4588,7 +4602,7 @@ export default function Editor({ planId }) {
       ['Versie bewaren', () => versieBewaren(), 'opslaan'],
       ['Versies bekijken en terugzetten', () => toonPlan('geschiedenis'), 'herstellen geschiedenis'],
       ['Lagen', () => zetTab('lagen'), ''],
-      ['Materiaal per leverancier', () => setMateriaalOpen(true), 'stuklijst lijsten materiaal leveranciers'],
+      ['Leveranciers › Toewijzen (fiche)', naarToewijzen, 'stuklijst lijsten materiaal leveranciers toewijzen'],
       ...(heeftModule('stroom') ? [['Elektriciteit', () => zetTab('stroom'), 'stroom lijsten kabels']] : []),
       ...(heeftModule('signalisatie') ? [['Borden (signalisatie)', () => zetTab('sign'), 'lijsten wegwijzers']] : []),
       ['Draaiboek', () => zetTab('draaiboek'), 'opbouw afbraak'],
@@ -5046,11 +5060,11 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
           {[...PANELEN.slice(0, 2), ...(heeftModule('fiche') && !binnen ? [['bestellingen', 'Bestel', 'lijstje']] : []), ...(uitgebreid || tab === 'draaiboek' ? [['draaiboek', 'Draaiboek', 'lijstje']] : []), ...PANELEN.slice(2)]
             .filter(([id]) => (id !== 'stroom' || heeftModule('stroom')) && (id !== 'sign' || heeftModule('signalisatie')))
             .map(([id, label, ic]) => {
-            // Materiaal opent het volledige materiaalscherm (geen zijpaneel).
-            const aan = id === 'materiaal' ? materiaalOpen : tab === id;
+            // Materiaal opent Leveranciers › Toewijzen in de fiche (geen zijpaneel).
+            const aan = id === 'materiaal' ? false : tab === id;
             return (
               <button key={id} className={`paneelknop${aan && !volScherm ? ' aan' : ''}`} title={PANEELTIP[id]} aria-label={label} aria-pressed={aan}
-                onClick={() => { if (id === 'materiaal') { setMateriaalOpen(true); return; } setVolScherm(false); if (aan) setTab(null); else setTab(id); }}>
+                onClick={() => { if (id === 'materiaal') { naarToewijzen(); return; } setVolScherm(false); if (aan) setTab(null); else setTab(id); }}>
                 <Icoon naam={ic} maat={22} /><span>{label}</span>
                 {id === 'controle' && controleFouten > 0 && <i className="fm-badge">{controleFouten}</i>}
               </button>
@@ -5175,7 +5189,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                   ))}
                 </div>
               )}
-              {tab === 'stuklijst' && <Stuklijst items={items} elementen={elementenMap} lagen={lagenMap} actieveFase={actieveFase} fasen={fasen} groepen={plan?.instellingen?.groepen || {}} herkomst={herkomstFilter} onHerkomst={setHerkomstFilter}  std={levStd} onMateriaal={() => setMateriaalOpen(true)} />}
+              {tab === 'stuklijst' && <Stuklijst items={items} elementen={elementenMap} lagen={lagenMap} actieveFase={actieveFase} fasen={fasen} groepen={plan?.instellingen?.groepen || {}} herkomst={herkomstFilter} onHerkomst={setHerkomstFilter}  std={levStd} onMateriaal={naarToewijzen} />}
               {tab === 'stroom' && heeftModule('stroom') && (
                 <StroomPaneel plan={plan} items={items} lagen={lagen} fasen={fasen} elementenMap={elementenMap} schrijven={schrijven} onPlan={wijzigPlan} onKiesItem={kiesItemOpKaart} onKabelgoten={legKabelgoten} vast={vast} inBeeld={vastInBeeld} gekozenVa={vastSel?.id || null} onKiesVa={kiesVa} onNieuweVa={() => { setGereedschap('vast'); setMelding('Klik op de kaart waar de vaste aansluiting staat.'); }} geselecteerd={geselecteerd} />
               )}
@@ -5315,11 +5329,11 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
             </div>
           )}
           {focusLijst && !iso && (
-            // Vanuit het materiaalscherm: bovenaan, met de weg terug naar precies dezelfde plek in de lijst.
+            // Vanuit Leveranciers › Toewijzen: bovenaan, met de weg terug.
             <div className="fm-focusbalk" role="status">
-              <button className="terug" onClick={() => setMateriaalOpen(true)}>‹ Terug naar materiaal</button>
+              <button className="terug" onClick={naarToewijzen}>‹ Terug naar toewijzen</button>
               <span className="tekst">Enkel <b>{focusLijst.label}</b> · {hkFocus?.size || 0} items</span>
-              <button className="weg" onClick={() => { setFocusLijst(null); setMateriaalOpen(false); }} title="Alles weer tonen">Alles tonen</button>
+              <button className="weg" onClick={() => setFocusLijst(null)} title="Alles weer tonen">Alles tonen</button>
             </div>
           )}
           {herkomstFilter && !focusLijst && !iso && (
@@ -5804,7 +5818,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
             onExport={exporteer}
             onSignPdf={async () => { const { signalisatiePdf } = await import('./signPdf'); const { doc, meldingen } = await signalisatiePdf({ plan, items, voortgang: () => {} }); doc.save(`Signalisatie - ${plan.naam} v${plan.versie}.pdf`.replace(/[\\/:*?"<>|]/g, '')); return meldingen.join(' ') || undefined; }}
             onBinnenPdf={(host, verd) => { setUitvoer(null); setBinnenScherm({ host, verd, pdf: true }); }}
-            onMateriaal={() => { setUitvoer(null); setMateriaalOpen(true); }}
+            onMateriaal={() => { setUitvoer(null); naarToewijzen(); }}
             onCad={schrijven ? () => { setUitvoer(null); setCadVervang(null); setDialoog('cad'); } : null}
             onGeimporteerd={naImport} />
         );
@@ -5816,18 +5830,6 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
       )}
       <CommandoPalet open={palet} onSluit={() => setPalet(false)} bronnen={paletBronnen} />
       <AppDialogen />
-      {(materiaalOpen || focusLijst) && plan && (
-        // Blijft bestaan (verborgen) terwijl je iets toont op de kaart: terug = zelfde groepering, open regels en scroll.
-        <MateriaalScherm verborgen={!materiaalOpen} plan={plan} items={items} elementenMap={elementenMap} lagenMap={lagenMap} fasen={fasen} actieveFase={actieveFase} schrijven={schrijven}
-          onWijzigItems={(lijst) => { for (const [id, patch] of lijst) wijzigItem(id, patch); setMelding(`${lijst.length} ${lijst.length === 1 ? 'item' : 'items'} aangepast.`); }}
-          onStd={(nw) => wijzigPlan({ instellingen: { ...(st.current.plan?.instellingen || {}), leveranciers: nw } })}
-          onToon={(ids, label) => {
-            const set = new Set(ids); setHerkomstFilter(null); setFocusLijst({ ids: set, label }); setMateriaalOpen(false);
-            const k = geo.kader(items.filter((x) => set.has(x.id)).map((x) => x.geometrie)); const map = mapRef.current;
-            if (k && map) { if (k[0] === k[2] && k[1] === k[3]) map.easeTo({ center: [k[0], k[1]], zoom: Math.max(map.getZoom(), 18) }); else map.fitBounds(k, { padding: 80, maxZoom: 20 }); }
-          }}
-          onSluit={() => { setMateriaalOpen(false); setFocusLijst(null); }} />
-      )}
       {dialoog === 'delen' && <Delen plan={plan} lagen={lagen} fasen={fasen} items={items} elementenMap={elementenMap} schrijven={schrijven} eventNaam={planEvent?.naam || plan.editie_naam || ''} eventKleur={planEvent?.kleur || '#108AED'} leveranciers={[...new Set(items.filter((i) => i.element_id).map((i) => herkomstVan(i, elementenMap.get(i.element_id), levStd)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'nl'))} onSluit={() => setDialoog(null)} onSnel={(x) => setUitvoer(x)} onPdfBeeld={() => { setPdfNaDelen(true); setDialoog('pdf'); }} />}
       {tekenscherm && <Tekenscherm start={tekenscherm} elementen={elementen} elementenMap={elementenMap} onKlaar={tekenschermKlaar} onSluit={() => setTekenscherm(null)} />}
       {dialoog === 'pdf' && <PdfDialoog nieuwTab={!binnen} plan={plan} lagen={lagen} fasen={fasen} items={binnen ? items.filter((x) => x.id === binnen.host || inBinnen(x, binnen)) : items.filter((x) => !x.velden?.binnen)} elementenMap={elementenMap} actieveFase={actieveFase} kaart={mapRef.current} onPlan={wijzigPlan} onSluit={() => { setDialoog(pdfNaDelen ? 'delen' : null); setPdfNaDelen(false); }} />}

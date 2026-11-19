@@ -7,9 +7,9 @@ import { maps, foutTekst, wieBenIk, magSchrijven } from '../maps/db';
 import { herkomstVan } from '../maps/stijl';
 
 export const PLAN_TABELLEN = ['site_leveranciers', 'leveringen', 'bestelregels', 'offertes', 'facturen', 'budgetposten', 'taken', 'taak_dagen', 'taak_koppelingen',
-  'programma', 'laadregels', 'cateringregels', 'catering_prijzen', 'notities', 'site_rollen', 'plan_vennootschappen'];
+  'programma', 'laadregels', 'cateringregels', 'catering_prijzen', 'notities', 'site_rollen', 'plan_vennootschappen', 'fasen'];
 export const ORG_TABELLEN = ['leveranciers', 'personen', 'vennootschappen', 'laad_bronnen', 'laadpakketten'];
-const VOLGORDE = { programma: 'uur_van', leveranciers: 'naam', personen: 'naam', vennootschappen: 'naam', laad_bronnen: 'volgorde', laadpakketten: 'naam', notities: 'created_at' };
+const VOLGORDE = { programma: 'uur_van', fasen: 'volgorde', leveranciers: 'naam', personen: 'naam', vennootschappen: 'naam', laad_bronnen: 'volgorde', laadpakketten: 'naam', notities: 'created_at' };
 
 // Alles in stukken van 1000 ophalen.
 async function alles(maak) {
@@ -114,13 +114,29 @@ export function useFiche(planId) {
     return true;
   }, [meld, laad]);
 
+  // Leverancier (velden.herkomst) voor veel items tegelijk: [[waarde, ids], …]. Leeg = geen eigen keuze.
+  const herkomstZet = useCallback(async (groepen) => {
+    const per = new Map(); for (const [w, ids] of groepen) for (const id of ids) per.set(id, w || '');
+    setSt((s) => ({ ...s, items: s.items.map((x) => {
+      if (!per.has(x.id)) return x;
+      const v = { ...(x.velden || {}) }; const w = per.get(x.id); if (w) v.herkomst = w; else delete v.herkomst;
+      return { ...x, velden: v };
+    }) }));
+    for (const [w, ids] of groepen) {
+      if (!ids.length) continue;
+      const r = await maps().rpc('items_herkomst', { p_ids: ids, p_herkomst: w || '' });
+      if (r.error) { meld(foutTekst(r.error)); laad(); return false; }
+    }
+    return true;
+  }, [meld, laad]);
+
   const rpc = useCallback(async (naam, args) => {
     const r = await maps().rpc(naam, args);
     if (r.error) { meld(foutTekst(r.error)); return null; }
     return r.data;
   }, [meld]);
 
-  return { ...st, schrijven: magSchrijven(st.profiel), melding, meld, herlaad: laad, voegToe, wijzig, wis, planWijzig, itemWijzig, rpc };
+  return { ...st, schrijven: magSchrijven(st.profiel), melding, meld, herlaad: laad, voegToe, wijzig, wis, planWijzig, itemWijzig, herkomstZet, rpc };
 }
 
 // Hulp: lijst → map op id.

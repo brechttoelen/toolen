@@ -5,6 +5,7 @@
 // De telling en de regels zelf zitten in bestelling.js.
 import { useEffect, useMemo, useState } from 'react';
 import { StatusKeuze, Bewaarveld, Bewaartekst, Kiezer, Keuze, DagKiezer, Chips, Zoek, Seg, Cijfer, TabNotities } from './gedeeld';
+import Toewijzen, { zonderLeverancier } from './Toewijzen';
 import { opId, euro, getal, getalTekst } from './data';
 import { uurKort, leesUur, volgorde } from './dagen';
 import { STATUS_LEV, EENHEDEN, materiaalVan, leveranciersOpKaart, betrokken, matTekst, itemsVanLevering, somVan,
@@ -13,6 +14,7 @@ import { maakXlsx, bewaarBestand } from '../maps/tabelExport';
 import { maps } from '../maps/db';
 import { bevestig } from '../maps/dialoog';
 import RijKaart from './RijKaart';
+import { leverlijstRijen } from '../maps/Stuklijst';
 
 export { STATUS_LEV, materiaalVan, leveranciersOpKaart, betrokken, matTekst, itemsVanLevering, somVan };
 
@@ -59,9 +61,21 @@ function excelBlad(f, lev, sl) {
   ] };
 }
 
+// Tweede blad: per item wat, waar (coördinaten en Google Maps) en wanneer (vroeger de leverlijst van de kaart).
+function waarBlad(f, lev) {
+  const els = new Map((f.elementen || []).map((e) => [e.id, e]));
+  const rijen = leverlijstRijen((f.items || []).filter((i) => !i.vast && !i.verborgen), els, opId(f.lagen), f.d.fasen || [], lev.naam);
+  return { naam: 'Waar per item', rijen };
+}
+
 export default function TabLeveranciers({ f }) {
   // ?lev=<id> opent meteen die bestelling (link vanop de kaart).
   const [open, setOpen] = useState(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('lev') : null));
+  // Per leverancier (lijst en bestelling) of Toewijzen (al het materiaal van de kaart). ?weergave=toewijzen vanop de kaart.
+  const [weergave, setWeergave] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('weergave') === 'toewijzen' ? 'toewijzen' : 'lijst'));
+  const [startZonder, setStartZonder] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('zonder') === '1'));
+  const [kopH, setKopH] = useState(0);
+  useEffect(() => { const meet = () => { const k = document.querySelector('.pf-kop'); if (k) setKopH(k.offsetHeight); }; meet(); window.addEventListener('resize', meet); return () => window.removeEventListener('resize', meet); }, []);
   const [filter, setFilter] = useState('Alle');
   const [zoek, setZoek] = useState('');
   const [suggesties, setSuggesties] = useState([]);
@@ -122,12 +136,24 @@ export default function TabLeveranciers({ f }) {
     bewaarBestand(await maakXlsx([overzicht, ...rijen.map((r) => excelBlad(f, r.lev, r.x))]), `leveranciers ${f.plan.naam}.xlsx`);
   };
 
+  const zonderLev = useMemo(() => zonderLeverancier(f), [f.items, f.elementen, f.lagen]); // eslint-disable-line react-hooks/exhaustive-deps
+  const naarBestelling = (naam) => { const r = rijen.find((x) => x.lev.naam.toLowerCase() === String(naam).toLowerCase()); if (r) { setWeergave('lijst'); openLijn(r); } };
+  const schakel = <Seg waarde={weergave} onChange={(v) => { setWeergave(v); if (v === 'lijst') setStartZonder(false); }} label="Weergave" opties={[['lijst', 'Per leverancier'], ['toewijzen', 'Toewijzen']]} />;
+  if (weergave === 'toewijzen') {
+    return (
+      <div className="pf-romp">
+        <div className="pf-rij">{schakel}<span className="pf-stil pf-klein">Wie levert wat: per regel, per groep of voor een selectie. Het komt op de items, zoals "Geleverd door" op de kaart.</span></div>
+        <Toewijzen f={f} startZonder={startZonder} onBestelling={naarBestelling} kopHoogte={kopH} />
+      </div>
+    );
+  }
+
   const gekozen = open && rijen.find((r) => r.x.id === open);
   if (gekozen) {
     return (
       <div className="pf-romp">
         <Bestelling f={f} sl={gekozen.x} lev={gekozen.lev} s={gekozen.s} suggesties={suggesties} terug={() => setOpen(null)}
-          onExcel={async () => bewaarBestand(await maakXlsx([excelBlad(f, gekozen.lev, gekozen.x)]), `${gekozen.lev.naam} ${f.plan.naam}.xlsx`)} />
+          onExcel={async () => bewaarBestand(await maakXlsx([excelBlad(f, gekozen.lev, gekozen.x), waarBlad(f, gekozen.lev)]), `${gekozen.lev.naam} ${f.plan.naam}.xlsx`)} />
       </div>
     );
   }
@@ -135,6 +161,7 @@ export default function TabLeveranciers({ f }) {
   const kolommen = fin ? 9 : 7;
   return (
     <div className="pf-romp">
+      <div className="pf-rij">{schakel}</div>
       <div className="pf-raster vier">
         <Cijfer n={rijen.length} tekst="leveranciers" />
         <Cijfer n={rijen.filter((r) => r.s.vast).length} tekst="bestelling vastgezet" />
@@ -162,6 +189,15 @@ export default function TabLeveranciers({ f }) {
           <thead><tr><th>Leverancier</th><th style={{ width: 170 }}>Status</th><th className="getal" style={{ width: 60 }}>Regels</th><th className="getal" style={{ width: 120 }}>Geplaatst</th><th>Eerste levering → laatste ophaling</th><th style={{ width: 110 }}>Opvolgen</th>{fin && <><th className="getal">Offerte</th><th className="getal">Factuur</th></>}<th style={{ width: 24 }} /></tr></thead>
           <tbody>
             {!zichtbaar.length && <tr><td colSpan={kolommen} className="pf-leeg">{rijen.length ? 'Geen leverancier past bij deze filter.' : 'Nog geen leveranciers op deze site. Ze verschijnen vanzelf zodra er materiaal van een leverancier op de kaart staat.'}</td></tr>}
+            {zonderLev.stuks > 0 && !q && filter === 'Alle' && (
+              <tr className="pf-zonderlev">
+                <td><button className="pf-rijknop" onClick={() => { setStartZonder(true); setWeergave('toewijzen'); }}>Zonder leverancier</button><small>Materiaal op de kaart dat niemand levert</small></td>
+                <td colSpan={2}><span className="t-pil let-op">{zonderLev.regels} {zonderLev.regels === 1 ? 'regel' : 'regels'}</span></td>
+                <td className="getal"><b className="pf-let">{cijfer(zonderLev.stuks)}</b><span className="pf-stil"> st.</span></td>
+                <td colSpan={fin ? 4 : 2}>{f.schrijven && <button className="t-knop klein hoofd" onClick={() => { setStartZonder(true); setWeergave('toewijzen'); }}>Toewijzen</button>}</td>
+                <td />
+              </tr>
+            )}
             {zichtbaar.map((r) => {
               const s = r.s; const st = s.vast ? (s.geplaatst < s.besteld ? 'weinig' : s.geplaatst > s.besteld ? 'veel' : 'klaar') : null;
               return (
@@ -208,6 +244,21 @@ function MomentVelden({ f, soort, waarde, onChange }) {
       <input className="t-veld" style={{ width: 72 }} value={waarde.van} onChange={(e) => onChange({ ...waarde, van: e.target.value })} placeholder="van" aria-label="Van" />
       <input className="t-veld" style={{ width: 72 }} value={waarde.tot} onChange={(e) => onChange({ ...waarde, tot: e.target.value })} placeholder="tot" aria-label="Tot" />
     </div>
+  );
+}
+
+// Eén menu met de documenten voor een leverancier.
+function Documenten({ opties, bezig, naam }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => { if (!open) return undefined; const weg = (e) => { if (!e.target.closest?.('.pf-docmenu')) setOpen(false); }; const esc = (e) => { if (e.key === 'Escape') setOpen(false); }; document.addEventListener('mousedown', weg); window.addEventListener('keydown', esc); return () => { document.removeEventListener('mousedown', weg); window.removeEventListener('keydown', esc); }; }, [open]);
+  return (
+    <span className="pf-docmenu">
+      <button className="t-knop klein" aria-expanded={open} disabled={bezig} onClick={() => setOpen(!open)}>Documenten ▾</button>
+      {open && <div className="pf-docpop" role="menu" aria-label={`Documenten voor ${naam}`}>
+        <span className="pf-stil pf-klein" style={{ padding: '2px 8px 4px', fontWeight: 600 }}>Voor {naam}</span>
+        {opties.map(([t, sub, fn]) => <button key={t} role="menuitem" onClick={() => { setOpen(false); fn(); }}><b>{t}</b><span>{sub}</span></button>)}
+      </div>}
+    </span>
   );
 }
 
@@ -356,9 +407,11 @@ export function Bestelling({ f, sl, lev, s: b, suggesties, terug, onExcel }) {
           <div className="pf-vul" />
           <span className="pf-stil pf-klein">Groeperen</span>
           <Seg waarde={groeperen} onChange={setGroeperen} label="Groeperen" opties={[['geen', 'Geen'], ['groep', 'Groep'], ['locatie', 'Locatie'], ['levering', 'Levering']]} />
-          <button className="t-knop klein" onClick={onExcel}>Excel</button>
-          <button className="t-knop klein" onClick={leverfichePdf}>Leverfiche</button>
-          {s && <button className="t-knop klein" disabled={bezig} onClick={deel} title="Link zonder login voor de leverancier: toont altijd de laatste stand van de vastgezette bestelling">{sl.deel_token ? 'Deellink kopiëren' : 'Deellink'}</button>}
+          <Documenten opties={[
+            ['Bestelling', 'Excel: aantal, wat, groep, locatie, en per item waar het staat (Google Maps)', onExcel],
+            ['Leverfiche', 'PDF: wat, waar en wanneer per levering of opbouw', leverfichePdf],
+            ...(s ? [[sl.deel_token ? 'Deellink kopiëren' : 'Deellink maken', 'De leverfiche online, zonder login, altijd de laatste stand', deel]] : []),
+          ]} bezig={bezig} naam={lev.naam} />
           {s && <button className={`t-knop klein ${b.vast ? '' : 'hoofd'}`} disabled={bezig} onClick={() => metBezig(() => zetVast(f, sl, !b.vast))} title={b.vast ? 'De aantallen volgen opnieuw wat er op de kaart staat (regels zonder aantal).' : 'Elke regel krijgt het aantal dat nu op de kaart staat. Daarna zie je het verschil.'}>{b.vast ? 'Laten meelopen' : 'Vastzetten'}</button>}
         </div>
         <div className="pf-kopvelden">

@@ -94,7 +94,7 @@ export const PANEELTIP = {
   lagen: 'Lagen tonen, verbergen, vergrendelen en hun stijl instellen',
   stroom: 'Elektriciteit: bronnen, kasten, kabels en verbruik',
   sign: 'Signalisatie: borden, routes en bordpunten',
-  materiaal: 'Materiaal per leverancier, categorie of laag: wat er nodig is en waar het staat',
+  materiaal: 'Wie levert wat: opent Leveranciers › Toewijzen in de fiche',
   draaiboek: 'Opbouw en afbraak: wie doet wat en wanneer',
   controle: 'Nakijken voor je deelt: wat botst, ontbreekt of te dicht staat',
 };

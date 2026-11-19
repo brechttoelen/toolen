@@ -63,4 +63,5 @@ export const MIGRATIES: { naam: string; handmatig?: boolean; vervangen?: boolean
   { naam: "0060_binnenpunten" },
   { naam: "0061_plan_leveranciers_snel" },
   { naam: "0062_plan_bibliotheek" },
+  { naam: "0063_items_herkomst" },
 ];

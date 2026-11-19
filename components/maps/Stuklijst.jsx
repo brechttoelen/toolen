@@ -430,7 +430,7 @@ export default function Stuklijst({ items: alleItems, elementen, lagen, actieveF
     <div>
       <div className="fm-sectie">
         <div className="fm-kop">Stuklijst{fase ? ` · ${fase.naam}` : ' · alle fasen'}</div>
-        {onMateriaal && <button className="fm-knop zwart vol" onClick={onMateriaal}>Materiaal per leverancier openen</button>}
+        {onMateriaal && <button className="fm-knop zwart vol" onClick={onMateriaal}>Leveranciers toewijzen (fiche)</button>}
         {(groepLijst.length > 0 || binnenLijst.length > 0) && (
           <select aria-label="Groep of binnenplan" value={groep} onChange={(e) => setGroep(e.target.value)} style={{ height: 28, fontSize: 12 }}>
             <option value="">Heel het plan</option>

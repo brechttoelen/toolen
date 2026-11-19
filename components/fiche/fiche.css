@@ -311,3 +311,22 @@
 .pf-tabel tr.groep.dag td { padding-left: 12px; }
 .pf-dagvak { width: 16px; flex: none; display: inline-flex; justify-content: center; }
 .pf-dagvak input { margin: 0; }
+
+/* Leveranciers › Toewijzen */
+.pf-toew { display: flex; flex-direction: column; gap: 10px; }
+.pf-toew .pf-tabvak { max-height: none; }
+.pf-chip.aan.let { background: var(--t-let-op-zacht); border-color: var(--t-let-op); color: var(--t-let-op); }
+.pf-tabel tr.pf-toew-zonder td:nth-child(2) { box-shadow: inset 3px 0 0 var(--t-let-op); }
+.pf-tabel tr.pf-toew-groep td { position: static; }
+.pf-toew-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 6px; padding: 10px 16px 4px; }
+.pf-toew-item { display: flex; align-items: center; gap: 8px; border: 1px solid var(--t-rand); border-radius: 8px; padding: 4px 6px 4px 10px; background: var(--t-vlak); font-size: 12.5px; }
+.pf-toew-item > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-toew-bulkkeuze { color: var(--t-tekst); }
+.pf-toew-bulkkeuze .t-veld { height: 30px; }
+.pf-tabel tr.pf-zonderlev td { background: var(--t-let-op-zacht); }
+.pf-tabel tr.pf-zonderlev .pf-rijknop { color: var(--t-let-op); }
+.pf-docmenu { position: relative; display: inline-flex; }
+.pf-docpop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 300px; background: #fff; border: 1px solid var(--t-rand); border-radius: 12px; box-shadow: var(--t-schaduw-zweef); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.pf-docpop button { all: unset; box-sizing: border-box; cursor: pointer; padding: 8px; border-radius: 8px; display: flex; flex-direction: column; gap: 2px; }
+.pf-docpop button:hover, .pf-docpop button:focus-visible { background: var(--t-vlak); }
+.pf-docpop button span { font-size: 12px; color: var(--t-tekst-2); }

@@ -1,6 +1,6 @@
 'use client';
 
-// Bestellingen op de kaart: per leverancier de bestelregels met hoeveel er al geplaatst is.
+// Bestel-paneel op de kaart: enkel wat er nog te plaatsen is volgens de vastgezette bestellingen.
 // Een klik op een regel selecteert dat materiaal op de kaart; Plaats kiest het element om verder te plaatsen.
 // BestelBlok toont hetzelfde voor de selectie, in het rechtermenu.
 import { useMemo } from 'react';
@@ -29,42 +29,51 @@ function useBestellingen(planId) {
 const idsVan = (x, rij) => { const ids = x.s.mat.get(rij.k)?.ids || []; if (!rij.r.locatie_laag_id) return ids; const s = new Set(x.f.items.filter((i) => i.laag_id === rij.r.locatie_laag_id).map((i) => i.id)); return ids.filter((id) => s.has(id)); };
 const tekort = (rij) => { const st = stand(rij); return st === 'weinig' ? `nog ${cijfer(rij.besteld - rij.geplaatst)}` : st === 'veel' ? `${cijfer(rij.geplaatst - rij.besteld)} te veel` : st === 'klaar' ? 'klaar' : ''; };
 
+// Enkel wat nog te plaatsen is: regels van een vastgezette bestelling waar de kaart achterloopt.
+// Een bestelling die meeloopt met de kaart is per definitie in orde (besteld = geplaatst).
+const teDoen = (x) => (x.s.vast ? x.s.rijen.filter((rij) => !rij.vrij && !rij.volgt && stand(rij) === 'weinig') : []);
+
 export default function KaartBestellingen({ planId, schrijven, onKiesItems, onPlaats }) {
   const { lijst, herlaad, k } = useBestellingen(planId);
   if (!lijst) return <div className="fm-paneel-inhoud"><SkeletRijen rijen={6} kop={false} kolommen={['1fr', 40]} rijHoogte={40} /></div>;
+  const open = lijst.map((x) => ({ x, rijen: teDoen(x), extra: x.s.vast ? x.s.nietBesteld : [] })).filter((y) => y.rijen.length || y.extra.length);
+  const nVast = lijst.filter((x) => x.s.vast).length;
   return (
     <div className="fm-paneel-inhoud" style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 12px' }}>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingBottom: 6 }}>
-        <span className="fm-sub" style={{ flex: 1 }}>Klik een regel om dat materiaal op de kaart te selecteren.</span>
+        <span className="fm-sub" style={{ flex: 1 }}>Nog te plaatsen volgens de vastgezette bestellingen. Klik een regel om te selecteren, Plaats om verder te tekenen.</span>
         <button className="fm-knop klein" onClick={herlaad} title="Bestellingen opnieuw ophalen uit de fiche">Vernieuw</button>
       </div>
-      {!lijst.length && <p className="fm-sub">Nog geen bestellingen. Ze verschijnen zodra er materiaal van een leverancier op de kaart staat, of als je in de fiche regels toevoegt.</p>}
-      {lijst.map((x) => (
+      {!open.length && (
+        <div className="fm-sub" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <b style={{ color: 'var(--t-ok, #157A4C)' }}>{nVast ? 'Alles geplaatst.' : 'Niets te plaatsen.'}</b>
+          <span>{nVast ? `De ${nVast === 1 ? 'vastgezette bestelling klopt' : `${nVast} vastgezette bestellingen kloppen`} met de kaart.` : 'Zolang een bestelling meeloopt met de kaart, telt ze vanzelf wat er staat. Zet ze vast in de fiche zodra je ze doorgeeft; dan zie je hier wat er nog ontbreekt.'}</span>
+          <a href={`/maps/${planId}/fiche?tab=leveranciers`}>Naar Leveranciers</a>
+        </div>
+      )}
+      {open.map(({ x, rijen, extra }) => (
         <section key={x.sl.id} style={{ borderTop: '1px solid var(--t-rand, #E3E8EF)', padding: '8px 0' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
             <b style={{ flex: 1, fontWeight: 600 }}>{x.lev.naam}</b>
-            <span className="fm-sub">{x.s.vast ? 'vastgezet' : 'loopt mee'}</span>
             <a className="fm-sub" href={`/maps/${planId}/fiche?tab=leveranciers&lev=${x.sl.id}`}>Open</a>
           </div>
-          {x.s.rijen.map((rij) => {
-            const ids = rij.vrij ? [] : idsVan(x, rij);
-            const el = !rij.vrij && rij.k ? k.elementen.find((e) => e.id === rij.k.split('|')[0]) : null;
-            const st = rij.volgt ? 'volgt' : stand(rij);
+          {rijen.map((rij) => {
+            const ids = idsVan(x, rij);
+            const el = rij.k ? k.elementen.find((e) => e.id === rij.k.split('|')[0]) : null;
             return (
               <div key={rij.id} style={{ padding: '5px 0' }}>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
                   <button className="fm-linkknop" style={{ all: 'unset', cursor: ids.length ? 'pointer' : 'default', flex: 1, minWidth: 0, fontSize: 13 }} disabled={!ids.length} onClick={() => onKiesItems(ids)} title={ids.length ? `${ids.length} items selecteren op de kaart` : undefined}>
                     {rij.r.wat}{locatieTekst(x.f, rij.r) ? <span className="fm-sub"> · {locatieTekst(x.f, rij.r)}</span> : null}
                   </button>
-                  {x.s.vast && !rij.vrij && tekort(rij) && <span className={`fm-sub ${st === 'veel' ? 'pf-fout' : st === 'weinig' ? 'pf-let' : 'pf-ok'}`} style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{tekort(rij)}</span>}
+                  <span className="fm-sub pf-let" style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{tekort(rij)}</span>
                   {schrijven && el && <button className="fm-knop klein" onClick={() => onPlaats(el)} title={`${el.naam} kiezen om te plaatsen`}>Plaats</button>}
                 </div>
-                {rij.vrij ? <span className="fm-sub">{rij.besteld != null ? `${cijfer(rij.besteld)} · ` : ''}niet getekend</span>
-                  : rij.besteld == null ? <span className="fm-sub">{cijfer(rij.geplaatst)} op de kaart</span> : <Balk n={rij.geplaatst} tot={rij.besteld} st={st} />}
+                <Balk n={rij.geplaatst} tot={rij.besteld} st="weinig" />
               </div>
             );
           })}
-          {x.s.nietBesteld.length > 0 && <div className="fm-sub pf-let">Niet in de bestelling: {x.s.nietBesteld.map((m) => `${m.aantal} × ${m.naam}`).join(', ')}</div>}
+          {extra.length > 0 && <div className="fm-sub pf-let">Op de kaart maar niet in de bestelling: {extra.map((m) => `${m.aantal} × ${m.naam}`).join(', ')}</div>}
         </section>
       ))}
     </div>
