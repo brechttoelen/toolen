@@ -24,6 +24,13 @@ describe('Leveranciers › Toewijzen', () => {
   it('telt wat zonder leverancier is', () => {
     expect(zonderLeverancier(f)).toEqual({ regels: 1, stuks: 1 });
   });
+  it('het gebouw, deuren en spullen van de locatie zijn geen materiaal; een locker in een binnenlocatie wel', () => {
+    const g = { ...f, elementen: [...f.elementen, { id: 'b', naam: 'Binnenlocatie', categorie: 'Binnenruimte', eigenschappen: { binnenlocatie: true } }, { id: 'd', naam: 'Dubbele deur', categorie: 'Binnenruimte', eigenschappen: { subgroep: 'Bouwkundig' } }, { id: 'k', naam: 'Locker', categorie: 'Binnenruimte', tekenwijze: 'schaal', eigenschappen: {} }],
+      items: [...f.items, { id: 'i3', element_id: 'b', velden: {}, geometrie: { type: 'Point', coordinates: [3, 51] }, parameters: {} }, { id: 'i4', element_id: 'd', velden: {}, geometrie: { type: 'Point', coordinates: [3, 51] }, parameters: {} }, { id: 'i5', element_id: 'k', velden: {}, geometrie: { type: 'Point', coordinates: [3, 51] }, parameters: {} }] };
+    const html = renderToString(<Toewijzen f={g} />);
+    expect(html).toContain('Locker'); expect(html).not.toContain('Dubbele deur'); expect(html).not.toContain('>Binnenlocatie<');
+    expect(zonderLeverancier(g).regels).toBe(2);
+  });
   it('enkel zonder leverancier', () => {
     const html = renderToString(<Toewijzen f={f} startZonder />);
     expect(html).toContain('Nadarbord'); expect(html).not.toContain('Bouwhek 3,5 m');

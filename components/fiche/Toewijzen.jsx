@@ -8,13 +8,16 @@ import { berekenStuklijst } from '../maps/Stuklijst';
 import { GEEN_LEV } from '../maps/stijl';
 import { getOrganisatie } from '../maps/merk';
 import { Keuze, Seg, Zoek, useVolHoogte } from './gedeeld';
-import { ZONDER_LEVERANCIER } from '../maps/categorieen';
 import { opId } from './data';
 import RijKaart from './RijKaart';
 
 export const ZONDER = 'Zonder leverancier';
 const getal = (x, d = 0) => Number(x || 0).toLocaleString('nl-BE', { maximumFractionDigits: d });
 const pijl = <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+
+// Geen materiaal dat iemand levert: het gebouw zelf (binnenlocatie), bouwkundige delen zoals deuren,
+// sjablonen en spullen van de locatie (huis). Wat je in een binnenlocatie zelf meebrengt of huurt telt wel.
+export const geenMateriaal = (el, it) => !el || !!el.eigenschappen?.binnenlocatie || el.eigenschappen?.subgroep === 'Bouwkundig' || el.categorie === 'Sjablonen' || !!el.eigenschappen?.huis || !!it?.velden?.binnen?.huis;
 
 function materiaal(f) {
   const els = new Map((f.elementen || []).map((e) => [e.id, e]));
@@ -30,7 +33,7 @@ function regelsVan(items, els, lagen) {
 export function zonderLeverancier(f) {
   const { els, lagen, items } = materiaal(f);
   const im = new Map(items.map((i) => [i.id, i]));
-  const rs = regelsVan(items, els, lagen).filter((r) => !r.leverancier && !ZONDER_LEVERANCIER.includes(r.categorie) && [...(r.ids || [])].some((id) => { const it = im.get(id); return it?.element_id && els.has(it.element_id); }));
+  const rs = regelsVan(items, els, lagen).filter((r) => !r.leverancier && [...(r.ids || [])].some((id) => { const it = im.get(id); return it?.element_id && !geenMateriaal(els.get(it.element_id), it); }));
   return { regels: rs.length, stuks: rs.reduce((t, r) => t + (Number(r.aantal) || 0), 0) };
 }
 
@@ -78,9 +81,9 @@ export default function Toewijzen({ f, startZonder = false, onBestelling, schake
   }, [groep, items, els, lagen, f.plan]);
 
   // Items met een element in de bibliotheek: enkel die krijgen een leverancier.
-  const metEl = (ids) => [...(ids || [])].filter((id) => { const it = itemMap.get(id); return it?.element_id && els.has(it.element_id); });
+  const metEl = (ids) => [...(ids || [])].filter((id) => { const it = itemMap.get(id); return it?.element_id && !geenMateriaal(els.get(it.element_id), it); });
   const q = zoek.trim().toLowerCase();
-  const zichtbaar = groepen.map(([g, rs]) => [g, rs.filter((r) => metEl(r.ids).length && (!zonder || (!r.leverancier && !ZONDER_LEVERANCIER.includes(r.categorie))) && (!q || r.naam.toLowerCase().includes(q) || (r.leverancier || '').toLowerCase().includes(q) || g.toLowerCase().includes(q)))]).filter(([, rs]) => rs.length);
+  const zichtbaar = groepen.map(([g, rs]) => [g, rs.filter((r) => metEl(r.ids).length && (!zonder || !r.leverancier) && (!q || r.naam.toLowerCase().includes(q) || (r.leverancier || '').toLowerCase().includes(q) || g.toLowerCase().includes(q)))]).filter(([, rs]) => rs.length);
   const sleutel = (g, r) => `${g}|${r.naam}|${r.leverancier}|${[...(r.ids || [])][0] || ''}`;
   const namenVan = (r) => [...new Set(metEl(r.ids).map((id) => itemMap.get(id)?.naam).filter((n) => n && n !== r.naam))];
 
@@ -114,7 +117,7 @@ export default function Toewijzen({ f, startZonder = false, onBestelling, schake
     try { localStorage.setItem(`fm-toon-${f.plan.id}`, JSON.stringify({ ids, label, op: Date.now() })); } catch { /* geen opslag */ }
     window.location.href = `/maps/${f.plan.id}?toon=1`;
   };
-  const nZonder = groepen.reduce((t, [, rs]) => t + rs.filter((r) => !r.leverancier && !ZONDER_LEVERANCIER.includes(r.categorie) && metEl(r.ids).length).reduce((u, r) => u + (Number(r.aantal) || 0), 0), 0);
+  const nZonder = groepen.reduce((t, [, rs]) => t + rs.filter((r) => !r.leverancier && metEl(r.ids).length).reduce((u, r) => u + (Number(r.aantal) || 0), 0), 0);
 
   return (
     <div className="pf-plan pf-toew" ref={romp} style={hoogte ? { height: hoogte } : undefined}>
@@ -154,7 +157,7 @@ export default function Toewijzen({ f, startZonder = false, onBestelling, schake
                   <tr className={`groep pf-toew-groep ${g === ZONDER ? 'let-op' : ''}`}><td colSpan={4}>
                     <span className="pf-dagkop">
                       <span className="pf-dagvak">{s && <input type="checkbox" checked={alle} onChange={() => kiesGroep(g, rs, !alle)} aria-label={`Alles van ${g} selecteren`} />}</span>
-                      <b>{g}</b>{ZONDER_LEVERANCIER.includes(g) && <span className="pf-klein">van de locatie, telt niet als zonder leverancier</span>}<span>{getal(stuks)} st.{meter ? ` · ${getal(meter)} m` : ''} · {rs.length} {rs.length === 1 ? 'regel' : 'regels'}</span>
+                      <b>{g}</b><span>{getal(stuks)} st.{meter ? ` · ${getal(meter)} m` : ''} · {rs.length} {rs.length === 1 ? 'regel' : 'regels'}</span>
                       <span className="pf-vul" />
                       {s && groep !== 'lev' && <><span className="pf-klein">Hele groep naar</span><LevKeuze namen={namen} waarde={levs.length === 1 ? levs[0] : ''} label={`Leverancier voor heel ${g}`} breed={190} onKies={(v) => toewijs(ids, v)} /></>}
                     </span>
@@ -163,7 +166,7 @@ export default function Toewijzen({ f, startZonder = false, onBestelling, schake
                     const k = sleutel(g, r); const rIds = metEl(r.ids); const isOpen = open === k; const nm = namenVan(r);
                     return (
                       <Fragment key={k}>
-                        <tr className={`${sel.has(k) || isOpen ? 'gekozen' : ''} ${r.leverancier || ZONDER_LEVERANCIER.includes(r.categorie) ? '' : 'pf-toew-zonder'}`}>
+                        <tr className={`${sel.has(k) || isOpen ? 'gekozen' : ''} ${r.leverancier ? '' : 'pf-toew-zonder'}`}>
                           <td className="pf-pijlcel"><span className="pf-vakjes">{s ? <input type="checkbox" checked={sel.has(k)} onChange={() => kies(k, rIds)} aria-label={`${r.naam} selecteren`} /> : <span />}<button className="pf-pijl" aria-expanded={isOpen} aria-label="Toon op de luchtfoto" onClick={() => setOpen(isOpen ? null : k)}>{pijl}</button></span></td>
                           <td><b>{r.naam}</b><small>{[groep !== 'cat' && r.categorie, nm.length && `${nm.slice(0, 6).join(', ')}${nm.length > 6 ? ` +${nm.length - 6}` : ''}`].filter(Boolean).join(' · ') || `${rIds.length} ${rIds.length === 1 ? 'item' : 'items'} op de kaart`}</small></td>
                           <td className="getal">{getal(r.aantal)} st.{r.tekenwijze === 'lijn' && r.meter ? <small>{getal(r.meter, 1)} m</small> : null}</td>
