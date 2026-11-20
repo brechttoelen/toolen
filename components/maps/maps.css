@@ -2643,3 +2643,4 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-bib-terug { flex: none; white-space: nowrap; }
 .fm-bib-pad b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .fm-bib-pad .fm-sub:last-child { flex: none; }
+.fm-uitvoer-titel { font-size: 15px; font-weight: 700; }

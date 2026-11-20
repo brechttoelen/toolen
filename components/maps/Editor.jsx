@@ -4611,7 +4611,7 @@ export default function Editor({ planId }) {
       ['Delen en exporteren', () => setDialoog('delen'), 'link deel-link ontvanger pdf'],
       ['Snel exporteren', () => setUitvoer({ tab: 'exporteren', id: { stroom: 'stroomplan', veiligheid: 'veiligheidsplan', branding: 'brandingplan', sign: verkeerModus ? 'verkeersplan' : 'drukbestand' }[werkruimte] || 'materiaal' }), 'lijsten kml werkplek'],
       ['PDF van het beeld', () => setDialoog('pdf'), 'pdf afdrukken kader schaal'],
-      ...(schrijven ? [['Importeren', () => setUitvoer({ tab: 'importeren' }), 'kml gpx csv cad']] : []),
+      ...(schrijven ? [['Importeren (Bouwers)', () => setUitvoer({ tab: 'importeren', alleen: true }), 'kml gpx csv cad geojson excel']] : []),
       ['Versie bewaren', () => versieBewaren(), 'opslaan'],
       ['Versies bekijken en terugzetten', () => toonPlan('geschiedenis'), 'herstellen geschiedenis'],
       ['Lagen', () => zetTab('lagen'), ''],
@@ -4996,7 +4996,6 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
               <div className="fm-ctxkop">{bewaarStatus === 'Niet bewaard' ? 'Een wijziging is niet bewaard. Controleer je verbinding.' : bewaarStatus === 'Wacht op verbinding' ? 'Je bent offline. Je wijzigingen staan klaar en worden bewaard zodra je weer verbinding hebt.' : verbinding === 'live' ? 'Elke wijziging wordt meteen bewaard. Live: je ziet wat collega\'s doen.' : 'Elke wijziging wordt meteen bewaard. De live verbinding is weg; wijzigingen van collega\'s verschijnen zodra ze terug is.'}</div>
               {schrijven && <button onClick={() => { setMenu(null); versieBewaren(); }}>Versie bewaren<small>Een vast moment om naar terug te keren</small></button>}
               <button onClick={() => { setMenu(null); toonPlan('geschiedenis'); }}>Alle versies</button>
-              {schrijven && <button onClick={() => { setMenu(null); setUitvoer({ tab: 'importeren' }); }}>Importeren<small>KML, GPX, CSV of een CAD-plan</small></button>}
             </div>
           )}
         </div>
@@ -5149,8 +5148,14 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                   <section>
                     <h3>Op maat</h3>
                     {bouwRij('teken', 'vrijehand', 'Element tekenen', 'Eigen vorm in het tekenscherm, komt als groep op de kaart', () => kiesBouwer({ soort: 'teken' }))}
-                    {schrijven && bouwRij('cad', 'bouw-cad', 'CAD-plan van een leverancier', 'DWG, DXF of PDF als één object op schaal', () => { setTab(null); setCadVervang(null); setDialoog('cad'); })}
                   </section>
+                  {schrijven && (
+                    <section>
+                      <h3>Importeren</h3>
+                      {bouwRij('import', 'lagen', 'Kaartbestand', 'KML of KMZ (Google My Maps), GPX, GeoJSON, of een lijst (CSV, Excel) met adressen of coördinaten', () => { setTab(null); setUitvoer({ tab: 'importeren', alleen: true }); })}
+                      {bouwRij('cad', 'bouw-cad', 'CAD-plan van een leverancier', 'DWG, DXF of PDF als één object op schaal', () => { setTab(null); setCadVervang(null); setDialoog('cad'); })}
+                    </section>
+                  )}
                 </div>
               )}
               {tab === 'lagen' && (

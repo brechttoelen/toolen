@@ -21,7 +21,7 @@ export default function Uitvoer({
   plan, lagen, fasen, items, elementenMap, actieveFase, schrijven, binnenHosts = [], kaart, startTab = 'exporteren', startId = null,
   onSluit, onPlan, onPdf, onExport, onSignPdf, onBinnenPdf, onMateriaal, onCad, onGeimporteerd, binnen = null,
 }) {
-  const [tab, setTab] = useState(startTab);
+  const [tab] = useState(startTab);
   const fase = fasen.find((f) => f.id === actieveFase) || null;
 
   const lijst = useMemo(() => {
@@ -83,10 +83,8 @@ export default function Uitvoer({
       <section className="fm-uitvoer" role="dialog" aria-label={tab === 'exporteren' ? 'Exporteren' : 'Importeren'}>
         <header className="fm-uitvoer-kop">
           <TerugKnop onClick={onSluit} />
-          <div role="tablist" aria-label="Exporteren of importeren" className="fm-uitvoer-tabs">
-            <button role="tab" aria-selected={tab === 'exporteren'} className={tab === 'exporteren' ? 'aan' : ''} onClick={() => setTab('exporteren')}>Exporteren</button>
-            {schrijven && <button role="tab" aria-selected={tab === 'importeren'} className={tab === 'importeren' ? 'aan' : ''} onClick={() => setTab('importeren')}>Importeren</button>}
-          </div>
+          {/* Importeren zit bij Bouwers; dit scherm is ofwel Exporteren ofwel Importeren. */}
+          <strong className="fm-uitvoer-titel">{tab === 'importeren' ? 'Importeren' : 'Exporteren'}</strong>
           <span className="fm-uitvoer-plan">{plan.naam}</span>
         </header>
 
