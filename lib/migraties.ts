@@ -66,4 +66,5 @@ export const MIGRATIES: { naam: string; handmatig?: boolean; vervangen?: boolean
   { naam: "0063_items_herkomst" },
   { naam: "0064_event_soortkleuren" },
   { naam: "0065_org_fiche_tabs" },
+  { naam: "0066_org_beschermde_kolommen" },
 ];

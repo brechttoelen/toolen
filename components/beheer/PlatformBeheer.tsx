@@ -10,6 +10,7 @@ import {
 import { HOOFDDOMEIN } from "@/lib/org";
 import HuisstijlBeheer from "./HuisstijlBeheer";
 import { SkeletRijen } from '../Skelet';
+import { ALLE_TABS } from "@/components/fiche/tabs";
 
 type Org = {
   id: string; slug: string; naam: string; kort: string | null; status: string; status_sinds: string; proef_tot: string | null;
@@ -306,7 +307,8 @@ function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<t
   const [nieuwMail, setNieuwMail] = useState("");
   const [nieuwRol, setNieuwRol] = useState("eigenaar");
   const [sso, setSso] = useState<string[]>([]);
-  useEffect(() => { sb().from("organisaties").select("sso").eq("id", org.id).single().then(({ data }) => setSso(((data as { sso?: string[] } | null)?.sso) || [])); }, [org.id]);
+  const [tabsUit, setTabsUit] = useState<string[]>([]);
+  useEffect(() => { sb().from("organisaties").select("sso, fiche_tabs_uit").eq("id", org.id).single().then(({ data }) => { const d = data as { sso?: string[]; fiche_tabs_uit?: string[] } | null; setSso(d?.sso || []); setTabsUit(d?.fiche_tabs_uit || []); }); }, [org.id]);
 
   async function laad() {
     const [l, u, g] = await Promise.all([
@@ -321,7 +323,7 @@ function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<t
   async function bewaar() {
     setMelding(null);
     const { error } = await sb().from("organisaties").update({
-      naam: v.naam, kort: v.kort || null, pakket: v.pakket, plaatsen: v.plaatsen, lezers_max: v.lezers_max, modules: v.modules,
+      naam: v.naam, kort: v.kort || null, pakket: v.pakket, plaatsen: v.plaatsen, lezers_max: v.lezers_max, modules: v.modules, fiche_tabs_uit: tabsUit,
       status: v.status, proef_tot: v.proef_tot ? new Date(v.proef_tot + "T23:59:59").toISOString() : null,
     }).eq("id", org.id);
     if (error) setMelding({ soort: "fout", tekst: error.message });
@@ -406,6 +408,14 @@ function OrganisatieDetail({ pk, org, onSluit, onGewijzigd }: { pk: ReturnType<t
               <Afwijking p={pk.van(v.pakket)} plaatsen={v.plaatsen} lezers={v.lezers_max} modules={v.modules}
                 onHerstel={() => { const p = pk.van(v.pakket); setV({ ...v, plaatsen: Math.max(p.plaatsen, org.plaatsen_gebruikt || 1), lezers_max: p.lezers, modules: metKoppelingen(p, v.modules) }); }} />
               <ModuleKeuze waarde={v.modules} onWijzig={(m) => setV({ ...v, modules: m })} /></div>
+            {v.modules.includes("fiche") && <div><span className="t-label">Projectfiche: tabs</span>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px 16px", marginTop: 4 }}>
+                {ALLE_TABS.filter(([k]) => !["overzicht", "info"].includes(k)).map(([k, n]) => (
+                  <label key={k} className="t-rij" style={{ gap: 8, fontSize: 13.5 }}><input type="checkbox" checked={!tabsUit.includes(k)}
+                    onChange={() => setTabsUit(tabsUit.includes(k) ? tabsUit.filter((x) => x !== k) : [...tabsUit, k])} />{n}</label>
+                ))}
+              </div>
+              <p className="t-stil" style={{ margin: "4px 0 0", fontSize: 12.5 }}>Uitgezette tabs verdwijnen uit de fiche van alle plannen; de data blijft bewaard.</p></div>}
             <p className="t-stil" style={{ margin: 0, fontSize: 12.5 }}>Een ander pakket kiezen neemt plaatsen, lezers en modules van dat pakket over. Daarna kan je per organisatie afwijken. Koppelingen blijven staan.</p>
             <div className="t-rij" style={{ justifyContent: "flex-end" }}><button className="t-knop hoofd" style={{ flex: "none" }} onClick={bewaar}>Bewaren</button></div>
           </div>
