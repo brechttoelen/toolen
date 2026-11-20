@@ -340,4 +340,7 @@
 .pf-stalen button.geen { background: #fff; background-image: linear-gradient(135deg, transparent 45%, #C9D0DB 45%, #C9D0DB 55%, transparent 55%); }
 .pf-stalen button:focus-visible { outline: 2px solid var(--t-blauw); outline-offset: 2px; }
 .pf-soortkleuren { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow: auto; }
-.pf-soortkleuren > div { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.pf-soortkleuren > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.pf-soortkleuren > div > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-soortkleuren .pf-stalen { flex-wrap: nowrap; gap: 3px; }
+.pf-soortkleuren .pf-stalen button { width: 18px; height: 18px; }

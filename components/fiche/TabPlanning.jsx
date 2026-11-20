@@ -242,14 +242,14 @@ export default function TabPlanning({ f, planId, naar }) {
         <Zoek waarde={zoek} onChange={setZoek} placeholder="Zoek taak, wie of waar" />
         <span className="pf-filterwrap" ref={filterRef}>
           <button className={`t-knop ${nFilters ? 'aan' : ''}`} aria-expanded={filterOpen} onClick={() => setFilterOpen(!filterOpen)}>Filter{nFilters ? ` · ${nFilters}` : ''}</button>
-          {filterOpen && <div className="pf-filterpop" role="dialog" aria-label="Filter">
+          {filterOpen && <div className="pf-filterpop" role="dialog" aria-label="Filter" style={{ width: 360 }}>
             <span className="t-label">Soort</span>
             <Chips waarde={soort} onChange={setSoort} opties={soorten.map((s) => [s, s])} />
             <label className="pf-rij" style={{ gap: 8 }}><input type="checkbox" checked={enkelOpen} onChange={() => setEnkelOpen(!enkelOpen)} /> Enkel wat nog open is</label>
             <label className="pf-rij" style={{ gap: 8 }}><input type="checkbox" checked={toonProg} onChange={() => setToonProg(!toonProg)} /> Programma tonen</label>
             <label className="pf-rij" style={{ gap: 8 }}><input type="checkbox" checked={legeDagen} onChange={() => setLegeDagen(!legeDagen)} /> Lege dagen tonen</label>
             {soorten.length > 1 && <>
-              <span className="t-label" style={{ marginTop: 6 }}>Kleur per soort{f.event ? ` · voor heel ${f.event.naam}` : ''}</span>
+              <span className="t-label" style={{ marginTop: 6 }} title={f.event ? `Geldt voor alle sites van ${f.event.naam}` : undefined}>Kleur per soort{f.event ? ' · voor heel het event' : ''}</span>
               <div className="pf-soortkleuren">{soorten.filter((x) => x !== 'Alles').map((x) => <div key={x}><span>{x}</span><KleurStalen waarde={soortKleur(f, x)} uit={!f.schrijven} label={`Kleur voor ${x}`} onKies={(k) => f.soortKleurZet(x, k)} /></div>)}</div>
             </>}
           </div>}
