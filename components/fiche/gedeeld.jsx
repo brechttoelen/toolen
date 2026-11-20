@@ -219,3 +219,14 @@ export function KnopPaneel({ label, aan = false, hoofd = false, rechts = false, 
   );
 }
 
+
+// Kleuren voor de soorten in de planning: goed van elkaar te onderscheiden, ook als streep.
+export const SOORT_KLEUREN = [['#378ADD', 'Blauw'], ['#1D9E75', 'Teal'], ['#639922', 'Groen'], ['#BA7517', 'Oker'], ['#D85A30', 'Koraal'], ['#E24B4A', 'Rood'], ['#D4537E', 'Roze'], ['#7F77DD', 'Paars'], ['#888780', 'Grijs']];
+export function KleurStalen({ waarde, onKies, uit = false, label = 'Kleur' }) {
+  return (
+    <span className="pf-stalen" role="radiogroup" aria-label={label}>
+      <button type="button" role="radio" aria-checked={!waarde} className={`geen ${!waarde ? 'aan' : ''}`} disabled={uit} onClick={() => onKies(null)} aria-label="Geen kleur" title="Geen kleur" />
+      {SOORT_KLEUREN.map(([k, n]) => <button key={k} type="button" role="radio" aria-checked={waarde === k} className={waarde === k ? 'aan' : ''} style={{ background: k }} disabled={uit} onClick={() => onKies(k)} aria-label={n} title={n} />)}
+    </span>
+  );
+}

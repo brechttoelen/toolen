@@ -98,6 +98,7 @@ export function useFiche(planId) {
     return true;
   }, [meld, laad]);
 
+  const planWijzigRef = useRef(null);
   const planWijzig = useCallback(async (patch) => {
     setSt((s) => ({ ...s, plan: { ...s.plan, ...patch } }));
     const r = await maps().from('plannen').update(patch).eq('id', planId).select().single();
@@ -105,6 +106,23 @@ export function useFiche(planId) {
     setSt((s) => ({ ...s, plan: r.data }));
     return true;
   }, [planId, meld, laad]);
+  planWijzigRef.current = planWijzig;
+
+  // Kleuren per soort in de planning: op het event (geldt voor alle sites), anders op het plan.
+  const soortKleurZet = useCallback(async (soort, kleur) => {
+    const k = String(soort || '').trim().toLowerCase(); if (!k) return false;
+    const pas = (oud) => { const n = { ...(oud || {}) }; if (kleur) n[k] = { kleur }; else delete n[k]; return n; };
+    const ev = st.event;
+    if (ev) {
+      const nieuw = pas(ev.soortkleuren);
+      setSt((s) => ({ ...s, event: { ...s.event, soortkleuren: nieuw } }));
+      const r = await maps().from('events').update({ soortkleuren: nieuw }).eq('id', ev.id);
+      if (r.error) { meld(foutTekst(r.error)); laad(); return false; }
+      return true;
+    }
+    const inst = st.plan?.instellingen || {};
+    return planWijzigRef.current({ instellingen: { ...inst, soortkleuren: pas(inst.soortkleuren) } });
+  }, [st.event, st.plan, meld, laad]);
 
   // Een item wijzigen (velden of leverancier), via de bestaande tabel items.
   const itemWijzig = useCallback(async (id, patch) => {
@@ -136,7 +154,7 @@ export function useFiche(planId) {
     return r.data;
   }, [meld]);
 
-  return { ...st, schrijven: magSchrijven(st.profiel), melding, meld, herlaad: laad, voegToe, wijzig, wis, planWijzig, itemWijzig, herkomstZet, rpc };
+  return { ...st, schrijven: magSchrijven(st.profiel), melding, meld, herlaad: laad, voegToe, wijzig, wis, planWijzig, itemWijzig, herkomstZet, soortKleurZet, rpc };
 }
 
 // Hulp: lijst → map op id.
@@ -154,3 +172,10 @@ export function itemLeverancier(item, elementen, leveranciers, std = null) {
   if (!naam) return null;
   return leveranciers.find((l) => l.naam.trim().toLowerCase() === naam)?.id || null;
 }
+
+// Kleur van een soort (taak.soort) in de planning: van het event, anders van het plan. null = geen kleur.
+export function soortKleur(f, soort) {
+  const k = String(soort || '').trim().toLowerCase(); if (!k) return null;
+  return (f.event?.soortkleuren || f.plan?.instellingen?.soortkleuren || {})[k]?.kleur || null;
+}
+

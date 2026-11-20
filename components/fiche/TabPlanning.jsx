@@ -5,8 +5,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { dagLijst, label, dagNaam, sleutel, uitSleutel, canoniek, uurKort, leesUur, wedstrijd, fase, FASE_NAAM } from './dagen';
 import { locatieTekst, momentNaam, momentDagen, bestelRijen } from './bestelling';
-import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities, DagKiezer, Keuze, Zoek, Paneel } from './gedeeld';
-import { opId } from './data';
+import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities, DagKiezer, Keuze, Zoek, Paneel, KleurStalen } from './gedeeld';
+import { opId, soortKleur } from './data';
 import TaakPaneel from './TaakPaneel';
 import { useUrlStaat } from '../urlStaat';
 import RijKaart from './RijKaart';
@@ -184,7 +184,7 @@ export default function TabPlanning({ f, planId, naar }) {
     if (r.soort === 'levering') {
       const l = r.l; const lk = `${l.id}-${r.n || 0}`; const isOpen = levOpen === lk; const rs = regelsBij(l); const waar = levWaar(l);
       return [
-        <tr key={`l${lk}`} className={`${isOpen ? 'gekozen' : ''} ${l.status === 'klaar' ? 'klaar' : ''}`}><td className="pf-pijlcel"><span className="pf-vakjes"><span />{(rs.length > 0 || f.schrijven) ? <button className="pf-pijl" aria-expanded={isOpen} aria-label="Wat en waar tonen, met kaart en opmerking" onClick={() => setLevOpen(isOpen ? null : lk)}>{pijl}</button> : <span />}</span></td><td className="pf-uur">{r.uur || '–'}{uurKort(l.uur_tot) && <small>{uurKort(l.uur_tot)}</small>}</td>
+        <tr key={`l${lk}`} className={`${isOpen ? 'gekozen' : ''} ${l.status === 'klaar' ? 'klaar' : ''} ${soortKleur(f, 'Levering') ? 'pf-soortrij' : ''}`} style={soortKleur(f, 'Levering') ? { '--soort': soortKleur(f, 'Levering') } : undefined}><td className="pf-pijlcel"><span className="pf-vakjes"><span />{(rs.length > 0 || f.schrijven) ? <button className="pf-pijl" aria-expanded={isOpen} aria-label="Wat en waar tonen, met kaart en opmerking" onClick={() => setLevOpen(isOpen ? null : lk)}>{pijl}</button> : <span />}</span></td><td className="pf-uur">{r.uur || '–'}{uurKort(l.uur_tot) && <small>{uurKort(l.uur_tot)}</small>}</td>
           <td><span className={`pf-soortik ${l.werk ? 'werk' : 'lev'}`} aria-hidden="true" />{naar ? <button className="pf-rijknop wat" title="Open de bestelling bij deze leverancier" onClick={() => naar('leveranciers', { lev: l.site_leverancier_id })}>{levTitel(l)}</button> : <b>{levTitel(l)}</b>}
             {l.wat && <small style={{ color: 'var(--t-tekst)' }}>{l.wat}</small>}</td>
           <td>{waar || (l.werk ? <span className="pf-stil">–</span> : <span className="pf-stil">Leverpunt ontbreekt</span>)}</td>
@@ -202,7 +202,7 @@ export default function TabPlanning({ f, planId, naar }) {
     const meer = dagen.filter((x) => x.taak_id === t.id).length;
     const tk = `t${d.id}`; const tOpen = levOpen === tk; const ids = w.gekoppeld ? taakIds(t) : [];
     return [
-      <tr key={d.id} className={`${sel.has(d.id) || open === t.id || tOpen ? 'gekozen' : ''} ${d.status === 'klaar' ? 'klaar' : ''}`}>
+      <tr key={d.id} className={`${sel.has(d.id) || open === t.id || tOpen ? 'gekozen' : ''} ${d.status === 'klaar' ? 'klaar' : ''} ${soortKleur(f, t.soort) ? 'pf-soortrij' : ''}`} style={soortKleur(f, t.soort) ? { '--soort': soortKleur(f, t.soort) } : undefined}>
         <td className="pf-pijlcel"><span className="pf-vakjes">{f.schrijven ? <input type="checkbox" checked={sel.has(d.id)} onChange={() => kies(d.id)} aria-label="Selecteren" /> : <span />}{ids.length > 0 ? <button className="pf-pijl" aria-expanded={tOpen} aria-label="Toon op de kaart" onClick={() => setLevOpen(tOpen ? null : tk)}>{pijl}</button> : <span />}</span></td>
         <td className="pf-uur">{r.uur || '–'}{uurKort(d.uur_tot) && <small>{uurKort(d.uur_tot)}</small>}</td>
         <td><span className="pf-soortik taak" aria-hidden="true" /><button className="pf-rijknop wat" onClick={() => setOpen(t.id)}>{t.titel}</button>
@@ -248,6 +248,10 @@ export default function TabPlanning({ f, planId, naar }) {
             <label className="pf-rij" style={{ gap: 8 }}><input type="checkbox" checked={enkelOpen} onChange={() => setEnkelOpen(!enkelOpen)} /> Enkel wat nog open is</label>
             <label className="pf-rij" style={{ gap: 8 }}><input type="checkbox" checked={toonProg} onChange={() => setToonProg(!toonProg)} /> Programma tonen</label>
             <label className="pf-rij" style={{ gap: 8 }}><input type="checkbox" checked={legeDagen} onChange={() => setLegeDagen(!legeDagen)} /> Lege dagen tonen</label>
+            {soorten.length > 1 && <>
+              <span className="t-label" style={{ marginTop: 6 }}>Kleur per soort{f.event ? ` · voor heel ${f.event.naam}` : ''}</span>
+              <div className="pf-soortkleuren">{soorten.filter((x) => x !== 'Alles').map((x) => <div key={x}><span>{x}</span><KleurStalen waarde={soortKleur(f, x)} uit={!f.schrijven} label={`Kleur voor ${x}`} onKies={(k) => f.soortKleurZet(x, k)} /></div>)}</div>
+            </>}
           </div>}
         </span>
         <span className="pf-knoppen">
