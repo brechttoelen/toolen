@@ -11,6 +11,8 @@ import { sorteerCategorieen } from './categorieen';
 import { familieVanElement } from './familie';
 import { herkomstVan } from './stijl';
 import { useLeveranciers, juisteNaam, zorgLeverancier } from './leveranciers';
+import { Keuze } from '../fiche/gedeeld';
+import '../fiche/fiche.css';
 
 const SOORT = { punt: 'Punt', lijn: 'Lijn', vlak: 'Vlak', rechthoek: 'Rechthoek', cirkel: 'Cirkel', tekst: 'Tekst', element: 'Element', veelhoek: 'Regelmatige veelhoek', ellips: 'Ellips', sector: 'Kijkhoek', notitie: 'Notitie met pijl' };
 
@@ -288,6 +290,7 @@ export function PaneelKop({ std = null, item, el, elementen, lagen, fasen, items
   const levLijst = useLeveranciers();
   const herkomsten = [...new Set([getOrganisatie()?.kort || 'Organisator', 'Gemeente', ...levLijst.filter((l) => l.actief !== false).map((l) => l.naam), ...(items || []).map((x) => herkomstVan(x, elementenMap.get(x.element_id), std)), ...Object.values(std || {}), ...(elementen || []).map((x) => x.leverancier)].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'nl'));
   // Wie deze categorie levert eerst (bv. bij een toiletcabine: GSV Verhuur, Nima Rent, Toekoer …), daarna de rest.
+  const zetHerkomst = (ruw) => { const v = juisteNaam(ruw || '', levLijst); if (v !== (velden.herkomst || '')) { onWijzig({ velden: { ...velden, herkomst: v || null } }); if (v) zorgLeverancier(v); } };
   const levertHier = new Set(levLijst.filter((l) => el?.categorie && (l.categorieen || []).includes(el.categorie)).map((l) => l.naam));
   herkomsten.sort((a, b) => (levertHier.has(b) - levertHier.has(a)) || a.localeCompare(b, 'nl'));
   return (
@@ -306,12 +309,16 @@ export function PaneelKop({ std = null, item, el, elementen, lagen, fasen, items
       <LaagKiezer lagen={lagen} laagId={item.laag_id} uitgeschakeld={ro} onWijzig={(id) => onWijzig({ laag_id: id })} />
       {fasen.length > 0 && <FaseKiezer fasen={fasen} faseIds={item.fase_ids} uitgeschakeld={ro} onWijzig={(ids) => onWijzig({ fase_ids: ids })} />}
       {el && el.tekenwijze !== 'doek' && (
-        <label className="fm-kiesrij" title="Wie brengt dit voor dit event. Leeg = de leverancier uit de bibliotheek. De stuklijst en de leverlijsten splitsen hierop."><span className="l">Leverancier</span>
-          <input key={item.id} list="fm-herkomsten" defaultValue={velden.herkomst || ''} placeholder={el.leverancier ? `${el.leverancier} (standaard)` : std?.[el.categorie] ? `${std[el.categorie]} (standaard van het plan)` : 'Niet ingevuld'} disabled={ro}
-            onBlur={(e) => { const v = juisteNaam(e.target.value, levLijst); if (v !== (velden.herkomst || '')) { onWijzig({ velden: { ...velden, herkomst: v || null } }); if (v) zorgLeverancier(v); } }}
-            onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} aria-label="Geleverd door" />
-          <datalist id="fm-herkomsten">{herkomsten.map((v) => <option key={v} value={v}>{levertHier.has(v) ? `levert ${el?.categorie}` : ""}</option>)}</datalist>
-        </label>
+        <div className="fm-kiesrij" title="Wie brengt dit voor dit event. Leeg = de leverancier uit de bibliotheek. De stuklijst en Leveranciers in de fiche splitsen hierop."><span className="l">Leverancier</span>
+          {/* Zelfde keuzeveld als in de fiche: typen om te zoeken, of een nieuwe naam. */}
+          <span style={{ flex: 1, minWidth: 0, display: 'flex' }}>
+            <Keuze key={item.id} klasse="fm-kies-veld" style={{ width: '100%' }} vrij uit={ro} label="Geleverd door" leeg={el.leverancier ? `${el.leverancier} (standaard)` : 'Niet ingevuld'}
+              waarde={herkomsten.includes(velden.herkomst || '') ? velden.herkomst : null} tekst={herkomsten.includes(velden.herkomst || '') ? '' : (velden.herkomst || '')}
+              placeholder={el.leverancier ? `${el.leverancier} (standaard)` : 'Niet ingevuld'}
+              opties={herkomsten.map((v) => ({ id: v, naam: v, sub: levertHier.has(v) ? `levert ${el?.categorie}` : '' }))}
+              onChange={(v) => zetHerkomst(v)} onVrij={(v) => zetHerkomst(v)} />
+          </span>
+        </div>
       )}
       {item.groep_id && !iso && schrijven && (
         <div className="fm-groepblok">

@@ -1528,6 +1528,8 @@ button.fm-lijstkop.fm-subgroep:hover { color: var(--fm-zwart); }
 .fm-menu hr { border: 0; border-top: 1px solid var(--fm-rand); margin: 4px 0; }
 .fm-menu button.gevaar { color: #B4123A; }
 .fm-kiesrij { display: flex; align-items: center; gap: 6px; min-width: 0; height: 26px; }
+.fm-kiesrij:has(> .fm-dk-knop) { height: auto; min-height: 26px; }  /* modelkaart is hoger dan een veld: de rij groeit mee */
+.fm-kiesrij > .fm-dk-knop { padding: 4px 8px 4px 4px; gap: 8px; }
 .fm-kiesrij select, .fm-kiesrij input { flex: 1; min-width: 0; width: 0; height: 26px; border: 1px solid var(--fm-rand2); padding: 0 6px; font-size: 12px; background: #fff; color: var(--fm-zwart); }
 .fm-kiesrij select:focus, .fm-kiesrij input:focus { outline: 2px solid var(--fm-zwart); outline-offset: -1px; }
 .fm-kiesrij input::placeholder { color: #9A9EA6; }
@@ -2644,3 +2646,5 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-bib-pad b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .fm-bib-pad .fm-sub:last-child { flex: none; }
 .fm-uitvoer-titel { font-size: 15px; font-weight: 700; }
+.fm-kiesrij .pf-keuze { flex: 1; min-width: 0; }
+.fm-kiesrij .pf-keuze .fm-kies-veld { width: 100%; padding-right: 22px; box-sizing: border-box; }
