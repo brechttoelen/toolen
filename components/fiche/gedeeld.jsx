@@ -222,6 +222,25 @@ export function KnopPaneel({ label, aan = false, hoofd = false, rechts = false, 
 
 // Kleuren voor de soorten in de planning: goed van elkaar te onderscheiden, ook als streep.
 export const SOORT_KLEUREN = [['#378ADD', 'Blauw'], ['#1D9E75', 'Teal'], ['#639922', 'Groen'], ['#BA7517', 'Oker'], ['#D85A30', 'Koraal'], ['#E24B4A', 'Rood'], ['#D4537E', 'Roze'], ['#7F77DD', 'Paars'], ['#888780', 'Grijs']];
+// Kleur per soort, compact: één bolletje per soort; klik erop om de stalen te tonen.
+export function SoortKleuren({ soorten, kleur, onKies, uit = false }) {
+  const [open, setOpen] = useState(null);
+  return (
+    <div className="pf-soortkleuren">
+      {soorten.map((x) => {
+        const k = kleur(x);
+        return <div key={x}>
+          <button type="button" className="pf-soortkleur-rij" disabled={uit} aria-expanded={open === x} onClick={() => setOpen(open === x ? null : x)}>
+            <span className={`pf-soortkleur-bol ${k ? '' : 'geen'}`} style={k ? { background: k } : undefined} />
+            <span>{x}</span>
+            <span className="pf-stil pf-klein">{k ? (SOORT_KLEUREN.find(([c]) => c === k)?.[1] || '') : 'geen'}</span>
+          </button>
+          {open === x && <KleurStalen waarde={k} uit={uit} label={`Kleur voor ${x}`} onKies={(c) => { onKies(x, c); setOpen(null); }} />}
+        </div>;
+      })}
+    </div>
+  );
+}
 export function KleurStalen({ waarde, onKies, uit = false, label = 'Kleur' }) {
   return (
     <span className="pf-stalen" role="radiogroup" aria-label={label}>

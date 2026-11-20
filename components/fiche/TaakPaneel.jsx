@@ -3,9 +3,9 @@
 // Een taak openen: titel, soort, wie, dagen (reeks en losse dagen, elk met uur, status en uitvoerder),
 // afbraak, levering waar ze bij hoort, en waar op de kaart (item, groep, laag, laaggroep).
 import { useState } from 'react';
-import { Paneel, Bewaarveld, Bewaartekst, StatusKeuze, STATUS_TAAK, Kiezer, Keuze, DagKiezer, KleurStalen } from './gedeeld';
+import { Paneel, Bewaarveld, Bewaartekst, StatusKeuze, STATUS_TAAK, Kiezer, Keuze, DagKiezer } from './gedeeld';
 import { dagLijst, dagNaam, canoniek, sleutel, uurKort, leesUur, wedstrijd, volgorde } from './dagen';
-import { opId, soortKleur } from './data';
+import { opId } from './data';
 import { momentNaam } from './bestelling';
 import RijKaart from './RijKaart';
 import { bevestig } from '../maps/dialoog';
@@ -94,7 +94,6 @@ export default function TaakPaneel({ f, taakId, onSluit, naast = false, vorige =
         <div className="pf-velden">
           <label><span className="t-label">Soort</span><Bewaarveld klasse="t-veld" waarde={t.soort || ''} uit={!s} label="Soort" placeholder="bv. Gemeente" onBewaar={(v) => w({ soort: v.trim() || null })} /></label>
           <label><span className="t-label">Verantwoordelijk</span><Kiezer waarde={t.wie_persoon_id} opties={persOpties} uit={!s} label="Verantwoordelijke" onChange={(v) => w({ wie_persoon_id: v })} /></label>
-          {t.soort && <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8 }}><span className="pf-stil pf-klein">Kleur voor alle “{t.soort}”{f.event ? ` in ${f.event.naam}` : ''}</span><KleurStalen waarde={soortKleur(f, t.soort)} uit={!s} label={`Kleur voor ${t.soort}`} onKies={(k) => f.soortKleurZet(t.soort, k)} /></div>}
         </div>
         <div className="pf-velden">
           <label style={{ gridColumn: '1 / -1' }}><span className="t-label">Uitvoerder · leverancier of vrije tekst</span>

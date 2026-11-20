@@ -5,7 +5,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { dagLijst, label, dagNaam, sleutel, uitSleutel, canoniek, uurKort, leesUur, wedstrijd, fase, FASE_NAAM } from './dagen';
 import { locatieTekst, momentNaam, momentDagen, bestelRijen } from './bestelling';
-import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities, DagKiezer, Keuze, Zoek, Paneel, KleurStalen } from './gedeeld';
+import { StatusKeuze, STATUS_TAAK, Seg, Chips, Bewaarveld, TabNotities, DagKiezer, Keuze, Zoek, Paneel, SoortKleuren } from './gedeeld';
 import { opId, soortKleur } from './data';
 import TaakPaneel from './TaakPaneel';
 import { useUrlStaat } from '../urlStaat';
@@ -250,7 +250,7 @@ export default function TabPlanning({ f, planId, naar }) {
             <label className="pf-rij" style={{ gap: 8 }}><input type="checkbox" checked={legeDagen} onChange={() => setLegeDagen(!legeDagen)} /> Lege dagen tonen</label>
             {soorten.length > 1 && <>
               <span className="t-label" style={{ marginTop: 6 }} title={f.event ? `Geldt voor alle sites van ${f.event.naam}` : undefined}>Kleur per soort{f.event ? ' · voor heel het event' : ''}</span>
-              <div className="pf-soortkleuren">{soorten.filter((x) => x !== 'Alles').map((x) => <div key={x}><span>{x}</span><KleurStalen waarde={soortKleur(f, x)} uit={!f.schrijven} label={`Kleur voor ${x}`} onKies={(k) => f.soortKleurZet(x, k)} /></div>)}</div>
+              <SoortKleuren soorten={soorten.filter((x) => x !== 'Alles')} kleur={(x) => soortKleur(f, x)} uit={!f.schrijven} onKies={(x, k) => f.soortKleurZet(x, k)} />
             </>}
           </div>}
         </span>
