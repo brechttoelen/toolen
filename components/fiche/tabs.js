@@ -1,0 +1,2 @@
+// Tabs van de projectfiche (ook gebruikt in de organisatie-instellingen).
+export const ALLE_TABS = [['overzicht', 'Overzicht'], ['planning', 'Planning'], ['leveranciers', 'Leveranciers'], ['laadlijst', 'Laadlijst'], ['catering', 'Catering'], ['budget', 'Budget'], ['contacten', 'Contacten'], ['locaties', 'Locaties'], ['mobiliteit', 'Mobiliteit'], ['notities', 'Notities'], ['info', 'Info']];

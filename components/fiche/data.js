@@ -24,7 +24,7 @@ async function alles(maak) {
 }
 
 export function useFiche(planId) {
-  const [st, setSt] = useState({ laden: true, fout: '', plan: null, event: null, items: [], lagen: [], elementen: [], d: {}, profiel: null, financieel: false, planLev: [] });
+  const [st, setSt] = useState({ laden: true, fout: '', plan: null, event: null, items: [], lagen: [], elementen: [], d: {}, profiel: null, financieel: false, planLev: [], tabsUit: [] });
   const [melding, setMelding] = useState('');
   const meldTimer = useRef(null);
   const meld = useCallback((t) => { setMelding(t); clearTimeout(meldTimer.current); meldTimer.current = setTimeout(() => setMelding(''), 4000); }, []);
@@ -42,10 +42,11 @@ export function useFiche(planId) {
     const p = await maps().from('plannen').select('*').eq('id', planId).maybeSingle();
     if (p.error || !p.data) { setSt((s) => ({ ...s, laden: false, fout: p.error ? foutTekst(p.error) : 'Dit plan bestaat niet of je hebt er geen toegang toe.' })); return; }
     const plan = p.data;
-    const [[it, lg, wie, pl, bibR, ...planR], [ev, plek, fin, ...orgR]] = await Promise.all([vast, Promise.all([
+    const [[it, lg, wie, pl, bibR, ...planR], [ev, plek, fin, orgT, ...orgR]] = await Promise.all([vast, Promise.all([
       plan.event_id ? maps().from('events').select('*').eq('id', plan.event_id).maybeSingle() : Promise.resolve({ data: null }),
       plan.plek_id ? alles(() => maps().from('items').select('*').eq('plek_id', plan.plek_id).is('plan_id', null)) : Promise.resolve({ data: [] }),
       maps().rpc('mag_financieel', { p_org: plan.organisatie_id }),
+      maps().from('organisaties').select('fiche_tabs_uit').eq('id', plan.organisatie_id).maybeSingle(),
       ...ORG_TABELLEN.map((t) => alles(() => maps().from(t).select('*').eq('organisatie_id', plan.organisatie_id).order(VOLGORDE[t] || 'naam'))),
     ])]);
     const r = [...planR, ...orgR];
@@ -56,7 +57,7 @@ export function useFiche(planId) {
     setSt({
       laden: false, fout: fouten.length ? fouten.join(' · ') : '', plan, event: ev.data || null,
       items: [...(it.data || []), ...(plek.data || []).map((x) => ({ ...x, vast: true }))].filter((x) => !x.verborgen),
-      lagen: lg.data || [], elementen: bib, d, profiel: wie, financieel: !!fin.data, planLev: pl.data || [],
+      lagen: lg.data || [], elementen: bib, d, profiel: wie, financieel: !!fin.data, planLev: pl.data || [], tabsUit: orgT.data?.fiche_tabs_uit || [],
     });
   }, [planId]);
   useEffect(() => { laad(); }, [laad]);

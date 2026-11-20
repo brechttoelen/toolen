@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useState } from "react";
 import { sb } from "@/components/maps/db";
+import { ALLE_TABS } from "@/components/fiche/tabs";
 import { MODULES, ROLLEN, statusVan, pakketVan, rolNaam, datum } from "@/lib/pakketten";
 import { Toegang, ToegangBewerken, ToegangKiezer, WerkplekKiezer, werkplekNamen } from "./Toegang";
 
@@ -12,7 +13,7 @@ type Hub = { brug?: boolean; sleutel?: boolean; fout?: string; leden?: HubLid[] 
 type Uitn = { id: string; email: string; naam: string | null; rol: string; event_ids: string[] | null; werkplekken: string[] | null; geldig_tot: string; verstuurd_op: string | null };
 type Ev = { id: string; naam: string; datum: string | null };
 type Org = { id: string; naam: string; kort: string | null; adres: string | null; ondernemingsnummer: string | null; land: string;
-  status: string; pakket: string; plaatsen: number; lezers_max: number; modules: string[]; proef_tot: string | null; sso?: string[] };
+  status: string; pakket: string; plaatsen: number; lezers_max: number; modules: string[]; proef_tot: string | null; sso?: string[]; fiche_tabs_uit?: string[] };
 type Gebruik = { plaatsen: number; plaatsen_max: number; lezers: number; lezers_max: number };
 
 const db = () => sb().schema("maps");
@@ -139,6 +140,15 @@ export default function OrgInstellingen() {
     const { error } = await db().from("organisaties").update({ naam: org.naam, kort: org.kort || null, adres: org.adres || null,
       ondernemingsnummer: org.ondernemingsnummer || null, land: org.land || "BE" }).eq("id", org.id);
     if (error) toon("fout", error.message); else { toon("ok", "Bewaard."); laad(); }
+  }
+
+  async function zetFicheTab(k: string) {
+    if (!org) return;
+    const uit = new Set(org.fiche_tabs_uit || []); if (uit.has(k)) uit.delete(k); else uit.add(k);
+    const lijst = [...uit];
+    setOrg({ ...org, fiche_tabs_uit: lijst });
+    const { error } = await db().from("organisaties").update({ fiche_tabs_uit: lijst }).eq("id", org.id);
+    if (error) { toon("fout", error.message); laad(); }
   }
 
   if (!ik) return <main className="t-inhoud t-stil">Laden…</main>;
@@ -304,6 +314,21 @@ export default function OrgInstellingen() {
           <p className="t-stil" style={{ fontSize: 12.5, margin: 0 }}>Naam, adres en ondernemingsnummer komen in het titelblok van je plannen. {!eigenaar && "Enkel een eigenaar past ze aan."}</p>
           {eigenaar && <div className="t-rij" style={{ justifyContent: "flex-end" }}><button className="t-knop hoofd">Bewaren</button></div>}
         </form>
+      )}
+      {tab === "organisatie" && org && (org.modules || []).includes("fiche") && (
+        <div className="t-kaart t-stapel" style={{ padding: 20, maxWidth: 640, marginTop: 16 }}>
+          <span className="t-label">Projectfiche: tabs</span>
+          <p className="t-stil" style={{ fontSize: 12.5, margin: 0 }}>Welke tabs de projectfiche toont, voor alle plannen. Uitzetten verbergt de tab; wat erin staat blijft bewaard. {!eigenaar && "Enkel een eigenaar past dit aan."}</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
+            {ALLE_TABS.filter(([k]) => !["overzicht", "info"].includes(k)).map(([k, n]) => {
+              const aan = !(org.fiche_tabs_uit || []).includes(k);
+              return <label key={k} className="t-rij" style={{ gap: 10, cursor: eigenaar ? "pointer" : "default" }}>
+                <input type="checkbox" checked={aan} disabled={!eigenaar} onChange={() => zetFicheTab(k)} />
+                <span style={{ fontSize: 13.5, opacity: aan ? 1 : 0.55 }}>{n}</span>
+              </label>;
+            })}
+          </div>
+        </div>
       )}
 
       {tab === "abonnement" && org && st && (

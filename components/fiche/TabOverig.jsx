@@ -10,7 +10,8 @@ import { waarTekst, wieTekst } from './TabPlanning';
 import { maps, foutTekst } from '../maps/db';
 import { bevestig } from '../maps/dialoog';
 
-export const ALLE_TABS = [['overzicht', 'Overzicht'], ['planning', 'Planning'], ['leveranciers', 'Leveranciers'], ['laadlijst', 'Laadlijst'], ['catering', 'Catering'], ['budget', 'Budget'], ['contacten', 'Contacten'], ['locaties', 'Locaties'], ['mobiliteit', 'Mobiliteit'], ['notities', 'Notities'], ['info', 'Info']];
+export { ALLE_TABS } from './tabs';
+import { ALLE_TABS } from './tabs';
 
 export function TabOverzicht({ f, naar }) {
   const { plan } = f;
@@ -171,7 +172,7 @@ export function TabInfo({ f }) {
         <section className="pf-kaart">
           <div className="pf-kaartkop"><h2>Tabs van deze site</h2></div>
           <span className="pf-stil pf-klein">Zet uit wat je op deze site niet gebruikt.</span>
-          {ALLE_TABS.filter(([k]) => !['overzicht', 'info'].includes(k)).map(([k, n]) => <label key={k} className="pf-rij" style={{ gap: 8 }}><input type="checkbox" checked={!verborgen.has(k)} disabled={!s} onChange={() => zetTab(k)} /> {n}</label>)}
+          {ALLE_TABS.filter(([k]) => !['overzicht', 'info'].includes(k) && !(f.tabsUit || []).includes(k)).map(([k, n]) => <label key={k} className="pf-rij" style={{ gap: 8 }}><input type="checkbox" checked={!verborgen.has(k)} disabled={!s} onChange={() => zetTab(k)} /> {n}</label>)}
         </section>
         {s && <section className="pf-kaart">
           <div className="pf-kaartkop"><h2>Overnemen van een ander plan</h2></div>

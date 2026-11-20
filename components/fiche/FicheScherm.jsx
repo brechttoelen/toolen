@@ -32,7 +32,7 @@ export default function FicheScherm({ planId }) {
   const { plan, event } = f;
   const verborgen = new Set(plan.instellingen?.fiche?.verborgen_tabs || []);
   const notOpen = (f.d.notities || []).filter((n) => !n.klaar).length;
-  const tabs = ALLE_TABS.filter(([k]) => !verborgen.has(k) && (k !== 'budget' || f.financieel));
+  const tabs = ALLE_TABS.filter(([k]) => !verborgen.has(k) && !(f.tabsUit || []).includes(k) && (k !== 'budget' || f.financieel));
   const w = wedstrijd(plan);
   const pers = opId(f.d.personen);
   const team = (f.d.site_rollen || []).filter((r) => r.rol).slice(0, 3).map((r) => `${r.rol.toLowerCase()} ${pers.get(r.persoon_id)?.naam || ''}`.trim());
