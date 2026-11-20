@@ -103,6 +103,13 @@ const Uitvoer = dynamic(() => import('./Uitvoer'), { ssr: false });
 const CadImport = dynamic(() => import('./CadImport'), { ssr: false });
 
 // Hoort een item bij dit binnenplan (gebouw, tent of container + verdieping)?
+// Standaard puntsymbool van een laag: wat op de laag ingesteld is, anders volgens de naam (Vrijwilligers, stewards …).
+export function laagPuntIcoon(laag) {
+  if (!laag) return null;
+  if (laag.stijl?.punt_icoon) return laag.stijl.punt_icoon;
+  if (/vrijwillig|steward|seingever|signaalgever/i.test(laag.naam || '')) return 'f-persoon';
+  return null;
+}
 export const inBinnen = (it, b) => !!b && it.velden?.binnen?.host === b.host && (it.velden.binnen.verd || null) === (b.verd || null);
 
 // Hoe vlakvullende elementen (rijplaten, vloeren …) gelegd worden: [sleutel, knop, uitleg, icoon, aanwijzing].
@@ -1080,6 +1087,11 @@ export default function Editor({ planId }) {
       volgorde: st.current.items.length, ...it,
     };
     if (st.current.binnen && !vol.velden?.binnen) vol.velden = { ...(vol.velden || {}), binnen: { host: st.current.binnen.host, verd: st.current.binnen.verd || null } };
+    // Laag met een eigen puntsymbool (bv. Vrijwilligers → persoon): een nieuw punt zonder element krijgt dat icoon.
+    if (vol.soort === 'punt' && !vol.element_id && !vol.velden?.sign && !vol.velden?.verkeer && !vol.velden?.binnenplan) {
+      const ic = laagPuntIcoon(st.current.lagen.find((l) => l.id === vol.laag_id));
+      if (ic) vol.stijl = { ...(vol.stijl || {}), icoon: ic };
+    }
     pasToe(null, vol, { direct: true });
     return vol;
   }, [pasToe]);
@@ -1674,6 +1686,46 @@ export default function Editor({ planId }) {
     if (!blijf) selecteerLijst([kopie.id]);
   }, [wijzigItem, maakItem, tdFeature, syncTd, selecteerLijst]);
 
+  // Knik midden in een lijn: een extra knooppunt op de dichtste plek, om vanaf daar te verslepen.
+  const knikLijn = useCallback((id, p) => {
+    const it = st.current.items.find((x) => x.id === id);
+    if (!it || it.geometrie?.type !== 'LineString') return;
+    const c = it.geometrie.coordinates;
+    const np = turf.nearestPointOnLine(turf.lineString(c), turf.point(p), { units: 'meters' });
+    const i = np.properties.index; const q = np.geometry.coordinates;
+    if (turf.distance(q, c[i], { units: 'meters' }) < 0.1 || turf.distance(q, c[i + 1] || c[i], { units: 'meters' }) < 0.1) { setMelding('Daar ligt al een knooppunt.'); return; }
+    const par = { ...(it.parameters || {}) };
+    // Stukken na de knik schuiven één op; het geknikte stuk wordt recht.
+    if (par.bogen) par.bogen = Object.fromEntries(Object.entries(par.bogen).filter(([k]) => Number(k) !== i).map(([k, h]) => [Number(k) > i ? Number(k) + 1 : Number(k), h]));
+    if (par.koord?.length) par.koord = par.koord.flatMap((k) => (k < i ? [k] : k === i ? [i, i + 1] : [k + 1]));
+    wijzigItem(id, { geometrie: { type: 'LineString', coordinates: [...c.slice(0, i + 1), q, ...c.slice(i + 1)] }, parameters: par });
+    setTimeout(syncTd, 0);
+    selecteerLijst([id]);
+    setMelding('Knooppunt toegevoegd: versleep het om de lijn te knikken.');
+  }, [wijzigItem, syncTd, selecteerLijst]);
+
+  // Aftakking: een nieuwe lijn van hetzelfde soort die midden op deze lijn begint, in dezelfde groep.
+  const aftakking = useCallback((id, p) => {
+    const it = st.current.items.find((x) => x.id === id);
+    if (!it || it.geometrie?.type !== 'LineString') return;
+    const q = turf.nearestPointOnLine(turf.lineString(it.geometrie.coordinates), turf.point(p), { units: 'meters' }).geometry.coordinates;
+    let g = it.groep_id;
+    if (!g) {
+      g = nieuwId();
+      wijzigItem(it.id, { groep_id: g });
+      const naam = it.naam || elementenMap.get(it.element_id)?.naam;
+      if (naam) { const gr = (st.current.plan?.instellingen?.groepen || []).filter((x) => x.id !== g); gr.push({ id: g, naam }); wijzigPlanRef.current?.({ instellingen: { ...(st.current.plan?.instellingen || {}), groepen: gr } }); }
+    }
+    const { id: _, created_at, updated_at, parameters, ...rest } = it;
+    const par = { ...(parameters || {}) }; delete par.bogen; delete par.koord; delete par.openingen; delete par.vlaggen;
+    // Nulstuk: het eerste klikpunt vervangt het tweede punt (zie verlengen in tekenhulp).
+    const nieuw = maakItem({ ...rest, groep_id: g, parameters: par, geometrie: { type: 'LineString', coordinates: [q, q] } });
+    tdRef.current?.addFeatures([tdFeature(nieuw)]);
+    setTimeout(syncTd, 0);
+    setVerleng({ id: nieuw.id, kant: 'einde' }); setGereedschap('verleng');
+    setMelding('Aftakking: klik de punten, Enter of Esc om te stoppen.');
+  }, [wijzigItem, maakItem, tdFeature, syncTd, elementenMap]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Evenwijdige kopie van een lijn op x meter (links, rechts of beide).
   const evenwijdigeKopie = useCallback((id, meter, kant, stuk = null) => {
     const it = st.current.items.find((x) => x.id === id);
@@ -1782,14 +1834,19 @@ export default function Editor({ planId }) {
     return () => { map.off('mousemove', beweeg); map.off('click', klik); zetCursor(map, 'penseel', ''); try { map.getSource('fm-ew')?.setData({ type: 'FeatureCollection', features: [] }); } catch {} };
   }, [ewKies, gereedschap, kaartKlaar, evenwijdigeKopie]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => tekenhulp(() => ({ bewerkbaarRef, getypt, kaartKlaar, knipLijn, knipRef, mapRef, muisPosRef, selecteerLijst, selectieRef, setCtxMenu, setGereedschap, setKnipId, setMelding, setVerleng, st, syncTd, tdRef, tipRef, toonTip, verlengRef, wijzigItem })), [kaartKlaar, wijzigItem, syncTd, knipLijn, selecteerLijst, toonTip]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => tekenhulp(() => ({ bewerkbaarRef, getypt, kaartKlaar, knipLijn, knipRef, mapRef, muisPosRef, selecteerLijst, selectieRef, setCtxMenu, setGereedschap, setKnipId, setMelding, setVerleng, st, syncTd, tdRef, tipRef, toonTip, verlengRef, verwijderItems, wijzigItem })), [kaartKlaar, wijzigItem, syncTd, knipLijn, selecteerLijst, toonTip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Gereedschap gewisseld: hulp opruimen.
   useEffect(() => {
     const map = mapRef.current;
     if (!['punt', 'lijn'].includes(gereedschap)) voorinstelRef.current = null;
     if (gereedschap !== 'kabel') kabelVanRef.current = null;
-    if (gereedschap !== 'verleng' && verleng) setVerleng(null);
+    if (gereedschap !== 'verleng' && verleng) {
+      // Aftakking zonder punten: het nulstuk weer weg.
+      const it = st.current.items.find((x) => x.id === verleng.id);
+      if (it?.geometrie?.type === 'LineString' && geo.lengte(it.geometrie) < 0.05) verwijderItems([it.id]);
+      setVerleng(null);
+    }
     if (gereedschap !== 'knip' && knipId) setKnipId(null);
     if (!['verleng', 'knip'].includes(gereedschap)) map?.getSource('fm-hulp')?.setData({ type: 'FeatureCollection', features: [] });
     getypt.current = '';
@@ -5395,6 +5452,8 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
                       <div className="fm-ctxkop">{it.naam || elementenMap.get(it.element_id)?.naam || it.soort}</div>
                       <div className="fm-menukop">Hier</div>
                       {lijn && <button onClick={() => knipLijn(it.id, ctxMenu.lngLat)}><Icoon naam="schaar" maat={14} />Hier knippen</button>}
+                      {lijn && schrijven && !it.parameters?.openingen?.length && <button onClick={() => { setCtxMenu(null); knikLijn(it.id, ctxMenu.lngLat); }}><Icoon naam="verder" maat={14} />Hier een knooppunt toevoegen</button>}
+                      {lijn && schrijven && <button onClick={() => { setCtxMenu(null); aftakking(it.id, ctxMenu.lngLat); }}><Icoon naam="verder" maat={14} />Hier aftakken (zelfde soort)</button>}
                       {lijn && paalPerPunt(elementenMap.get(it.element_id)) && (() => {
                         // Paal en net: dit vak zonder net (enkel een koord), of weer net.
                         const c = it.geometrie.coordinates; let k = 0; let best = Infinity;

@@ -9,7 +9,7 @@ import { hitOp } from './hit';
 
 export default function tekenhulp(ctx) {
   // ctx is een functie: de waarden worden pas gelezen als het effect loopt (zoals de oorspronkelijke closure).
-  const { bewerkbaarRef, getypt, kaartKlaar, knipLijn, knipRef, mapRef, muisPosRef, selecteerLijst, selectieRef, setCtxMenu, setGereedschap, setKnipId, setMelding, setVerleng, st, syncTd, tdRef, tipRef, toonTip, verlengRef, wijzigItem } = ctx();
+  const { bewerkbaarRef, getypt, kaartKlaar, knipLijn, knipRef, mapRef, muisPosRef, selecteerLijst, selectieRef, setCtxMenu, setGereedschap, setKnipId, setMelding, setVerleng, st, syncTd, tdRef, tipRef, toonTip, verlengRef, verwijderItems, wijzigItem } = ctx();
     const map = mapRef.current;
     const td = tdRef.current;
     if (!map || !kaartKlaar || !td) return;
@@ -137,7 +137,23 @@ export default function tekenhulp(ctx) {
       const c = it.geometrie.coordinates;
       const kant = v.kant || (turf.distance(p, c[0], M) < turf.distance(p, c[c.length - 1], M) ? 'begin' : 'einde');
       if (!v.kant) setVerleng({ ...v, kant });
-      const nieuw = kant === 'begin' ? [p, ...c] : [...c, p];
+      // Nulstuk (net gestarte aftakking): het eerste punt vervangt het tweede.
+      const nul = c.length === 2 && turf.distance(c[0], c[1], M) < 0.01;
+      let nieuw = nul ? (kant === 'begin' ? [p, c[1]] : [c[0], p]) : kant === 'begin' ? [p, ...c] : [...c, p];
+      // Op het uiteinde van een andere lijn van hetzelfde soort: samenvoegen tot één lijn en stoppen.
+      const ander = it.element_id && st.current.items.find((x) => x.id !== it.id && x.element_id === it.element_id && x.geometrie?.type === 'LineString'
+        && !x.parameters?.openingen?.length && [x.geometrie.coordinates[0], x.geometrie.coordinates[x.geometrie.coordinates.length - 1]].some((e) => turf.distance(e, p, M) < 1));
+      if (ander) {
+        const ac = ander.geometrie.coordinates;
+        const stuk = turf.distance(ac[0], p, M) < 1 ? ac : [...ac].reverse(); // begint bij p
+        nieuw = kant === 'begin' ? [...[...stuk].reverse().slice(0, -1), ...nieuw] : [...nieuw.slice(0, -1), ...stuk];
+        wijzigItem(it.id, { geometrie: { type: 'LineString', coordinates: nieuw } });
+        verwijderItems?.([ander.id]);
+        setVerleng(null); setGereedschap('selecteer'); hulpLeeg(); toonTip('');
+        setTimeout(() => { syncTd(); selecteerLijst([it.id]); }, 0);
+        setMelding('Lijnen samengevoegd tot één lijn.');
+        return;
+      }
       wijzigItem(it.id, { geometrie: { type: 'LineString', coordinates: nieuw } });
       setTimeout(syncTd, 0);
     };
