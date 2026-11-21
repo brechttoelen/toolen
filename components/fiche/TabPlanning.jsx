@@ -269,7 +269,7 @@ export default function TabPlanning({ f, planId, naar }) {
   return (
     <div className={`pf-plan ${open || notOpen ? 'met-paneel' : ''}`} ref={romp} style={sub === 'opbouw' && hoogte ? { height: hoogte } : undefined}>
       {balk}
-      {!wedstrijd(plan) && <div className="t-melding let-op">De wedstrijddag van deze site is nog niet ingesteld (tab Info). Dagen staan voorlopig als D-2, D, D+1 zonder datum.</div>}
+      {!wedstrijd(plan) && <div className="t-melding let-op">De wedstrijddag van deze site is nog niet ingesteld (tab Instellingen). Dagen staan voorlopig als D-2, D, D+1 zonder datum.</div>}
 
       {sub === 'opbouw' && <>
         {filterAan && <div className="pf-chiprij">
