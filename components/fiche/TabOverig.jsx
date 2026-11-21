@@ -145,6 +145,25 @@ export function TabInfo({ f }) {
     <div className="pf-romp">
       <div className="pf-raster">
         <section className="pf-kaart">
+          <div className="pf-kaartkop"><h2>Algemeen</h2></div>
+          <div className="pf-velden">
+            <label><span className="t-label">Naam van het plan</span><Bewaarveld klasse="t-veld" waarde={plan.naam} uit={!s} label="Naam van het plan" onBewaar={(v) => v.trim() && f.planWijzig({ naam: v.trim() })} /></label>
+            <label><span className="t-label">Wedstrijd of editie</span><Bewaarveld klasse="t-veld" waarde={plan.editie_naam} uit={!s} label="Wedstrijd of editie" onBewaar={(v) => f.planWijzig({ editie_naam: v.trim() || null })} /></label>
+            <label><span className="t-label">Locatie</span><Bewaarveld klasse="t-veld" waarde={plan.locatie} uit={!s} label="Locatie" onBewaar={(v) => f.planWijzig({ locatie: v.trim() || null })} /></label>
+            <label><span className="t-label">Status</span><select className="t-veld" value={plan.status} disabled={!s} onChange={(e) => f.planWijzig({ status: e.target.value })}><option value="concept">Concept</option><option value="definitief">Definitief</option></select></label>
+          </div>
+          {event && <span className="pf-stil pf-klein">Hoort bij het event {event.naam}.</span>}
+          <details>
+            <summary className="pf-link">Titelblok voor de PDF</summary>
+            <div className="pf-velden" style={{ marginTop: 8 }}>
+              {[['organisatie', 'Organisatie'], ['ondernemingsnummer', 'Ondernemingsnummer'], ['adres', 'Adres'], ['tekenaar', 'Tekenaar'], ['datum', 'Datum van het event']].map(([k, n]) => (
+                <label key={k}><span className="t-label">{n}</span><Bewaarveld klasse="t-veld" waarde={plan.titelblok?.[k]} uit={!s} label={n} onBewaar={(v) => f.planWijzig({ titelblok: { ...(plan.titelblok || {}), [k]: v.trim() || undefined } })} /></label>
+              ))}
+            </div>
+          </details>
+          <span className="pf-stil pf-klein">Dezelfde gegevens als onder het tandwiel in de kaart.</span>
+        </section>
+        <section className="pf-kaart">
           <div className="pf-kaartkop"><h2>Wedstrijd</h2></div>
           <div className="pf-velden">
             <label><span className="t-label">Eerste wedstrijddag</span><input className="t-veld" type="date" value={plan.wedstrijd_van || ''} disabled={!s} onChange={(e) => f.planWijzig({ wedstrijd_van: e.target.value || null, ...(!plan.wedstrijd_tot || plan.wedstrijd_tot < e.target.value ? { wedstrijd_tot: e.target.value || null } : {}) })} /></label>
