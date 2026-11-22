@@ -6,7 +6,7 @@
    OpenStreetMap-tegels nooit (gebruiksvoorwaarden). */
 const TEGELS = 'maps-tegels-v3';
 const APP = 'maps-app-v1';
-const tegelHost = (u) => u.hostname === 'geo.api.vlaanderen.be' || u.hostname === 'service.pdok.nl' || u.hostname === 'geoservices.wallonie.be' || u.hostname === 'tiles.maps.eox.at' || u.hostname === 'data.geopf.fr' || u.hostname === 'www.wms.nrw.de' || u.hostname === 'wmts1.geoportail.lu' || u.hostname === 'wmts.geo.admin.ch' || u.hostname === 'mapsneu.wien.gv.at' || u.hostname === 'www.ign.es' || u.hostname === 'tiles.openfreemap.org' || u.hostname === 'demotiles.maplibre.org'
+const tegelHost = (u) => u.hostname === 'geo.api.vlaanderen.be' || u.hostname === 'service.pdok.nl' || u.hostname === 'geoservices.wallonie.be' || u.hostname === 'tiles.maps.eox.at' || u.hostname === 'data.geopf.fr' || u.hostname === 'www.wms.nrw.de' || u.hostname === 'wmts1.geoportail.lu' || u.hostname === 'wmts.geo.admin.ch' || u.hostname === 'mapsneu.wien.gv.at' || u.hostname === 'ags.cuzk.gov.cz' || u.hostname === 'www.ign.es' || u.hostname === 'tiles.openfreemap.org' || u.hostname === 'demotiles.maplibre.org'
   || (u.hostname.endsWith('.supabase.co') && u.pathname.includes('/storage/v1/object/public/maps/'));
 
 self.addEventListener('install', () => self.skipWaiting());

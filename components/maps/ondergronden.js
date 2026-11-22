@@ -35,6 +35,7 @@ export const GEBIED = {
   lu: [5.73, 49.44, 6.53, 50.19],
   ch: [5.95, 45.81, 10.5, 47.81],
   at: [9.5, 46.37, 17.17, 49.03],
+  cz: [12.09, 48.55, 18.86, 51.06],
   es: [-9.4, 35.9, 4.35, 43.8],
 };
 
@@ -46,7 +47,7 @@ const ESRI_MINZOOM = 14;
 // Ligt dit punt in een gebied met een eigen (gratis) luchtfoto? Dan geen Esri-tegels.
 export function eigenLuchtfoto([lng, lat]) {
   const in_ = (g) => lng >= g[0] && lng <= g[2] && lat >= g[1] && lat <= g[3];
-  if (in_(GEBIED.vl) || in_(GEBIED.wa) || in_(GEBIED.nl) || in_(GEBIED.nrw) || in_(GEBIED.lu) || in_(GEBIED.ch) || in_(GEBIED.at)) return true;
+  if (in_(GEBIED.vl) || in_(GEBIED.wa) || in_(GEBIED.nl) || in_(GEBIED.nrw) || in_(GEBIED.lu) || in_(GEBIED.ch) || in_(GEBIED.at) || in_(GEBIED.cz)) return true;
   if (in_(GEBIED.fr) && !(lat > 50.25 && lng < 1.55)) return true; // niet Zuid-Engeland
   if (in_(GEBIED.es) && !(lng < -6.9 && lat < 42.1)) return true; // niet Portugal
   return false;
@@ -105,6 +106,12 @@ export const BRONNEN = {
     type: 'raster', tileSize: 256, minzoom: REGIO_MINZOOM, maxzoom: 19, bounds: GEBIED.at,
     tiles: [`wit://${ADRES['at-ortho']}`],
     attribution: '© basemap.at',
+  },
+  'cz-ortho': {
+    // Buiten Tsjechië geeft de dienst 404: daar blijft de laag eronder zichtbaar.
+    type: 'raster', tileSize: 256, minzoom: REGIO_MINZOOM, maxzoom: 20, bounds: GEBIED.cz,
+    tiles: [ADRES['cz-ortho']],
+    attribution: '© ČÚZK',
   },
   'es-ortho': {
     type: 'raster', tileSize: 256, minzoom: REGIO_MINZOOM, maxzoom: 20, bounds: GEBIED.es,
@@ -223,8 +230,8 @@ const FOTO_BASIS = ESRI ? ['s2', 'esri'] : ['s2'];
 
 // Welke rasterlagen bij welke ondergrond horen (onder → boven).
 export const ONDERGRONDEN = {
-  luchtfoto:    { naam: 'Luchtfoto',     lagen: [...FOTO_BASIS, 'fr-ortho', 'es-ortho', 'ch-ortho', 'at-ortho', 'lu-ortho', 'nrw-ortho', 'nl-ortho', 'wa-ortho', 'vl-ortho', 'namen'] },
-  luchtfoto_straten: { naam: 'Luchtfoto met straten', lagen: [...FOTO_BASIS, 'fr-ortho', 'es-ortho', 'ch-ortho', 'at-ortho', 'lu-ortho', 'nrw-ortho', 'nl-ortho', 'wa-ortho', 'vl-ortho', 'straten', 'namen'] },
+  luchtfoto:    { naam: 'Luchtfoto',     lagen: [...FOTO_BASIS, 'fr-ortho', 'es-ortho', 'ch-ortho', 'cz-ortho', 'at-ortho', 'lu-ortho', 'nrw-ortho', 'nl-ortho', 'wa-ortho', 'vl-ortho', 'namen'] },
+  luchtfoto_straten: { naam: 'Luchtfoto met straten', lagen: [...FOTO_BASIS, 'fr-ortho', 'es-ortho', 'ch-ortho', 'cz-ortho', 'at-ortho', 'lu-ortho', 'nrw-ortho', 'nl-ortho', 'wa-ortho', 'vl-ortho', 'straten', 'namen'] },
   lijntekening: { naam: 'Lijntekening',  lagen: ['ofm-grijs', 'vl-grb'] },
   stratenkaart: { naam: 'Stratenkaart',  lagen: ['ofm-kaart'] },
   leeg:         { naam: 'Leeg',          lagen: [] },
@@ -314,6 +321,7 @@ export function basisStijl(ondergrond = 'luchtfoto', centrum = null) {
       raster('fr-ortho', 'fr-ortho'),
       raster('es-ortho', 'es-ortho'),
       raster('ch-ortho', 'ch-ortho'),
+      raster('cz-ortho', 'cz-ortho'),
       raster('at-ortho', 'at-ortho'),
       raster('lu-ortho', 'lu-ortho'),
       raster('nrw-ortho', 'nrw-ortho'),
@@ -330,7 +338,7 @@ export function zetOndergrond(map, ondergrond) {
   const zicht = new Set(ONDERGRONDEN[ondergrond]?.lagen || []);
   map._fmFotoAan = zicht.has('esri');
   if (ESRI && !map._fmEsriLuister) { map._fmEsriLuister = true; map.on('moveend', () => regelEsri(map)); }
-  for (const id of ['s2', 'esri', 'fr-ortho', 'es-ortho', 'ch-ortho', 'at-ortho', 'lu-ortho', 'nrw-ortho', 'nl-ortho', 'wa-ortho', 'vl-ortho', 'vl-grb']) {
+  for (const id of ['s2', 'esri', 'fr-ortho', 'es-ortho', 'ch-ortho', 'cz-ortho', 'at-ortho', 'lu-ortho', 'nrw-ortho', 'nl-ortho', 'wa-ortho', 'vl-ortho', 'vl-grb']) {
     if (map.getLayer(`og-${id}`)) map.setLayoutProperty(`og-${id}`, 'visibility', zicht.has(id) ? 'visible' : 'none');
   }
   regelEsri(map);
@@ -420,6 +428,7 @@ export function bronvermelding(ondergrond, [lng, lat] = [4.4, 50.9]) {
     if (in_(GEBIED.lu)) delen.push('Ortho © Geoportail Luxembourg');
     if (in_(GEBIED.ch)) delen.push('SWISSIMAGE © swisstopo');
     if (in_(GEBIED.at)) delen.push('Orthofoto © basemap.at');
+    if (in_(GEBIED.cz)) delen.push('Ortofoto © ČÚZK');
     if (in_(GEBIED.es)) delen.push('PNOA © scne.es');
     delen.push(ESRI ? 'Esri, Maxar, Earthstar Geographics' : 'Sentinel-2 cloudless 2016 © EOX');
   } else if (ondergrond === 'lijntekening') {

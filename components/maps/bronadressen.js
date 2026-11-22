@@ -17,6 +17,7 @@ export const ADRES = {
   'lu-ortho': 'https://wmts1.geoportail.lu/opendata/wmts/ortho_latest/GLOBAL_WEBMERCATOR_4_V3/{z}/{x}/{y}.jpeg',
   'ch-ortho': 'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg',
   'at-ortho': 'https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg',
+  'cz-ortho': 'https://ags.cuzk.gov.cz/arcgis1/rest/services/ORTOFOTO_WM/MapServer/tile/{z}/{y}/{x}',
   'es-ortho': 'https://www.ign.es/wmts/pnoa-ma?request=GetTile&service=WMTS&VERSION=1.0.0&Layer=OI.OrthoimageCoverage&Style=default&Format=image/jpeg&TileMatrixSet=GoogleMapsCompatible&TileMatrix={z}&TileRow={y}&TileCol={x}',
   s2: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg',
   // Stratenkaart, lijntekening buiten Vlaanderen, straten en plaatsnamen over de luchtfoto (vectortegels).
@@ -34,6 +35,7 @@ export const BRON_INFO = {
   'lu-ortho': { naam: 'Luchtfoto Luxemburg', punt: [6.1296, 49.6116] },
   'ch-ortho': { naam: 'Luchtfoto Zwitserland (swisstopo)', punt: [7.4474, 46.9480] },
   'at-ortho': { naam: 'Luchtfoto Oostenrijk (basemap.at)', punt: [16.3738, 48.2082] },
+  'cz-ortho': { naam: 'Luchtfoto Tsjechië (ČÚZK)', punt: [14.4208, 50.0875] },
   'es-ortho': { naam: 'Luchtfoto Spanje (PNOA)', punt: [-3.7038, 40.4168] },
   s2: { naam: 'Satellietbeeld wereld (Sentinel-2, EOX)', punt: [4.3517, 50.8503], zoom: 10 },
   ofm: { naam: 'Stratenkaart, straten en namen (OpenFreeMap)', soort: 'json' },
