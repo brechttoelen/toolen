@@ -128,6 +128,9 @@ export default function terraDrawStart(ctx) {
       return bestLijn ? [bestLijn.lng, bestLijn.lat] : undefined;
     }
     const vlakFlags = { feature: { draggable: false, rotateable: true, scaleable: true, coordinates: { draggable: true, midpoints: false, deletable: true, snappable: true } } };
+    // Lijnen mogen zichzelf kruisen (een parcours dat over zichzelf loopt, een evenwijdige kopie daarvan):
+    // anders weigert Terra Draw elk versleept knooppunt van zo'n lijn.
+    const lijnFlags = { feature: { ...vlakFlags.feature, selfIntersectable: true } };
     const td = new TerraDraw({
       // Pas vanaf 4 px beweging telt een klik als slepen (anders gaat een klik met wat trillen verloren).
       adapter: new TerraDrawMapLibreGLAdapter({ map, minPixelDragDistanceSelecting: 4 }),
@@ -142,7 +145,7 @@ export default function terraDrawStart(ctx) {
           pointerDistance: KNOOP_PX,
           flags: {
             polygon: vlakFlags,
-            linestring: vlakFlags,
+            linestring: lijnFlags,
             point: { feature: { draggable: false } },
             element: { feature: { draggable: false, rotateable: true } },
             cirkel: { feature: { draggable: false } },
