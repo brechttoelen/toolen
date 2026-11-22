@@ -223,6 +223,8 @@ export function padMaat(item, el) {
   return { a, w, o, ob, leg, rijen, tussen, W, banen };
 }
 const MAX_PLATEN = 4000;
+// Hekken en andere stukken langs één lijn die nog apart getekend worden.
+const MAX_STUKKEN = 3000;
 
 // ---------- Afval: fracties per container ----------
 // Eén element per maat; de fractie kies je per geplaatst stuk (dekselkleur + letter).
@@ -798,7 +800,7 @@ export function driehoekPlekken(naden, om, plekken = null) {
 function toebehorenFeatures(it, el, basis) {
   const lijst = toebehorenVan(el).map((a) => ({ a, t: tbInst(it, a) })).filter((x) => x.t.aan && x.a.soort !== 'geen');
   if (!lijst.length) return [];
-  const naden = nadenVan(it.geometrie, el, it.parameters?.bogen, it.parameters?.openingen); if (naden.length < 2 || naden.length > 1500) return [];
+  const naden = nadenVan(it.geometrie, el, it.parameters?.bogen, it.parameters?.openingen); if (naden.length < 2 || naden.length > MAX_STUKKEN) return [];
   const M = { units: 'meters' }; const uit = [];
   const d = (p, afst, r) => turf.destination(p, afst, r, M).geometry.coordinates;
   const prop = (extra) => ({ ...basis, stuk: true, kleur: '#1d1d1b', streep: 'vol', wit_rand: false, patroon: '', dekking: 1, tekening: true, ...extra });
@@ -1452,7 +1454,7 @@ function tekenItem(it, { lagenMap, elementenMap, doek, toebehoren, doeknaam, hek
       else if (perHek) {
         // Elk hek zijn eigen doek uit de doekenbibliotheek.
         const naden = nadenVan(it.geometrie, lijnEl, it.parameters?.bogen, it.parameters?.openingen);
-        for (let i = 0; i < naden.length - 1 && i < 1500; i++) {
+        for (let i = 0; i < naden.length - 1 && i < MAX_STUKKEN; i++) {
           const seg = hekStuk(naden, i) || { type: 'LineString', coordinates: [hekBegin(naden, i), naden[i + 1].p] };
           const dId = it.velden.doeken[i];
           const dEl = dId ? elementenMap.get(dId) : null;
@@ -1491,8 +1493,9 @@ function tekenItem(it, { lagenMap, elementenMap, doek, toebehoren, doeknaam, hek
         const spiegel = hekGespiegeld(it); // pootjes/voet aan de andere kant
         const opt = { units: 'meters' };
         const c = it.geometrie.coordinates; const bg = it.parameters?.bogen;
+        // Bovengrens per lijn (lange parcourslijnen: ruim 1000 hekken); daarboven blijft de zichtlijn.
         let totaal = 0; let eerste = null; let laatste = null;
-        for (let k = 0; k < c.length - 1 && totaal < 600; k++) for (const seg of (openingen.some((o) => Number(o.k) === k) ? hekDelen(c, k, bg, openingen).map((x) => x.run).filter(Boolean) : [{ type: 'LineString', coordinates: boogPunten(c[k], c[k + 1], Number(bg?.[k]) || 0) }])) {
+        for (let k = 0; k < c.length - 1 && totaal < MAX_STUKKEN; k++) for (const seg of (openingen.some((o) => Number(o.k) === k) ? hekDelen(c, k, bg, openingen).map((x) => x.run).filter(Boolean) : [{ type: 'LineString', coordinates: boogPunten(c[k], c[k + 1], Number(bg?.[k]) || 0) }])) {
           const L = lengte(seg);
           if (L < 0.01) continue;
           if (koord.has(k)) {
@@ -1502,7 +1505,7 @@ function tekenItem(it, { lagenMap, elementenMap, doek, toebehoren, doeknaam, hek
             totaal += 1;
             continue;
           }
-          const n = Math.min(600 - totaal, paalPerPunt(lijnEl) ? 1 : segN(L, e));
+          const n = Math.min(MAX_STUKKEN - totaal, paalPerPunt(lijnEl) ? 1 : segN(L, e));
           const stap = L / n;
           for (let i = 0; i < n; i++) {
             const midden = turf.along(seg, (i + 0.5) * stap, opt).geometry.coordinates;
