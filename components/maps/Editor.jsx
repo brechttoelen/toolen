@@ -1744,7 +1744,7 @@ export default function Editor({ planId }) {
         ...(tekeningZijdig(el) ? { spiegel: buiten === 'rechts' } : {}),
         ...(rest.velden?.toebehoren ? { toebehoren: Object.fromEntries(Object.entries(rest.velden.toebehoren).map(([tk, tv]) => [tk, tv?.kant && tv.kant !== 'beide' ? { ...tv, kant: buiten } : tv])) } : {}),
       } : rest.velden;
-      const kopie = maakItem({ ...rest, id: nieuwId(), geometrie: g, groep_id: null, velden, parameters: { ...(rest.parameters || {}), ...(stuk || it.parameters?.bogen ? { bogen: undefined, koord: undefined } : {}), openingen: undefined } }); // de bocht zit al in de punten; deuren blijven in de oorspronkelijke lijn
+      const kopie = maakItem({ ...rest, id: nieuwId(), geometrie: g, groep_id: null, velden, parameters: { ...(rest.parameters || {}), ...(stuk || it.parameters?.bogen || g.coordinates.length !== it.geometrie.coordinates.length ? { bogen: undefined, koord: undefined } : {}), openingen: undefined, hulplijnen: undefined, vlaggen: undefined } }); // de bocht zit al in de punten; deuren blijven in de oorspronkelijke lijn
       tdRef.current?.addFeatures([tdFeature(kopie)]);
       ids.push(kopie.id);
     }
