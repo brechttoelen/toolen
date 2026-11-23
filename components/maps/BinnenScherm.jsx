@@ -731,26 +731,34 @@ export default function BinnenScherm({ opmerkingBlok = null, veldpunten = null, 
     const nieuw = [];
     for (const { it, lok } of lijst) {
       const n = naarItem(verschuif(lok, dx, dy), { parameters: it.parameters });
-      const { id, created_at, updated_at, rev, ...rest } = it;
-      const x = onMaak({ ...rest, geometrie: n.geometrie, parameters: n.parameters, velden: { ...it.velden, binnen: { ...it.velden.binnen, verd, lokaal: n.lokaal } } });
+      const { id, created_at, updated_at, rev, plan_id, laag_id, groep_id, fase_ids, ...rest } = it;
+      // Uit een ander binnenplan (of een ander plan, ander tabblad): in dit binnenplan, op deze verdieping.
+      const zelfde = it.velden?.binnen?.host === host.id;
+      const x = onMaak({ ...rest, ...(zelfde ? { laag_id, groep_id, fase_ids } : {}), geometrie: n.geometrie, parameters: n.parameters, velden: { ...it.velden, binnen: { ...it.velden.binnen, host: host.id, verd, lokaal: n.lokaal } } });
       if (x) nieuw.push(x.id);
     }
     return nieuw;
   };
+  // Klembord gedeeld tussen tabbladen en binnenplannen (localStorage); in dit tabblad ook in het geheugen.
+  const KB = 'fm-binnen-klembord';
   const kopieer = (knip = false) => {
     const lijst = inrichting.filter((x) => sel.includes(x.id)).map((it) => ({ it, lok: lokaalVan(it) }));
     if (!lijst.length) return;
     const k = kaderVan(lijst.map((x) => puntenVan(x.lok.geometrie)));
-    klembord.current = { lijst, midden: [(k[0] + k[2]) / 2, (k[1] + k[3]) / 2], keer: 0 };
+    klembord.current = { lijst, midden: [(k[0] + k[2]) / 2, (k[1] + k[3]) / 2], keer: 0, t: Date.now() };
+    try { localStorage.setItem(KB, JSON.stringify(klembord.current)); } catch {}
     if (knip) wisSel(sel);
-    setMelding(`${lijst.length} ${lijst.length === 1 ? 'item' : 'items'} ${knip ? 'geknipt' : 'gekopieerd'} · Ctrl V om te plakken`);
+    setMelding(`${lijst.length} ${lijst.length === 1 ? 'item' : 'items'} ${knip ? 'geknipt' : 'gekopieerd'} · Ctrl V om te plakken, ook in een ander binnenplan`);
   };
   const plak = () => {
+    try { const g = JSON.parse(localStorage.getItem(KB) || 'null'); if (g?.lijst?.length && (!klembord.current || g.t > (klembord.current.t || 0))) klembord.current = g; } catch {}
     const kb = klembord.current; if (!kb) return;
     kb.keer += 1;
-    const doel = muis || [kb.midden[0] + 0.5 * kb.keer, kb.midden[1] - 0.5 * kb.keer];
+    // Uit een ander binnenplan: op de muis, of in het midden van dit plan in beeld.
+    const elders = kb.lijst.some((x) => x.it.velden?.binnen?.host !== host.id);
+    const doel = muis || (elders ? [B.cx, B.cy] : null) || [kb.midden[0] + 0.5 * kb.keer, kb.midden[1] - 0.5 * kb.keer];
     const ids = maakKopie(kb.lijst, r3(doel[0] - kb.midden[0]), r3(doel[1] - kb.midden[1]));
-    setSel(ids); setMelding('');
+    setSel(ids); setMelding(elders ? `${ids.length} ${ids.length === 1 ? 'item' : 'items'} geplakt uit een ander binnenplan.` : '');
   };
   const draaiOm = (lok, c, g) => ({
     geometrie: mapG(lok.geometrie, ([x, y]) => { const q = draai([x - c[0], y - c[1]], g); return [r3(c[0] + q[0]), r3(c[1] + q[1])]; }),
