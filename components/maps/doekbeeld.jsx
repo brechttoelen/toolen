@@ -9,6 +9,20 @@ import { useEffect, useState } from 'react';
 export const STARTEN = [['links', 'Links'], ['midden', 'Midden'], ['rechts', 'Rechts']];
 export const PLAATSINGEN = [['vullen', 'Vullen', 'Het ontwerp vult het doek, de randen vallen eventueel weg'], ['passend', 'Passend', 'Het hele ontwerp is zichtbaar'], ['herhalen', 'Herhalen', 'Passend in de hoogte, naast elkaar herhaald']];
 
+// Rechthoeken [x, y, w, h] (meter, van linksboven) waar het ontwerp komt op een doek van W × H,
+// zoals DoekBeeld het tekent. rv = breedte / hoogte van het ontwerp; zonder rv: uitgerekt.
+export function doekTegels(W, H, rv, wijze = 'vullen', start = 'rechts') {
+  if (!(rv > 0)) return [[0, 0, W, H]];
+  if (wijze === 'herhalen') {
+    const stuk = H * rv; const n = Math.max(1, Math.min(200, Math.ceil(W / stuk - 1e-6)));
+    const x0 = start === 'links' ? 0 : start === 'midden' ? (W - n * stuk) / 2 : W - n * stuk;
+    return Array.from({ length: n }, (_, k) => [x0 + k * stuk, 0, stuk, H]);
+  }
+  const breder = W / H > rv; const pas = wijze === 'passend';
+  const w = pas === breder ? H * rv : W; const h = pas === breder ? H : W / rv;
+  return [[(W - w) / 2, (H - h) / 2, w, h]];
+}
+
 const cache = new Map();
 export function useVerhouding(src, gegeven) {
   const [, setTik] = useState(0);

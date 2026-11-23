@@ -115,7 +115,13 @@ export function trussPrims(stukken, doeken = [], doekMap = new Map(), zwart = fa
       // Gezien van die kant: links boven, rechts boven, links onder.
       const [l, r] = f > 0 ? [s0, s1] : [s1, s0];
       uit.push({ k: 'vlak', w: [P(l, z1), P(r, z1), P(r, z0), P(l, z0)], vul: ont ? ont.eigenschappen?.kleur || '#0F766E' : '#F3F4F6', rand: null, op: 1, data: {} });
-      if (src) uit.push({ k: 'beeld', A: P(l, z1), B: P(r, z1), C: P(l, z0), href: src });
+      if (src) {
+        // Zoals in Bouwen (DoekBeeld): vullen, passend of herhalen. De verhouding van het ontwerp kent de 3D
+        // pas als het beeld geladen is (plaats). x = meter van links zoals je ernaar kijkt, y = van boven.
+        const W = s1 - s0; const H = z1 - z0;
+        const Q = (x, y) => P(l + (r > l ? x : -x), z1 - y);
+        uit.push({ k: 'beeld', A: P(l, z1), B: P(r, z1), C: P(l, z0), href: src, plaats: { W, H, Q, wijze: dk.plaatsing || 'vullen', start: dk.start || 'rechts', rv: Number(ont.eigenschappen?.verhouding) || 0 } });
+      }
     }
   }
   return uit;

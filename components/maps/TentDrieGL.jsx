@@ -5,6 +5,7 @@
 // De tent zelf komt uit tentTeken() (TentStudio): dezelfde stukken als de 2D-weergave, in wereldcoördinaten.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { wereld, omkader, standpunt } from './StellingDrieGL';
+import { doekTegels } from './doekbeeld';
 
 const V = (T, p) => new T.Vector3(p[0], p[2], -p[1]);
 // Aluminium van tentprofielen (naturel, wit, zwart): rechthoekig profiel en mat geborsteld metaal.
@@ -91,14 +92,26 @@ function bouw(T, prims, laad) {
     } else if (p.k === 'voet') {
       const m = new T.Mesh(new T.BoxGeometry(0.3, 0.02, 0.3), mat('#6B7280', 1, { metaal: true })); m.position.copy(V(T, p.p)).add(new T.Vector3(0, 0.01, 0)); m.receiveShadow = true; groep.add(m);
     } else if (p.k === 'beeld' && p.href) {
-      // Affien: A = linksboven, B = rechtsboven, C = linksonder van het beeld.
-      const e1 = p.B.map((v, i) => v - p.A[i]); const e2 = p.C.map((v, i) => v - p.A[i]);
-      const d11 = e1.reduce((s, v) => s + v * v, 0); const d22 = e2.reduce((s, v) => s + v * v, 0); const d12 = e1.reduce((s, v, i) => s + v * e2[i], 0); const det = d11 * d22 - d12 * d12 || 1;
-      const uv = (q) => { const r = q.map((v, i) => v - p.A[i]); const r1 = r.reduce((s, v, i) => s + v * e1[i], 0); const r2 = r.reduce((s, v, i) => s + v * e2[i], 0); const u = (r1 * d22 - r2 * d12) / det; const w = (r2 * d11 - r1 * d12) / det; return [u, 1 - w]; };
-      const omtrek = p.omtrek || [p.A, p.B, p.B.map((v, i) => v + p.C[i] - p.A[i]), p.C];
+      // Affien: A = linksboven, B = rechtsboven, C = linksonder van het beeld; omtrek = het zichtbare deel.
+      const vlakMet = (A, B, C, omtrek, m2) => {
+        const e1 = B.map((v, i) => v - A[i]); const e2 = C.map((v, i) => v - A[i]);
+        const d11 = e1.reduce((s, v) => s + v * v, 0); const d22 = e2.reduce((s, v) => s + v * v, 0); const d12 = e1.reduce((s, v, i) => s + v * e2[i], 0); const det = d11 * d22 - d12 * d12 || 1;
+        const uv = (q) => { const r = q.map((v, i) => v - A[i]); const r1 = r.reduce((s, v, i) => s + v * e1[i], 0); const r2 = r.reduce((s, v, i) => s + v * e2[i], 0); const u = (r1 * d22 - r2 * d12) / det; const w = (r2 * d11 - r1 * d12) / det; return [u, 1 - w]; };
+        const m = new T.Mesh(veelhoek(omtrek || [A, B, B.map((v, i) => v + C[i] - A[i]), C], uv), m2); m.receiveShadow = true; groep.add(m);
+      };
       const m2 = new T.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, side: T.DoubleSide, transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-      laad(p.href, (tx) => { m2.map = tx; m2.needsUpdate = true; });
-      const m = new T.Mesh(veelhoek(omtrek, uv), m2); m.receiveShadow = true; groep.add(m);
+      const pl = p.plaats;
+      if (!pl) { vlakMet(p.A, p.B, p.C, p.omtrek, m2); laad(p.href, (tx) => { m2.map = tx; m2.needsUpdate = true; }); continue; }
+      // Doek met plaatsing (vullen, passend, herhalen): de tegels pas als de verhouding van het beeld gekend is.
+      laad(p.href, (tx) => {
+        m2.map = tx; m2.needsUpdate = true;
+        const rv = pl.rv || (tx.image?.width && tx.image?.height ? tx.image.width / tx.image.height : 0);
+        for (const [x, y, w, h] of doekTegels(pl.W, pl.H, rv, pl.wijze, pl.start)) {
+          const xa = Math.max(0, x); const xb = Math.min(pl.W, x + w); const ya = Math.max(0, y); const yb = Math.min(pl.H, y + h);
+          if (xb - xa < 0.005 || yb - ya < 0.005) continue;
+          vlakMet(pl.Q(x, y), pl.Q(x + w, y), pl.Q(x, y + h), [pl.Q(xa, ya), pl.Q(xb, ya), pl.Q(xb, yb), pl.Q(xa, yb)], m2);
+        }
+      });
     }
   }
   return { groep, doelen };
