@@ -1616,7 +1616,11 @@ function tekenItem(it, { lagenMap, elementenMap, doek, toebehoren, doeknaam, hek
       const extra = (el?.tekenwijze === 'lijn' || isRijpad(it, el)) && m.stuks != null ? `${getal(m.lengte)} m · ${m.stuks} st.${m.fietsen != null ? ` · ${m.fietsen} fietsen` : ''}` : '';
       const maat = m.breedte && m.diepte ? `${getal(m.breedte)} × ${getal(m.diepte)} m` : '';
       if (vorm === 'lijn' && s.tekst_langs) {
-        labels.push({ type: 'Feature', geometry: g, properties: { id: it.id, soort: 'langs', label: naam, kleur: s.kleur, tekstgrootte: Number(s.tekstgrootte) || 12 } });
+        // Op het langste rechte stuk: midden op de hele lijn valt het label vaak op een knik, en dan toont MapLibre het niet.
+        const c = g.coordinates || []; let bi = 0; let bl = -1;
+        for (let i = 0; i < c.length - 1; i++) { const l = lengte({ type: 'LineString', coordinates: [c[i], c[i + 1]] }); if (l > bl) { bl = l; bi = i; } }
+        const stuk = c.length > 2 ? { type: 'LineString', coordinates: [c[bi], c[bi + 1]] } : g;
+        labels.push({ type: 'Feature', geometry: stuk, properties: { id: it.id, soort: 'langs', label: naam, kleur: s.kleur, tekstgrootte: Number(s.tekstgrootte) || 12 } });
       } else {
         const p = middelpunt(g);
         const oppT = s.opp && vorm === 'vlak' ? `${getal(oppervlakte(g), 0)} m²` : '';
