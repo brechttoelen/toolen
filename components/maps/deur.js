@@ -65,6 +65,11 @@ export function deurPlek(it, el, punt, breedte) {
   // Naad met al een opening: de nieuwe komt erachter (twee deuren naast elkaar).
   if (n.open) d = n.open.tot;
   const L = (q) => afst(c[q], c[q + 1]);
+  // Geklikt vóór de naad (naar het begin van de lijn): de deur komt aan die kant van de voet.
+  if (!n.open && k < c.length - 1) {
+    let t = null; try { t = afst(c[k], turf.nearestPointOnLine(turf.lineString([c[k], c[k + 1]]), turf.point(punt), M).geometry.coordinates); } catch { t = null; }
+    if (t != null && t < d - 0.02 && d - breedte >= -0.01) d = Math.max(0, d - breedte);
+  }
   // Naad op een knikpunt: de deur komt in het stuk erna (als dat lang genoeg is), anders ervoor.
   if (d >= L(k) - 0.01 && k + 1 < c.length - 1 && L(k + 1) >= breedte + 0.02) { k += 1; d = 0; }
   if (d + breedte > L(k) + 0.01) {

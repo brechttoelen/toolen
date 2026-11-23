@@ -812,6 +812,21 @@ export default function Eigenschappen(props) {
                 {!(poort && p.dubbel) && <button className="fm-knop klein" disabled={!schrijven} onClick={() => klap('spiegel_x')} title="Scharnier aan de andere kant">⇋ Scharnier {p.spiegel_x ? 'rechts' : 'links'}</button>}
                 <button className="fm-knop klein" disabled={!schrijven} onClick={() => klap('spiegel_y')} title="Naar de andere kant opendraaien">⇅ Opent naar {p.spiegel_y ? 'kant 2' : 'kant 1'}</button>
               </div>
+              {inLijn && (() => {
+                // Opschuiven met de eigen breedte: naar de andere kant van de voet (naad) waar ze tegen staat.
+                const o = lijn.parameters.openingen.find((x) => x?.id === item.id); const b = Number(o?.b) || Number(p.breedte) || 1;
+                const schuif = (r) => {
+                  const pl = deurPlaats(lijn, { ...o, d: Number(o.d) + r * b }, Number(p.diepte) || 0.7);
+                  if (!pl || (Math.abs(pl.midden[0] - p.midden[0]) < 1e-9 && Math.abs(pl.midden[1] - p.midden[1]) < 1e-9)) { onMenu?.('melding', `Verder ${r < 0 ? 'naar het begin' : 'naar het einde'} van dit rechte stuk kan niet.`); return; }
+                  onWijzig({ parameters: { ...p, midden: pl.midden, rot: pl.rot }, geometrie: pl.geometrie });
+                };
+                return (
+                  <div className="fm-vinkrij" style={{ gap: 4 }}>
+                    <button className="fm-knop klein" disabled={!schrijven} onClick={() => schuif(-1)} title={`${geo.getal(b)} m opschuiven naar het begin van de lijn: naar de andere kant van de voet`}>◂ Opschuiven</button>
+                    <button className="fm-knop klein" disabled={!schrijven} onClick={() => schuif(1)} title={`${geo.getal(b)} m opschuiven naar het einde van de lijn: naar de andere kant van de voet`}>Opschuiven ▸</button>
+                  </div>
+                );
+              })()}
               {!inLijn && !p.inLijn?.a && <span className="fm-sub">Staat los (niet in een heraslijn).</span>}
             </div>
           );
