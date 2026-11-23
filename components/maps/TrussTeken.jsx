@@ -235,6 +235,13 @@ export default function TrussTeken({ it, el, schrijven, onZet, onSluit, doeken: 
               <div className="fm-sub">Lengte truss per vak (per 0,5 m). Alles wat op die as staat past zich mee aan.</div>
             </div>
           )}
+          {schrijven && stukken.length > 0 && !sel.length && !selDoek && (
+            <div className="fm-tr-maat">
+              <div className="fm-kop">Doeken{doekLijst.length ? ` · ${doekLijst.length}` : ''}</div>
+              <div className="fm-sub">Klik in <b>Bouwen</b> op een ligger (bv. de bovenligger), kies eventueel <b>Hele lijn</b>, en daarna <b>Doek eronder</b> of <b>Doek per vak</b>. Klik op een doek om er een ontwerp aan te geven.</div>
+              {beeld && <button type="button" className="fm-knop klein" style={{ alignSelf: 'flex-start' }} onClick={() => setBeeld(false)}>Naar Bouwen</button>}
+            </div>
+          )}
           {sel.length > 0 && (
             <>
               <div className="fm-ws-rkop"><strong>{sel.length === 1 ? `${uitSleutel(sel[0]).a === 'z' ? 'Poot' : 'Ligger'} ${getal(R[uitSleutel(sel[0]).a][uitSleutel(sel[0]).q[AS[uitSleutel(sel[0]).a]]])} m` : `${sel.length} lijnen`}</strong><button className="fm-sluit" aria-label="Selectie opheffen" onClick={() => setSel([])}>×</button></div>
