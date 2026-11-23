@@ -1609,7 +1609,8 @@ function tekenItem(it, { lagenMap, elementenMap, doek, toebehoren, doeknaam, hek
     }
     // Materiaal op deze plek (zonder tekening): altijd als label erbij, ook als het naamlabel uit staat.
     const matT = it.velden?.materiaal?.length ? materiaalTekst(materiaalVan(it, elementenMap), 4, '\n') : '';
-    if (it.soort !== 'tekst' && (s.label === true || matT) && (it.naam || el || matT)) {
+    // "Naam langs de lijn" toont de naam ook als het gewone label uit staat.
+    if (it.soort !== 'tekst' && (s.label === true || (vorm === 'lijn' && s.tekst_langs) || matT) && (it.naam || el || matT)) {
       const m = maten(it, el);
       const naam = it.naam || el?.naam || '';
       const extra = (el?.tekenwijze === 'lijn' || isRijpad(it, el)) && m.stuks != null ? `${getal(m.lengte)} m · ${m.stuks} st.${m.fietsen != null ? ` · ${m.fietsen} fietsen` : ''}` : '';
