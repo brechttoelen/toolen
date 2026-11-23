@@ -27,6 +27,6 @@ export async function POST(req: NextRequest) {
   });
   if (!r.ok) return fout("GridLab is niet bereikbaar.", 502);
   const d = await r.json().catch(() => null);
-  if (!d) return fout("De sleutel voor GridLab klopt niet.", 403);
+  if (!d) return fout("De koppeling met GridLab staat aan, maar de sleutel op de server klopt niet (meer).", 503);
   return ok(d as Record<string, unknown>);
 }

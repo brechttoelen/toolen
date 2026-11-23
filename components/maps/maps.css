@@ -2490,7 +2490,9 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-dk-bereik label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--fm-rand, #d5dce8); border-radius: 8px; cursor: pointer; }
 .fm-dk-bereik label.aan { border: 2px solid #108aed; padding: 7px 9px; background: #f3f9ff; }
 .fm-dk-bereik label[aria-disabled=true] { opacity: .6; cursor: default; }
-.fm-dk-bereik label span { display: flex; flex-direction: column; gap: 1px; }
+.fm-dk-bereik label span { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; text-align: left; }
+/* Niet de algemene veldstijl van de studio's overnemen (volle breedte, hoog vak): een gewoon keuzerondje. */
+.fm-dk-bereik label input[type=radio] { flex: none; width: 16px; height: 16px; min-width: 0; margin: 2px 0 0; padding: 0; }
 .fm-dk-bereik label small { font-size: 12px; color: var(--fm-grijs, #55627a); }
 @media (max-width: 640px) { .fm-dk-vorm, .fm-dk-gl { grid-template-columns: minmax(0, 1fr); } }
 .fm-dk-mappen { flex: 0 0 230px; display: flex; flex-direction: column; gap: 2px; align-self: flex-start; position: sticky; top: 12px; max-height: calc(100vh - 140px); overflow: auto; }
