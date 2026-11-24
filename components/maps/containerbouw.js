@@ -219,6 +219,11 @@ export function plekNaast(g, el2, zijde, rot = 0) {
 // Zijde V/A: langs de lange zijde, kant L/R = waar het bordes komt. Zijde L/R (kopse kant): de trap staat dwars, kant V/A = waar het bordes komt.
 // Een dakterras (unit zonder verdieping erboven) krijgt een trap op dezelfde verdieping; anders reikt de trap tot de unit.
 export function plekTrap(g, trapEl, zijde = 'V', kant = 'L') {
+  // Unit die in het kader langs y ligt: rekenen in gespiegelde assen en terug omzetten.
+  if (g.y1 - g.y0 > g.x1 - g.x0 + 0.01) {
+    const p = plekTrap({ ...g, x0: g.y0, x1: g.y1, y0: g.x0, y1: g.x1 }, trapEl, zijde, kant);
+    return { x0: p.y0, y0: p.x0, L: p.B, B: p.L, v: p.v, q: { 0: 90, 90: 0, 180: 270, 270: 180 }[p.q] };
+  }
   const lang = Number(trapEl.breedte_m) || 5.6; const diep = Number(trapEl.diepte_m) || 1.4;
   const v = g.it?.velden?.dakterras ? g.v : Math.max(0, g.v - 1);
   if (zijde === 'L' || zijde === 'R') {
