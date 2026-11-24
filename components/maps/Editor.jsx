@@ -100,6 +100,7 @@ import tekenhulp from './tekenhulp';
 // Zware schermen pas laden als je ze opent (materiaallijst, PDF, delen en exporteren, CAD-import): de kaart staat er sneller.
 const PdfDialoog = dynamic(() => import('./PdfDialoog'), { ssr: false });
 const Uitvoer = dynamic(() => import('./Uitvoer'), { ssr: false });
+const ConceptStudio = dynamic(() => import('./ConceptStudio'), { ssr: false });
 const CadImport = dynamic(() => import('./CadImport'), { ssr: false });
 
 // Hoort een item bij dit binnenplan (gebouw, tent of container + verdieping)?
@@ -357,6 +358,7 @@ export default function Editor({ planId }) {
   useSluitBuiten(!!wrUitklap, () => setWrUitklap(null));
   // Menu Bouwers: kies een bouwer, klik op de kaart waar hij moet komen, de bouwer opent meteen.
   const [bouwMenu, setBouwMenu] = useState(null); // { y, tent: open? }
+  const [concept, setConcept] = useState(null); // conceptbouwer: { midden }
   useSluitBuiten(!!bouwMenu, () => setBouwMenu(null));
   const bouwerRef = useRef(null); // { soort: 'tent' | 'binnen' | 'teken', el }
   useEffect(() => { const w = laatsteWerkruimte(); setWerkruimte(WR_MODULE[w] && !heeftModule(WR_MODULE[w]) ? 'plan' : w); }, []);
@@ -1212,6 +1214,7 @@ export default function Editor({ planId }) {
     const k = bouwerRef.current; bouwerRef.current = null; setGereedschap('selecteer');
     if (!k) return;
     if (k.soort === 'teken') { openTekenschermRef.current?.(null, p); return; }
+    if (k.soort === 'concept') { setConcept({ midden: p }); return; }
     if (k.soort === 'unit' && k.el) {
       const el = k.el; const b = Number(el.breedte_m) || 3; const d = Number(el.diepte_m) || 6; const rot = Number(st.current.elementRot) || 0;
       const it = maakItem({ laag_id: laagVoorElement(el), soort: 'element', element_id: el.id, geometrie: geo.elementVeelhoek(p, b, d, rot), parameters: { midden: p, breedte: b, diepte: d, rot } });
@@ -4763,7 +4766,7 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
     if (k.soort === 'element') { bouwerRef.current = null; setGekozenElement(k.el); setGereedschap('element'); setMelding(`Klik waar ${k.naam} moet komen: de bouwer opent meteen.`); return; }
     if (k.soort === 'binnen') { kiesGereedschap('binnenlocatie'); bouwerRef.current = { soort: 'binnen' }; setMelding('Klik op het gebouw of de plek: het binnenplan opent meteen.'); return; }
     kiesGereedschap('bouwer'); bouwerRef.current = k;
-    setMelding(k.soort === 'teken' ? 'Klik waar het element moet komen: het tekenscherm opent op die plek.' : k.soort === 'unit' ? 'Klik waar de units moeten komen: de containerbouwer opent meteen.' : 'Klik waar de tent moet komen: de tentbouwer opent meteen.');
+    setMelding(k.soort === 'concept' ? 'Klik in het midden van de zone: de conceptbouwer opent meteen.' : k.soort === 'teken' ? 'Klik waar het element moet komen: het tekenscherm opent op die plek.' : k.soort === 'unit' ? 'Klik waar de units moeten komen: de containerbouwer opent meteen.' : 'Klik waar de tent moet komen: de tentbouwer opent meteen.');
   };
   // Groepen: één naam per groep (plan.instellingen.groepen), de onderdelen zelf hebben geen naam.
   const groepNaam = (gid) => (plan?.instellingen?.groepen || []).find((g) => g.id === gid)?.naam || '';
@@ -5185,6 +5188,10 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
               {tab === 'bouwers' && (
                 <div className="fm-teken">
                   <section>
+                    <h3>Concept in 3D</h3>
+                    {bouwRij('concept', 'bouw-unit', 'Conceptbouwer', 'Klik op de kaart; tenten, vloer, truss en containers samen plaatsen in 2D en 3D', () => kiesBouwer({ soort: 'concept' }))}
+                  </section>
+                  <section>
                     <h3>Gebouwen en tenten</h3>
                     {bouwRij('binnen', 'gebouw', 'Binnenplan', 'Klik op een gebouw: zalen, gangen en inrichting', () => kiesBouwer({ soort: 'binnen' }))}
                     {/* Eén ingang voor alle tenten: soort, breedte en gekoppelde tenten kies je in de tentbouwer. */}
@@ -5530,6 +5537,37 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
           {binnenZweef && !binnen && binnenIngericht(binnenZweef.host, items) ? <BinnenPreview hostId={binnenZweef.host} x={binnenZweef.x} y={binnenZweef.y} items={items} elementenMap={elementenMap} />
             : zweef && (items.find((x) => x.id === zweef.id)?.velden?.binnenplan && !binnen && binnenIngericht(zweef.id, items) ? <BinnenPreview hostId={zweef.id} x={zweef.x} y={zweef.y} items={items} elementenMap={elementenMap} /> : <ZweefKaartje zweef={zweef} items={items} elementenMap={elementenMap} lagenMap={lagenMap} plan={plan} />)}
           {overgang && <div className={`fm-overgang ${overgang}`} aria-hidden="true" />}
+          {concept && (
+            <ConceptStudio midden={concept.midden} items={items} elementen={elementen} elementenMap={elementenMap} schrijven={schrijven} onSluit={() => setConcept(null)}
+              onPlaats={(el, p, rot) => {
+                const tent = isTentBouw(el); const n = tent && el.eigenschappen?.module ? 3 : 1; const b = (Number(el.breedte_m) || 3) * n; const d = Number(el.diepte_m) || 3;
+                const it = maakItem({ laag_id: laagVoorElement(el), soort: 'element', element_id: el.id, geometrie: geo.elementVeelhoek(p, b, d, rot, n > 1 ? null : el.omtrek), parameters: { midden: p, breedte: b, diepte: d, rot } });
+                tdRef.current?.addFeatures([tdFeature(it)]);
+              }}
+              onPlaatsTruss={(el, stukken, o) => {
+                const o2 = [o[0] + 1 / (111320 * Math.cos((o[1] * Math.PI) / 180)), o[1]];
+                const it = maakItem({ laag_id: laagVoorElement(el), soort: 'element', element_id: el.id, geometrie: { type: 'LineString', coordinates: [o, o2] }, parameters: {}, velden: { truss: { stukken } } });
+                tdRef.current?.addFeatures([tdFeature(it)]);
+              }}
+              onZet={(id, w) => {
+                const it = st.current.items.find((x) => x.id === id); if (!it) return;
+                let geometrie; let patch = {};
+                if (w.verschuif) {
+                  const lat = it.geometrie.coordinates[0][1]; const dl = w.verschuif[0] / (111320 * Math.cos((lat * Math.PI) / 180)); const db = w.verschuif[1] / 110574;
+                  const zet = (c) => (typeof c[0] === 'number' ? [c[0] + dl, c[1] + db, ...c.slice(2)] : c.map(zet));
+                  geometrie = { ...it.geometrie, coordinates: zet(it.geometrie.coordinates) };
+                } else {
+                  const p0 = it.parameters || {}; const el = elementenMap.get(it.element_id); const tent = isTentBouw(el); const n = tent && el?.eigenschappen?.module ? 3 : 1;
+                  const rot = ((Number(w.rot) % 360) + 360) % 360;
+                  geometrie = geo.elementVeelhoek(w.midden, p0.breedte, p0.diepte, rot, n > 1 ? null : el?.omtrek);
+                  patch = { parameters: { ...p0, midden: w.midden, rot } };
+                }
+                wijzigItem(id, { geometrie, ...patch });
+                try { tdRef.current?.updateFeatureGeometry(id, geo.rondGeom(geometrie)); } catch { setTimeout(syncTd, 0); }
+              }}
+              onWeg={(ids) => verwijderItems(ids)}
+              onBewerk={(id) => { setConcept(null); setGeselecteerd(id); try { tdRef.current?.selectFeature(id); } catch {} vraagBouwer(id); }} />
+          )}
           {binnenScherm && (() => {
             const host = items.find((x) => x.id === binnenScherm.host);
             if (!host) return null;
