@@ -5553,15 +5553,20 @@ const bouwRij = (sleutel, icoon, naam, uitleg, doe, extra = {}) => (
               onZet={(id, w) => {
                 const it = st.current.items.find((x) => x.id === id); if (!it) return;
                 let geometrie; let patch = {};
-                if (w.verschuif) {
+                if (w.draaiOm) {
+                  const [ol, ob] = w.draaiOm; const ml = 111320 * Math.cos((ob * Math.PI) / 180); const co = Math.cos(w.hoek); const si = Math.sin(w.hoek);
+                  const zet = (c) => { if (typeof c[0] !== 'number') return c.map(zet); const x = (c[0] - ol) * ml; const y = (c[1] - ob) * 110574; return [ol + (x * co - y * si) / ml, ob + (x * si + y * co) / 110574, ...c.slice(2)]; };
+                  geometrie = { ...it.geometrie, coordinates: zet(it.geometrie.coordinates) };
+                } else if (w.verschuif) {
                   const lat = it.geometrie.coordinates[0][1]; const dl = w.verschuif[0] / (111320 * Math.cos((lat * Math.PI) / 180)); const db = w.verschuif[1] / 110574;
                   const zet = (c) => (typeof c[0] === 'number' ? [c[0] + dl, c[1] + db, ...c.slice(2)] : c.map(zet));
                   geometrie = { ...it.geometrie, coordinates: zet(it.geometrie.coordinates) };
                 } else {
                   const p0 = it.parameters || {}; const el = elementenMap.get(it.element_id); const tent = isTentBouw(el); const n = tent && el?.eigenschappen?.module ? 3 : 1;
                   const rot = ((Number(w.rot) % 360) + 360) % 360;
-                  geometrie = geo.elementVeelhoek(w.midden, p0.breedte, p0.diepte, rot, n > 1 ? null : el?.omtrek);
-                  patch = { parameters: { ...p0, midden: w.midden, rot } };
+                  const b = w.breedte || p0.breedte; const d = w.diepte || p0.diepte;
+                  geometrie = geo.elementVeelhoek(w.midden, b, d, rot, n > 1 || w.breedte ? null : el?.omtrek);
+                  patch = { parameters: { ...p0, midden: w.midden, rot, breedte: b, diepte: d } };
                 }
                 wijzigItem(id, { geometrie, ...patch });
                 try { tdRef.current?.updateFeatureGeometry(id, geo.rondGeom(geometrie)); } catch { setTimeout(syncTd, 0); }
