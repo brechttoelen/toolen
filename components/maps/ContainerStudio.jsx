@@ -46,13 +46,15 @@ const maatTekst = (e) => `${getal(Number(e.breedte_m) < Number(e.diepte_m) ? e.d
 export default function ContainerStudio({ it, el, items = [], elementen = [], elementenMap = new Map(), schrijven, onActie, onSluit }) {
   useBouwerSchild();
   const [gl, setGl] = useState(false); useEffect(() => { setGl(webglKan()); }, []);
-  const groep = useMemo(() => unitGroep(it, el, items, elementenMap), [it, el, items, elementenMap]);
+  // Vast assenstelsel vanaf het openen: draai je de unit waarop de bouwer opende, dan draait de rest niet mee.
+  const [kader0] = useState(() => (it.parameters?.midden ? { midden: it.parameters.midden, rot: Number(it.parameters.rot) || 0, breedte: it.parameters.breedte, diepte: it.parameters.diepte } : null));
+  const groep = useMemo(() => unitGroep(it, el, items, elementenMap, kader0), [it, el, items, elementenMap, kader0]);
   const [sel, setSel] = useState(it.id);
   const g = groep.find((x) => x.it.id === sel) || groep[0];
   const units = useMemo(() => elementen.filter((e) => e.actief !== false && !e.plan_id && (isUnitEl(e) || isTrapEl(e))).sort((a, b) => String(a.leverancier || '').localeCompare(String(b.leverancier || ''), 'nl') || Number(isTrapEl(a)) - Number(isTrapEl(b)) || a.naam.localeCompare(b.naam, 'nl')), [elementen]);
   const [nieuw, setNieuw] = useState(el?.id || '');
   const elNieuw = units.find((e) => e.id === nieuw) || null;
-  const A = unitAssen(it);
+  const A = kader0 ? unitAssen({ parameters: kader0 }) : unitAssen(it);
 
   // Schakelunits: het juiste type (eind of midden) volgt uit de buren.
   const plan = useMemo(() => schakelPlan(groep), [groep]);
@@ -91,6 +93,8 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   };
   const sleepVrij = schrijven ? (fase, data, grond, hit) => {
     const o = groep.find((x) => x.it.id === data?.unit); if (!o) return;
+    // Unit onder een vrije hoek: vrij verschuiven (midden onder de muis), de hoek blijft.
+    if (o.vrij) { if (fase !== 'beweeg' && grond) { setSel(o.it.id); onActie('unit-wijzig', { _it: o.it.id, midden: A.naarGeo(grond) }); } return; }
     const s0 = sleepRef.current?.id === o.it.id ? sleepRef.current : { id: o.it.id, el: o.el, q: o.rot };
     const s1 = met(s0, grond, hit);
     if (fase === 'beweeg') { setSleep(s1); return; }
@@ -187,9 +191,22 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
             </div>}
             {g.el?.eigenschappen?.gevelVrij && !g.trap && <GevelBeheer L={Number(g.el.breedte_m) || 6} B={Number(g.el.diepte_m) || 3} gevel={g.it.velden?.gevel || g.el.eigenschappen?.gevel || []} schrijven onZet={(gevel) => onActie('unit-gevel', { _it: g.it.id, gevel })} />}
             <div className="fm-cb-zijden" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-              <button type="button" className="fm-knop klein" title="Een kwartslag (R)" onClick={() => onActie('unit-wijzig', { _it: g.it.id, rot: ((Number(g.it.parameters?.rot) || 0) + 90) % 360 })}>Draaien</button>
+              <button type="button" className="fm-knop klein" title="Een kwartslag (R)" onClick={() => onActie('unit-wijzig', { _it: g.it.id, rot: ((Number(g.it.parameters?.rot) || 0) + 90) % 360 })}>Draaien 90°</button>
               <button type="button" className="fm-knop klein" onClick={() => weg(g)}>Weghalen</button>
             </div>
+            {!g.trap && (() => {
+              // Vrij draaien rond het eigen midden: per 5°, of een hoek typen.
+              const r0 = Number(g.it.parameters?.rot) || 0; const zet = (r) => onActie('unit-wijzig', { _it: g.it.id, rot: Math.round((((r % 360) + 360) % 360) * 10) / 10 });
+              return (
+                <div className="fm-cb-hoek">
+                  <span className="fm-sub">Hoek</span>
+                  <button type="button" className="fm-knop klein" title="5° linksom" onClick={() => zet(r0 - 5)}>−5°</button>
+                  <input key={`${g.it.id}${r0}`} type="number" step="1" defaultValue={Math.round(r0 * 10) / 10} aria-label="Hoek in graden" onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={(e) => { const v = Number(String(e.target.value).replace(',', '.')); if (Number.isFinite(v) && Math.abs(v - r0) > 0.05) zet(v); }} />
+                  <button type="button" className="fm-knop klein" title="5° rechtsom" onClick={() => zet(r0 + 5)}>+5°</button>
+                </div>
+              );
+            })()}
+            {g.vrij && <div className="fm-sub">Staat onder een vrije hoek: geen schakelen of stapelen tegen de andere units; slepen verschuift hem vrij.</div>}
           </>}
           <div className="fm-kop" style={{ marginTop: 10 }}>Nakijken</div>
           {meldingen.length ? meldingen.map((m, k) => <button key={k} type="button" className={`fm-melding ${m.soort === 'fout' ? 'fout' : ''}`} style={{ textAlign: 'left', border: 0, cursor: 'pointer', width: '100%', marginBottom: 6 }} onClick={() => setSel(m.ids[0])}>{m.tekst}</button>) : <div className="fm-melding ok">In orde.</div>}

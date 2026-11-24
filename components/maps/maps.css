@@ -2650,3 +2650,6 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 .fm-uitvoer-titel { font-size: 15px; font-weight: 700; }
 .fm-kiesrij .pf-keuze { flex: 1; min-width: 0; }
 .fm-kiesrij .pf-keuze .fm-kies-veld { width: 100%; padding-right: 22px; box-sizing: border-box; }
+
+.fm-cb-hoek { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 6px; align-items: center; margin-top: 6px; }
+.fm-cb-hoek input { height: 30px; min-width: 0; text-align: center; }

@@ -47,17 +47,20 @@ export function unitAssen(it) {
 
 // De opstelling rond een unit: alle units en trappen die (via elkaar) raken of op elkaar staan.
 // Geeft [{ it, el, x0, y0, x1, y1, v, rot (verschil met de eerste unit: 0/90/180/270), H }] in het kader van de eerste unit.
-export function unitGroep(it, el, items = [], elementenMap = new Map()) {
-  const A = unitAssen(it); if (!A) return [];
+// kader (optioneel): { midden, rot, breedte, diepte } — een vast assenstelsel, zodat de opstelling niet
+// meedraait als je de unit draait waarop de bouwer geopend werd.
+// Units onder een vrije hoek (geen veelvoud van 90°) horen er ook bij: vrij = true, met hun omhullende rechthoek.
+export function unitGroep(it, el, items = [], elementenMap = new Map(), kader0 = null) {
+  const A = kader0?.midden ? unitAssen({ parameters: kader0 }) : unitAssen(it); if (!A) return [];
   const leden = [];
   const kand = (items || []).filter((x) => x && !x.verborgen && x.parameters?.midden && isContainerDeel(elementenMap.get(x.element_id)));
   if (!kand.some((x) => x.id === it.id)) kand.unshift(it);
   const kader = (x) => {
     const e = x.id === it.id ? el : elementenMap.get(x.element_id); const B2 = unitAssen(x); if (!B2) return null;
-    const d = ((((B2.rot - A.rot) % 360) + 360) % 360); const q = Math.round(d / 90) * 90 % 360; if (Math.abs(d - Math.round(d / 90) * 90) > 3) return null;
+    const d = ((((B2.rot - A.rot) % 360) + 360) % 360); const vrij = Math.abs(d - Math.round(d / 90) * 90) > 3; const q = vrij ? Math.round(d * 10) / 10 : Math.round(d / 90) * 90 % 360;
     const hk = [[0, 0], [B2.L, 0], [B2.L, B2.B], [0, B2.B]].map((h) => A.vanGeo(B2.naarGeo(h)));
     const xs = hk.map((h) => h[0]); const ys = hk.map((h) => h[1]);
-    return { it: x, el: e, T: (q) => A.vanGeo(B2.naarGeo(q)), Lu: B2.L, Bu: B2.B, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), v: Number(x.velden?.verdieping) || 0, rot: q, H: unitHoogte(e), trap: isTrapEl(e) };
+    return { it: x, el: e, T: (q) => A.vanGeo(B2.naarGeo(q)), Lu: B2.L, Bu: B2.B, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), v: Number(x.velden?.verdieping) || 0, rot: q, vrij, H: unitHoogte(e), trap: isTrapEl(e) };
   };
   const alle = kand.map(kader).filter(Boolean);
   const eerste = alle.find((k) => k.it.id === it.id); if (!eerste) return [];
@@ -209,8 +212,10 @@ export function unitStijl(el) {
 // opties: { weg: id dat verborgen is (wordt versleept), spook: { x0, y0, x1, y1, z0, H, ok } voorbeeld van de plek }
 export function containerPrims(groep, gekozen = null, opties = {}) {
   const prims = [];
-  const vlak = (w, vul, op = 1, data = null, rand = 'vul') => prims.push({ k: 'vlak', w, vul, op, rand, data });
-  const balk = (a, b, d, kl, extra = {}) => prims.push({ k: 'balk', a, b, d, kl, ...extra });
+  // Een unit onder een vrije hoek wordt in zijn eigen kader getekend en daarna in het kader van de groep gezet.
+  let naar = null; const mp = (p) => (naar ? naar(p) : p);
+  const vlak = (w, vul, op = 1, data = null, rand = 'vul') => prims.push({ k: 'vlak', w: w.map(mp), vul, op, rand, data });
+  const balk = (a, b, d, kl, extra = {}) => prims.push({ k: 'balk', a: mp(a), b: mp(b), d, kl, ...extra });
   const KADER = '#3A4046'; const PANEEL = '#E4E3DD'; const NAAD = '#C9C8C1'; const DAK = '#8E9399'; const WIT = '#F4F5F3'; const GALVA = '#A9AEB2'; const ROOSTER = '#8D9398';
   const sp = opties.spook;
   if (sp) {
@@ -219,8 +224,11 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
     for (let i = 0; i < 4; i++) { const a = hk[i]; const b = hk[(i + 1) % 4]; vlak([[a[0], a[1], z0], [b[0], b[1], z0], [b[0], b[1], z1], [a[0], a[1], z1]], k, 0.35); }
     vlak(hk.map(([x, y]) => [x, y, z1]), k, 0.45); vlak(hk.map(([x, y]) => [x, y, Math.max(0.01, z0)]), k, 0.25);
   }
-  for (const g of groep) {
-    if (opties.weg && g.it.id === opties.weg) continue;
+  for (const g0 of groep) {
+    if (opties.weg && g0.it.id === opties.weg) continue;
+    const vrij = g0.vrij && !g0.trap && g0.T;
+    naar = vrij ? ([x, y, z]) => { const q = g0.T([x, y]); return [q[0], q[1], z]; } : null;
+    const g = vrij ? { ...g0, x0: 0, y0: 0, x1: g0.Lu, y1: g0.Bu, T: (q) => q } : g0;
     const { x0, y0, x1, y1 } = g; const z0 = g.z0 || 0; const data = { unit: g.it.id, sleep: true }; const dataDak = { unit: g.it.id, sleep: true, boven: true };
     if (g.trap) {
       // De trap klimt langs de lange zijde, in de richting van de draaiing (0° = naar +x); andere richtingen via een spiegeling van de assen.
@@ -232,7 +240,7 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
     }
     const H = g.H; const z1 = z0 + H; const aan = gekozen === g.it.id; const st = unitStijl(g.el);
     const pan = aan ? '#D3E2F5' : st.paneel; const KADER2 = st.kader;
-    const open = new Set(openInGroep(g));
+    const open = new Set(vrij ? [] : openInGroep(g));
     const P = 0.16; const h = P / 2; // hoekstijl 16 × 16 cm
     const ONDER = 0.2; const BOVEN = 0.24; // onder- en bovenframe
     // Houten blokken onder de hoeken en in het midden van de lange zijden (enkel op de grond).
@@ -309,6 +317,7 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
       }
     }
   }
+  naar = null;
   return prims;
 }
 
