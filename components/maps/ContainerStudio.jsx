@@ -70,13 +70,25 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
 
   // Na het plaatsen: de nieuwe unit kiezen, zodat je meteen verder bouwt.
   const [wacht, setWacht] = useState(null);
-  useEffect(() => { if (!wacht) return; const n = groep.find((o) => o.v === wacht.v && Math.abs(o.x0 - wacht.x0) < 0.05 && Math.abs(o.y0 - wacht.y0) < 0.05); if (n) { setSel(n.it.id); setWacht(null); } }, [groep, wacht]);
+  useEffect(() => { if (!wacht) return; const n = groep.find((o) => o.v === wacht.v && (wacht.midden ? Math.abs((o.it.parameters?.midden?.[0] || 0) - wacht.midden[0]) < 2e-7 && Math.abs((o.it.parameters?.midden?.[1] || 0) - wacht.midden[1]) < 2e-7 : Math.abs(o.x0 - wacht.x0) < 0.05 && Math.abs(o.y0 - wacht.y0) < 0.05)); if (n) { setSel(n.it.id); setWacht(null); } }, [groep, wacht]);
   const midden = (p) => A.naarGeo([p.x0 + p.L / 2, p.y0 + p.B / 2]);
   const plaats = (e2, p, q = 0) => {
+    if (p?.schuin) { setWacht({ midden: p.schuin.midden, v: p.v }); onActie('unit-plaats', { el: e2.id, midden: p.schuin.midden, breedte: Number(e2.breedte_m), diepte: Number(e2.diepte_m), rot: p.schuin.rot, verdieping: p.v }); return; }
     if (!A || !e2 || !p) return; if (!isTrapEl(e2)) setWacht(p);
     onActie('unit-plaats', { el: e2.id, midden: midden(p), breedte: Number(e2.breedte_m), diepte: Number(e2.diepte_m), rot: (A.rot + q) % 360, verdieping: p.v });
   };
-  const vrij = (p) => !groep.some((o) => o.v === p.v && Math.min(o.x1, p.x0 + p.L) - Math.max(o.x0, p.x0) > 0.1 && Math.min(o.y1, p.y0 + p.B) - Math.max(o.y0, p.y0) > 0.1);
+  const vrij = (p) => {
+    // Naast een schuine unit: de echte omtrek (iets kleiner) mag geen andere unit overlappen.
+    if (p?.ring) return !groep.some((o) => o.v === p.v && o.hk && o.it.id !== p.naast && veelhoekAfstand(p.ring, o.hk) === 0);
+    return !groep.some((o) => o.v === p.v && Math.min(o.x1, p.x0 + p.L) - Math.max(o.x0, p.x0) > 0.1 && Math.min(o.y1, p.y0 + p.B) - Math.max(o.y0, p.y0) > 0.1);
+  };
+  // Naast of op een schuine unit: in het eigen kader van die unit, met dezelfde hoek.
+  const plekNaastG = (g2, e2, z) => {
+    if (!g2.vrij) return plekNaast(g2, e2, z);
+    const p = plekNaast({ x0: 0, y0: 0, x1: g2.Lu, y1: g2.Bu, v: g2.v }, e2, z); if (!p) return null;
+    const m = 0.08; const ring = [[p.x0 + m, p.y0 + m], [p.x0 + p.L - m, p.y0 + m], [p.x0 + p.L - m, p.y0 + p.B - m], [p.x0 + m, p.y0 + p.B - m]].map((q) => g2.T(q));
+    return { ...p, ring, naast: z === 'O' ? g2.it.id : null, schuin: { midden: A.naarGeo(g2.T([p.x0 + p.L / 2, p.y0 + p.B / 2])), rot: Number(g2.it.parameters?.rot) || 0 } };
+  };
 
   // Slepen in 3D: een unit verplaatsen, of een unit uit de lijst erin slepen. R = draaien tijdens het slepen.
   const [sleep, setSleep] = useState(null); // { id?, el, q, p }
@@ -183,7 +195,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
           {g && <div className="fm-cb-gekozen"><UnitDuim el={g.el} w={64} h={44} /><div><b>{kortNaam(g.el)}</b><span className="fm-sub">{g.trap ? 'Trap' : `Verdieping ${g.v}`}{g.el?.leverancier ? ` · ${g.el.leverancier}` : ''}</span></div></div>}
           {schrijven && g && <>
             {!g.trap && elNieuw && !isTrapEl(elNieuw) && <div className="fm-cb-zijden">
-              {ZIJDEN.map(([z, n]) => { const p = plekNaast(g, elNieuw, z); const te = z === 'O' && g.v + 2 > stapelMax(g.el); return <button key={z} type="button" className="fm-knop klein" title={`${kortNaam(elNieuw)} ${n.toLowerCase()}`} disabled={!p || !vrij(p) || te} onClick={() => plaats(elNieuw, p)}>{n}</button>; })}
+              {ZIJDEN.map(([z, n]) => { const p = plekNaastG(g, elNieuw, z); const te = z === 'O' && g.v + 2 > stapelMax(g.el); return <button key={z} type="button" className="fm-knop klein" title={`${kortNaam(elNieuw)} ${n.toLowerCase()}`} disabled={!p || !vrij(p) || te} onClick={() => plaats(elNieuw, p)}>{n}</button>; })}
             </div>}
             {bovenste && trap && <div className="fm-cb-zijden">
               {[['V', 'Voor'], ['A', 'Achter']].map(([z, n]) => <button key={z} type="button" className={`fm-knop klein${trapZijde === z ? ' zwart' : ''}`} onClick={() => setTrapZijde(z)}>Trap {n.toLowerCase()}</button>)}
