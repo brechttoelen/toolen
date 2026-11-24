@@ -249,8 +249,16 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
     // Wandpanelen tussen de frames, met de verticale naden van de sandwichpanelen (± 1,1 m).
     const W = { V: [[x0 + P, y0], [x1 - P, y0], [0, -1]], R: [[x1, y0 + P], [x1, y1 - P], [1, 0]], A: [[x1 - P, y1], [x0 + P, y1], [0, 1]], L: [[x0, y1 - P], [x0, y0 + P], [-1, 0]] };
     const za = z0 + ONDER; const zb = z1 - BOVEN;
+    // Zijden met een glazen wand: geen paneel erachter (het glas komt bij de gevel).
+    const glasZ = new Set();
+    if (g.T) for (const o of g.it?.velden?.gevel || g.el?.eigenschappen?.gevel || []) {
+      if (o.soort !== 'glas') continue;
+      const { a, e } = gevelLijn(o, g.Lu, g.Bu); const m = g.T([(a[0] + e[0]) / 2, (a[1] + e[1]) / 2]);
+      const af = { V: Math.abs(m[1] - y0), A: Math.abs(m[1] - y1), L: Math.abs(m[0] - x0), R: Math.abs(m[0] - x1) };
+      glasZ.add(Object.entries(af).sort((p, q) => p[1] - q[1])[0][0]);
+    }
     for (const [z, [a0, b0, n]] of Object.entries(W)) {
-      if (open.has(z)) continue;
+      if (open.has(z) || glasZ.has(z)) continue;
       const a = [a0[0] - n[0] * 0.03, a0[1] - n[1] * 0.03]; const b = [b0[0] - n[0] * 0.03, b0[1] - n[1] * 0.03];
       vlak([[a[0], a[1], za], [b[0], b[1], za], [b[0], b[1], zb], [a[0], a[1], zb]], pan, 1, data);
       const l = Math.hypot(b[0] - a[0], b[1] - a[1]); const nr = Math.max(1, Math.round(l / st.naadAf));
@@ -267,7 +275,7 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
       if (o.soort === 'glas') {
         // Glazen wand: van vloer tot plafond, dunne zwarte profielen om de ± 1,5 m.
         const g0 = L2(0, 0.0); const g1 = L2(ll, 0.0); const zt2 = zb - 0.06;
-        vlak([[g0[0], g0[1], zo], [g1[0], g1[1], zo], [g1[0], g1[1], zt2], [g0[0], g0[1], zt2]], '#9FB8C8', 0.45, data);
+        vlak([[g0[0], g0[1], zo], [g1[0], g1[1], zo], [g1[0], g1[1], zt2], [g0[0], g0[1], zt2]], '#8FB3CC', 0.35, data);
         const nr = Math.max(1, Math.round(ll / 1.5));
         for (let k = 0; k <= nr; k++) { const q = L2((ll * k) / nr, 0.02); balk([q[0], q[1], zo], [q[0], q[1], zt2], [0.05, 0.05], '#1F2937', { mat: 'mat' }); }
         const k0 = L2(0, 0.02); const k1 = L2(ll, 0.02);
