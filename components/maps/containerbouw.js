@@ -94,7 +94,10 @@ export function unitGroep(it, el, items = [], elementenMap = new Map(), kader0 =
     if (Math.abs(a.v - b.v) === 1) return ox > 0.3 && oy > 0.3; // op elkaar
     return false;
   };
+  // Wat al samen in een groep zit (de opstelling op het plan), hoort er altijd bij, ook als het niet (meer) raakt:
+  // zo verdwijnt een unit niet uit de bouwer als je hem draait of verschuift.
   const groep = [eerste]; const in_ = new Set([eerste.it.id]);
+  if (it.groep_id) for (const c of alle) if (!in_.has(c.it.id) && c.it.groep_id === it.groep_id) { groep.push(c); in_.add(c.it.id); }
   for (let k = 0; k < groep.length && groep.length < 40; k++) for (const c of alle) if (!in_.has(c.it.id) && raak(groep[k], c)) { groep.push(c); in_.add(c.it.id); }
   // Hoogte van elk lid: bovenop de hoogste unit eronder.
   const perV = [...groep].sort((a, b) => a.v - b.v);
