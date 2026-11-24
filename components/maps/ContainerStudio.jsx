@@ -11,7 +11,7 @@ import { StellingPlannen } from './stellingplannen';
 import GevelBeheer from './GevelBeheer';
 import { schakelGedraaid, veelhoekAfstand, veelhoekenOverlap } from './containerbouw';
 import ContainerPlan2D from './ContainerPlan2D';
-import { unitGroep, unitAssen, isUnitEl, isTrapEl, schakelPlan, schakelElement, containerMeldingen, plekNaast, plekTrap, containerTelling, containerPrims, stapelMax, plekBijSlepen, unitStijl, openZijden, schakelVan, gevelLijn } from './containerbouw';
+import { unitGroep, unitAssen, isUnitEl, isTrapEl, isAutoEl, schakelPlan, schakelElement, containerMeldingen, plekNaast, plekTrap, containerTelling, containerPrims, stapelMax, plekBijSlepen, unitStijl, openZijden, schakelVan, gevelLijn } from './containerbouw';
 
 const DrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () => <div className="fm-wz fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div> });
 const getal = (v) => Number(v).toLocaleString('nl-BE', { maximumFractionDigits: 2 });
@@ -56,7 +56,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   const [verd, setVerd] = useState(0);
   const [melding, setMelding] = useState(''); useEffect(() => { if (!melding) return undefined; const t = setTimeout(() => setMelding(''), 4000); return () => clearTimeout(t); }, [melding]);
   const g = groep.find((x) => x.it.id === sel) || groep[0];
-  const units = useMemo(() => elementen.filter((e) => e.actief !== false && !e.plan_id && (isUnitEl(e) || isTrapEl(e))).sort((a, b) => String(a.leverancier || '').localeCompare(String(b.leverancier || ''), 'nl') || Number(isTrapEl(a)) - Number(isTrapEl(b)) || a.naam.localeCompare(b.naam, 'nl')), [elementen]);
+  const units = useMemo(() => elementen.filter((e) => e.actief !== false && !e.plan_id && (isUnitEl(e) || isTrapEl(e) || isAutoEl(e))).sort((a, b) => String(a.leverancier || '').localeCompare(String(b.leverancier || ''), 'nl') || Number(isTrapEl(a)) - Number(isTrapEl(b)) || a.naam.localeCompare(b.naam, 'nl')), [elementen]);
   const [nieuw, setNieuw] = useState(el?.id || '');
   const elNieuw = units.find((e) => e.id === nieuw) || null;
   const A = kader0 ? unitAssen({ parameters: kader0 }) : unitAssen(it);
@@ -107,12 +107,12 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   const [sleep, setSleep] = useState(null); // { id?, el, q, p }
   const sleepRef = useRef(null); sleepRef.current = sleep;
   const lijstSleep = useRef(null); // element dat uit de lijst gesleept wordt
-  const alleen = groep.filter((x) => !x.trap).length <= 1;
+  const alleen = groep.filter((x) => !x.trap && !x.auto).length <= 1;
   const met = (s0, grond, hit) => { const p = plekBijSlepen(groep, s0.el, s0.q, grond, hit, s0.id); if (p && p.soort === 'vrij' && !(alleen && s0.id)) p.ok = false; return { ...s0, q: p?.q ?? s0.q, p, grond, hit }; };
   // Weghalen, ook de unit waarop de bouwer geopend werd: de bouwer verhuist dan naar een andere unit; de laatste unit sluit de bouwer.
   const weg = (o) => {
     if (o.it.id !== it.id) { onActie('unit-weg', { _it: o.it.id }); setSel(it.id); return; }
-    const ander = groep.find((x) => x.it.id !== it.id && !x.trap) || groep.find((x) => x.it.id !== it.id);
+    const ander = groep.find((x) => x.it.id !== it.id && !x.trap && !x.auto) || groep.find((x) => x.it.id !== it.id);
     if (!ander) { onSluit(); setTimeout(() => onActie('unit-weg', { _it: o.it.id }), 0); return; }
     onActie('unit-weg', { _it: o.it.id, anker: ander.it.id });
   };
@@ -150,8 +150,8 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
     const [{ bouwerPdf }, { tentGroep }] = await Promise.all([import('./bouwerPdf'), import('./TentDrieGL')]);
     const pr = containerPrims(groep, null);
     await bouwerPdf({ soort: 'container', titel: String(it.naam || el?.naam || 'Units'), sub: [...new Set(groep.map((x) => x.el?.leverancier).filter(Boolean))].join(' · '), maakGroep: (T) => tentGroep(T, pr),
-      hoogtes: [...new Set(groep.filter((x) => !x.trap).map((x) => Math.round((x.z0 + x.H) * 100) / 100))],
-      kenmerken: [['Units', groep.filter((x) => !x.trap).length], ['Trappen', groep.filter((x) => x.trap).length], ['Hoog', hoog], ['Stroom', `± ${getal(kw)} kW`]] });
+      hoogtes: [...new Set(groep.filter((x) => !x.trap && !x.auto).map((x) => Math.round((x.z0 + x.H) * 100) / 100))],
+      kenmerken: [['Units', groep.filter((x) => !x.trap && !x.auto).length], ['Trappen', groep.filter((x) => x.trap).length], ['Hoog', hoog], ['Stroom', `± ${getal(kw)} kW`]] });
   };
   const levs = [...new Set(units.map((e) => e.leverancier || ''))];
 
@@ -160,7 +160,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
       <div className="fm-ws-kop">
         <TerugKnop onClick={onSluit} />
         <strong>Containerbouwer</strong>
-        <span className="fm-sub">{groep.filter((x) => !x.trap).length === 1 ? '1 unit' : `${groep.filter((x) => !x.trap).length} units`} · {hoog} hoog · ± {getal(kw)} kW</span>
+        <span className="fm-sub">{groep.filter((x) => !x.trap && !x.auto).length === 1 ? '1 unit' : `${groep.filter((x) => !x.trap && !x.auto).length} units`} · {hoog} hoog · ± {getal(kw)} kW</span>
         <div className="fm-segment" role="group" aria-label="Weergave"><button type="button" className={zicht === 'plan' ? 'aan' : ''} onClick={() => setZicht('plan')}>Plan</button><button type="button" className={zicht === '3d' ? 'aan' : ''} disabled={!gl} title="3D om te bekijken" onClick={() => setZicht('3d')}>3D</button></div>
         <span style={{ flex: 1 }} />
         <button className="fm-knop klein" disabled={!gl} onClick={maakPdf}>PDF</button>
@@ -224,7 +224,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
               const zet = (r) => {
                 const rot = Math.round((((r % 360) + 360) % 360) * 10) / 10; const dl = ((rot - r0 + 540) % 360) - 180;
                 const hk = [[0, 0], [g.Lu, 0], [g.Lu, g.Bu], [0, g.Bu]].map((q) => g.T(q)); const mid = g.T([g.Lu / 2, g.Bu / 2]);
-                const buren = groep.filter((o) => o.it.id !== g.it.id && !o.trap && o.v === g.v && o.hk);
+                const buren = groep.filter((o) => o.it.id !== g.it.id && !o.trap && !o.auto && o.v === g.v && o.hk);
                 const t = (-dl * Math.PI) / 180; const rond = (q, pv) => [pv[0] + (q[0] - pv[0]) * Math.cos(t) - (q[1] - pv[1]) * Math.sin(t), pv[1] + (q[0] - pv[0]) * Math.sin(t) + (q[1] - pv[1]) * Math.cos(t)];
                 // Scharnier: elke hoek die tegen een buur ligt (dichtste eerst), daarna het eigen midden.
                 // De eerste die niet over een andere unit draait, wint; anders draait de unit niet.
@@ -269,7 +269,7 @@ export function ContainerBlok({ it, el, items, elementen, elementenMap, schrijve
   const [open, setOpen] = useState(false);
   useEffect(() => { import('./bouwerSignaal').then(({ neemBouwer }) => { if (neemBouwer(it.id)) setOpen(true); }); }, [it.id]);
   const groep = useMemo(() => unitGroep(it, el, items, elementenMap), [it, el, items, elementenMap]);
-  const n = groep.filter((x) => !x.trap).length;
+  const n = groep.filter((x) => !x.trap && !x.auto).length;
   return (
     <div className="fm-truss-blok fm-sectie">
       <button className="fm-knop zwart" onClick={() => setOpen(true)}>{schrijven ? 'Containerbouwer' : 'Opstelling bekijken'}</button>

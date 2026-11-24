@@ -11,9 +11,12 @@ const OPLEG = 0.15; const VLOER = 0.2;
 
 export const isTrapEl = (el) => !!el && /trap/i.test(el.naam || '') && el.categorie === 'Units en containers';
 // Cateringcontainers (Bevers) zijn kant-en-klare standen: geen unit, dus geen 3D, stapelen of containerbouwer.
-export const isUnitEl = (el) => !!el && !isTrapEl(el) && (el.categorie === 'Units en containers' || (el.categorie === 'Toiletten' && /container|unit/i.test(el.naam || '')))
+// Voertuig (bv. een Leapmotor): staat op een dak of in een glazen container; geen unit.
+export const isAutoEl = (el) => !!el && el.categorie === 'Units en containers' && !!el.eigenschappen?.voertuig && el.tekenwijze === 'schaal';
+export const isUnitEl = (el) => !!el && !isTrapEl(el) && !isAutoEl(el) && (el.categorie === 'Units en containers' || (el.categorie === 'Toiletten' && /container|unit/i.test(el.naam || '')))
   && el.tekenwijze === 'schaal' && Number(el.breedte_m) > 1.5 && Number(el.diepte_m) > 1.5;
-export const isContainerDeel = (el) => isUnitEl(el) || isTrapEl(el);
+export const isContainerDeel = (el) => isUnitEl(el) || isTrapEl(el) || isAutoEl(el);
+export const heeftGlas = (g) => (g?.it?.velden?.gevel || g?.el?.eigenschappen?.gevel || []).some((o) => o.soort === 'glas');
 
 // Schakelunits (Warsco BU-06-CD / CE / CF): D = eindunit open aan de rechterkant (+x), E = midden (beide open),
 // F = eindunit open aan de linkerkant (−x). Naast elkaar: D · E · E · F = één grote ruimte.
@@ -82,7 +85,7 @@ export function unitGroep(it, el, items = [], elementenMap = new Map(), kader0 =
     const d = ((((B2.rot - A.rot) % 360) + 360) % 360); const vrij = Math.abs(d - Math.round(d / 90) * 90) > 3; const q = vrij ? Math.round(d * 10) / 10 : Math.round(d / 90) * 90 % 360;
     const hk = [[0, 0], [B2.L, 0], [B2.L, B2.B], [0, B2.B]].map((h) => A.vanGeo(B2.naarGeo(h)));
     const xs = hk.map((h) => h[0]); const ys = hk.map((h) => h[1]);
-    return { it: x, el: e, T: (q) => A.vanGeo(B2.naarGeo(q)), Lu: B2.L, Bu: B2.B, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), v: Number(x.velden?.verdieping) || 0, rot: q, vrij, hk, H: unitHoogte(e), trap: isTrapEl(e) };
+    return { it: x, el: e, T: (q) => A.vanGeo(B2.naarGeo(q)), Lu: B2.L, Bu: B2.B, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), v: Number(x.velden?.verdieping) || 0, rot: q, vrij, hk, H: unitHoogte(e), trap: isTrapEl(e), auto: isAutoEl(e) };
   };
   const alle = kand.map(kader).filter(Boolean);
   const eerste = alle.find((k) => k.it.id === it.id); if (!eerste) return [];
@@ -104,8 +107,11 @@ export function unitGroep(it, el, items = [], elementenMap = new Map(), kader0 =
   // Hoogte van elk lid: bovenop de hoogste unit eronder.
   const perV = [...groep].sort((a, b) => a.v - b.v);
   for (const g of perV) {
+    const ov = (o) => Math.min(o.x1, g.x1) - Math.max(o.x0, g.x0) > 0.3 && Math.min(o.y1, g.y1) - Math.max(o.y0, g.y0) > 0.3;
+    // Een wagen op de grond in een (glazen) container staat op de containervloer.
+    if (!g.v && g.auto) { const in_ = perV.find((o) => !o.v && !o.trap && !o.auto && ov(o)); g.z0 = in_ ? in_.z0 + VLOER : 0; continue; }
     if (!g.v) { g.z0 = g.trap ? 0 : OPLEG; continue; }
-    const onder = perV.filter((o) => o.v === g.v - 1 && !o.trap && Math.min(o.x1, g.x1) - Math.max(o.x0, g.x0) > 0.3 && Math.min(o.y1, g.y1) - Math.max(o.y0, g.y0) > 0.3);
+    const onder = perV.filter((o) => o.v === g.v - 1 && !o.trap && !o.auto && Math.min(o.x1, g.x1) - Math.max(o.x0, g.x0) > 0.3 && Math.min(o.y1, g.y1) - Math.max(o.y0, g.y0) > 0.3);
     g.z0 = onder.length ? Math.max(...onder.map((o) => o.z0 + o.H)) : g.v * 2.8;
   }
   // Trap: het bordes ligt op vloerhoogte van de unit(s) erboven die ertegen staan.
@@ -163,7 +169,7 @@ export function openInGroep(g) {
 // Wat je best nakijkt in de opstelling.
 export function containerMeldingen(groep) {
   const uit = [];
-  const units = groep.filter((g) => !g.trap); const traps = groep.filter((g) => g.trap);
+  const units = groep.filter((g) => !g.trap && !g.auto); const traps = groep.filter((g) => g.trap);
   const naam = (g) => g.it.naam || (/\(([^)]*[A-Z]{2,}[^)]*\d[^)]*)\)\s*$/.exec(g.el?.naam || '') || [])[1] || g.el?.naam || 'Unit';
   const overlap = (a, b) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.3 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.3;
   for (const g of units) {
@@ -212,7 +218,7 @@ export function plekTrap(g, trapEl, zijde = 'V', kant = 'L') {
 // Deuren en ramen liggen vast per unit (eigenschappen.gevel), zoals de leverancier ze levert:
 //   [{ zijde: V|A|L|R, soort: deur|deur2|raam, van: m vanaf de linkerhoek (van buiten bekeken), breedte, hoogte, onder }]
 // V = voorkant (y = 0), A = achterkant (y = diepte), L = links (x = 0), R = rechts (x = breedte).
-export const GEVEL_SOORTEN = { deur: { naam: 'Deur', b: 0.9, h: 2.0, o: 0 }, deur2: { naam: 'Dubbele deur', b: 1.8, h: 2.0, o: 0 }, raam: { naam: 'Raam', b: 1.2, h: 1.0, o: 1.0 }, glas: { naam: 'Glazen wand', b: 2.4, h: 2.3, o: 0 }, klep: { naam: 'Klep (bar)', b: 4.0, h: 1.1, o: 1.05 } };
+export const GEVEL_SOORTEN = { deur: { naam: 'Deur', b: 0.9, h: 2.0, o: 0 }, deur2: { naam: 'Dubbele deur', b: 1.8, h: 2.0, o: 0 }, raam: { naam: 'Raam', b: 1.2, h: 1.0, o: 1.0 }, glas: { naam: 'Glazen wand', b: 2.4, h: 2.3, o: 0 }, klep: { naam: 'Klep (bar)', b: 4.0, h: 1.1, o: 1.05 }, open: { naam: 'Open zijde (vouwdeuren)', b: 5.8, h: 2.3, o: 0 }, neerklap: { naam: 'Neerklapbare wand (terras)', b: 5.8, h: 2.3, o: 0 } };
 export const gevelZijdeLengte = (z, L, B) => (z === 'V' || z === 'A' ? L : B);
 // Van een opening: begin- en eindpunt op de wand (unit-lokaal) en de normaal naar buiten.
 export function gevelLijn(o, L, B) {
@@ -259,6 +265,7 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
     naar = vrij ? ([x, y, z]) => { const q = g0.T([x, y]); return [q[0], q[1], z]; } : null;
     const g = vrij ? { ...g0, x0: 0, y0: 0, x1: g0.Lu, y1: g0.Bu, T: (q) => q } : g0;
     const { x0, y0, x1, y1 } = g; const z0 = g.z0 || 0; const data = { unit: g.it.id, sleep: true }; const dataDak = { unit: g.it.id, sleep: true, boven: true };
+    if (g.auto) { autoPrims(g, { balk, vlak, data, aan: gekozen === g.it.id }); continue; }
     if (g.trap) {
       // De trap klimt langs de lange zijde, in de richting van de draaiing (0° = naar +x); andere richtingen via een spiegeling van de assen.
       const langY = y1 - y0 > x1 - x0; const terug = g.rot === 180 || g.rot === 270;
@@ -289,7 +296,7 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
     // Zijden met een glazen wand: geen paneel erachter (het glas komt bij de gevel).
     const glasZ = new Set();
     if (g.T) for (const o of g.it?.velden?.gevel || g.el?.eigenschappen?.gevel || []) {
-      if (o.soort !== 'glas') continue;
+      if (!['glas', 'open', 'neerklap'].includes(o.soort)) continue;
       const { a, e } = gevelLijn(o, g.Lu, g.Bu); const m = g.T([(a[0] + e[0]) / 2, (a[1] + e[1]) / 2]);
       const af = { V: Math.abs(m[1] - y0), A: Math.abs(m[1] - y1), L: Math.abs(m[0] - x0), R: Math.abs(m[0] - x1) };
       glasZ.add(Object.entries(af).sort((p, q) => p[1] - q[1])[0][0]);
@@ -309,7 +316,22 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
       const lang = [e[0] - a[0], e[1] - a[1]]; const ll = Math.hypot(...lang) || 1; const u = [lang[0] / ll, lang[1] / ll];
       const L2 = (f, d) => Q([a[0] + u[0] * f, a[1] + u[1] * f], d);
       const K = 0.06; // kaderbreedte
-      if (o.soort === 'glas') {
+      if (o.soort === 'open') {
+        // Open zijde: de vouwdeuren staan opengeklapt tegen de kopse kanten (twee panelen per kant).
+        const zt2 = zb - 0.06;
+        for (const f of [0, ll]) {
+          const d0 = Q([a[0] + u[0] * f, a[1] + u[1] * f], 0.02); const d1 = Q([a[0] + u[0] * f, a[1] + u[1] * f], Math.min(1.4, ll / 4));
+          vlak([[d0[0], d0[1], zo], [d1[0], d1[1], zo], [d1[0], d1[1], zt2], [d0[0], d0[1], zt2]], '#9CA3AF', 1, data);
+        }
+      } else if (o.soort === 'neerklap') {
+        // Neergeklapte wand: een vloer (terras of podium) op vloerhoogte voor de opening, met kettingen naar de bovenrand.
+        const diep = Number(o.diep) > 0 ? Number(o.diep) : 2.3; const zv = za + 0.02;
+        const v0 = L2(0, 0.02); const v1 = L2(ll, 0.02); const w1 = L2(ll, diep); const w0 = L2(0, diep);
+        vlak([[v0[0], v0[1], zv], [v1[0], v1[1], zv], [w1[0], w1[1], zv], [w0[0], w0[1], zv]], '#B08968', 1, data);
+        balk([w0[0], w0[1], zv], [w1[0], w1[1], zv], [0.06, 0.12], '#6B7280');
+        for (const f of [0.05, ll - 0.05]) { const k0 = L2(f, diep - 0.05); const k1 = L2(f, 0.02); balk([k0[0], k0[1], zv], [k1[0], k1[1], zb], [0.02, 0.02], '#374151'); }
+        for (const f of [0.3, ll / 2, ll - 0.3]) { const q = L2(f, diep - 0.15); balk([q[0], q[1], z0], [q[0], q[1], zv], [0.08, 0.08], '#6B7280'); } // steunpoten
+      } else if (o.soort === 'glas') {
         // Glazen wand: van vloer tot plafond, dunne zwarte profielen om de ± 1,5 m.
         const g0 = L2(0, 0.0); const g1 = L2(ll, 0.0); const zt2 = zb - 0.06;
         vlak([[g0[0], g0[1], zo], [g1[0], g1[1], zo], [g1[0], g1[1], zt2], [g0[0], g0[1], zt2]], '#8FB3CC', 0.35, data);
@@ -348,6 +370,22 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
   }
   naar = null;
   return prims;
+}
+
+// Wagen: koetswerk, cabine met ruiten en vier wielen, langs de langste zijde.
+function autoPrims(g, { balk, vlak, data, aan }) {
+  const { x0, y0, x1, y1 } = g; const z0 = g.z0 || 0; const H = Math.max(1.2, Number(g.H) || 1.65);
+  const langX = x1 - x0 >= y1 - y0; const L = langX ? x1 - x0 : y1 - y0; const B = langX ? y1 - y0 : x1 - x0;
+  const P = (u, w, z) => (langX ? [x0 + u, y0 + w, z] : [x0 + w, y0 + u, z]); // u langs, w dwars
+  const kl = aan ? '#93C5FD' : g.el?.eigenschappen?.kleur || '#D1D5DB'; const R = 0.34; const zk = z0 + 0.28;
+  // Koetswerk (onderbak) en motorkap/koffer.
+  balk(P(0.04, B / 2, zk + 0.33), P(L - 0.04, B / 2, zk + 0.33), [B - 0.06, 0.66], kl, { data });
+  // Cabine: iets smaller, van ± 28 % tot 78 % van de lengte (voorkant aan de + kant).
+  const c0 = L * 0.22; const c1 = L * 0.74; const zc = zk + 0.66; const hc = Math.max(0.4, z0 + H - zc);
+  balk(P(c0, B / 2, zc + hc / 2), P(c1, B / 2, zc + hc / 2), [B - 0.22, hc], '#475569', { data });
+  vlak([P(c0 + 0.06, 0.12, zc + hc + 0.001), P(c1 - 0.06, 0.12, zc + hc + 0.001), P(c1 - 0.06, B - 0.12, zc + hc + 0.001), P(c0 + 0.06, B - 0.12, zc + hc + 0.001)], kl, 1, data);
+  // Wielen.
+  for (const u of [L * 0.17, L * 0.8]) for (const [w0, w1] of [[0.0, 0.24], [B - 0.24, B]]) balk(P(u, w0, z0 + R), P(u, w1, z0 + R), [2 * R, 2 * R], '#1F2937');
 }
 
 // Buitentrap met bordes (gegalvaniseerd): trap langs x van x0 tot het bordes, bordes van 1,4 m tegen x1.
