@@ -2653,3 +2653,11 @@ body.fm-aanwijzen, body.fm-aanwijzen * { cursor: crosshair !important; }
 
 .fm-cb-hoek { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 6px; align-items: center; margin-top: 6px; }
 .fm-cb-hoek input { height: 30px; min-width: 0; text-align: center; }
+.fm-cb-plan { display: block; background: #F8FAFC; touch-action: none; user-select: none; }
+.fm-cb-verd { position: absolute; top: 12px; left: 12px; display: flex; gap: 4px; background: #fff; border: 1px solid #E2E8F0; border-radius: 8px; padding: 3px; }
+.fm-cb-verd button { all: unset; cursor: pointer; padding: 4px 10px; border-radius: 6px; font-size: 13px; }
+.fm-cb-verd button.aan { background: #111827; color: #fff; }
+.fm-cb-legende { position: absolute; top: 52px; left: 12px; background: #fff; border: 1px solid #E2E8F0; border-radius: 8px; padding: 4px 10px; display: flex; gap: 6px; align-items: center; }
+.fm-cb-legende span.ja, .fm-cb-legende span.nee { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid #1F2937; }
+.fm-cb-legende span.ja { background: #BBF7D0; } .fm-cb-legende span.nee { background: #FEE2E2; margin-left: 8px; }
+.fm-cb-plan-melding { position: absolute; top: 12px; right: 12px; max-width: 320px; margin: 0; }

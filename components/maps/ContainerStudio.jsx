@@ -10,6 +10,7 @@ import { webglKan } from './StellingStudio';
 import { StellingPlannen } from './stellingplannen';
 import GevelBeheer from './GevelBeheer';
 import { schakelGedraaid, veelhoekAfstand, veelhoekenOverlap } from './containerbouw';
+import ContainerPlan2D from './ContainerPlan2D';
 import { unitGroep, unitAssen, isUnitEl, isTrapEl, schakelPlan, schakelElement, containerMeldingen, plekNaast, plekTrap, containerTelling, containerPrims, stapelMax, plekBijSlepen, unitStijl, openZijden, schakelVan, gevelLijn } from './containerbouw';
 
 const DrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () => <div className="fm-wz fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div> });
@@ -48,8 +49,11 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   const [gl, setGl] = useState(false); useEffect(() => { setGl(webglKan()); }, []);
   // Vast assenstelsel vanaf het openen: draai je de unit waarop de bouwer opende, dan draait de rest niet mee.
   const [kader0] = useState(() => (it.parameters?.midden ? { midden: it.parameters.midden, rot: Number(it.parameters.rot) || 0, breedte: it.parameters.breedte, diepte: it.parameters.diepte } : null));
-  const groep = useMemo(() => unitGroep(it, el, items, elementenMap, kader0), [it, el, items, elementenMap, kader0]);
+  const [extra, setExtra] = useState([]); // units die in de bouwer geplaatst zijn
+  const groep = useMemo(() => unitGroep(it, el, items, elementenMap, kader0, extra), [it, el, items, elementenMap, kader0, extra]);
   const [sel, setSel] = useState(it.id);
+  const [zicht, setZicht] = useState('plan'); // plan (2D, bouwen) of 3d (bekijken)
+  const [verd, setVerd] = useState(0);
   const [melding, setMelding] = useState(''); useEffect(() => { if (!melding) return undefined; const t = setTimeout(() => setMelding(''), 4000); return () => clearTimeout(t); }, [melding]);
   const g = groep.find((x) => x.it.id === sel) || groep[0];
   const units = useMemo(() => elementen.filter((e) => e.actief !== false && !e.plan_id && (isUnitEl(e) || isTrapEl(e))).sort((a, b) => String(a.leverancier || '').localeCompare(String(b.leverancier || ''), 'nl') || Number(isTrapEl(a)) - Number(isTrapEl(b)) || a.naam.localeCompare(b.naam, 'nl')), [elementen]);
@@ -71,7 +75,15 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
 
   // Na het plaatsen: de nieuwe unit kiezen, zodat je meteen verder bouwt.
   const [wacht, setWacht] = useState(null);
-  useEffect(() => { if (!wacht) return; const n = groep.find((o) => o.v === wacht.v && (wacht.midden ? Math.abs((o.it.parameters?.midden?.[0] || 0) - wacht.midden[0]) < 2e-7 && Math.abs((o.it.parameters?.midden?.[1] || 0) - wacht.midden[1]) < 2e-7 : Math.abs(o.x0 - wacht.x0) < 0.05 && Math.abs(o.y0 - wacht.y0) < 0.05)); if (n) { setSel(n.it.id); setWacht(null); } }, [groep, wacht]);
+  useEffect(() => {
+    if (!wacht) return;
+    // Op midden (en verdieping): eerst in de opstelling, anders in alle items (los geplaatst in het plan).
+    const zelfde = (m) => wacht.midden && m && Math.abs(m[0] - wacht.midden[0]) < 2e-7 && Math.abs(m[1] - wacht.midden[1]) < 2e-7;
+    const n = groep.find((o) => o.v === wacht.v && (wacht.midden ? zelfde(o.it.parameters?.midden) : Math.abs(o.x0 - wacht.x0) < 0.05 && Math.abs(o.y0 - wacht.y0) < 0.05));
+    if (n) { setSel(n.it.id); setWacht(null); return; }
+    const x = wacht.midden && items.find((y) => zelfde(y.parameters?.midden));
+    if (x) { setExtra((l) => (l.includes(x.id) ? l : [...l, x.id])); }
+  }, [groep, wacht, items]);
   const midden = (p) => A.naarGeo([p.x0 + p.L / 2, p.y0 + p.B / 2]);
   const plaats = (e2, p, q = 0) => {
     if (p?.schuin) { setWacht({ midden: p.schuin.midden, v: p.v }); onActie('unit-plaats', { el: e2.id, midden: p.schuin.midden, breedte: Number(e2.breedte_m), diepte: Number(e2.diepte_m), rot: p.schuin.rot, verdieping: p.v }); return; }
@@ -94,7 +106,6 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   // Slepen in 3D: een unit verplaatsen, of een unit uit de lijst erin slepen. R = draaien tijdens het slepen.
   const [sleep, setSleep] = useState(null); // { id?, el, q, p }
   const sleepRef = useRef(null); sleepRef.current = sleep;
-  const vrijSleep = useRef(null); // { id, start } bij het slepen van een schuine unit
   const lijstSleep = useRef(null); // element dat uit de lijst gesleept wordt
   const alleen = groep.filter((x) => !x.trap).length <= 1;
   const met = (s0, grond, hit) => { const p = plekBijSlepen(groep, s0.el, s0.q, grond, hit, s0.id); if (p && p.soort === 'vrij' && !(alleen && s0.id)) p.ok = false; return { ...s0, q: p?.q ?? s0.q, p, grond, hit }; };
@@ -105,34 +116,6 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
     if (!ander) { onSluit(); setTimeout(() => onActie('unit-weg', { _it: o.it.id }), 0); return; }
     onActie('unit-weg', { _it: o.it.id, anker: ander.it.id });
   };
-  const sleepVrij = schrijven ? (fase, data, grond, hit) => {
-    const o = groep.find((x) => x.it.id === data?.unit); if (!o) return;
-    // Unit onder een vrije hoek: vrij verschuiven (midden onder de muis), de hoek blijft.
-    if (o.vrij) {
-      // Verschuiven met de afstand die je sleept (niet het midden naar de muis), en niet over een andere unit.
-      if (!grond) return;
-      const r0 = vrijSleep.current?.id === o.it.id ? vrijSleep.current : (vrijSleep.current = { id: o.it.id, start: grond });
-      if (fase === 'beweeg') return;
-      vrijSleep.current = null; setSel(o.it.id);
-      const dx = grond[0] - r0.start[0]; const dy = grond[1] - r0.start[1]; if (Math.hypot(dx, dy) < 0.05) return;
-      const ring = o.hk.map((q) => [q[0] + dx, q[1] + dy]);
-      if (groep.some((x) => x.it.id !== o.it.id && x.v === o.v && x.hk && veelhoekenOverlap(ring, x.hk, 0.08))) { setMelding('Daar staat al een unit.'); return; }
-      const m = o.T([o.Lu / 2, o.Bu / 2]); onActie('unit-wijzig', { _it: o.it.id, midden: A.naarGeo([m[0] + dx, m[1] + dy]) }); return;
-    }
-    const s0 = sleepRef.current?.id === o.it.id ? sleepRef.current : { id: o.it.id, el: o.el, q: o.rot };
-    const s1 = met(s0, grond, hit);
-    if (fase === 'beweeg') { setSleep(s1); return; }
-    setSleep(null); setSel(o.it.id);
-    if (s1.p?.ok) onActie('unit-wijzig', { _it: o.it.id, midden: midden(s1.p), rot: (A.rot + s1.q) % 360, verdieping: s1.p.v });
-  } : null;
-  const dropVrij = schrijven ? (fase, grond, hit) => {
-    const e2 = lijstSleep.current; if (!e2) return;
-    if (fase === 'weg') { setSleep(null); return; }
-    const s1 = met(sleepRef.current && !sleepRef.current.id ? sleepRef.current : { el: e2, q: 0 }, grond, hit);
-    if (fase === 'over') { setSleep(s1); return; }
-    setSleep(null); lijstSleep.current = null;
-    if (s1.p?.ok) plaats(e2, s1.p, s1.q);
-  } : null;
   useEffect(() => {
     const h = (e) => {
       if (/INPUT|TEXTAREA|SELECT/.test(e.target?.tagName || '')) return;
@@ -178,6 +161,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
         <TerugKnop onClick={onSluit} />
         <strong>Containerbouwer</strong>
         <span className="fm-sub">{groep.filter((x) => !x.trap).length === 1 ? '1 unit' : `${groep.filter((x) => !x.trap).length} units`} · {hoog} hoog · ± {getal(kw)} kW</span>
+        <div className="fm-segment" role="group" aria-label="Weergave"><button type="button" className={zicht === 'plan' ? 'aan' : ''} onClick={() => setZicht('plan')}>Plan</button><button type="button" className={zicht === '3d' ? 'aan' : ''} disabled={!gl} title="3D om te bekijken" onClick={() => setZicht('3d')}>3D</button></div>
         <span style={{ flex: 1 }} />
         <button className="fm-knop klein" disabled={!gl} onClick={maakPdf}>PDF</button>
       </div>
@@ -188,7 +172,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
               <div className="fm-kop">{lev || 'Units'}</div>
               <div className="fm-cb-lijst">
                 {units.filter((e) => (e.leverancier || '') === lev).map((e) => (
-                  <button key={e.id} type="button" draggable className={`fm-cb-kaart${nieuw === e.id ? ' aan' : ''}`} title={`${e.naam} · sleep in 3D`}
+                  <button key={e.id} type="button" draggable className={`fm-cb-kaart${nieuw === e.id ? ' aan' : ''}`} title={`${e.naam} · sleep op het plan`}
                     onClick={() => setNieuw(e.id)} onDragStart={(ev) => { lijstSleep.current = e; setNieuw(e.id); ev.dataTransfer.setData('text/fm-unit', e.id); ev.dataTransfer.effectAllowed = 'copy'; }} onDragEnd={() => { lijstSleep.current = null; setSleep(null); }}>
                     <UnitDuim el={e} />
                     <b>{kortNaam(e)}</b>
@@ -200,8 +184,22 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
           ))}
         </aside>
         <div className="fm-ws-zicht">
-          {prims ? <DrieGL prims={prims} kies={(d) => { if (d?.unit) setSel(d.unit); }} sleepVrij={sleepVrij} dropVrij={dropVrij} bevries={!!sleep} /> : <div className="fm-sub" style={{ padding: 20 }}>3D is niet beschikbaar in deze browser.</div>}
-          {schrijven && <div className="fm-ws-tip fm-sub" style={{ top: 12, bottom: "auto" }}>{sleep ? (sleep.p?.ok ? (sleep.p.soort === 'erop' ? 'Erop' : 'Loslaten om te plaatsen') + ' · R = draaien' : 'Zet de unit tegen of op een andere unit') : 'Sleep een unit uit de lijst of in 3D · R = draaien · Delete = weghalen'}</div>}
+          {zicht === 'plan' ? (
+            <>
+              <ContainerPlan2D groep={groep} A={A} sel={sel} onKies={setSel} verd={verd} schrijven={schrijven} lijstEl={() => lijstSleep.current}
+                onWijzig={(id, w) => onActie('unit-wijzig', { _it: id, ...w })}
+                onPlaats={(e2, w) => { setWacht({ midden: w.midden, v: w.verdieping }); onActie('unit-plaats', { el: e2.id, midden: w.midden, breedte: Number(e2.breedte_m), diepte: Number(e2.diepte_m), rot: w.rot, verdieping: w.verdieping }); }}
+                onMelding={setMelding} />
+              <div className="fm-cb-verd" role="group" aria-label="Verdieping">
+                {Array.from({ length: Math.min(4, hoog + 1) }, (_, v) => <button key={v} type="button" className={verd === v ? 'aan' : ''} onClick={() => setVerd(v)}>{v === 0 ? 'Grond' : `Verdieping ${v}`}</button>)}
+              </div>
+              {verd > 0 && <div className="fm-cb-legende fm-sub"><span className="ja" /> hier kan je stapelen <span className="nee" /> niet stapelbaar (of al te hoog)</div>}
+              {melding && <div className="fm-melding fout fm-cb-plan-melding">{melding}</div>}
+              {schrijven && <div className="fm-ws-tip fm-sub" style={{ top: 'auto', bottom: 12 }}>Sleep een unit uit de lijst op het plan · slepen = verschuiven (kleeft, Alt = vrij) · bolletje = draaien (Shift = per 15°) · leeg slepen = schuiven · scrollen = zoomen</div>}
+            </>
+          ) : (
+            prims ? <DrieGL prims={prims} kies={(d) => { if (d?.unit) setSel(d.unit); }} /> : <div className="fm-sub" style={{ padding: 20 }}>3D is niet beschikbaar in deze browser.</div>
+          )}
         </div>
         <aside className="fm-ws-rechts">
           {g && <div className="fm-cb-gekozen"><UnitDuim el={g.el} w={64} h={44} /><div><b>{kortNaam(g.el)}</b><span className="fm-sub">{g.trap ? 'Trap' : `Verdieping ${g.v}`}{g.el?.leverancier ? ` · ${g.el.leverancier}` : ''}</span></div></div>}
@@ -250,7 +248,6 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
                 </div>
               );
             })()}
-            {melding && <div className="fm-melding fout" style={{ marginTop: 6 }}>{melding}</div>}
             {g.vrij && <div className="fm-sub">Staat onder een vrije hoek: geen schakelen of stapelen tegen de andere units; slepen verschuift hem vrij.</div>}
           </>}
           <div className="fm-kop" style={{ marginTop: 10 }}>Nakijken</div>

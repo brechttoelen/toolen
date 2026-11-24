@@ -72,7 +72,7 @@ export function veelhoekAfstand(A, B) {
 // kader (optioneel): { midden, rot, breedte, diepte } — een vast assenstelsel, zodat de opstelling niet
 // meedraait als je de unit draait waarop de bouwer geopend werd.
 // Units onder een vrije hoek (geen veelvoud van 90°) horen er ook bij: vrij = true, met hun omhullende rechthoek.
-export function unitGroep(it, el, items = [], elementenMap = new Map(), kader0 = null) {
+export function unitGroep(it, el, items = [], elementenMap = new Map(), kader0 = null, extra = null) {
   const A = kader0?.midden ? unitAssen({ parameters: kader0 }) : unitAssen(it); if (!A) return [];
   const leden = [];
   const kand = (items || []).filter((x) => x && !x.verborgen && x.parameters?.midden && isContainerDeel(elementenMap.get(x.element_id)));
@@ -98,6 +98,8 @@ export function unitGroep(it, el, items = [], elementenMap = new Map(), kader0 =
   // zo verdwijnt een unit niet uit de bouwer als je hem draait of verschuift.
   const groep = [eerste]; const in_ = new Set([eerste.it.id]);
   if (it.groep_id) for (const c of alle) if (!in_.has(c.it.id) && c.it.groep_id === it.groep_id) { groep.push(c); in_.add(c.it.id); }
+  // In de bouwer geplaatst (ook los van de rest): hoort erbij.
+  if (extra?.length) for (const c of alle) if (!in_.has(c.it.id) && extra.includes(c.it.id)) { groep.push(c); in_.add(c.it.id); }
   for (let k = 0; k < groep.length && groep.length < 40; k++) for (const c of alle) if (!in_.has(c.it.id) && raak(groep[k], c)) { groep.push(c); in_.add(c.it.id); }
   // Hoogte van elk lid: bovenop de hoogste unit eronder.
   const perV = [...groep].sort((a, b) => a.v - b.v);
