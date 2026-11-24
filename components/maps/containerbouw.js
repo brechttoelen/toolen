@@ -372,20 +372,62 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
   return prims;
 }
 
-// Wagen: koetswerk, cabine met ruiten en vier wielen, langs de langste zijde.
+// Wagen: een gestroomlijnd koetswerk uit doorsneden (SUV-silhouet), ruiten, lichten en ronde wielen; voorkant aan de + kant.
+const AUTO_PROFIEL = [
+  // [plaats langs de lengte, onderkant, gordellijn, dak, breedte (deel van de halve breedte)]
+  [0.0, 0.34, 0.66, 0.66, 0.9], [0.03, 0.3, 0.86, 0.86, 0.97], [0.1, 0.28, 0.95, 1.2, 1], [0.17, 0.28, 0.96, 1.6, 1],
+  [0.4, 0.27, 0.97, 1.64, 1], [0.62, 0.27, 0.98, 1.63, 1], [0.7, 0.28, 0.99, 1.42, 1], [0.8, 0.3, 0.98, 1.0, 1],
+  [0.93, 0.32, 0.88, 0.88, 0.98], [0.985, 0.36, 0.74, 0.74, 0.93], [1.0, 0.4, 0.62, 0.62, 0.88],
+];
 function autoPrims(g, { balk, vlak, data, aan }) {
-  const { x0, y0, x1, y1 } = g; const z0 = g.z0 || 0; const H = Math.max(1.2, Number(g.H) || 1.65);
+  const { x0, y0, x1, y1 } = g; const z0 = g.z0 || 0;
   const langX = x1 - x0 >= y1 - y0; const L = langX ? x1 - x0 : y1 - y0; const B = langX ? y1 - y0 : x1 - x0;
-  const P = (u, w, z) => (langX ? [x0 + u, y0 + w, z] : [x0 + w, y0 + u, z]); // u langs, w dwars
-  const kl = aan ? '#93C5FD' : g.el?.eigenschappen?.kleur || '#D1D5DB'; const R = 0.34; const zk = z0 + 0.28;
-  // Koetswerk (onderbak) en motorkap/koffer.
-  balk(P(0.04, B / 2, zk + 0.33), P(L - 0.04, B / 2, zk + 0.33), [B - 0.06, 0.66], kl, { data });
-  // Cabine: iets smaller, van ± 28 % tot 78 % van de lengte (voorkant aan de + kant).
-  const c0 = L * 0.22; const c1 = L * 0.74; const zc = zk + 0.66; const hc = Math.max(0.4, z0 + H - zc);
-  balk(P(c0, B / 2, zc + hc / 2), P(c1, B / 2, zc + hc / 2), [B - 0.22, hc], '#475569', { data });
-  vlak([P(c0 + 0.06, 0.12, zc + hc + 0.001), P(c1 - 0.06, 0.12, zc + hc + 0.001), P(c1 - 0.06, B - 0.12, zc + hc + 0.001), P(c0 + 0.06, B - 0.12, zc + hc + 0.001)], kl, 1, data);
-  // Wielen.
-  for (const u of [L * 0.17, L * 0.8]) for (const [w0, w1] of [[0.0, 0.24], [B - 0.24, B]]) balk(P(u, w0, z0 + R), P(u, w1, z0 + R), [2 * R, 2 * R], '#1F2937');
+  const sz = Math.max(1.2, Number(g.H) || 1.65) / 1.65; const hb = B / 2;
+  const P = (u, w, z) => (langX ? [x0 + u, y0 + hb + w, z0 + z] : [x0 + hb + w, y0 + u, z0 + z]); // u langs, w vanaf de as
+  const LAK = aan ? '#93C5FD' : g.el?.eigenschappen?.kleur || '#C8CDD2'; const RUIT = '#1E293B'; const ZWART = '#111827';
+  // Doorsnede per station: halve omtrek van onder naar boven (zijkant, schouder, ruit, dak).
+  const st = AUTO_PROFIEL.map(([f, lo, belt, top, br]) => {
+    const u = f * L; const hw = hb * br; const kas = top - belt > 0.12; const hr = kas ? hw - 0.2 : hw - 0.1;
+    return { u, kas, pts: [[hw, lo * sz], [hw, (lo + 0.12) * sz], [hw - 0.02, belt * sz], [hr, top * sz]], top: top * sz };
+  });
+  const zij = (a, b, k, s) => [P(a.u, s * a.pts[k][0], a.pts[k][1]), P(b.u, s * b.pts[k][0], b.pts[k][1]), P(b.u, s * b.pts[k + 1][0], b.pts[k + 1][1]), P(a.u, s * a.pts[k + 1][0], a.pts[k + 1][1])];
+  for (let i = 0; i < st.length - 1; i++) {
+    const a = st[i]; const b = st[i + 1]; const ruit = a.kas || b.kas; const steil = Math.abs(b.top - a.top) / Math.max(0.01, b.u - a.u) > 1.2;
+    for (const s of [-1, 1]) {
+      vlak(zij(a, b, 0, s), ZWART, 1, data); // dorpel / bumperrand
+      vlak(zij(a, b, 1, s), LAK, 1, data); // flank
+      vlak(zij(a, b, 2, s), ruit ? RUIT : LAK, 1, data); // zijruit of motorkap-schouder
+    }
+    // Dak, motorkap en koffer; voor- en achterruit waar het dak steil daalt.
+    const t = (q, s) => P(q.u, s * q.pts[3][0], q.pts[3][1]);
+    vlak([t(a, -1), t(b, -1), t(b, 1), t(a, 1)], steil && ruit ? RUIT : a.kas && b.kas ? '#2B2F33' : LAK, 1, data);
+    // Bodem.
+    vlak([P(a.u, -a.pts[0][0], a.pts[0][1]), P(b.u, -b.pts[0][0], b.pts[0][1]), P(b.u, b.pts[0][0], b.pts[0][1]), P(a.u, a.pts[0][0], a.pts[0][1])], ZWART, 1);
+  }
+  // Voor- en achterkant dicht.
+  for (const q of [st[0], st[st.length - 1]]) vlak([...q.pts.map(([w, z]) => P(q.u, w, z)), ...[...q.pts].reverse().map(([w, z]) => P(q.u, -w, z))], LAK, 1, data);
+  // Lichten: LED-strook vooraan, rode strook achteraan, met de lichtbalk over de hele breedte (Leapmotor-stijl).
+  const v = st[st.length - 2]; const ac = st[1];
+  vlak([P(v.u + 0.004, -v.pts[2][0] + 0.12, 0.8 * sz), P(v.u + 0.004, v.pts[2][0] - 0.12, 0.8 * sz), P(v.u + 0.004, v.pts[2][0] - 0.12, 0.84 * sz), P(v.u + 0.004, -v.pts[2][0] + 0.12, 0.84 * sz)], '#F8FAFC', 1);
+  vlak([P(ac.u - 0.004, -ac.pts[2][0] + 0.08, 0.8 * sz), P(ac.u - 0.004, ac.pts[2][0] - 0.08, 0.8 * sz), P(ac.u - 0.004, ac.pts[2][0] - 0.08, 0.85 * sz), P(ac.u - 0.004, -ac.pts[2][0] + 0.08, 0.85 * sz)], '#B91C1C', 1);
+  // Spiegels.
+  for (const s of [-1, 1]) balk(P(0.71 * L, s * (hb - 0.02), 1.02 * sz), P(0.71 * L, s * (hb + 0.14), 1.02 * sz), [0.09, 0.12], LAK);
+  // Wielen (16-hoek): band met wielkast en velg.
+  const R = 0.36 * sz; const N = 16; const bw = 0.24;
+  for (const f of [0.17, 0.8]) {
+    const u = f * L;
+    for (const s of [-1, 1]) {
+      const wu = s * (hb + 0.005); const wi = s * (hb - bw);
+      const rnd = (r, w, k) => { const a = (k / N) * Math.PI * 2; return P(u + r * Math.cos(a), w, R + r * Math.sin(a)); };
+      // Wielkast: donkere boog op de flank.
+      const kast = []; for (let k = 0; k <= N / 2; k++) kast.push(rnd(R + 0.06, s * (hb + 0.002), k)); vlak(kast, ZWART, 1);
+      for (let k = 0; k < N; k++) vlak([rnd(R, wu, k), rnd(R, wu, k + 1), rnd(R, wi, k + 1), rnd(R, wi, k)], '#1F2937', 1); // loopvlak
+      const band = []; const velg = [];
+      for (let k = 0; k < N; k++) { band.push(rnd(R, wu, k)); velg.push(rnd(R * 0.62, s * (hb + 0.01), k)); }
+      vlak(band, '#1F2937', 1); vlak(velg, '#9CA3AF', 1);
+      const naaf = []; for (let k = 0; k < N; k++) naaf.push(rnd(R * 0.16, s * (hb + 0.015), k)); vlak(naaf, '#4B5563', 1);
+    }
+  }
 }
 
 // Buitentrap met bordes (gegalvaniseerd): trap langs x van x0 tot het bordes, bordes van 1,4 m tegen x1.
