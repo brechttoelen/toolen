@@ -44,7 +44,22 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
 
   // Stapelen: een unit op verdieping v moet met zijn midden op een unit van v − 1 staan die zo hoog gestapeld mag worden.
   const draagt = (u, v) => !u.trap && !u.auto && u.g.v === v - 1 && v + 1 <= stapelMax(u.g.el);
-  const magOp = (mid, v, weg) => v === 0 || units.some((u) => u.g.it.id !== weg && draagt(u, v) && binnen(mid, u.ring));
+  // Gedragen als het midden op een unit staat, of als beide kopse kanten op een unit rusten (overbruggen, zoals bij hoekgietstukken).
+  const steunt = (p, v, weg) => units.some((u) => u.g.it.id !== weg && draagt(u, v) && binnen(p, u.ring));
+  const magOp = (mid, v, weg, ring = null) => {
+    if (v === 0 || steunt(mid, v, weg)) return true;
+    if (!ring) return false;
+    const d = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const [a, b, c, e] = ring; const langAB = d(a, b) >= d(b, c);
+    // De twee kopse kanten als [hoek1, hoek2] met hun binnenrichting.
+    const koppen = langAB ? [[b, c, a], [e, a, b]] : [[a, b, e], [c, e, b]];
+    const L = langAB ? d(a, b) : d(b, c); const inz = Math.min(0.3, L / 4);
+    const draagtKop = ([p1, p2, ver]) => {
+      const lx = (ver[0] - p1[0]) / d(p1, ver); const ly = (ver[1] - p1[1]) / d(p1, ver);
+      return [0.08, 0.5, 0.92].some((f) => steunt([p1[0] + (p2[0] - p1[0]) * f + lx * inz, p1[1] + (p2[1] - p1[1]) * f + ly * inz], v, weg));
+    };
+    return draagtKop(koppen[0]) && draagtKop(koppen[1]);
+  };
   // Een wagen mag in een container met glazen wand staan (showroom); verder botst alles.
   const botst = (ring, v, weg, auto = false) => units.some((u) => u.g.it.id !== weg && u.g.v === v && !(auto && !u.auto && !u.trap && heeftGlas(u.g)) && veelhoekenOverlap(ring, u.ring, 0.05));
   const isA = (s) => (s.el ? isAutoEl(s.el) : !!units.find((u) => u.g.it.id === s.id)?.auto);
@@ -71,7 +86,7 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
       let mid = s.soort === 'nieuw' ? p : [s.mid0[0] + p[0] - s.p0[0], s.mid0[1] + p[1] - s.p0[1]];
       let ring = ringOm(mid, s.L, s.Bm, s.hoek);
       if (!e.altKey) { const [dx, dy] = kleef(ring, verd, s.id); mid = [mid[0] + dx, mid[1] + dy]; ring = ringOm(mid, s.L, s.Bm, s.hoek); }
-      const ok = !botst(ring, verd, s.id, isA(s)) && magOp(mid, verd, s.id);
+      const ok = !botst(ring, verd, s.id, isA(s)) && magOp(mid, verd, s.id, ring);
       return { ...s, mid, ring, ok };
     }
     if (s.soort === 'draai') {
@@ -79,7 +94,7 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
       if (e.shiftKey) a = Math.round(a / (Math.PI / 12)) * (Math.PI / 12);
       else for (const u of units) { if (u.g.it.id === s.id) continue; const h = hoekVan(u.ring); for (let k = 0; k < 4; k++) { const w = h + (k * Math.PI) / 2; const d = Math.atan2(Math.sin(a - w), Math.cos(a - w)); if (Math.abs(d) < 0.035) a = w; } }
       const ring = ringOm(s.mid0, s.L, s.Bm, a);
-      return { ...s, hoek: a, ring, mid: s.mid0, ok: !botst(ring, verd, s.id, isA(s)) };
+      return { ...s, hoek: a, ring, mid: s.mid0, ok: !botst(ring, verd, s.id, isA(s)) && magOp(s.mid0, verd, s.id, ring) };
     }
     return s;
   };
@@ -100,7 +115,7 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
     const los = () => {
       const s = sleepRef.current; if (!s) return; setSleep(null);
       if (s.soort === 'pan' || !s.bewogen) return;
-      if (!s.ok) { onMelding(s.soort === 'draai' ? 'Zo draaien kan niet: de unit komt over een andere unit.' : (botst(s.ring, verd, s.id, isA(s)) ? 'Daar staat al een unit.' : 'Hier kan je niet stapelen: zet de unit op een unit die zo hoog gestapeld mag worden.')); return; }
+      if (!s.ok) { onMelding(s.soort === 'draai' ? (botst(s.ring, verd, s.id, isA(s)) ? 'Zo draaien kan niet: de unit komt over een andere unit.' : 'Zo draaien kan niet: de unit rust dan niet meer op de units eronder.') : (botst(s.ring, verd, s.id, isA(s)) ? 'Daar staat al een unit.' : 'Hier kan je niet stapelen: zet het midden of beide kopse kanten op een unit die zo hoog gestapeld mag worden.')); return; }
       // Geografische draaiing: met de klok mee, dus tegengesteld aan de hoek in het kader.
       const dRot = s.soort === 'draai' ? -((s.hoek - s.hoek0) * 180) / Math.PI : 0;
       const rot = Math.round(((((s.rot0 + dRot) % 360) + 360) % 360) * 10) / 10;

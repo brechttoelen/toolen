@@ -176,7 +176,7 @@ export function containerMeldingen(groep) {
     if (g.v > 0) {
       const onder = units.filter((o) => o.v === g.v - 1 && overlap(o, g));
       const opp = (g.x1 - g.x0) * (g.y1 - g.y0); const gedekt = onder.reduce((a, o) => a + Math.max(0, Math.min(o.x1, g.x1) - Math.max(o.x0, g.x0)) * Math.max(0, Math.min(o.y1, g.y1) - Math.max(o.y0, g.y0)), 0);
-      if (gedekt < opp * 0.97) uit.push({ soort: 'fout', ids: [g.it.id], tekst: `${naam(g)}: staat niet volledig op de units eronder.` });
+      if (gedekt < opp * 0.97) uit.push({ soort: 'let-op', ids: [g.it.id], tekst: `${naam(g)}: rust niet volledig op de units eronder (overbrugt of kraagt uit): laat dit nakijken door de verhuurder.` });
       const max = Math.min(stapelMax(g.el), ...onder.map((o) => stapelMax(o.el)));
       if (g.v + 1 > max) uit.push({ soort: 'fout', ids: [g.it.id, ...onder.map((o) => o.it.id)], tekst: `${naam(g)}: ${g.v + 1} hoog, maximaal ${max}.` });
     }
