@@ -9,7 +9,7 @@ import { useBouwerSchild, schildProps } from './bouwerschild';
 import { webglKan } from './StellingStudio';
 import { StellingPlannen } from './stellingplannen';
 import GevelBeheer from './GevelBeheer';
-import { schakelGedraaid } from './containerbouw';
+import { schakelGedraaid, veelhoekAfstand } from './containerbouw';
 import { unitGroep, unitAssen, isUnitEl, isTrapEl, schakelPlan, schakelElement, containerMeldingen, plekNaast, plekTrap, containerTelling, containerPrims, stapelMax, plekBijSlepen, unitStijl, openZijden, schakelVan, gevelLijn } from './containerbouw';
 
 const DrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () => <div className="fm-wz fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div> });
@@ -196,7 +196,19 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
             </div>
             {!g.trap && (() => {
               // Vrij draaien rond het eigen midden: per 5°, of een hoek typen.
-              const r0 = Number(g.it.parameters?.rot) || 0; const zet = (r) => onActie('unit-wijzig', { _it: g.it.id, rot: Math.round((((r % 360) + 360) % 360) * 10) / 10 });
+              const r0 = Number(g.it.parameters?.rot) || 0;
+              // Scharnier: de hoek van de unit die het dichtst bij een buur ligt, zodat ze tegen elkaar blijven
+              // (zoals een waaier). Zonder buur: rond het eigen midden.
+              const zet = (r) => {
+                const rot = Math.round((((r % 360) + 360) % 360) * 10) / 10; const dl = ((rot - r0 + 540) % 360) - 180;
+                const hk = [[0, 0], [g.Lu, 0], [g.Lu, g.Bu], [0, g.Bu]].map((q) => g.T(q)); const mid = g.T([g.Lu / 2, g.Bu / 2]);
+                let pv = null; let best = 0.8;
+                for (const o of groep) { if (o.it.id === g.it.id || o.trap || o.v !== g.v || !o.hk) continue; for (const c of hk) { const d = veelhoekAfstand([c, c, c], o.hk); if (d < best) { best = d; pv = c; } } }
+                if (!pv || !A) { onActie('unit-wijzig', { _it: g.it.id, rot }); return; }
+                const t = (-dl * Math.PI) / 180; const dx = mid[0] - pv[0]; const dy = mid[1] - pv[1];
+                const nm = [pv[0] + dx * Math.cos(t) - dy * Math.sin(t), pv[1] + dx * Math.sin(t) + dy * Math.cos(t)];
+                onActie('unit-wijzig', { _it: g.it.id, rot, midden: A.naarGeo(nm) });
+              };
               return (
                 <div className="fm-cb-hoek">
                   <span className="fm-sub">Hoek</span>

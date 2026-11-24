@@ -45,6 +45,17 @@ export function unitAssen(it) {
   };
 }
 
+// Kleinste afstand tussen twee convexe veelhoeken (0 als ze overlappen).
+const puntSeg = (p, a, b) => { const dx = b[0] - a[0]; const dy = b[1] - a[1]; const l2 = dx * dx + dy * dy || 1; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); };
+const binnen = (p, ring) => { let i = false; for (let k = 0, j = ring.length - 1; k < ring.length; j = k++) { const [xi, yi] = ring[k]; const [xj, yj] = ring[j]; if ((yi > p[1]) !== (yj > p[1]) && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) i = !i; } return i; };
+export function veelhoekAfstand(A, B) {
+  if (!A || !B) return Infinity;
+  if (A.some((p) => binnen(p, B)) || B.some((p) => binnen(p, A))) return 0;
+  let d = Infinity;
+  for (const [P, Q] of [[A, B], [B, A]]) for (const p of P) for (let k = 0; k < Q.length; k++) d = Math.min(d, puntSeg(p, Q[k], Q[(k + 1) % Q.length]));
+  return d;
+}
+
 // De opstelling rond een unit: alle units en trappen die (via elkaar) raken of op elkaar staan.
 // Geeft [{ it, el, x0, y0, x1, y1, v, rot (verschil met de eerste unit: 0/90/180/270), H }] in het kader van de eerste unit.
 // kader (optioneel): { midden, rot, breedte, diepte } — een vast assenstelsel, zodat de opstelling niet
@@ -60,11 +71,13 @@ export function unitGroep(it, el, items = [], elementenMap = new Map(), kader0 =
     const d = ((((B2.rot - A.rot) % 360) + 360) % 360); const vrij = Math.abs(d - Math.round(d / 90) * 90) > 3; const q = vrij ? Math.round(d * 10) / 10 : Math.round(d / 90) * 90 % 360;
     const hk = [[0, 0], [B2.L, 0], [B2.L, B2.B], [0, B2.B]].map((h) => A.vanGeo(B2.naarGeo(h)));
     const xs = hk.map((h) => h[0]); const ys = hk.map((h) => h[1]);
-    return { it: x, el: e, T: (q) => A.vanGeo(B2.naarGeo(q)), Lu: B2.L, Bu: B2.B, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), v: Number(x.velden?.verdieping) || 0, rot: q, vrij, H: unitHoogte(e), trap: isTrapEl(e) };
+    return { it: x, el: e, T: (q) => A.vanGeo(B2.naarGeo(q)), Lu: B2.L, Bu: B2.B, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), v: Number(x.velden?.verdieping) || 0, rot: q, vrij, hk, H: unitHoogte(e), trap: isTrapEl(e) };
   };
   const alle = kand.map(kader).filter(Boolean);
   const eerste = alle.find((k) => k.it.id === it.id); if (!eerste) return [];
   const raak = (a, b) => {
+    // Schuin (vrije hoek): de echte omtrekken tot op een halve meter, niet de omhullende rechthoeken.
+    if ((a.vrij || b.vrij) && a.v === b.v) return veelhoekAfstand(a.hk, b.hk) < 0.5;
     const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0); const oy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
     if (a.v === b.v) return (ox > -0.15 && oy > 0.3) || (oy > -0.15 && ox > 0.3); // naast elkaar (gedeelde zijde)
     if (Math.abs(a.v - b.v) === 1) return ox > 0.3 && oy > 0.3; // op elkaar
