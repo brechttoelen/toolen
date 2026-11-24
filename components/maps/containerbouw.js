@@ -360,7 +360,7 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
       const m = g.T(m0); const af = { V: Math.abs(m[1] - y0), A: Math.abs(m[1] - y1), L: Math.abs(m[0] - x0), R: Math.abs(m[0] - x1) };
       zijdeVan[Object.entries(af).sort((p, q) => p[1] - q[1])[0][0]] = zl;
     }
-    const pan2 = aan ? pan : br.kleur || pan;
+    const pan2 = br.kleur || pan; // de gekozen kleur blijft zichtbaar, ook als de unit geselecteerd is
     for (const [z, [a0, b0, n]] of Object.entries(W)) {
       if (open.has(z) || glasZ.has(z)) continue;
       const ont = br[zijdeVan[z]] ? opties.doekMap?.get(br[zijdeVan[z]]) : null;

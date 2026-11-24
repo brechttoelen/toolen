@@ -82,7 +82,7 @@ export default function ConceptStudio({ midden, items, elementen, elementenMap, 
         const o = naarM(c[0]); if (Math.hypot(o[0], o[1]) > straal + 30) continue;
         const st = trussStukken(wandPunten(it), it); if (!st.length) continue;
         const xs = st.flatMap((s) => [s.a[0], s.e[0]]).map((x) => x + o[0]); const ys = st.flatMap((s) => [s.a[1], s.e[1]]).map((y) => y + o[1]);
-        const r = [[Math.min(...xs) - 0.2, Math.min(...ys) - 0.2], [Math.max(...xs) + 0.2, Math.min(...ys) - 0.2], [Math.max(...xs) + 0.2, Math.max(...ys) + 0.2], [Math.min(...xs) - 0.2, Math.max(...ys) + 0.2]];
+        const m = 0.7; const r = [[Math.min(...xs) - m, Math.min(...ys) - m], [Math.max(...xs) + m, Math.min(...ys) - m], [Math.max(...xs) + m, Math.max(...ys) + m], [Math.min(...xs) - m, Math.max(...ys) + m]]; // ruim genoeg om aan te klikken
         uit.push({ id: it.id, it, el, soort, ring: r, mid: [(r[0][0] + r[1][0]) / 2, (r[0][1] + r[2][1]) / 2], st, o, v: 0 });
         continue;
       }
