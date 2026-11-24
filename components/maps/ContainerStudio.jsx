@@ -9,7 +9,7 @@ import { useBouwerSchild, schildProps } from './bouwerschild';
 import { webglKan } from './StellingStudio';
 import { StellingPlannen } from './stellingplannen';
 import GevelBeheer from './GevelBeheer';
-import { schakelGedraaid, veelhoekAfstand } from './containerbouw';
+import { schakelGedraaid, veelhoekAfstand, veelhoekenOverlap } from './containerbouw';
 import { unitGroep, unitAssen, isUnitEl, isTrapEl, isContainerDeel, schakelPlan, schakelElement, containerMeldingen, plekNaast, plekTrap, containerTelling, containerPrims, stapelMax, plekBijSlepen, unitStijl, openZijden, schakelVan, gevelLijn } from './containerbouw';
 
 const DrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () => <div className="fm-wz fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div> });
@@ -50,6 +50,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   const [kader0] = useState(() => (it.parameters?.midden ? { midden: it.parameters.midden, rot: Number(it.parameters.rot) || 0, breedte: it.parameters.breedte, diepte: it.parameters.diepte } : null));
   const groep = useMemo(() => unitGroep(it, el, items, elementenMap, kader0), [it, el, items, elementenMap, kader0]);
   const [sel, setSel] = useState(it.id);
+  const [melding, setMelding] = useState(''); useEffect(() => { if (!melding) return undefined; const t = setTimeout(() => setMelding(''), 4000); return () => clearTimeout(t); }, [melding]);
   const g = groep.find((x) => x.it.id === sel) || groep[0];
   const units = useMemo(() => elementen.filter((e) => e.actief !== false && !e.plan_id && (isUnitEl(e) || isTrapEl(e))).sort((a, b) => String(a.leverancier || '').localeCompare(String(b.leverancier || ''), 'nl') || Number(isTrapEl(a)) - Number(isTrapEl(b)) || a.naam.localeCompare(b.naam, 'nl')), [elementen]);
   const [nieuw, setNieuw] = useState(el?.id || '');
@@ -93,6 +94,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   // Slepen in 3D: een unit verplaatsen, of een unit uit de lijst erin slepen. R = draaien tijdens het slepen.
   const [sleep, setSleep] = useState(null); // { id?, el, q, p }
   const sleepRef = useRef(null); sleepRef.current = sleep;
+  const vrijSleep = useRef(null); // { id, start } bij het slepen van een schuine unit
   const lijstSleep = useRef(null); // element dat uit de lijst gesleept wordt
   const alleen = groep.filter((x) => !x.trap).length <= 1;
   const met = (s0, grond, hit) => { const p = plekBijSlepen(groep, s0.el, s0.q, grond, hit, s0.id); if (p && p.soort === 'vrij' && !(alleen && s0.id)) p.ok = false; return { ...s0, q: p?.q ?? s0.q, p, grond, hit }; };
@@ -106,7 +108,17 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   const sleepVrij = schrijven ? (fase, data, grond, hit) => {
     const o = groep.find((x) => x.it.id === data?.unit); if (!o) return;
     // Unit onder een vrije hoek: vrij verschuiven (midden onder de muis), de hoek blijft.
-    if (o.vrij) { if (fase !== 'beweeg' && grond) { setSel(o.it.id); onActie('unit-wijzig', { _it: o.it.id, midden: A.naarGeo(grond) }); } return; }
+    if (o.vrij) {
+      // Verschuiven met de afstand die je sleept (niet het midden naar de muis), en niet over een andere unit.
+      if (!grond) return;
+      const r0 = vrijSleep.current?.id === o.it.id ? vrijSleep.current : (vrijSleep.current = { id: o.it.id, start: grond });
+      if (fase === 'beweeg') return;
+      vrijSleep.current = null; setSel(o.it.id);
+      const dx = grond[0] - r0.start[0]; const dy = grond[1] - r0.start[1]; if (Math.hypot(dx, dy) < 0.05) return;
+      const ring = o.hk.map((q) => [q[0] + dx, q[1] + dy]);
+      if (groep.some((x) => x.it.id !== o.it.id && x.v === o.v && x.hk && veelhoekenOverlap(ring, x.hk, 0.08))) { setMelding('Daar staat al een unit.'); return; }
+      const m = o.T([o.Lu / 2, o.Bu / 2]); onActie('unit-wijzig', { _it: o.it.id, midden: A.naarGeo([m[0] + dx, m[1] + dy]) }); return;
+    }
     const s0 = sleepRef.current?.id === o.it.id ? sleepRef.current : { id: o.it.id, el: o.el, q: o.rot };
     const s1 = met(s0, grond, hit);
     if (fase === 'beweeg') { setSleep(s1); return; }
@@ -218,12 +230,20 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
               const zet = (r) => {
                 const rot = Math.round((((r % 360) + 360) % 360) * 10) / 10; const dl = ((rot - r0 + 540) % 360) - 180;
                 const hk = [[0, 0], [g.Lu, 0], [g.Lu, g.Bu], [0, g.Bu]].map((q) => g.T(q)); const mid = g.T([g.Lu / 2, g.Bu / 2]);
-                let pv = null; let best = 0.8;
-                for (const o of groep) { if (o.it.id === g.it.id || o.trap || o.v !== g.v || !o.hk) continue; for (const c of hk) { const d = veelhoekAfstand([c, c, c], o.hk); if (d < best) { best = d; pv = c; } } }
-                if (!pv || !A) { onActie('unit-wijzig', { _it: g.it.id, rot }); return; }
-                const t = (-dl * Math.PI) / 180; const dx = mid[0] - pv[0]; const dy = mid[1] - pv[1];
-                const nm = [pv[0] + dx * Math.cos(t) - dy * Math.sin(t), pv[1] + dx * Math.sin(t) + dy * Math.cos(t)];
-                onActie('unit-wijzig', { _it: g.it.id, rot, midden: A.naarGeo(nm) });
+                const buren = groep.filter((o) => o.it.id !== g.it.id && !o.trap && o.v === g.v && o.hk);
+                const t = (-dl * Math.PI) / 180; const rond = (q, pv) => [pv[0] + (q[0] - pv[0]) * Math.cos(t) - (q[1] - pv[1]) * Math.sin(t), pv[1] + (q[0] - pv[0]) * Math.sin(t) + (q[1] - pv[1]) * Math.cos(t)];
+                // Scharnier: elke hoek die tegen een buur ligt (dichtste eerst), daarna het eigen midden.
+                // De eerste die niet over een andere unit draait, wint; anders draait de unit niet.
+                const kand = hk.map((c) => ({ c, d: Math.min(...buren.map((o) => veelhoekAfstand([c, c, c], o.hk)), Infinity) })).filter((x) => x.d < 0.8).sort((x, y) => x.d - y.d).map((x) => x.c);
+                kand.push(mid);
+                for (const pv of kand) {
+                  const ring = hk.map((q) => rond(q, pv));
+                  const binnen = ring.map((q) => [q[0] + (rond(mid, pv)[0] - q[0]) * 0.02, q[1] + (rond(mid, pv)[1] - q[1]) * 0.02]);
+                  if (buren.some((o) => veelhoekenOverlap(binnen, o.hk, 0.08))) continue;
+                  onActie('unit-wijzig', { _it: g.it.id, rot, midden: A ? A.naarGeo(rond(mid, pv)) : undefined });
+                  return;
+                }
+                setMelding('Zo draaien kan niet: de unit zou over een andere unit komen.');
               };
               return (
                 <div className="fm-cb-hoek">
@@ -234,6 +254,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
                 </div>
               );
             })()}
+            {melding && <div className="fm-melding fout" style={{ marginTop: 6 }}>{melding}</div>}
             {g.vrij && <div className="fm-sub">Staat onder een vrije hoek: geen schakelen of stapelen tegen de andere units; slepen verschuift hem vrij.</div>}
           </>}
           <div className="fm-kop" style={{ marginTop: 10 }}>Nakijken</div>

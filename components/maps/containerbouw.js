@@ -48,6 +48,17 @@ export function unitAssen(it) {
 // Kleinste afstand tussen twee convexe veelhoeken (0 als ze overlappen).
 const puntSeg = (p, a, b) => { const dx = b[0] - a[0]; const dy = b[1] - a[1]; const l2 = dx * dx + dy * dy || 1; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); };
 const binnen = (p, ring) => { let i = false; for (let k = 0, j = ring.length - 1; k < ring.length; j = k++) { const [xi, yi] = ring[k]; const [xj, yj] = ring[j]; if ((yi > p[1]) !== (yj > p[1]) && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) i = !i; } return i; };
+// Overlappen twee convexe veelhoeken echt (meer dan `marge` meter)? Scheidende-as-test.
+export function veelhoekenOverlap(A, B, marge = 0.05) {
+  if (!A || !B) return false;
+  for (const P of [A, B]) for (let k = 0; k < P.length; k++) {
+    const a = P[k]; const b = P[(k + 1) % P.length]; const n = [b[1] - a[1], a[0] - b[0]]; const l = Math.hypot(...n) || 1;
+    const pr = (Q) => Q.map((q) => (q[0] * n[0] + q[1] * n[1]) / l);
+    const pa = pr(A); const pb = pr(B);
+    if (Math.min(Math.max(...pa), Math.max(...pb)) - Math.max(Math.min(...pa), Math.min(...pb)) < marge) return false;
+  }
+  return true;
+}
 export function veelhoekAfstand(A, B) {
   if (!A || !B) return Infinity;
   if (A.some((p) => binnen(p, B)) || B.some((p) => binnen(p, A))) return 0;
