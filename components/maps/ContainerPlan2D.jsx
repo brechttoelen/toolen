@@ -155,7 +155,7 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
   const greep = (u) => { const h = hoekVan(u.ring); const r = u.B / 2 + 18 / B.s; return [u.mid[0] - Math.sin(h) * r, u.mid[1] + Math.cos(h) * r]; };
 
   return (
-    <svg ref={svgRef} className="fm-cb-plan" width={maat.w} height={maat.h} onPointerDown={achtergrond} onDragOver={overSlepen} onDragLeave={() => { if (sleepRef.current?.soort === 'nieuw') setSleep(null); }} onDrop={neerzetten} onContextMenu={(e) => e.preventDefault()}>
+    <svg ref={svgRef} className="fm-cb-plan" width={maat.w} height={maat.h} onPointerDown={achtergrond} onDragOver={overSlepen} onDragLeave={(e) => { if (sleepRef.current?.soort === 'nieuw' && !svgRef.current?.contains(e.relatedTarget)) setSleep(null); }} onDrop={neerzetten} onContextMenu={(e) => e.preventDefault()}>
       <defs>
         <pattern id="cb-niet" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#DC2626" strokeWidth="2" opacity="0.35" /></pattern>
       </defs>
@@ -171,7 +171,7 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
         const onder = verd > 0 && u.g.v === verd - 1;
         const kan = onder && draagt(u, verd);
         return (
-          <g key={u.g.it.id} opacity={op ? (weg ? 0.25 : 1) : 0.55} style={{ cursor: op && schrijven ? 'move' : 'pointer' }} onPointerDown={(e) => omlaag(e, u)}>
+          <g key={u.g.it.id} pointerEvents={sleep?.soort === 'nieuw' ? 'none' : undefined} opacity={op ? (weg ? 0.25 : 1) : 0.55} style={{ cursor: op && schrijven ? 'move' : 'pointer' }} onPointerDown={(e) => omlaag(e, u)}>
             <path d={pad(u.ring)} fill={onder ? (kan ? '#BBF7D0' : '#FEE2E2') : kleur(u)} stroke={u.g.it.id === sel && op ? '#2563EB' : '#1F2937'} strokeWidth={u.g.it.id === sel && op ? 2.5 : 1.2} />
             {onder && !kan && <path d={pad(u.ring)} fill="url(#cb-niet)" pointerEvents="none" />}
             {/* Deuren, ramen, glas en klep op de wanden. */}
