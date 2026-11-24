@@ -258,7 +258,7 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
     const opNeer = (e) => {
       if (e.button !== 0) return; D.neer = [e.clientX, e.clientY];
       const h = pick(e); if (h?.data?.seg?.startsWith('I-') && interRef.current) { D.sleep = { seg: h.data.seg, bezig: false }; a.ctl.enabled = false; }
-      else if (h?.data?.sleep && vrijRef.current) { D.sleep = { vrij: h.data, bezig: false }; a.ctl.enabled = false; }
+      else if (h?.data?.sleep && vrijRef.current) { D.sleep = { vrij: h.data, bezig: false, g0: grond(e) }; a.ctl.enabled = false; }
     };
     const opBeweeg = (e) => {
       if (D.sleep?.vrij) { if (!D.sleep.bezig && D.neer && Math.hypot(e.clientX - D.neer[0], e.clientY - D.neer[1]) > 5) D.sleep.bezig = true; if (D.sleep.bezig) { const g = grond(e); const ev = { clientX: e.clientX, clientY: e.clientY }; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { const h = pick(ev); vrijRef.current?.('beweeg', D.sleep?.vrij, g, h?.data && !zelfde(h.data, D.sleep?.vrij) ? h.data : null, D.sleep?.g0); }); } return; }
@@ -267,7 +267,7 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
       cancelAnimationFrame(raf); const ev = { clientX: e.clientX, clientY: e.clientY }; raf = requestAnimationFrame(() => toon(pick(ev)?.data || null));
     };
     const opLos = (e) => {
-      if (D.sleep?.vrij) { const s = D.sleep; D.sleep = null; a.ctl.enabled = true; cancelAnimationFrame(raf); if (s.bezig) { D.neer = null; const h = pick(e); vrijRef.current?.('los', s.vrij, grond(e), h?.data && !zelfde(h.data, s.vrij) ? h.data : null); return; } }
+      if (D.sleep?.vrij) { const s = D.sleep; D.sleep = null; a.ctl.enabled = true; cancelAnimationFrame(raf); if (s.bezig) { D.neer = null; const h = pick(e); vrijRef.current?.('los', s.vrij, grond(e), h?.data && !zelfde(h.data, s.vrij) ? h.data : null, s.g0); return; } }
       if (D.sleep) { const s = D.sleep; D.sleep = null; a.ctl.enabled = true; overRef.current?.(null); if (s.bezig) { D.neer = null; const x = grondX(e); if (x != null) interRef.current?.(s.seg, x); return; } }
       if (!D.neer || !kiesRef.current) return; const d = Math.hypot(e.clientX - D.neer[0], e.clientY - D.neer[1]); D.neer = null; if (d > 5) return;
       kiesRef.current(pick(e)?.data || null);
