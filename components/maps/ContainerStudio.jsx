@@ -10,7 +10,7 @@ import { webglKan } from './StellingStudio';
 import { StellingPlannen } from './stellingplannen';
 import GevelBeheer from './GevelBeheer';
 import { schakelGedraaid, veelhoekAfstand } from './containerbouw';
-import { unitGroep, unitAssen, isUnitEl, isTrapEl, schakelPlan, schakelElement, containerMeldingen, plekNaast, plekTrap, containerTelling, containerPrims, stapelMax, plekBijSlepen, unitStijl, openZijden, schakelVan, gevelLijn } from './containerbouw';
+import { unitGroep, unitAssen, isUnitEl, isTrapEl, isContainerDeel, schakelPlan, schakelElement, containerMeldingen, plekNaast, plekTrap, containerTelling, containerPrims, stapelMax, plekBijSlepen, unitStijl, openZijden, schakelVan, gevelLijn } from './containerbouw';
 
 const DrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () => <div className="fm-wz fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div> });
 const getal = (v) => Number(v).toLocaleString('nl-BE', { maximumFractionDigits: 2 });
@@ -137,11 +137,15 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   // De opstelling als één geheel op het plan: alle aaneengesloten units in dezelfde groep.
   const groepSleutel = groep.map((x) => `${x.it.id}:${x.it.groep_id || ''}`).sort().join('|');
   useEffect(() => {
-    if (!schrijven || groep.length < 2) return;
+    if (!schrijven || !groep.length) return;
+    const ids = groep.map((x) => x.it.id); const gs = new Set(groep.map((x) => x.it.groep_id).filter(Boolean));
+    // Losgeraakte units die nog in de groep van de opstelling zitten (bv. na draaien of verschuiven).
+    const los = items.some((x) => x.groep_id && gs.has(x.groep_id) && !ids.includes(x.id) && isContainerDeel(elementenMap.get(x.element_id)));
     const g0 = groep[0].it.groep_id;
-    if (g0 && groep.every((x) => x.it.groep_id === g0)) return;
-    onActie('unit-groep', { _it: it.id, ids: groep.map((x) => x.it.id) });
-  }, [groepSleutel]); // eslint-disable-line react-hooks/exhaustive-deps
+    const goed = groep.length < 2 ? !los : (g0 && groep.every((x) => x.it.groep_id === g0) && !los);
+    if (goed) return;
+    onActie('unit-groep', { _it: it.id, ids });
+  }, [groepSleutel, items.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const meldingen = useMemo(() => containerMeldingen(groep), [groep]);
   const telling = useMemo(() => containerTelling(groep), [groep]);
   const prims = useMemo(() => (gl ? containerPrims(groep, g?.it.id, sleep?.p ? { weg: sleep.id || null, spook: sleep.p } : {}) : null), [gl, groep, g?.it.id, sleep]);

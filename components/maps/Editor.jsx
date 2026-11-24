@@ -36,7 +36,7 @@ import { vernieuwGridlabDoeken } from './gridlab';
 import { isLichtmast } from './licht';
 import { isTentBouw, tentTypeVan, TENTTYPES, tentMaten, tentErnaast, naastTent, stukOpPlan, tentAssen } from './tentbouw';
 import { vraagBouwer } from './bouwerSignaal';
-import { isUnitEl } from './containerbouw';
+import { isUnitEl, isContainerDeel } from './containerbouw';
 import { Icoon } from './iconen';
 import Lagenpaneel from './Lagenpaneel';
 import { LaagOpties } from './laagOpties';
@@ -3345,8 +3345,17 @@ export default function Editor({ planId }) {
       case 'unit-groep': {
         // Bestaande opstelling: alle aaneengesloten units in één groep zetten.
         const ids = (arg?.ids || []).filter((id) => st.current.items.some((x) => x.id === id));
-        if (ids.length < 2) break;
-        const gid = st.current.items.find((x) => ids.includes(x.id) && x.groep_id)?.groep_id || nieuwId();
+        // Units die in dezelfde groep zaten maar niet meer tegen de opstelling staan: uit de groep.
+        const isUnit = (x) => isContainerDeel(st.current.elementen.find((e) => e.id === x.element_id));
+        const oud = [...new Set(st.current.items.filter((x) => ids.includes(x.id) && x.groep_id).map((x) => x.groep_id))];
+        for (const g of oud) for (const x of st.current.items.filter((y) => y.groep_id === g && !ids.includes(y.id) && isUnit(y))) wijzigItem(x.id, { groep_id: null });
+        if (ids.length < 2) {
+          // Eén unit over: geen groep meer als er verder niets in zit.
+          for (const g of oud) { const rest = st.current.items.filter((y) => y.groep_id === g && !(!ids.includes(y.id) && isUnit(y))); if (rest.length <= 1) for (const y of rest) wijzigItem(y.id, { groep_id: null }); }
+          setTimeout(() => syncTdRef.current?.(), 0);
+          break;
+        }
+        const gid = oud[0] || nieuwId();
         for (const id of ids) { const x = st.current.items.find((y) => y.id === id); if (x && (x.groep_id !== gid || x.laag_id !== it.laag_id)) wijzigItem(id, { groep_id: gid, laag_id: it.laag_id }); }
         setTimeout(() => syncTdRef.current?.(), 0);
         break;
