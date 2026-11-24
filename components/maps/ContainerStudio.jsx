@@ -227,8 +227,8 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
                     <input type="color" value={br.kleur || '#E4E3DD'} onChange={(e) => zet({ kleur: e.target.value })} />
                     {br.kleur && <button type="button" className="fm-knop klein" onClick={() => zet({ kleur: null })}>Standaard</button>}
                   </label>
-                  {[['V', 'Voor'], ['A', 'Achter'], ['L', 'Kop links'], ['R', 'Kop rechts']].map(([z, n]) => (
-                    <label key={z} className="fm-sub" style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '4px 0' }}><span style={{ width: 72 }}>{n}</span>
+                  {[['V', 'Voor', g.Lu], ['A', 'Achter', g.Lu], ['L', 'Links', g.Bu], ['R', 'Rechts', g.Bu]].map(([z, n, m]) => (
+                    <label key={z} className="fm-sub" style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '4px 0' }}><span style={{ width: 92 }}>{n} · {getal(m)} m</span>
                       <select className="fm-in" style={{ flex: 1, minWidth: 0 }} value={br[z] || ''} onChange={(e) => zet({ [z]: e.target.value || null })}>
                         <option value="">Geen doek</option>
                         {doeken.map((d) => <option key={d.id} value={d.id}>{d.naam}</option>)}
