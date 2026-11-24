@@ -250,6 +250,7 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
   // Een unit onder een vrije hoek wordt in zijn eigen kader getekend en daarna in het kader van de groep gezet.
   let naar = null; const mp = (p) => (naar ? naar(p) : p);
   const vlak = (w, vul, op = 1, data = null, rand = 'vul') => prims.push({ k: 'vlak', w: w.map(mp), vul, op, rand, data });
+  const net = (pos, idx, kl, soort, data = null) => prims.push({ k: 'net', pos: pos.map(mp), idx, kl, soort, data });
   const balk = (a, b, d, kl, extra = {}) => prims.push({ k: 'balk', a: mp(a), b: mp(b), d, kl, ...extra });
   const KADER = '#3A4046'; const PANEEL = '#E4E3DD'; const NAAD = '#C9C8C1'; const DAK = '#8E9399'; const WIT = '#F4F5F3'; const GALVA = '#A9AEB2'; const ROOSTER = '#8D9398';
   const sp = opties.spook;
@@ -265,7 +266,7 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
     naar = vrij ? ([x, y, z]) => { const q = g0.T([x, y]); return [q[0], q[1], z]; } : null;
     const g = vrij ? { ...g0, x0: 0, y0: 0, x1: g0.Lu, y1: g0.Bu, T: (q) => q } : g0;
     const { x0, y0, x1, y1 } = g; const z0 = g.z0 || 0; const data = { unit: g.it.id, sleep: true }; const dataDak = { unit: g.it.id, sleep: true, boven: true };
-    if (g.auto) { autoPrims(g, { balk, vlak, data, aan: gekozen === g.it.id }); continue; }
+    if (g.auto) { autoPrims(g, { net, data, aan: gekozen === g.it.id }); continue; }
     if (g.trap) {
       // De trap klimt langs de lange zijde, in de richting van de draaiing (0° = naar +x); andere richtingen via een spiegeling van de assen.
       const langY = y1 - y0 > x1 - x0; const terug = g.rot === 180 || g.rot === 270;
@@ -372,60 +373,104 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
   return prims;
 }
 
-// Wagen: een gestroomlijnd koetswerk uit doorsneden (SUV-silhouet), ruiten, lichten en ronde wielen; voorkant aan de + kant.
-const AUTO_PROFIEL = [
-  // [plaats langs de lengte, onderkant, gordellijn, dak, breedte (deel van de halve breedte)]
-  [0.0, 0.34, 0.66, 0.66, 0.9], [0.03, 0.3, 0.86, 0.86, 0.97], [0.1, 0.28, 0.95, 1.2, 1], [0.17, 0.28, 0.96, 1.6, 1],
-  [0.4, 0.27, 0.97, 1.64, 1], [0.62, 0.27, 0.98, 1.63, 1], [0.7, 0.28, 0.99, 1.42, 1], [0.8, 0.3, 0.98, 1.0, 1],
-  [0.93, 0.32, 0.88, 0.88, 0.98], [0.985, 0.36, 0.74, 0.74, 0.93], [1.0, 0.4, 0.62, 0.62, 0.88],
-];
-function autoPrims(g, { balk, vlak, data, aan }) {
+// Wagen: gladde carrosserie uit doorsneden (silhouet per model), ruiten, zwevend dak, lichtbalken, wielen met velgen.
+// Sleutelprofielen: [plaats langs de lengte (0 = achter), onderkant, gordellijn, dak, breedte (deel van de halve breedte)] in m voor een wagen van 1,66 m hoog.
+const AUTO_SILHOUET = {
+  suv: [[0, 0.42, 0.62, 0.62, 0.8], [0.02, 0.35, 0.8, 0.8, 0.92], [0.06, 0.31, 0.9, 0.93, 0.98], [0.12, 0.29, 0.95, 1.32, 1], [0.19, 0.28, 0.96, 1.58, 1], [0.32, 0.27, 0.97, 1.65, 1],
+    [0.55, 0.27, 0.98, 1.66, 1], [0.66, 0.28, 0.99, 1.55, 1], [0.77, 0.3, 1.0, 1.08, 1], [0.87, 0.31, 0.97, 1.0, 0.99], [0.95, 0.33, 0.9, 0.92, 0.96], [0.985, 0.37, 0.78, 0.78, 0.9], [1, 0.42, 0.62, 0.62, 0.82]],
+  stad: [[0, 0.4, 0.66, 0.66, 0.84], [0.02, 0.34, 0.88, 0.9, 0.94], [0.06, 0.3, 0.92, 1.42, 0.99], [0.12, 0.28, 0.93, 1.62, 1], [0.5, 0.27, 0.95, 1.65, 1],
+    [0.62, 0.28, 0.96, 1.56, 1], [0.76, 0.3, 0.98, 1.06, 1], [0.86, 0.31, 0.93, 0.96, 0.98], [0.95, 0.34, 0.84, 0.86, 0.94], [0.985, 0.38, 0.72, 0.72, 0.88], [1, 0.42, 0.6, 0.6, 0.8]],
+};
+const KLEUR_AUTO = { T03: '#D9DEE3', B10: '#A7B6C2', C10: '#5B6B78' };
+function autoPrims(g, { net, data, aan }) {
   const { x0, y0, x1, y1 } = g; const z0 = g.z0 || 0;
   const langX = x1 - x0 >= y1 - y0; const L = langX ? x1 - x0 : y1 - y0; const B = langX ? y1 - y0 : x1 - x0;
-  const sz = Math.max(1.2, Number(g.H) || 1.65) / 1.65; const hb = B / 2;
-  const P = (u, w, z) => (langX ? [x0 + u, y0 + hb + w, z0 + z] : [x0 + hb + w, y0 + u, z0 + z]); // u langs, w vanaf de as
-  const LAK = aan ? '#93C5FD' : g.el?.eigenschappen?.kleur || '#C8CDD2'; const RUIT = '#1E293B'; const ZWART = '#111827';
-  // Doorsnede per station: halve omtrek van onder naar boven (zijkant, schouder, ruit, dak).
-  const st = AUTO_PROFIEL.map(([f, lo, belt, top, br]) => {
-    const u = f * L; const hw = hb * br; const kas = top - belt > 0.12; const hr = kas ? hw - 0.2 : hw - 0.1;
-    return { u, kas, pts: [[hw, lo * sz], [hw, (lo + 0.12) * sz], [hw - 0.02, belt * sz], [hr, top * sz]], top: top * sz };
+  const sz = Math.max(1.2, Number(g.H) || 1.66) / 1.66; const hb = B / 2;
+  const P = (u, w, z) => (langX ? [x0 + u, y0 + hb + w, z0 + z] : [x0 + hb + w, y0 + u, z0 + z]); // u langs (voorkant = +), w vanaf de as
+  const variant = String(g.el?.eigenschappen?.variant || g.el?.naam || '');
+  const LAK = aan ? '#93C5FD' : g.el?.eigenschappen?.kleur_3d || KLEUR_AUTO[(variant.match(/[A-Z]\d{2}/) || [])[0]] || '#C8CDD2';
+  const sleutels = /T03/.test(variant) || L < 4 ? AUTO_SILHOUET.stad : AUTO_SILHOUET.suv;
+  // Stations: dichter bij de uiteinden; waarden lineair tussen de sleutels en daarna twee keer uitgevlakt.
+  const N = 34; const fs = Array.from({ length: N }, (_, i) => 0.5 - 0.5 * Math.cos((Math.PI * i) / (N - 1)));
+  const tussen = (f) => { let k = 0; while (k < sleutels.length - 2 && sleutels[k + 1][0] < f) k++; const a = sleutels[k]; const b = sleutels[k + 1]; const t = Math.max(0, Math.min(1, (f - a[0]) / (b[0] - a[0] || 1))); return a.map((v, n) => v + (b[n] - v) * t); };
+  let rij = fs.map(tussen);
+  for (let pas = 0; pas < 2; pas++) rij = rij.map((r, i) => (i === 0 || i === N - 1 ? r : r.map((v, n) => (n === 0 ? v : (rij[i - 1][n] + 2 * v + rij[i + 1][n]) / 4))));
+  // Ring per station (halve doorsnede van onder naar de as bovenaan); index 0–4 koetswerk, 4–6 ruit, 6–9 dak.
+  const ringen = rij.map(([f, lo, belt, top0, br]) => {
+    const hw = hb * br; const top = Math.max(top0, belt + 0.04); const kas = Math.max(0, Math.min(1, (top - belt - 0.06) / 0.4));
+    const hr = hw * (0.97 - 0.2 * kas); const H = (z) => z * sz;
+    return { u: f * L, kas, top: H(top), r: [[hw * 0.8, H(lo)], [hw * 0.97, H(lo + 0.05)], [hw, H(lo + 0.3 * (belt - lo))], [hw * 0.995, H(lo + 0.72 * (belt - lo))], [hw * 0.965, H(belt)],
+      [hw * (0.955 - 0.03 * kas), H(belt + 0.02)], [hr, H(top - 0.05 * kas - 0.01)], [hr * 0.93, H(top - 0.015)], [hr * 0.7, H(top)], [0, H(top + 0.012)]] };
   });
-  const zij = (a, b, k, s) => [P(a.u, s * a.pts[k][0], a.pts[k][1]), P(b.u, s * b.pts[k][0], b.pts[k][1]), P(b.u, s * b.pts[k + 1][0], b.pts[k + 1][1]), P(a.u, s * a.pts[k + 1][0], a.pts[k + 1][1])];
-  for (let i = 0; i < st.length - 1; i++) {
-    const a = st[i]; const b = st[i + 1]; const ruit = a.kas || b.kas; const steil = Math.abs(b.top - a.top) / Math.max(0.01, b.u - a.u) > 1.2;
-    for (const s of [-1, 1]) {
-      vlak(zij(a, b, 0, s), ZWART, 1, data); // dorpel / bumperrand
-      vlak(zij(a, b, 1, s), LAK, 1, data); // flank
-      vlak(zij(a, b, 2, s), ruit ? RUIT : LAK, 1, data); // zijruit of motorkap-schouder
+  const M = ringen[0].r.length;
+  // Strook van ringpunt a tot b als gladde mesh (beide kanten), met materiaal per segment.
+  const strook = (a, b, kies) => {
+    const groepen = new Map();
+    for (let i = 0; i < N - 1; i++) {
+      const [soort, kl] = kies(ringen[i], ringen[i + 1]); const key = `${soort}|${kl}`;
+      if (!groepen.has(key)) groepen.set(key, { soort, kl, pos: [], idx: [] });
+      const G = groepen.get(key);
+      for (const s of [-1, 1]) {
+        const basis = G.pos.length;
+        for (const R of [ringen[i], ringen[i + 1]]) for (let k = a; k <= b; k++) G.pos.push(P(R.u, s * R.r[k][0], R.r[k][1]));
+        const n = b - a + 1;
+        for (let k = 0; k < n - 1; k++) G.idx.push(basis + k, basis + n + k, basis + n + k + 1, basis + k, basis + n + k + 1, basis + k + 1);
+      }
     }
-    // Dak, motorkap en koffer; voor- en achterruit waar het dak steil daalt.
-    const t = (q, s) => P(q.u, s * q.pts[3][0], q.pts[3][1]);
-    vlak([t(a, -1), t(b, -1), t(b, 1), t(a, 1)], steil && ruit ? RUIT : a.kas && b.kas ? '#2B2F33' : LAK, 1, data);
-    // Bodem.
-    vlak([P(a.u, -a.pts[0][0], a.pts[0][1]), P(b.u, -b.pts[0][0], b.pts[0][1]), P(b.u, b.pts[0][0], b.pts[0][1]), P(a.u, a.pts[0][0], a.pts[0][1])], ZWART, 1);
+    for (const G of groepen.values()) net(G.pos, G.idx, G.kl, G.soort, data);
+  };
+  strook(0, 1, () => ['kunststof', '#1F2329']); // dorpel en onderbumper
+  strook(1, 4, () => ['lak', LAK]);
+  strook(4, 6, (r1, r2) => (r1.kas + r2.kas > 0.6 ? ['glas', '#0E1520'] : ['lak', LAK]));
+  strook(6, M - 1, (r1, r2) => {
+    const steil = Math.abs(r2.top - r1.top) / Math.max(0.01, r2.u - r1.u) > 0.9;
+    if (r1.kas < 0.25 && r2.kas < 0.25) return ['lak', LAK]; // motorkap en koffer
+    return steil ? ['glas', '#0E1520'] : ['kunststof', '#16191D']; // voor-/achterruit of zwevend zwart dak
+  });
+  // Neus en kont dicht (waaier).
+  for (const R of [ringen[0], ringen[N - 1]]) {
+    const pos = [P(R.u, 0, (R.r[0][1] + R.r[4][1]) / 2)]; const idx = [];
+    const rand = [...R.r.map(([w, z]) => [w, z]), ...[...R.r].reverse().map(([w, z]) => [-w, z])];
+    for (const [w, z] of rand) pos.push(P(R.u, w, z));
+    for (let k = 1; k < rand.length; k++) idx.push(0, k, k + 1 < pos.length ? k + 1 : 1);
+    net(pos, idx, LAK, 'lak', data);
   }
-  // Voor- en achterkant dicht.
-  for (const q of [st[0], st[st.length - 1]]) vlak([...q.pts.map(([w, z]) => P(q.u, w, z)), ...[...q.pts].reverse().map(([w, z]) => P(q.u, -w, z))], LAK, 1, data);
-  // Lichten: LED-strook vooraan, rode strook achteraan, met de lichtbalk over de hele breedte (Leapmotor-stijl).
-  const v = st[st.length - 2]; const ac = st[1];
-  vlak([P(v.u + 0.004, -v.pts[2][0] + 0.12, 0.8 * sz), P(v.u + 0.004, v.pts[2][0] - 0.12, 0.8 * sz), P(v.u + 0.004, v.pts[2][0] - 0.12, 0.84 * sz), P(v.u + 0.004, -v.pts[2][0] + 0.12, 0.84 * sz)], '#F8FAFC', 1);
-  vlak([P(ac.u - 0.004, -ac.pts[2][0] + 0.08, 0.8 * sz), P(ac.u - 0.004, ac.pts[2][0] - 0.08, 0.8 * sz), P(ac.u - 0.004, ac.pts[2][0] - 0.08, 0.85 * sz), P(ac.u - 0.004, -ac.pts[2][0] + 0.08, 0.85 * sz)], '#B91C1C', 1);
+  // Lichtbalken (vooraan wit over de hele breedte, achteraan rood) en een donkere onderste grille.
+  const balkOp = (f, z, h, kl, soort, inz = 0.1) => {
+    const i = Math.round(((Math.acos(1 - 2 * f) / Math.PI) * (N - 1))); const R = ringen[Math.max(0, Math.min(N - 1, i))];
+    const w = R.r[3][0] - inz; const u = R.u + (f > 0.5 ? 0.012 : -0.012);
+    net([P(u, -w, z), P(u, w, z), P(u, w, z + h), P(u, -w, z + h)], [0, 1, 2, 0, 2, 3], kl, soort);
+  };
+  balkOp(0.992, 0.66 * sz, 0.035, '#F8FAFC', 'licht', 0.12);
+  balkOp(0.985, 0.4 * sz, 0.14, '#111317', 'kunststof', 0.3);
+  balkOp(0.012, 0.76 * sz, 0.05, '#DC2626', 'licht', 0.06);
   // Spiegels.
-  for (const s of [-1, 1]) balk(P(0.71 * L, s * (hb - 0.02), 1.02 * sz), P(0.71 * L, s * (hb + 0.14), 1.02 * sz), [0.09, 0.12], LAK);
-  // Wielen (16-hoek): band met wielkast en velg.
-  const R = 0.36 * sz; const N = 16; const bw = 0.24;
+  const spiegel = (s) => { const u = 0.74 * L; const w0 = s * (hb * 0.96); const w1 = s * (hb + 0.16); const z = 1.03 * sz;
+    const pos = [P(u, w0, z), P(u, w1, z + 0.02), P(u, w1, z + 0.12), P(u, w0, z + 0.1), P(u - 0.12, w0, z + 0.02), P(u - 0.1, w1, z + 0.04), P(u - 0.1, w1, z + 0.11), P(u - 0.12, w0, z + 0.09)];
+    net(pos, [0, 1, 2, 0, 2, 3, 4, 6, 5, 4, 7, 6, 0, 4, 5, 0, 5, 1, 3, 2, 6, 3, 6, 7, 1, 5, 6, 1, 6, 2], LAK, 'lak'); };
+  spiegel(-1); spiegel(1);
+  // Wielen: band (gladde torus-doorsnede), velg met vijf spaken, naaf; zwarte wielkastrand op de flank.
+  const R0 = (/T03/.test(variant) ? 0.3 : 0.355) * sz; const S = 28; const bw = 0.23;
   for (const f of [0.17, 0.8]) {
     const u = f * L;
     for (const s of [-1, 1]) {
-      const wu = s * (hb + 0.005); const wi = s * (hb - bw);
-      const rnd = (r, w, k) => { const a = (k / N) * Math.PI * 2; return P(u + r * Math.cos(a), w, R + r * Math.sin(a)); };
-      // Wielkast: donkere boog op de flank.
-      const kast = []; for (let k = 0; k <= N / 2; k++) kast.push(rnd(R + 0.06, s * (hb + 0.002), k)); vlak(kast, ZWART, 1);
-      for (let k = 0; k < N; k++) vlak([rnd(R, wu, k), rnd(R, wu, k + 1), rnd(R, wi, k + 1), rnd(R, wi, k)], '#1F2937', 1); // loopvlak
-      const band = []; const velg = [];
-      for (let k = 0; k < N; k++) { band.push(rnd(R, wu, k)); velg.push(rnd(R * 0.62, s * (hb + 0.01), k)); }
-      vlak(band, '#1F2937', 1); vlak(velg, '#9CA3AF', 1);
-      const naaf = []; for (let k = 0; k < N; k++) naaf.push(rnd(R * 0.16, s * (hb + 0.015), k)); vlak(naaf, '#4B5563', 1);
+      const wo = s * (hb + 0.012); const wi = s * (hb - bw);
+      const rond = (r, w, a) => P(u + r * Math.cos(a), w, R0 + r * Math.sin(a));
+      // Wielkast: donkere schijf achter het wiel en een kunststof rand erboven.
+      { const pos = [P(u, s * (hb + 0.004), R0)]; const idx = []; for (let k = 0; k <= S / 2; k++) pos.push(rond(R0 + 0.04, s * (hb + 0.004), (Math.PI * k) / (S / 2))); for (let k = 1; k < pos.length - 1; k++) idx.push(0, k, k + 1); net(pos, idx, '#0B0D10', 'kunststof'); }
+      { const pos = []; const idx = []; const n = 16; for (let k = 0; k <= n; k++) { const a = -0.15 + ((Math.PI + 0.3) * k) / n; pos.push(rond(R0 + 0.04, s * (hb + 0.006), a), rond(R0 + 0.11, s * (hb + 0.006), a)); }
+        for (let k = 0; k < n; k++) idx.push(2 * k, 2 * k + 2, 2 * k + 3, 2 * k, 2 * k + 3, 2 * k + 1); net(pos, idx, '#1A1D21', 'kunststof'); }
+      // Band: doorsnede (straal, breedte) rond.
+      const prof = [[0.66, wi], [0.9, wi], [0.98, wi + s * 0.02], [1, wi + s * 0.07], [1, wo - s * 0.07], [0.98, wo - s * 0.02], [0.9, wo], [0.66, wo]];
+      { const pos = []; const idx = []; for (let k = 0; k <= S; k++) for (const [r, w] of prof) pos.push(rond(R0 * r, w, (2 * Math.PI * k) / S));
+        const n = prof.length; for (let k = 0; k < S; k++) for (let j = 0; j < n - 1; j++) { const a = k * n + j; idx.push(a, a + n, a + n + 1, a, a + n + 1, a + 1); } net(pos, idx, '#202326', 'rubber'); }
+      // Velg: komvormige schijf met vijf spaken en een naaf.
+      { const wv = s * (hb + 0.0); const pos = [P(u, s * (hb - 0.03), R0)]; const idx = []; for (let k = 0; k <= S; k++) pos.push(rond(R0 * 0.66, wv, (2 * Math.PI * k) / S)); for (let k = 1; k <= S; k++) idx.push(0, k, k + 1); net(pos, idx, '#2B2F35', 'velg'); }
+      { const pos = []; const idx = []; const wv = s * (hb + 0.006);
+        for (let k = 0; k < 5; k++) { const a = (2 * Math.PI * k) / 5 + (f > 0.5 ? 0.3 : 0); const b = 0.16; const q = pos.length;
+          pos.push(rond(R0 * 0.14, wv, a - b * 1.4), rond(R0 * 0.14, wv, a + b * 1.4), rond(R0 * 0.64, wv, a + b * 0.5), rond(R0 * 0.64, wv, a - b * 0.5)); idx.push(q, q + 1, q + 2, q, q + 2, q + 3); }
+        net(pos, idx, '#C7CCD1', 'velg'); }
+      { const pos = [P(u, s * (hb + 0.01), R0)]; const idx = []; for (let k = 0; k <= 12; k++) pos.push(rond(R0 * 0.15, s * (hb + 0.008), (2 * Math.PI * k) / 12)); for (let k = 1; k <= 12; k++) idx.push(0, k, k + 1); net(pos, idx, '#9AA0A6', 'velg'); }
     }
   }
 }

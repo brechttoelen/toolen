@@ -47,6 +47,18 @@ function bouw(T, prims, laad) {
     g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); if (uv) g.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2));
     g.computeVertexNormals(); return g;
   };
+  const netMats = new Map();
+  const netMat = (soort = 'lak', kl = '#C8CDD2') => {
+    const k = `${soort}|${kl}`; if (netMats.has(k)) return netMats.get(k);
+    const z = T.DoubleSide; let m;
+    if (soort === 'lak') m = new T.MeshPhysicalMaterial({ color: kl, metalness: 0.55, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.4, side: z });
+    else if (soort === 'glas') m = new T.MeshPhysicalMaterial({ color: kl || '#0B1220', metalness: 0.2, roughness: 0.04, clearcoat: 1, envMapIntensity: 2.2, transparent: true, opacity: 0.88, side: z });
+    else if (soort === 'licht') m = new T.MeshStandardMaterial({ color: kl, emissive: kl, emissiveIntensity: 0.9, roughness: 0.2, side: z });
+    else if (soort === 'velg') m = new T.MeshStandardMaterial({ color: kl, metalness: 0.85, roughness: 0.28, envMapIntensity: 1.5, side: z });
+    else if (soort === 'rubber') m = new T.MeshStandardMaterial({ color: kl, metalness: 0, roughness: 0.92, side: z });
+    else m = new T.MeshStandardMaterial({ color: kl, metalness: 0.1, roughness: 0.55, side: z }); // kunststof
+    netMats.set(k, m); return m;
+  };
   const Y = new T.Vector3(0, 1, 0); const buis = new T.CylinderGeometry(1, 1, 1, 12, 1); const doos = new T.BoxGeometry(1, 1, 1);
   for (const p of prims) {
     if (p.k === 'vlak') {
@@ -78,6 +90,14 @@ function bouw(T, prims, laad) {
         m.castShadow = true; m.receiveShadow = true; groep.add(m);
         if (!leeg(p.data)) { m.userData.data = p.data; doelen.push(m); }
       } else groep.add(new T.Line(new T.BufferGeometry().setFromPoints([a, b]), lijnMat(p.kl)));
+    } else if (p.k === 'net') {
+      // Gladde mesh (bv. een wagen): gedeelde hoekpunten, zachte normalen, materiaal per soort.
+      if (!p.pos?.length || !p.idx?.length) continue;
+      const g = new T.BufferGeometry(); const pos = [];
+      for (const q of p.pos) { const v = V(T, q); pos.push(v.x, v.y, v.z); }
+      g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(p.idx); g.computeVertexNormals();
+      const m = new T.Mesh(g, netMat(p.soort, p.kl)); m.castShadow = p.soort !== 'glas'; m.receiveShadow = true; groep.add(m);
+      if (!leeg(p.data)) { m.userData.data = p.data; doelen.push(m); }
     } else if (p.k === 'balk') {
       // Rechthoekig profiel van a naar b (staal, hout …): d = [breedte, hoogte] van de doorsnede; de hoogte staat zo veel mogelijk verticaal.
       const a = V(T, p.a); const b = V(T, p.b); const dir = b.clone().sub(a); const L = dir.length(); if (L < 0.002) continue; dir.normalize();
