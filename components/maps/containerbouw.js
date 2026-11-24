@@ -422,10 +422,12 @@ function autoPrims(g, { net, data, aan }) {
   strook(0, 1, () => ['kunststof', '#1F2329']); // dorpel en onderbumper
   strook(1, 4, () => ['lak', LAK]);
   strook(4, 6, (r1, r2) => (r1.kas + r2.kas > 0.6 ? ['glas', '#0E1520'] : ['lak', LAK]));
+  // Dak: motorkap en koffer in lak, de overgangen (voor- en achterruit) in glas, het dak zelf in lak of de dakkleur.
+  const DAK = g.el?.eigenschappen?.kleur_dak || LAK;
   strook(6, M - 1, (r1, r2) => {
-    const steil = Math.abs(r2.top - r1.top) / Math.max(0.01, r2.u - r1.u) > 0.9;
-    if (r1.kas < 0.25 && r2.kas < 0.25) return ['lak', LAK]; // motorkap en koffer
-    return steil ? ['glas', '#0E1520'] : ['kunststof', '#16191D']; // voor-/achterruit of zwevend zwart dak
+    if (r1.kas <= 0.05 && r2.kas <= 0.05) return ['lak', LAK];
+    if (r1.kas >= 0.95 && r2.kas >= 0.95) return DAK === LAK ? ['lak', LAK] : ['kunststof', DAK];
+    return ['glas', '#0E1520'];
   });
   // Neus en kont dicht (waaier).
   for (const R of [ringen[0], ringen[N - 1]]) {
@@ -435,15 +437,12 @@ function autoPrims(g, { net, data, aan }) {
     for (let k = 1; k < rand.length; k++) idx.push(0, k, k + 1 < pos.length ? k + 1 : 1);
     net(pos, idx, LAK, 'lak', data);
   }
-  // Lichtbalken (vooraan wit over de hele breedte, achteraan rood) en een donkere onderste grille.
-  const balkOp = (f, z, h, kl, soort, inz = 0.1) => {
-    const i = Math.round(((Math.acos(1 - 2 * f) / Math.PI) * (N - 1))); const R = ringen[Math.max(0, Math.min(N - 1, i))];
-    const w = R.r[3][0] - inz; const u = R.u + (f > 0.5 ? 0.012 : -0.012);
-    net([P(u, -w, z), P(u, w, z), P(u, w, z + h), P(u, -w, z + h)], [0, 1, 2, 0, 2, 3], kl, soort);
-  };
-  balkOp(0.992, 0.66 * sz, 0.035, '#F8FAFC', 'licht', 0.12);
-  balkOp(0.985, 0.4 * sz, 0.14, '#111317', 'kunststof', 0.3);
-  balkOp(0.012, 0.76 * sz, 0.05, '#DC2626', 'licht', 0.06);
+  // Lichtbalken op neus en kont (vooraan wit over de hele breedte, achteraan rood) en een donkere onderste grille.
+  const kopBalk = (R, du, z, h, kl, soort, inz) => { const w = R.r[2][0] * 0.82 - inz; const u = R.u + du; net([P(u, -w, z), P(u, w, z), P(u, w, z + h), P(u, -w, z + h)], [0, 1, 2, 0, 2, 3], kl, soort); };
+  const neus = ringen[N - 1]; const kont = ringen[0]; const zn = (q, t) => q.r[0][1] + (q.r[4][1] - q.r[0][1]) * t;
+  kopBalk(neus, 0.004, zn(neus, 0.72), 0.03, '#F8FAFC', 'licht', 0.04);
+  kopBalk(neus, 0.004, zn(neus, 0.08), zn(neus, 0.38) - zn(neus, 0.08), '#111317', 'kunststof', 0.12);
+  kopBalk(kont, -0.004, zn(kont, 0.7), 0.045, '#DC2626', 'licht', 0.02);
   // Spiegels.
   const spiegel = (s) => { const u = 0.74 * L; const w0 = s * (hb * 0.96); const w1 = s * (hb + 0.16); const z = 1.03 * sz;
     const pos = [P(u, w0, z), P(u, w1, z + 0.02), P(u, w1, z + 0.12), P(u, w0, z + 0.1), P(u - 0.12, w0, z + 0.02), P(u - 0.1, w1, z + 0.04), P(u - 0.1, w1, z + 0.11), P(u - 0.12, w0, z + 0.09)];
