@@ -11,7 +11,7 @@ import { StellingPlannen } from './stellingplannen';
 import GevelBeheer from './GevelBeheer';
 import { schakelGedraaid, veelhoekAfstand, veelhoekenOverlap } from './containerbouw';
 import ContainerPlan2D from './ContainerPlan2D';
-import { unitGroep, unitAssen, isUnitEl, isTrapEl, isAutoEl, schakelPlan, schakelElement, containerMeldingen, plekNaast, plekTrap, containerTelling, containerPrims, stapelMax, plekBijSlepen, unitStijl, openZijden, schakelVan, gevelLijn } from './containerbouw';
+import { unitGroep, unitAssen, isUnitEl, isTrapEl, isAutoEl, schakelPlan, schakelElement, containerMeldingen, plekNaast, plekTrap, containerTelling, containerPrims, dakDekking, stapelMax, plekBijSlepen, unitStijl, openZijden, schakelVan, gevelLijn } from './containerbouw';
 
 const DrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () => <div className="fm-wz fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div> });
 const getal = (v) => Number(v).toLocaleString('nl-BE', { maximumFractionDigits: 2 });
@@ -145,7 +145,8 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   const trap = units.find(isTrapEl);
   const terras = !!g?.it?.velden?.dakterras;
   const bovenste = g && !g.trap && !g.auto && (g.v > 0 || terras);
-  const vrijBoven = g && !g.trap && !g.auto && !groep.some((o) => o.v === g.v + 1 && !o.trap && Math.min(o.x1, g.x1) - Math.max(o.x0, g.x0) > 0.3 && Math.min(o.y1, g.y1) - Math.max(o.y0, g.y0) > 0.3);
+  // Dakterras kan zolang het dak niet volledig bebouwd is (bv. een glascontainer op de helft van een 40 ft).
+  const vrijBoven = g && !g.trap && !g.auto && dakDekking(g, groep) < 0.9;
   const [trapZijde, setTrapZijde] = useState('V');
 
   const maakPdf = async () => {

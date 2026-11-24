@@ -43,7 +43,7 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
   const pad = (ring) => `M${ring.map((q) => naarS(q).join(',')).join('L')}Z`;
 
   // Stapelen: een unit op verdieping v moet met zijn midden op een unit van v − 1 staan die zo hoog gestapeld mag worden.
-  const draagt = (u, v) => !u.trap && !u.auto && !u.g.it.velden?.dakterras && u.g.v === v - 1 && v + 1 <= stapelMax(u.g.el);
+  const draagt = (u, v) => !u.trap && !u.auto && u.g.v === v - 1 && v + 1 <= stapelMax(u.g.el);
   // Gedragen als het midden op een unit staat, of als beide kopse kanten op een unit rusten (overbruggen, zoals bij hoekgietstukken).
   const steunt = (p, v, weg) => units.some((u) => u.g.it.id !== weg && draagt(u, v) && binnen(p, u.ring));
   const magOp = (mid, v, weg, ring = null) => {
