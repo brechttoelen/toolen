@@ -180,7 +180,7 @@ export function plekTrap(g, trapEl, zijde = 'V', kant = 'L') {
 // Deuren en ramen liggen vast per unit (eigenschappen.gevel), zoals de leverancier ze levert:
 //   [{ zijde: V|A|L|R, soort: deur|deur2|raam, van: m vanaf de linkerhoek (van buiten bekeken), breedte, hoogte, onder }]
 // V = voorkant (y = 0), A = achterkant (y = diepte), L = links (x = 0), R = rechts (x = breedte).
-export const GEVEL_SOORTEN = { deur: { naam: 'Deur', b: 0.9, h: 2.0, o: 0 }, deur2: { naam: 'Dubbele deur', b: 1.8, h: 2.0, o: 0 }, raam: { naam: 'Raam', b: 1.2, h: 1.0, o: 1.0 } };
+export const GEVEL_SOORTEN = { deur: { naam: 'Deur', b: 0.9, h: 2.0, o: 0 }, deur2: { naam: 'Dubbele deur', b: 1.8, h: 2.0, o: 0 }, raam: { naam: 'Raam', b: 1.2, h: 1.0, o: 1.0 }, glas: { naam: 'Glazen wand', b: 2.4, h: 2.3, o: 0 }, klep: { naam: 'Klep (bar)', b: 4.0, h: 1.1, o: 1.05 } };
 export const gevelZijdeLengte = (z, L, B) => (z === 'V' || z === 'A' ? L : B);
 // Van een opening: begin- en eindpunt op de wand (unit-lokaal) en de normaal naar buiten.
 export function gevelLijn(o, L, B) {
@@ -259,12 +259,28 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
     // Deuren en ramen (vast per unit, zoals de leverancier ze levert).
     if (g.T) for (const o of g.it?.velden?.gevel || g.el?.eigenschappen?.gevel || []) {
       const { a, e, n } = gevelLijn(o, g.Lu, g.Bu); const [onder, hoog] = gevelHoogte(o);
-      const zo = za + (o.soort === 'raam' ? onder - VLOER : 0); const zt = Math.min(zb - 0.02, zo + hoog);
+      const zo = za + (['raam', 'klep'].includes(o.soort) ? onder - VLOER : 0); const zt = Math.min(zb - 0.02, zo + hoog);
       const Q = (q, d) => g.T([q[0] + n[0] * d, q[1] + n[1] * d]);
       const lang = [e[0] - a[0], e[1] - a[1]]; const ll = Math.hypot(...lang) || 1; const u = [lang[0] / ll, lang[1] / ll];
       const L2 = (f, d) => Q([a[0] + u[0] * f, a[1] + u[1] * f], d);
       const K = 0.06; // kaderbreedte
-      if (o.soort === 'raam') {
+      if (o.soort === 'glas') {
+        // Glazen wand: van vloer tot plafond, dunne zwarte profielen om de ± 1,5 m.
+        const g0 = L2(0, 0.0); const g1 = L2(ll, 0.0); const zt2 = zb - 0.06;
+        vlak([[g0[0], g0[1], zo], [g1[0], g1[1], zo], [g1[0], g1[1], zt2], [g0[0], g0[1], zt2]], '#9FB8C8', 0.45, data);
+        const nr = Math.max(1, Math.round(ll / 1.5));
+        for (let k = 0; k <= nr; k++) { const q = L2((ll * k) / nr, 0.02); balk([q[0], q[1], zo], [q[0], q[1], zt2], [0.05, 0.05], '#1F2937', { mat: 'mat' }); }
+        const k0 = L2(0, 0.02); const k1 = L2(ll, 0.02);
+        balk([k0[0], k0[1], zo + 0.02], [k1[0], k1[1], zo + 0.02], [0.05, 0.05], '#1F2937', { mat: 'mat' }); balk([k0[0], k0[1], zt2], [k1[0], k1[1], zt2], [0.05, 0.05], '#1F2937', { mat: 'mat' });
+      } else if (o.soort === 'klep') {
+        // Barklep: open luik met toog; de klep staat open als luifel (± 1 m naar buiten, licht omhoog).
+        const g0 = L2(0, -0.01); const g1 = L2(ll, -0.01);
+        vlak([[g0[0], g0[1], zo], [g1[0], g1[1], zo], [g1[0], g1[1], zt], [g0[0], g0[1], zt]], '#3B3027', 1, data);
+        const t0 = L2(0, 0.15); const t1 = L2(ll, 0.15); balk([t0[0], t0[1], zo - 0.02], [t1[0], t1[1], zo - 0.02], [0.3, 0.05], '#B07A4A', { mat: 'hout' }); // toog
+        const a0 = L2(-0.05, 0.02); const a1 = L2(ll + 0.05, 0.02); const b0 = L2(-0.05, 1.05); const b1 = L2(ll + 0.05, 1.05);
+        vlak([[a0[0], a0[1], zt + 0.05], [a1[0], a1[1], zt + 0.05], [b1[0], b1[1], zt + 0.35], [b0[0], b0[1], zt + 0.35]], '#E7E5E4', 1, data); // klep als luifel
+        for (const f of [0.1, ll - 0.1]) { const s0 = L2(f, 0.02); const s1 = L2(f, 0.95); balk([s0[0], s0[1], zo + 0.1], [s1[0], s1[1], zt + 0.32], [0.025, 0.025], '#2B2F33'); } // stangen
+      } else if (o.soort === 'raam') {
         // PVC-raam: wit kader, glas, middenstijl en een rolluikkast erboven.
         const g0 = L2(0, 0.0); const g1 = L2(ll, 0.0);
         vlak([[g0[0], g0[1], zo], [g1[0], g1[1], zo], [g1[0], g1[1], zt], [g0[0], g0[1], zt]], '#7F97A8', 0.9, data);
