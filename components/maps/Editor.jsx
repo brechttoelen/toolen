@@ -3374,6 +3374,7 @@ export default function Editor({ planId }) {
         }
         break;
       }
+      case 'unit-branding': { const { branding: _b, ...r } = it.velden || {}; const b = arg?.branding || {}; wijzigItem(it.id, { velden: Object.values(b).some(Boolean) ? { ...r, branding: b } : r }); break; }
       case 'unit-terras': { const { dakterras: _d, ...r } = it.velden || {}; wijzigItem(it.id, { velden: arg?.aan ? { ...r, dakterras: true } : r }); break; }
       case 'unit-gevel': { wijzigItem(it.id, { velden: { ...(it.velden || {}), gevel: arg?.gevel?.length ? arg.gevel : undefined } }); break; }
       case 'tent-lid': {

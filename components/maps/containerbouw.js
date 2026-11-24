@@ -130,8 +130,8 @@ export function unitGroep(it, el, items = [], elementenMap = new Map(), kader0 =
   }
   // Trap: het bordes ligt op vloerhoogte van de unit(s) erboven die ertegen staan.
   for (const t of groep.filter((x) => x.trap)) {
-    const boven = groep.filter((o) => { if (o.trap || o.v !== t.v + 1) return false; const ox = Math.min(o.x1, t.x1) - Math.max(o.x0, t.x0); const oy = Math.min(o.y1, t.y1) - Math.max(o.y0, t.y0); return (ox > 0.3 && oy > -0.3) || (oy > 0.3 && ox > -0.3); });
-    const terras = groep.filter((o) => !o.trap && !o.auto && o.v === t.v && o.it?.velden?.dakterras && Math.min(o.x1, t.x1 + 0.2) - Math.max(o.x0, t.x0 - 0.2) > 0.3 && Math.min(o.y1, t.y1 + 0.2) - Math.max(o.y0, t.y0 - 0.2) > 0.05);
+    const boven = groep.filter((o) => { if (o.trap || o.auto || o.v !== t.v + 1) return false; if ((t.vrij || o.vrij) && t.hk && o.hk) return veelhoekAfstand(t.hk, o.hk) < 0.35; const ox = Math.min(o.x1, t.x1) - Math.max(o.x0, t.x0); const oy = Math.min(o.y1, t.y1) - Math.max(o.y0, t.y0); return (ox > 0.3 && oy > -0.3) || (oy > 0.3 && ox > -0.3); });
+    const terras = groep.filter((o) => !o.trap && !o.auto && o.v === t.v && o.it?.velden?.dakterras && trapBij(t, o));
     t.H = boven.length ? Math.min(...boven.map((o) => o.z0)) + VLOER - t.z0 : terras.length ? Math.max(...terras.map((o) => o.z0 + o.H)) - t.z0 : t.z0 + OPLEG + 3 + VLOER - t.z0;
   }
   for (const g of groep) { if (leden.length < 40) leden.push(g); }
@@ -181,6 +181,14 @@ export function openInGroep(g) {
   return g.rot === 180 ? eigen.map((z) => (z === 'L' ? 'R' : 'L')) : g.rot === 0 ? eigen : [];
 }
 
+// Staat een trap tegen een unit (ernaast, niet eronder)? Schuin: met de echte omtrekken.
+const trapBij = (t, g) => {
+  if ((t.vrij || g.vrij) && t.hk && g.hk) return veelhoekAfstand(t.hk, g.hk) < 0.35 && !veelhoekenOverlap(t.hk, g.hk, 0.3);
+  const ov = Math.min(t.x1, g.x1) - Math.max(t.x0, g.x0) > 0.3 && Math.min(t.y1, g.y1) - Math.max(t.y0, g.y0) > 0.3;
+  return Math.min(t.x1, g.x1 + 0.2) - Math.max(t.x0, g.x0 - 0.2) > 0.3 && Math.min(t.y1, g.y1 + 0.2) - Math.max(t.y0, g.y0 - 0.2) > 0.05 && !ov;
+};
+const puntBij = (p, hk) => (binnen(p, hk) ? 0 : Math.min(...hk.map((a, i) => puntSeg(p, a, hk[(i + 1) % hk.length]))));
+
 // Wat je best nakijkt in de opstelling.
 export function containerMeldingen(groep) {
   const uit = [];
@@ -205,12 +213,12 @@ export function containerMeldingen(groep) {
   const hoogsteV = Math.max(0, ...units.map((g) => g.v));
   for (let v = 1; v <= hoogsteV; v++) {
     const boven = units.filter((g) => g.v === v); if (!boven.length) continue;
-    const ok = traps.some((t) => t.v === v - 1 && boven.some((g) => Math.min(t.x1, g.x1 + 0.2) - Math.max(t.x0, g.x0 - 0.2) > 0.3 && Math.min(t.y1, g.y1 + 0.2) - Math.max(t.y0, g.y0 - 0.2) > 0.05 && !overlap(t, g)));
+    const ok = traps.some((t) => t.v === v - 1 && boven.some((g) => trapBij(t, g)));
     // Of bereikbaar via een dakterras eronder dat zelf een trap heeft.
-    const viaTerras = boven.some((g) => units.some((o) => o.v === v - 1 && o.it?.velden?.dakterras && overlap(o, g) && traps.some((t) => t.v === o.v && Math.min(t.x1, o.x1 + 0.2) - Math.max(t.x0, o.x0 - 0.2) > 0.3 && Math.min(t.y1, o.y1 + 0.2) - Math.max(t.y0, o.y0 - 0.2) > 0.05 && !overlap(t, o))));
+    const viaTerras = boven.some((g) => units.some((o) => o.v === v - 1 && o.it?.velden?.dakterras && overlap(o, g) && traps.some((t) => t.v === o.v && trapBij(t, o))));
     if (!ok && !viaTerras) uit.push({ soort: 'fout', ids: boven.map((g) => g.it.id), tekst: `Verdieping ${v}: geen trap.` });
   }
-  const naast = (t, g) => Math.min(t.x1, g.x1 + 0.2) - Math.max(t.x0, g.x0 - 0.2) > 0.3 && Math.min(t.y1, g.y1 + 0.2) - Math.max(t.y0, g.y0 - 0.2) > 0.05 && !overlap(t, g);
+  const naast = (t, g) => trapBij(t, g);
   const terrassen = units.filter((g) => g.it?.velden?.dakterras);
   for (const g of terrassen) {
     if (dakDekking(g, groep) > 0.9) uit.push({ soort: 'fout', ids: [g.it.id], tekst: `${naam(g)}: dakterras, maar het dak is volledig bebouwd.` });
@@ -299,6 +307,13 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
   }
   for (const g0 of groep) {
     if (opties.weg && g0.it.id === opties.weg) continue;
+    if (g0.trap && g0.vrij && g0.T) {
+      // Trap onder een vrije hoek: in zijn eigen kader (klimt naar +x), geen leuning aan de kant waar een unit tegen staat.
+      naar = ([x, y, z]) => { const q = g0.T([x, y]); return [q[0], q[1], z]; };
+      const tegenFn = (y, k) => { const m = g0.T([g0.Lu / 2, k ? g0.Bu + 0.1 : -0.1]); return groep.some((o) => !o.trap && !o.auto && o.hk && puntBij(m, o.hk) < 0.2); };
+      trapPrims({ ...g0, x0: 0, y0: 0, x1: g0.Lu, y1: g0.Bu }, { vlak, balk, GALVA, ROOSTER, data: { unit: g0.it.id, sleep: true }, tegenFn });
+      continue;
+    }
     const vrij = g0.vrij && !g0.trap && g0.T;
     naar = vrij ? ([x, y, z]) => { const q = g0.T([x, y]); return [q[0], q[1], z]; } : null;
     const g = vrij ? { ...g0, x0: 0, y0: 0, x1: g0.Lu, y1: g0.Bu, T: (q) => q } : g0;
@@ -339,10 +354,26 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
       const af = { V: Math.abs(m[1] - y0), A: Math.abs(m[1] - y1), L: Math.abs(m[0] - x0), R: Math.abs(m[0] - x1) };
       glasZ.add(Object.entries(af).sort((p, q) => p[1] - q[1])[0][0]);
     }
+    // Branding: een kleur voor alle wanden en per zijde een doek (ontwerp uit de bibliotheek).
+    const br = g.it?.velden?.branding || {}; const zijdeVan = {};
+    if (g.T) for (const [zl, m0] of [['V', [g.Lu / 2, 0]], ['A', [g.Lu / 2, g.Bu]], ['L', [0, g.Bu / 2]], ['R', [g.Lu, g.Bu / 2]]]) {
+      const m = g.T(m0); const af = { V: Math.abs(m[1] - y0), A: Math.abs(m[1] - y1), L: Math.abs(m[0] - x0), R: Math.abs(m[0] - x1) };
+      zijdeVan[Object.entries(af).sort((p, q) => p[1] - q[1])[0][0]] = zl;
+    }
+    const pan2 = aan ? pan : br.kleur || pan;
     for (const [z, [a0, b0, n]] of Object.entries(W)) {
       if (open.has(z) || glasZ.has(z)) continue;
+      const ont = br[zijdeVan[z]] ? opties.doekMap?.get(br[zijdeVan[z]]) : null;
+      if (ont) {
+        const d = 0.012; const P3 = (q, zz) => [q[0] + n[0] * d, q[1] + n[1] * d, zz]; const kl = ont.eigenschappen?.kleur || '#0F766E';
+        vlak([P3(a0, za), P3(b0, za), P3(b0, zb), P3(a0, zb)], kl, 1, data);
+        const src = ont.eigenschappen?.beeld && opties.url ? opties.url(ont.eigenschappen.beeld) : null;
+        if (src) { const Wd = Math.hypot(b0[0] - a0[0], b0[1] - a0[1]); const ux = (b0[0] - a0[0]) / Wd; const uy = (b0[1] - a0[1]) / Wd; const d2 = d + 0.004;
+          const Q = (x, y) => [a0[0] + ux * x + n[0] * d2, a0[1] + uy * x + n[1] * d2, zb - y];
+          prims.push({ k: 'beeld', A: mp(Q(0, 0)), B: mp(Q(Wd, 0)), C: mp(Q(0, zb - za)), href: src, plaats: { W: Wd, H: zb - za, Q: (x, y) => mp(Q(x, y)), wijze: br.plaatsing || 'vullen', start: 'links', rv: Number(ont.eigenschappen?.verhouding) || 0 } }); }
+      }
       const a = [a0[0] - n[0] * 0.03, a0[1] - n[1] * 0.03]; const b = [b0[0] - n[0] * 0.03, b0[1] - n[1] * 0.03];
-      vlak([[a[0], a[1], za], [b[0], b[1], za], [b[0], b[1], zb], [a[0], a[1], zb]], pan, 1, data);
+      vlak([[a[0], a[1], za], [b[0], b[1], za], [b[0], b[1], zb], [a[0], a[1], zb]], pan2, 1, data);
       const l = Math.hypot(b[0] - a[0], b[1] - a[1]); const nr = Math.max(1, Math.round(l / st.naadAf));
       for (let k = 1; k < nr; k++) { const f = k / nr; const q = [a[0] + (b[0] - a[0]) * f + n[0] * 0.005, a[1] + (b[1] - a[1]) * f + n[1] * 0.005]; balk([q[0], q[1], za], [q[0], q[1], zb], [st.naadAf < 0.5 ? 0.035 : 0.02, st.naadAf < 0.5 ? 0.02 : 0.012], st.naad, { mat: 'mat' }); }
     }
@@ -418,6 +449,7 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
     const blok = [
       ...groep.filter((o) => o.v === g.v + 1 && !o.trap && !o.auto && o.hk).map((o) => o.hk.map(terug)),
       ...groep.filter((t) => t.trap && t.v === g.v).map((t) => {
+        if (t.vrij && t.T) return [[t.Lu - 1.5, -0.3], [t.Lu, -0.3], [t.Lu, t.Bu + 0.3], [t.Lu - 1.5, t.Bu + 0.3]].map(t.T).map(terug);
         const langY = t.y1 - t.y0 > t.x1 - t.x0; const terugT = t.rot === 180 || t.rot === 270; const d = 1.5;
         const r = langY ? { x0: t.x0 - 0.3, x1: t.x1 + 0.3, y0: terugT ? t.y0 : t.y1 - d, y1: terugT ? t.y0 + d : t.y1 } : { y0: t.y0 - 0.3, y1: t.y1 + 0.3, x0: terugT ? t.x0 : t.x1 - d, x1: terugT ? t.x0 + d : t.x1 };
         return hoeken(r).map(terug);
@@ -548,10 +580,10 @@ function autoPrims(g, { net, data, aan }) {
 }
 
 // Buitentrap met bordes (gegalvaniseerd): trap langs x van x0 tot het bordes, bordes van 1,4 m tegen x1.
-function trapPrims(g, { vlak, balk, GALVA, ROOSTER, data, groep = [] }) {
+function trapPrims(g, { vlak, balk, GALVA, ROOSTER, data, groep = [], tegenFn = null }) {
   const { x0, y0, x1, y1 } = g;
   // De kant tegen de units krijgt geen leuning.
-  const tegen = (y, k) => groep.some((o) => !o.trap && Math.abs((k ? o.y0 : o.y1) - y) < 0.12 && Math.min(o.x1, x1) - Math.max(o.x0, x0) > 0.3); const z0 = g.z0 || 0; const H = Math.max(1, g.H || 3.2); const ztop = z0 + H;
+  const tegen = tegenFn || ((y, k) => groep.some((o) => !o.trap && Math.abs((k ? o.y0 : o.y1) - y) < 0.12 && Math.min(o.x1, x1) - Math.max(o.x0, x0) > 0.3)); const z0 = g.z0 || 0; const H = Math.max(1, g.H || 3.2); const ztop = z0 + H;
   const bord = Math.min(1.4, (x1 - x0) * 0.3); const xs = x1 - bord; const yw = 0.06;
   const n = Math.max(8, Math.round(H / 0.18)); const run = xs - x0; const tr = run / n; const rise = H / n;
   // Twee trapbomen (U-profiel) van de grond tot het bordes.

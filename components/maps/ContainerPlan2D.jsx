@@ -4,7 +4,7 @@
 // Alt = niet kleven), draaien met de greep (Shift = per 15°), uit de lijst op het plan slepen, en per verdieping
 // zien waar je kan stapelen. Werkt in het vaste kader van de bouwer (meter, x naar rechts, y naar boven).
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { veelhoekenOverlap, gevelLijn, stapelMax, isAutoEl, heeftGlas } from './containerbouw';
+import { veelhoekenOverlap, gevelLijn, stapelMax, isAutoEl, isTrapEl, heeftGlas } from './containerbouw';
 
 const KLEEF_PX = 12;
 const ringOm = (mid, L, B, hoek) => {
@@ -81,12 +81,13 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
   const sleepRef = useRef(null); sleepRef.current = sleep;
 
   const voorbeeld = (s, p, e) => {
+    const vv = s.v ?? verd; // een trap blijft op zijn eigen verdieping, ook als je een verdieping hoger kijkt
     if (s.soort === 'pan') { setBeeld({ ...B, cx: s.c0[0] - (e.clientX - s.x0) / B.s, cy: s.c0[1] + (e.clientY - s.y0) / B.s }); return s; }
     if (s.soort === 'verplaats' || s.soort === 'nieuw') {
       let mid = s.soort === 'nieuw' ? p : [s.mid0[0] + p[0] - s.p0[0], s.mid0[1] + p[1] - s.p0[1]];
       let ring = ringOm(mid, s.L, s.Bm, s.hoek);
-      if (!e.altKey) { const [dx, dy] = kleef(ring, verd, s.id); mid = [mid[0] + dx, mid[1] + dy]; ring = ringOm(mid, s.L, s.Bm, s.hoek); }
-      const ok = !botst(ring, verd, s.id, isA(s)) && magOp(mid, verd, s.id, ring);
+      if (!e.altKey) { const [dx, dy] = kleef(ring, vv, s.id); mid = [mid[0] + dx, mid[1] + dy]; ring = ringOm(mid, s.L, s.Bm, s.hoek); }
+      const ok = !botst(ring, vv, s.id, isA(s)) && magOp(mid, vv, s.id, ring);
       return { ...s, mid, ring, ok };
     }
     if (s.soort === 'draai') {
@@ -94,7 +95,7 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
       if (e.shiftKey) a = Math.round(a / (Math.PI / 12)) * (Math.PI / 12);
       else for (const u of units) { if (u.g.it.id === s.id) continue; const h = hoekVan(u.ring); for (let k = 0; k < 4; k++) { const w = h + (k * Math.PI) / 2; const d = Math.atan2(Math.sin(a - w), Math.cos(a - w)); if (Math.abs(d) < 0.035) a = w; } }
       const ring = ringOm(s.mid0, s.L, s.Bm, a);
-      return { ...s, hoek: a, ring, mid: s.mid0, ok: !botst(ring, verd, s.id, isA(s)) && magOp(s.mid0, verd, s.id, ring) };
+      return { ...s, hoek: a, ring, mid: s.mid0, ok: !botst(ring, vv, s.id, isA(s)) && magOp(s.mid0, vv, s.id, ring) };
     }
     return s;
   };
@@ -102,11 +103,11 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
   const omlaag = (e, u, soort = 'verplaats') => {
     if (e.button !== 0) return;
     e.stopPropagation(); onKies(u.g.it.id);
-    if (!schrijven || u.g.v !== verd) return;
+    if (!schrijven || (u.g.v !== verd && !(u.trap && u.g.v === verd - 1))) return;
     const p = naarW(e); const hoek = hoekVan(u.ring);
     const s = soort === 'draai'
-      ? { soort, id: u.g.it.id, mid0: u.mid, a0: Math.atan2(p[1] - u.mid[1], p[0] - u.mid[0]), hoek0: hoek, hoek, L: u.L, Bm: u.B, rot0: Number(u.g.it.parameters?.rot) || 0, ring: u.ring, mid: u.mid, ok: true, bewogen: false }
-      : { soort, id: u.g.it.id, p0: p, mid0: u.mid, hoek, L: u.L, Bm: u.B, rot0: Number(u.g.it.parameters?.rot) || 0, ring: u.ring, mid: u.mid, ok: true, bewogen: false };
+      ? { soort, v: u.g.v, id: u.g.it.id, mid0: u.mid, a0: Math.atan2(p[1] - u.mid[1], p[0] - u.mid[0]), hoek0: hoek, hoek, L: u.L, Bm: u.B, rot0: Number(u.g.it.parameters?.rot) || 0, ring: u.ring, mid: u.mid, ok: true, bewogen: false }
+      : { soort, v: u.g.v, id: u.g.it.id, p0: p, mid0: u.mid, hoek, L: u.L, Bm: u.B, rot0: Number(u.g.it.parameters?.rot) || 0, ring: u.ring, mid: u.mid, ok: true, bewogen: false };
     setSleep(s);
   };
   const achtergrond = (e) => { if (e.button !== 0 && e.button !== 1) return; setSleep({ soort: 'pan', x0: e.clientX, y0: e.clientY, c0: [B.cx, B.cy] }); };
@@ -131,20 +132,21 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
   const nieuwS = (e) => {
     const el = lijstEl(); if (!el) return null;
     const L = Number(el.breedte_m) || 6; const Bm = Number(el.diepte_m) || 2.44;
-    const s0 = sleepRef.current?.soort === 'nieuw' ? sleepRef.current : { soort: 'nieuw', id: null, el, L, Bm, hoek: 0, rot0: Number(A.rot) || 0 };
+    const s0 = sleepRef.current?.soort === 'nieuw' ? sleepRef.current : { soort: 'nieuw', id: null, el, L, Bm, hoek: 0, rot0: Number(A.rot) || 0, v: isTrapEl(el) && verd > 0 ? verd - 1 : undefined };
     return voorbeeld(s0, naarW(e), e);
   };
   const overSlepen = (e) => { if (!schrijven) return; e.preventDefault(); const s = nieuwS(e); if (s) setSleep(s); };
   const neerzetten = (e) => {
     e.preventDefault(); const s = nieuwS(e); setSleep(null); if (!s) return;
     if (!s.ok) { onMelding(botst(s.ring, verd, null, isA(s)) ? 'Daar staat al een unit.' : 'Hier kan je niet stapelen.'); return; }
-    onPlaats(s.el, { midden: A.naarGeo(s.mid), rot: Math.round(((((s.rot0) % 360) + 360) % 360) * 10) / 10, verdieping: verd });
+    onPlaats(s.el, { midden: A.naarGeo(s.mid), rot: Math.round(((((s.rot0) % 360) + 360) % 360) * 10) / 10, verdieping: s.v ?? verd });
   };
 
   const getoond = units.filter((u) => u.g.v <= verd).sort((a, b) => a.g.v - b.g.v || Number(a.auto) - Number(b.auto));
   const kleur = (u) => {
     const n = String(u.g.el?.naam || '');
     if (u.trap) return '#D6D3D1';
+    if (u.g.it.velden?.branding?.kleur) return u.g.it.velden.branding.kleur;
     if (u.auto) return '#FDE68A';
     if (/glas/i.test(n)) return '#DBEAFE';
     if (/bar/i.test(n)) return '#FEF3C7';
@@ -157,6 +159,7 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
   return (
     <svg ref={svgRef} className="fm-cb-plan" width={maat.w} height={maat.h} onPointerDown={achtergrond} onDragOver={overSlepen} onDragLeave={(e) => { if (sleepRef.current?.soort === 'nieuw' && !svgRef.current?.contains(e.relatedTarget)) setSleep(null); }} onDrop={neerzetten} onContextMenu={(e) => e.preventDefault()}>
       <defs>
+        <marker id="cb-pijl" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#57534E" /></marker>
         <pattern id="cb-niet" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#DC2626" strokeWidth="2" opacity="0.35" /></pattern>
       </defs>
       {/* Raster per meter (licht) en per 5 m. */}
@@ -167,13 +170,14 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
         return <g pointerEvents="none">{l}</g>;
       })()}
       {getoond.map((u) => {
-        const op = u.g.v === verd; const weg = s && s.id === u.g.it.id;
+        const op = u.g.v === verd || (u.trap && u.g.v === verd - 1); const weg = s && s.id === u.g.it.id;
         const onder = verd > 0 && u.g.v === verd - 1;
         const kan = onder && draagt(u, verd);
         return (
           <g key={u.g.it.id} pointerEvents={sleep?.soort === 'nieuw' ? 'none' : undefined} opacity={op ? (weg ? 0.25 : 1) : 0.55} style={{ cursor: op && schrijven ? 'move' : 'pointer' }} onPointerDown={(e) => omlaag(e, u)}>
             <path d={pad(u.ring)} fill={onder ? (kan ? '#BBF7D0' : '#FEE2E2') : kleur(u)} stroke={u.g.it.id === sel && op ? '#2563EB' : '#1F2937'} strokeWidth={u.g.it.id === sel && op ? 2.5 : 1.2} />
             {onder && !kan && <path d={pad(u.ring)} fill="url(#cb-niet)" pointerEvents="none" />}
+            {u.trap && (() => { const a = naarS(u.g.T([u.L * 0.75, 0])); const b = naarS(u.g.T([u.L * 0.75, u.B])); const p0 = naarS(u.g.T([u.L * 0.1, u.B / 2])); const p1 = naarS(u.g.T([u.L * 0.68, u.B / 2])); return <g pointerEvents="none"><line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#57534E" strokeWidth={1.5} /><line x1={p0[0]} y1={p0[1]} x2={p1[0]} y2={p1[1]} stroke="#57534E" strokeWidth={1.5} markerEnd="url(#cb-pijl)" /></g>; })()}
             {u.g.it.velden?.dakterras && <path d={pad(u.ring.map((q) => [q[0] + (u.mid[0] - q[0]) * 0.06, q[1] + (u.mid[1] - q[1]) * 0.12]))} fill="none" stroke="#1F2328" strokeWidth={2} strokeDasharray="2 3" pointerEvents="none" />}
             {/* Deuren, ramen, glas en klep op de wanden. */}
             {op && !u.trap && (u.g.it.velden?.gevel || u.g.el?.eigenschappen?.gevel || []).map((o, k) => {
@@ -187,7 +191,7 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
       })}
       {s && s.ring && <path d={pad(s.ring)} fill={s.ok ? 'rgba(37,99,235,0.18)' : 'rgba(220,38,38,0.25)'} stroke={s.ok ? '#2563EB' : '#DC2626'} strokeWidth={2} strokeDasharray="6 4" pointerEvents="none" />}
       {s && s.soort === 'draai' && (() => { const [x, y] = naarS(s.mid0); return <text x={x} y={y - 22} textAnchor="middle" fontSize="13" fontWeight="600" fill="#1D4ED8" pointerEvents="none">{Math.round(((((s.rot0 - ((s.hoek - s.hoek0) * 180) / Math.PI) % 360) + 360) % 360) * 10) / 10}°</text>; })()}
-      {schrijven && geselecteerd && !s && !geselecteerd.trap && (() => {
+      {schrijven && geselecteerd && !s && (() => {
         const [gx, gy] = naarS(greep(geselecteerd)); const [mx, my] = naarS(geselecteerd.mid);
         return <g style={{ cursor: 'grab' }} onPointerDown={(e) => omlaag(e, geselecteerd, 'draai')}>
           <line x1={mx} y1={my} x2={gx} y2={gy} stroke="#2563EB" strokeWidth="1.2" strokeDasharray="3 3" pointerEvents="none" />

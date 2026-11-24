@@ -11,6 +11,7 @@ import { StellingPlannen } from './stellingplannen';
 import GevelBeheer from './GevelBeheer';
 import { schakelGedraaid, veelhoekAfstand, veelhoekenOverlap } from './containerbouw';
 import ContainerPlan2D from './ContainerPlan2D';
+import { publiekeUrl } from './db';
 import { unitGroep, unitAssen, isUnitEl, isTrapEl, isAutoEl, schakelPlan, schakelElement, containerMeldingen, plekNaast, plekTrap, containerTelling, containerPrims, dakDekking, stapelMax, plekBijSlepen, unitStijl, openZijden, schakelVan, gevelLijn } from './containerbouw';
 
 const DrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () => <div className="fm-wz fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div> });
@@ -137,9 +138,11 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
     if (g0 && groep.every((x) => x.it.groep_id === g0)) return;
     onActie('unit-groep', { _it: it.id, ids: groep.map((x) => x.it.id) });
   }, [groepSleutel]); // eslint-disable-line react-hooks/exhaustive-deps
+  const doeken = useMemo(() => [...elementenMap.values()].filter((x) => x.tekenwijze === 'doek' && x.actief !== false).sort((a, b) => a.naam.localeCompare(b.naam, 'nl')), [elementenMap]);
+  const doekMap = useMemo(() => new Map(doeken.map((d) => [d.id, d])), [doeken]);
   const meldingen = useMemo(() => containerMeldingen(groep), [groep]);
   const telling = useMemo(() => containerTelling(groep), [groep]);
-  const prims = useMemo(() => (gl ? containerPrims(groep, g?.it.id, sleep?.p ? { weg: sleep.id || null, spook: sleep.p } : {}) : null), [gl, groep, g?.it.id, sleep]);
+  const prims = useMemo(() => (gl ? containerPrims(groep, g?.it.id, { ...(sleep?.p ? { weg: sleep.id || null, spook: sleep.p } : {}), doekMap, url: publiekeUrl }) : null), [gl, groep, g?.it.id, sleep, doekMap]);
   const kw = telling.reduce((a, r) => a + r.kw, 0);
   const hoog = Math.max(0, ...groep.map((x) => x.v)) + 1;
   const trap = units.find(isTrapEl);
@@ -151,7 +154,7 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
 
   const maakPdf = async () => {
     const [{ bouwerPdf }, { tentGroep }] = await Promise.all([import('./bouwerPdf'), import('./TentDrieGL')]);
-    const pr = containerPrims(groep, null);
+    const pr = containerPrims(groep, null, { doekMap, url: publiekeUrl });
     await bouwerPdf({ soort: 'container', titel: String(it.naam || el?.naam || 'Units'), sub: [...new Set(groep.map((x) => x.el?.leverancier).filter(Boolean))].join(' · '), maakGroep: (T) => tentGroep(T, pr),
       hoogtes: [...new Set(groep.filter((x) => !x.trap && !x.auto).map((x) => Math.round((x.z0 + x.H) * 100) / 100))],
       kenmerken: [['Units', groep.filter((x) => !x.trap && !x.auto).length], ['Trappen', groep.filter((x) => x.trap).length], ['Hoog', hoog], ['Stroom', `± ${getal(kw)} kW`]] });
@@ -215,6 +218,32 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
               {[['V', 'Voor'], ['A', 'Achter'], ['L', 'Kop links'], ['R', 'Kop rechts']].map(([z, n]) => <button key={z} type="button" className={`fm-knop klein${trapZijde === z ? ' zwart' : ''}`} onClick={() => setTrapZijde(z)}>Trap {n.toLowerCase()}</button>)}
               {(trapZijde === 'L' || trapZijde === 'R' ? [['V', 'bordes voor'], ['A', 'bordes achter']] : [['L', 'links'], ['R', 'rechts']]).map(([k, n]) => { const p = plekTrap(g, trap, trapZijde, k); return <button key={k} type="button" className="fm-knop klein" disabled={!vrij(p)} onClick={() => plaats(trap, p, p.q || 0)}>{trapZijde === 'L' || trapZijde === 'R' ? `Plaatsen, ${n}` : `Trap ${n}`}</button>; })}
             </div>}
+            {!g.trap && !g.auto && (() => {
+              const br = g.it.velden?.branding || {}; const zet = (w) => onActie('unit-branding', { _it: g.it.id, branding: { ...br, ...w } });
+              return (
+                <details className="fm-sectie" open={Object.values(br).some(Boolean)} style={{ margin: '8px 0' }}>
+                  <summary><b>Branding</b></summary>
+                  <label className="fm-sub" style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '6px 0' }}>Kleur wanden
+                    <input type="color" value={br.kleur || '#E4E3DD'} onChange={(e) => zet({ kleur: e.target.value })} />
+                    {br.kleur && <button type="button" className="fm-knop klein" onClick={() => zet({ kleur: null })}>Standaard</button>}
+                  </label>
+                  {[['V', 'Voor'], ['A', 'Achter'], ['L', 'Kop links'], ['R', 'Kop rechts']].map(([z, n]) => (
+                    <label key={z} className="fm-sub" style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '4px 0' }}><span style={{ width: 72 }}>{n}</span>
+                      <select className="fm-in" style={{ flex: 1, minWidth: 0 }} value={br[z] || ''} onChange={(e) => zet({ [z]: e.target.value || null })}>
+                        <option value="">Geen doek</option>
+                        {doeken.map((d) => <option key={d.id} value={d.id}>{d.naam}</option>)}
+                      </select>
+                    </label>
+                  ))}
+                  {['V', 'A', 'L', 'R'].some((z) => br[z]) && <label className="fm-sub" style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '4px 0' }}><span style={{ width: 72 }}>Plaatsing</span>
+                    <select className="fm-in" style={{ flex: 1 }} value={br.plaatsing || 'vullen'} onChange={(e) => zet({ plaatsing: e.target.value === 'vullen' ? null : e.target.value })}>
+                      <option value="vullen">Vullen</option><option value="passend">Passend</option><option value="herhalen">Herhalen</option>
+                    </select>
+                  </label>}
+                  {!doeken.length && <div className="fm-sub">Nog geen doeken in de bibliotheek: laad een ontwerp op bij Doeken (zoals voor truss en B-matrix).</div>}
+                </details>
+              );
+            })()}
             {g.el?.eigenschappen?.gevelVrij && !g.trap && <GevelBeheer L={Number(g.el.breedte_m) || 6} B={Number(g.el.diepte_m) || 3} gevel={g.it.velden?.gevel || g.el.eigenschappen?.gevel || []} schrijven onZet={(gevel) => onActie('unit-gevel', { _it: g.it.id, gevel })} />}
             <div className="fm-cb-zijden" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
               <button type="button" className="fm-knop klein" title="Een kwartslag (R)" onClick={() => onActie('unit-wijzig', { _it: g.it.id, rot: ((Number(g.it.parameters?.rot) || 0) + 90) % 360 })}>Draaien 90°</button>

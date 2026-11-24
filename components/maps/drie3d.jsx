@@ -17,6 +17,7 @@ import { isTentBouw, tentGroep } from './tentbouw';
 import { TentDrie, MELDING_TENT } from './TentStudio';
 import { isContainerDeel, unitGroep, containerPrims } from './containerbouw';
 import { webglKan } from './StellingStudio';
+import { publiekeUrl } from './db';
 
 const DrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () => <div className="fm-wz fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div> });
 const FotoGL = dynamic(() => import('./TentDrieGL').then((m) => m.TentFotoBeeld), { ssr: false, loading: () => null });
@@ -25,7 +26,7 @@ export const isUnit3d = (it, el) => !!it && isContainerDeel(el) && !!it.paramete
 function UnitDrie({ it, el, items = null, elementenMap, mini = false }) {
   const [gl, setGl] = useState(false); useEffect(() => { setGl(webglKan()); }, []);
   const groep = useMemo(() => unitGroep(it, el, items || [it], elementenMap || new Map()), [it, el, items, elementenMap]);
-  const prims = useMemo(() => (gl ? containerPrims(groep, null) : null), [gl, groep]);
+  const prims = useMemo(() => { if (!gl) return null; const dm = new Map([...(elementenMap || new Map()).values()].filter((x) => x.tekenwijze === 'doek').map((d) => [d.id, d])); return containerPrims(groep, null, { doekMap: dm, url: publiekeUrl }); }, [gl, groep, elementenMap]);
   if (!gl) return <div className={`fm-wz${mini ? ' mini' : ''} fm-sub`} style={{ display: 'grid', placeItems: 'center' }}>3D is niet beschikbaar in deze browser.</div>;
   // Klein (zweefkaartje): een foto van de 3D, geen levende 3D bij elke muisbeweging.
   if (mini) return <FotoGL prims={prims} sleutel={`unit|${groep.map((g) => `${g.it.id}:${g.it.rev || 0}`).join(',')}`} terugval={<div className="fm-wz mini fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div>} />;

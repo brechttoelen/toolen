@@ -14,6 +14,7 @@ import { tentTeken } from './TentStudio';
 import { isTrussBouw, trussStukken, trussTypeVoor, portaal, kubus, toren, naarTrussOpslag, TRUSS_LENGTES } from './trussbouw';
 import { trussPrims, zetTrussType } from './TrussStudio';
 import { wandPunten } from './WandStudio';
+import { publiekeUrl } from './db';
 
 const DrieGL = dynamic(() => import('./TentDrieGL'), { ssr: false, loading: () => <div className="fm-wz fm-sub" style={{ display: 'grid', placeItems: 'center' }}>3D laden…</div> });
 const M_LAT = 110574; const mLng = (lat) => 111320 * Math.cos((lat * Math.PI) / 180);
@@ -107,7 +108,7 @@ export default function ConceptStudio({ midden, items, elementen, elementenMap, 
         if (o.soort === 'unit') {
           const groep = unitGroep(o.it, o.el, zoneItems, elementenMap, { midden: C, rot: 0, breedte: 2, diepte: 2 });
           for (const g of groep) klaar.add(g.it.id);
-          uit.push(...zetPrims(containerPrims(groep, sel), ([x, y, z]) => [x - 1, y - 1, z]));
+          uit.push(...zetPrims(containerPrims(groep, sel, { doekMap, url: publiekeUrl }), ([x, y, z]) => [x - 1, y - 1, z]));
         } else if (o.soort === 'tent') {
           const groep = tentGroep(o.it, o.el, zoneItems, elementenMap);
           for (const g of groep) klaar.add(g.it.id);
