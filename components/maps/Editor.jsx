@@ -3371,6 +3371,7 @@ export default function Editor({ planId }) {
         }
         break;
       }
+      case 'unit-terras': { const { dakterras: _d, ...r } = it.velden || {}; wijzigItem(it.id, { velden: arg?.aan ? { ...r, dakterras: true } : r }); break; }
       case 'unit-gevel': { wijzigItem(it.id, { velden: { ...(it.velden || {}), gevel: arg?.gevel?.length ? arg.gevel : undefined } }); break; }
       case 'tent-lid': {
         // Tentbouwer: een gekoppelde tent aangepast in dezelfde bouwer.

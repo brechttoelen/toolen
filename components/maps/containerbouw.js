@@ -117,7 +117,8 @@ export function unitGroep(it, el, items = [], elementenMap = new Map(), kader0 =
   // Trap: het bordes ligt op vloerhoogte van de unit(s) erboven die ertegen staan.
   for (const t of groep.filter((x) => x.trap)) {
     const boven = groep.filter((o) => { if (o.trap || o.v !== t.v + 1) return false; const ox = Math.min(o.x1, t.x1) - Math.max(o.x0, t.x0); const oy = Math.min(o.y1, t.y1) - Math.max(o.y0, t.y0); return (ox > 0.3 && oy > -0.3) || (oy > 0.3 && ox > -0.3); });
-    t.H = (boven.length ? Math.min(...boven.map((o) => o.z0)) : t.z0 + OPLEG + 3) + VLOER - t.z0;
+    const terras = groep.filter((o) => !o.trap && !o.auto && o.v === t.v && o.it?.velden?.dakterras && Math.min(o.x1, t.x1 + 0.2) - Math.max(o.x0, t.x0 - 0.2) > 0.3 && Math.min(o.y1, t.y1 + 0.2) - Math.max(o.y0, t.y0 - 0.2) > 0.05);
+    t.H = boven.length ? Math.min(...boven.map((o) => o.z0)) + VLOER - t.z0 : terras.length ? Math.max(...terras.map((o) => o.z0 + o.H)) - t.z0 : t.z0 + OPLEG + 3 + VLOER - t.z0;
   }
   for (const g of groep) { if (leden.length < 40) leden.push(g); }
   return leden;
@@ -193,7 +194,13 @@ export function containerMeldingen(groep) {
     const ok = traps.some((t) => t.v === v - 1 && boven.some((g) => Math.min(t.x1, g.x1 + 0.2) - Math.max(t.x0, g.x0 - 0.2) > 0.3 && Math.min(t.y1, g.y1 + 0.2) - Math.max(t.y0, g.y0 - 0.2) > 0.05 && !overlap(t, g)));
     if (!ok) uit.push({ soort: 'fout', ids: boven.map((g) => g.it.id), tekst: `Verdieping ${v}: geen trap.` });
   }
-  if (traps.length && !hoogsteV) uit.push({ soort: 'let-op', ids: traps.map((t) => t.it.id), tekst: 'Trap zonder unit erboven.' });
+  const naast = (t, g) => Math.min(t.x1, g.x1 + 0.2) - Math.max(t.x0, g.x0 - 0.2) > 0.3 && Math.min(t.y1, g.y1 + 0.2) - Math.max(t.y0, g.y0 - 0.2) > 0.05 && !overlap(t, g);
+  const terrassen = units.filter((g) => g.it?.velden?.dakterras);
+  for (const g of terrassen) {
+    if (units.some((o) => o.v === g.v + 1 && overlap(o, g))) uit.push({ soort: 'fout', ids: [g.it.id], tekst: `${naam(g)}: dakterras, maar er staat een unit op.` });
+    else if (!traps.some((t) => t.v === g.v && naast(t, g))) uit.push({ soort: 'fout', ids: [g.it.id], tekst: `${naam(g)}: dakterras zonder trap.` });
+  }
+  if (traps.length && !hoogsteV && !terrassen.length) uit.push({ soort: 'let-op', ids: traps.map((t) => t.it.id), tekst: 'Trap zonder unit erboven.' });
   return uit;
 }
 
@@ -209,10 +216,19 @@ export function plekNaast(g, el2, zijde, rot = 0) {
   return { x0: g.x0, y0: g.y0 - B, L, B, v: g.v };
 }
 // Trap tegen een bovenste unit: op de verdieping eronder, langs de lange zijde (V of A), tegen het linker- of rechtereinde.
+// Zijde V/A: langs de lange zijde, kant L/R = waar het bordes komt. Zijde L/R (kopse kant): de trap staat dwars, kant V/A = waar het bordes komt.
+// Een dakterras (unit zonder verdieping erboven) krijgt een trap op dezelfde verdieping; anders reikt de trap tot de unit.
 export function plekTrap(g, trapEl, zijde = 'V', kant = 'L') {
   const lang = Number(trapEl.breedte_m) || 5.6; const diep = Number(trapEl.diepte_m) || 1.4;
+  const v = g.it?.velden?.dakterras ? g.v : Math.max(0, g.v - 1);
+  if (zijde === 'L' || zijde === 'R') {
+    const x0 = zijde === 'L' ? g.x0 - diep : g.x1;
+    const y0 = kant === 'A' ? g.y1 - lang : g.y0;
+    // Draaiing t.o.v. het kader: 90° = klimt naar +y (bordes achter), 270° = naar −y (bordes voor).
+    return { x0, y0, L: diep, B: lang, v, q: kant === 'A' ? 90 : 270 };
+  }
   const x0 = kant === 'L' ? g.x0 : g.x1 - lang;
-  return { x0, y0: zijde === 'V' ? g.y0 - diep : g.y1, L: lang, B: diep, v: Math.max(0, g.v - 1) };
+  return { x0, y0: zijde === 'V' ? g.y0 - diep : g.y1, L: lang, B: diep, v, q: kant === 'L' ? 180 : 0 };
 }
 
 // Deuren en ramen liggen vast per unit (eigenschappen.gevel), zoals de leverancier ze levert:
@@ -366,6 +382,42 @@ export function containerPrims(groep, gekozen = null, opties = {}) {
         const vl = o.soort === 'deur2' ? [ll / 2 - 0.12, ll / 2 + 0.12] : [ll - 0.12];
         if (o.soort === 'deur2') { const m = L2(ll / 2, 0.02); balk([m[0], m[1], zo], [m[0], m[1], zt], [0.03, 0.03], '#9EA3A7'); }
         for (const f of vl) { const h0 = L2(f - 0.06, 0.06); const h1 = L2(f + 0.06, 0.06); balk([h0[0], h0[1], zo + 1.05], [h1[0], h1[1], zo + 1.05], [0.025, 0.025], '#2B2F33'); }
+      }
+    }
+  }
+  // Dakterras: vloerplaat en een balustrade (spijlen om de 12 cm) rondom, open waar het bordes van een trap aansluit.
+  for (const g0 of groep) {
+    if (g0.trap || g0.auto || !g0.it?.velden?.dakterras || (opties.weg && g0.it.id === opties.weg)) continue;
+    const vrij = g0.vrij && g0.T; naar = vrij ? ([x, y, z]) => { const q = g0.T([x, y]); return [q[0], q[1], z]; } : null;
+    const g = vrij ? { ...g0, x0: 0, y0: 0, x1: g0.Lu, y1: g0.Bu } : g0;
+    const zt = (g.z0 || 0) + g.H; const RAIL = '#1F2328'; const HB = 1.1;
+    vlak([[g.x0 + 0.05, g.y0 + 0.05, zt + 0.03], [g.x1 - 0.05, g.y0 + 0.05, zt + 0.03], [g.x1 - 0.05, g.y1 - 0.05, zt + 0.03], [g.x0 + 0.05, g.y1 - 0.05, zt + 0.03]], '#55595E', 1, { unit: g0.it.id, sleep: true, boven: true });
+    // Bordessen van trappen op dezelfde verdieping (in het kader van de groep; bij een schuine unit geen openingen).
+    const bordes = vrij ? [] : groep.filter((t) => t.trap && t.v === g0.v).map((t) => {
+      const langY = t.y1 - t.y0 > t.x1 - t.x0; const terug = t.rot === 180 || t.rot === 270; const d = 1.5;
+      return langY ? { x0: t.x0, x1: t.x1, y0: terug ? t.y0 : t.y1 - d, y1: terug ? t.y0 + d : t.y1 } : { y0: t.y0, y1: t.y1, x0: terug ? t.x0 : t.x1 - d, x1: terug ? t.x0 + d : t.x1 };
+    });
+    const i = 0.04;
+    const randen = [[[g.x0 + i, g.y0 + i], [g.x1 - i, g.y0 + i]], [[g.x1 - i, g.y0 + i], [g.x1 - i, g.y1 - i]], [[g.x1 - i, g.y1 - i], [g.x0 + i, g.y1 - i]], [[g.x0 + i, g.y1 - i], [g.x0 + i, g.y0 + i]]];
+    for (const [a, b] of randen) {
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]); const ux = (b[0] - a[0]) / len; const uy = (b[1] - a[1]) / len;
+      // Openingen langs deze rand: waar een bordes tegen de rand ligt.
+      const gaten = [];
+      for (const r of bordes) {
+        const dichtbij = ux ? (a[1] >= r.y0 - 0.3 && a[1] <= r.y1 + 0.3) : (a[0] >= r.x0 - 0.3 && a[0] <= r.x1 + 0.3); if (!dichtbij) continue;
+        const [p0, p1] = ux ? [r.x0, r.x1] : [r.y0, r.y1]; const s0 = ((p0 - (ux ? a[0] : a[1])) * (ux || uy)); const s1 = ((p1 - (ux ? a[0] : a[1])) * (ux || uy));
+        const lo = Math.max(0, Math.min(s0, s1) + 0.05); const hi = Math.min(len, Math.max(s0, s1) - 0.05); if (hi - lo > 0.4) gaten.push([lo, hi]);
+      }
+      const stukken = []; let start = 0;
+      for (const [lo, hi] of gaten.sort((x, y) => x[0] - y[0])) { if (lo > start + 0.05) stukken.push([start, lo]); start = Math.max(start, hi); }
+      if (len > start + 0.05) stukken.push([start, len]);
+      const pt = (t, z) => [a[0] + ux * t, a[1] + uy * t, z];
+      for (const [t0, t1] of stukken) {
+        balk(pt(t0, zt + HB), pt(t1, zt + HB), [0.05, 0.04], RAIL); balk(pt(t0, zt + 0.12), pt(t1, zt + 0.12), [0.04, 0.03], RAIL);
+        const n = Math.max(1, Math.round((t1 - t0) / 1.5));
+        for (let k = 0; k <= n; k++) { const t = t0 + ((t1 - t0) * k) / n; balk(pt(t, zt), pt(t, zt + HB), [0.05, 0.05], RAIL); }
+        const m = Math.floor((t1 - t0) / 0.12);
+        for (let k = 1; k < m; k++) { const t = t0 + ((t1 - t0) * k) / m; balk(pt(t, zt + 0.12), pt(t, zt + HB), [0.018, 0.018], RAIL); }
       }
     }
   }

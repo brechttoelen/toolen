@@ -143,7 +143,9 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
   const kw = telling.reduce((a, r) => a + r.kw, 0);
   const hoog = Math.max(0, ...groep.map((x) => x.v)) + 1;
   const trap = units.find(isTrapEl);
-  const bovenste = g && !g.trap && g.v > 0;
+  const terras = !!g?.it?.velden?.dakterras;
+  const bovenste = g && !g.trap && !g.auto && (g.v > 0 || terras);
+  const vrijBoven = g && !g.trap && !g.auto && !groep.some((o) => o.v === g.v + 1 && !o.trap && Math.min(o.x1, g.x1) - Math.max(o.x0, g.x0) > 0.3 && Math.min(o.y1, g.y1) - Math.max(o.y0, g.y0) > 0.3);
   const [trapZijde, setTrapZijde] = useState('V');
 
   const maakPdf = async () => {
@@ -207,9 +209,10 @@ export default function ContainerStudio({ it, el, items = [], elementen = [], el
             {!g.trap && elNieuw && !isTrapEl(elNieuw) && <div className="fm-cb-zijden">
               {ZIJDEN.map(([z, n]) => { const p = plekNaastG(g, elNieuw, z); const te = z === 'O' && g.v + 2 > stapelMax(g.el); return <button key={z} type="button" className="fm-knop klein" title={`${kortNaam(elNieuw)} ${n.toLowerCase()}`} disabled={!p || !vrij(p) || te} onClick={() => plaats(elNieuw, p)}>{n}</button>; })}
             </div>}
+            {vrijBoven && <label className="fm-check" style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '6px 0' }}><input type="checkbox" checked={terras} onChange={(e) => onActie('unit-terras', { _it: g.it.id, aan: e.target.checked })} /> Dakterras met balustrade</label>}
             {bovenste && trap && <div className="fm-cb-zijden">
-              {[['V', 'Voor'], ['A', 'Achter']].map(([z, n]) => <button key={z} type="button" className={`fm-knop klein${trapZijde === z ? ' zwart' : ''}`} onClick={() => setTrapZijde(z)}>Trap {n.toLowerCase()}</button>)}
-              {[['L', 'links'], ['R', 'rechts']].map(([k, n]) => { const p = plekTrap(g, trap, trapZijde, k); return <button key={k} type="button" className="fm-knop klein" disabled={!vrij(p)} onClick={() => plaats(trap, p)}>Trap {n}</button>; })}
+              {[['V', 'Voor'], ['A', 'Achter'], ['L', 'Kop links'], ['R', 'Kop rechts']].map(([z, n]) => <button key={z} type="button" className={`fm-knop klein${trapZijde === z ? ' zwart' : ''}`} onClick={() => setTrapZijde(z)}>Trap {n.toLowerCase()}</button>)}
+              {(trapZijde === 'L' || trapZijde === 'R' ? [['V', 'bordes voor'], ['A', 'bordes achter']] : [['L', 'links'], ['R', 'rechts']]).map(([k, n]) => { const p = plekTrap(g, trap, trapZijde, k); return <button key={k} type="button" className="fm-knop klein" disabled={!vrij(p)} onClick={() => plaats(trap, p, p.q || 0)}>{trapZijde === 'L' || trapZijde === 'R' ? `Plaatsen, ${n}` : `Trap ${n}`}</button>; })}
             </div>}
             {g.el?.eigenschappen?.gevelVrij && !g.trap && <GevelBeheer L={Number(g.el.breedte_m) || 6} B={Number(g.el.diepte_m) || 3} gevel={g.it.velden?.gevel || g.el.eigenschappen?.gevel || []} schrijven onZet={(gevel) => onActie('unit-gevel', { _it: g.it.id, gevel })} />}
             <div className="fm-cb-zijden" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>

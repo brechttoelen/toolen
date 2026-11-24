@@ -43,7 +43,7 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
   const pad = (ring) => `M${ring.map((q) => naarS(q).join(',')).join('L')}Z`;
 
   // Stapelen: een unit op verdieping v moet met zijn midden op een unit van v − 1 staan die zo hoog gestapeld mag worden.
-  const draagt = (u, v) => !u.trap && !u.auto && u.g.v === v - 1 && v + 1 <= stapelMax(u.g.el);
+  const draagt = (u, v) => !u.trap && !u.auto && !u.g.it.velden?.dakterras && u.g.v === v - 1 && v + 1 <= stapelMax(u.g.el);
   // Gedragen als het midden op een unit staat, of als beide kopse kanten op een unit rusten (overbruggen, zoals bij hoekgietstukken).
   const steunt = (p, v, weg) => units.some((u) => u.g.it.id !== weg && draagt(u, v) && binnen(p, u.ring));
   const magOp = (mid, v, weg, ring = null) => {
@@ -174,6 +174,7 @@ export default function ContainerPlan2D({ groep, A, sel, onKies, verd, schrijven
           <g key={u.g.it.id} pointerEvents={sleep?.soort === 'nieuw' ? 'none' : undefined} opacity={op ? (weg ? 0.25 : 1) : 0.55} style={{ cursor: op && schrijven ? 'move' : 'pointer' }} onPointerDown={(e) => omlaag(e, u)}>
             <path d={pad(u.ring)} fill={onder ? (kan ? '#BBF7D0' : '#FEE2E2') : kleur(u)} stroke={u.g.it.id === sel && op ? '#2563EB' : '#1F2937'} strokeWidth={u.g.it.id === sel && op ? 2.5 : 1.2} />
             {onder && !kan && <path d={pad(u.ring)} fill="url(#cb-niet)" pointerEvents="none" />}
+            {u.g.it.velden?.dakterras && <path d={pad(u.ring.map((q) => [q[0] + (u.mid[0] - q[0]) * 0.06, q[1] + (u.mid[1] - q[1]) * 0.12]))} fill="none" stroke="#1F2328" strokeWidth={2} strokeDasharray="2 3" pointerEvents="none" />}
             {/* Deuren, ramen, glas en klep op de wanden. */}
             {op && !u.trap && (u.g.it.velden?.gevel || u.g.el?.eigenschappen?.gevel || []).map((o, k) => {
               const { a, e } = gevelLijn(o, u.L, u.B); const p1 = naarS(u.g.T(a)); const p2 = naarS(u.g.T(e));
