@@ -207,6 +207,7 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
   useEffect(() => {
     const a = api.current; if (!klaar || !a) return;
     if (a.groep) { a.scene.remove(a.groep); a.groep.traverse((o) => { if (o.geometry?.type === 'BufferGeometry') o.geometry.dispose(); }); }
+    if (a.gloed) { a.scene.remove(a.gloed); a.gloed = null; } // de oplichting onder de muis hoort bij de vorige opbouw
     const { groep, doelen } = bouw(a.T, prims, a.laad); a.scene.add(groep); a.groep = groep; a.doelen = doelen;
     // Tijdens het slepen (bevries) blijven grond, zon en standpunt staan; anders schuift de ondergrond mee met de unit.
     const vast = bevries && a.grond && a.vasteGrond;
