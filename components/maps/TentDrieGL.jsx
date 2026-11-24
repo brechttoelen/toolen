@@ -261,7 +261,7 @@ export default function TentDrieGL({ prims, kies = null, drop = null, sleepInter
       else if (h?.data?.sleep && vrijRef.current) { D.sleep = { vrij: h.data, bezig: false }; a.ctl.enabled = false; }
     };
     const opBeweeg = (e) => {
-      if (D.sleep?.vrij) { if (!D.sleep.bezig && D.neer && Math.hypot(e.clientX - D.neer[0], e.clientY - D.neer[1]) > 5) D.sleep.bezig = true; if (D.sleep.bezig) { const g = grond(e); const ev = { clientX: e.clientX, clientY: e.clientY }; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { const h = pick(ev); vrijRef.current?.('beweeg', D.sleep?.vrij, g, h?.data && !zelfde(h.data, D.sleep?.vrij) ? h.data : null); }); } return; }
+      if (D.sleep?.vrij) { if (!D.sleep.bezig && D.neer && Math.hypot(e.clientX - D.neer[0], e.clientY - D.neer[1]) > 5) D.sleep.bezig = true; if (D.sleep.bezig) { const g = grond(e); const ev = { clientX: e.clientX, clientY: e.clientY }; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { const h = pick(ev); vrijRef.current?.('beweeg', D.sleep?.vrij, g, h?.data && !zelfde(h.data, D.sleep?.vrij) ? h.data : null, D.sleep?.g0); }); } return; }
       if (D.sleep) { if (!D.sleep.bezig && D.neer && Math.hypot(e.clientX - D.neer[0], e.clientY - D.neer[1]) > 4) D.sleep.bezig = true; if (D.sleep.bezig) { const x = grondX(e); if (x != null) overRef.current?.({ inter: x }); } return; }
       if (e.buttons || !kiesRef.current) return;
       cancelAnimationFrame(raf); const ev = { clientX: e.clientX, clientY: e.clientY }; raf = requestAnimationFrame(() => toon(pick(ev)?.data || null));

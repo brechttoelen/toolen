@@ -277,10 +277,10 @@ export default function ConceptStudio({ midden, items, elementen, elementenMap, 
 
   // Slepen in de 3D zelf: een item over de grond verschuiven (los = op het plan zetten).
   const drie3 = useRef(null);
-  const sleep3D = (fase, data, grond) => {
+  const sleep3D = (fase, data, grond, _hit, start) => {
     if (!schrijven || !data?.unit) return;
     const o = objMap.get(data.unit); if (!o) return;
-    if (!drie3.current || drie3.current.id !== o.id) { if (!grond) return; drie3.current = { id: o.id, g0: grond, ids: leden(o).map((x) => x.id), d: [0, 0] }; setSel(o.id); }
+    if (!drie3.current || drie3.current.id !== o.id) { if (!grond && !start) return; drie3.current = { id: o.id, g0: start || grond, ids: leden(o).map((x) => x.id), d: [0, 0] }; setSel(o.id); }
     const D = drie3.current;
     if (grond) D.d = [Math.round((grond[0] - D.g0[0]) * 4) / 4, Math.round((grond[1] - D.g0[1]) * 4) / 4]; // per 25 cm
     if (fase === 'beweeg') { const s = sleepRef.current; if (!s || s.d[0] !== D.d[0] || s.d[1] !== D.d[1]) setSleep({ soort: 'verplaats', drie: true, ids: D.ids, d: D.d }); return; }
@@ -366,7 +366,7 @@ export default function ConceptStudio({ midden, items, elementen, elementenMap, 
         })}
         {/* Hoeken van de zone: slepen = de zone groter of kleiner maken. */}
         {[['x0', 'y0'], ['x1', 'y0'], ['x1', 'y1'], ['x0', 'y1']].map((h, k) => { const [x, y] = naarS([zone[h[0]], zone[h[1]]]); return <rect key={k} x={x - 6} y={y - 6} width={12} height={12} rx={2} fill="#2563EB" stroke="#fff" strokeWidth={1.5} style={{ cursor: k % 2 ? 'nesw-resize' : 'nwse-resize' }} onPointerDown={(e) => { e.stopPropagation(); setSleep({ soort: 'zone', hoek: h, z0: zone }); }} />; })}
-        {(() => { const [x, y] = naarS([zone.x0, zone.y1]); return <text x={x + 4} y={y - 6} fontSize="11" fill="#2563EB" pointerEvents="none">Zone in 3D · {(zone.x1 - zone.x0).toLocaleString('nl-BE')} × {(zone.y1 - zone.y0).toLocaleString('nl-BE')} m</text>; })()}
+        {(() => { const [x, y] = naarS([zone.x0, zone.y1]); return <text x={x + 4} y={y - 6} fontSize="11" fill="#2563EB" pointerEvents="none">Zone in 3D · {Math.round(zone.x1 - zone.x0)} × {Math.round(zone.y1 - zone.y0)} m</text>; })()}
         {schrijven && gekozen && (() => {
           const r = gekozen.ring.map(nu(gekozen)); const top = naarS([(r[2][0] + r[3][0]) / 2, (r[2][1] + r[3][1]) / 2]); const m = naarS(r.reduce((a, q) => [a[0] + q[0] / 4, a[1] + q[1] / 4], [0, 0]));
           const dx = top[0] - m[0]; const dy = top[1] - m[1]; const l = Math.hypot(dx, dy) || 1; const gx = top[0] + (dx / l) * 22; const gy = top[1] + (dy / l) * 22;
