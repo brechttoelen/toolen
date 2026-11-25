@@ -95,6 +95,6 @@ function sessieBijnaVerlopen(req: NextRequest): boolean {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|maps-sw.js|m/|fonts/|.*\\.(?:svg|png|jpg|jpeg|webp|gif|ico|woff2?|ttf|map|pdf|webmanifest)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|maps-sw.js|m/|3d/|fonts/|.*\\.(?:svg|png|jpg|jpeg|webp|gif|ico|woff2?|ttf|map|pdf|webmanifest)$).*)",
   ],
 };
