@@ -1,6 +1,7 @@
 'use client';
 
 import { tvCamTekst } from './tvcamera';
+import { RenderLijst } from './renders';
 import { AttestenLijst } from './attesten';
 import { useEffect, useState } from 'react';
 import { maps, foutTekst, magSchrijven, publiekeUrl } from './db';
@@ -108,6 +109,7 @@ export default function PopupInhoud({ item, laag, element, profiel }) {
       <PopupKop item={item} laag={laag} element={element} />
       <PopupInfo item={item} />
       {item.velden?.attesten?.length > 0 && <div className="blok"><div className="fm-kop">Attesten</div><AttestenLijst attesten={item.velden.attesten} /></div>}
+      {item.velden?.renders?.length > 0 && <div className="blok"><div className="fm-kop">3D-renders</div><RenderLijst renders={item.velden.renders} /></div>}
       <div className="blok" style={{ background: '#FAFAFB' }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: '#686D76' }}>Opmerkingen{opm.length ? ` · ${open} open` : ''}</div>
         {fout && <div className="fm-melding fout">{fout}</div>}
