@@ -28,6 +28,7 @@ import { alsStroomItem, UITGANG_TYPES } from './vasteAansluitingen';
 import { publiekeUrl } from './db';
 import { AttestenBewerken } from './attesten';
 import { FotoStrook } from './fotos';
+import { RendersBewerken } from './renders';
 import WandBouwer, { telAlleWanden } from './WandBouwer';
 import { TrussBlok } from './TrussBlok';
 import { StellingBlok } from './StellingBlok';
@@ -1228,6 +1229,11 @@ export default function Eigenschappen(props) {
         </Blok>
       )}
       {heeftModule('fiche') && item.plan_id && <FicheItemBlok item={item} plan={plan} schrijven={schrijven} groepAantal={groepAantal} groepNaam={groepNaam} />}
+      {item.soort !== 'tekst' && item.soort !== 'notitie' && (!ro || velden.renders?.length > 0) && (
+        <Blok titel={`3D-renders${velden.renders?.length ? ` · ${velden.renders.length}` : ''}`} open={!!velden.renders?.length}>
+          <RendersBewerken renders={velden.renders} ro={ro} onZet={(l) => zetVeld('renders', l)} />
+        </Blok>
+      )}
       <Blok titel="Planning en notitie" open={!!(item.notitie || velden.opbouw || velden.afbraak || velden.verantwoordelijke)}>
         <div className="fm-raster2">
           <Veld label="Plaatsen" waarde={velden.opbouw} onBewaar={(v) => zetVeld('opbouw', v || null)} uitgeschakeld={ro} placeholder="za 06:00" />
