@@ -140,7 +140,7 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
   let clipN = 0;
   const beeldVorm = (lb, rb, lo, omtrek, href, dd = 0) => { const A = S(lb); const B = S(rb); const C = S(lo); const q = omtrek.map(S); prims.push({ k: 'beeld', A: W3(lb), B: W3(rb), C: W3(lo), omtrek: omtrek.map(W3), href }); const d = Math.min(...q.map((p) => p[2])) - dd; const id = `${clipPre}-${clipN++}`;
     lagen.push({ d, el: (k) => <g key={k} style={{ pointerEvents: 'none' }}><clipPath id={id}><polygon points={P2(q)} /></clipPath><g clipPath={`url(#${id})`}><image href={href} x={0} y={0} width={1} height={1} preserveAspectRatio="none" transform={`matrix(${B[0] - A[0]} ${B[1] - A[1]} ${C[0] - A[0]} ${C[1] - A[1]} ${A[0]} ${A[1]})`} /></g></g> }); };
-  const lw = mini ? 0.6 : 1; const kolom = mini ? 1.4 : 2.6; const geen = { style: { pointerEvents: 'none' } };
+  const lw = mini ? 0.6 : 1; const kolom0 = mini ? 1.4 : 2.6; const geen = { style: { pointerEvents: 'none' } };
   // Trap naar buiten: p0 → p1 is de voorkant van het bordes, n = naar buiten, h = hoogte.
   const trap = (p0, p1, n, h) => {
     const k = Math.max(1, Math.ceil(h / 0.18)); const tr = 0.3;
@@ -175,9 +175,9 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
         const k = mini ? 6 : 14; for (let i = 0; i < k; i++) { const p = (f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; const p0 = p(i / k); const p1 = p((i + 1) / k);
           vlak([[...p0, Z(...p0)], [...p1, Z(...p1)], [p1[0] + n[0] * 0.9, p1[1] + n[1] * 0.9, 0.02], [p0[0] + n[0] * 0.9, p0[1] + n[1] * 0.9, 0.02]], dk.kleur, 'vul', { fillOpacity: dk.dekking, strokeWidth: 0.6, ...dakD }); }
       }
-      for (const ms of stretchMasten(m, t)) { lijn([ms.x, ms.y, 0], [ms.x, ms.y, ms.h + 0.2], staal, kolom * 1.1, 0.02); }
+      for (const ms of stretchMasten(m, t)) { lijn([ms.x, ms.y, 0], [ms.x, ms.y, ms.h + 0.2], staal, kolom0 * 1.1, 0.02); }
       for (const pl of stretchPalen(m, t)) {
-        const z = Z(pl.x + pl.n[0] * 0.01, pl.y + pl.n[1] * 0.01); lijn([pl.x, pl.y, 0], [pl.x, pl.y, z + 0.15], staal, kolom * 0.8, 0.01);
+        const z = Z(pl.x + pl.n[0] * 0.01, pl.y + pl.n[1] * 0.01); lijn([pl.x, pl.y, 0], [pl.x, pl.y, z + 0.15], staal, kolom0 * 0.8, 0.01);
         if (!mini) { const q = [pl.x + pl.n[0] * 1.6, pl.y + pl.n[1] * 1.6]; lijn([pl.x, pl.y, z + 0.1], [...q, 0], '#9CA3AF', 0.7 * lw, 0.01); }
       }
       return;
@@ -197,15 +197,17 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
     // Volant aan de dakrand, middenmasten met piek, zijpalen met scheerlijnen.
     const om = sailOmtrek(m);
     for (let k = 0; k < fijn.length; k++) { const a = fijn[k]; const b = fijn[(k + 1) % fijn.length]; vlak([[...a, m.zijH], [...b, m.zijH], [...b, m.zijH - 0.3], [...a, m.zijH - 0.3]], dk.kleur, 'vul', { fillOpacity: Math.max(0.8, dk.dekking), strokeWidth: 0.5, ...geen }); }
-    for (const p of pk) lijn([p[0], p[1], 0], [p[0], p[1], m.nok + 0.6], hout, kolom * 1.3, 0.02);
+    for (const p of pk) lijn([p[0], p[1], 0], [p[0], p[1], m.nok + 0.6], hout, kolom0 * 1.3, 0.02);
     for (let k = 0; k < om.length - 1; k++) {
       const p = om[k]; const vorige = om[(k - 1 + om.length - 1) % (om.length - 1)]; const volg = om[k + 1]; const dx = volg[0] - vorige[0]; const dy = volg[1] - vorige[1]; const l = Math.hypot(dx, dy) || 1;
-      lijn([p[0], p[1], 0], [p[0], p[1], m.zijH + 0.15], hout, kolom * 0.8, 0.01);
+      lijn([p[0], p[1], 0], [p[0], p[1], m.zijH + 0.15], hout, kolom0 * 0.8, 0.01);
       if (!mini) lijn([p[0], p[1], m.zijH + 0.1], [p[0] + (dy / l) * 1.8, p[1] - (dx / l) * 1.8, 0], '#9CA3AF', 0.7 * lw, 0.01);
     }
   };
   for (const g of leden) {
-    Tf = g.T; lidNu = g.hoofd ? null : g.k; const { m, t } = g; const alu = ALU[t.kleur] || ALU.naturel; const hoofd = g.hoofd;
+    Tf = g.T; lidNu = g.hoofd ? null : g.k; const { m } = g; const ark = m.vorm === 'ark';
+    // The Ark: goudzand doek en houten spanten, tenzij je zelf iets anders kiest.
+    const t = ark ? { dak: 'goudzand', ...g.t } : g.t; const alu = ark && !t.kleur ? '#A47148' : ALU[t.kleur] || ALU.naturel; const hoofd = g.hoofd; const kolom = ark ? kolom0 * 1.7 : kolom0;
     const vh = Math.max(0, Number(t.vloerH) || 0);
     // Deuren en ramen die in het binnenplan van deze tent getekend zijn, per segment.
     const binnen = new Map(); for (const o of items ? binnenOpeningen({ ...g.it, velden: { ...(g.it?.velden || {}), tent: t } }, g.el, items) : []) binnen.set(o.key, [...(binnen.get(o.key) || []), o]);
@@ -223,7 +225,7 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
       const gekop = g.open.has(sg.key) && !t.wanden?.[sg.key];
       // Doek over de hele gevel (zijwand + spits): de wanden van die gevel worden dat doek.
       const gDoek = !gekop && (sg.zijde === 'V' || sg.zijde === 'A' || sg.zijde === 'I') && (m.type === 'kader' || m.type === 'boog') ? t.gevelDoek?.[sg.zijde === 'I' ? `I-${sg.sp}` : sg.zijde] || null : null;
-      const w = gekop ? wandSoort('open') : gDoek ? wandSoort('doek') : wandSoort(t.wanden?.[sg.key] || (sg.zijde === 'I' ? 'wit' : standaardWand(m)));
+      const w = gekop ? wandSoort('open') : gDoek ? wandSoort('doek') : wandSoort(t.wanden?.[sg.key] || (sg.zijde === 'I' ? 'wit' : standaardWand(m, sg)));
       const [ax, ay] = sg.a; const [bx, by] = sg.b; const len = Math.hypot(bx - ax, by - ay);
       const P = (f, z) => [ax + (bx - ax) * f, ay + (by - ay) * f, z];
       const aan = hoofd && gekozen === sg.key;
@@ -244,7 +246,7 @@ export function tentTeken({ it, el, tent, groep = null, items = null, doekMap = 
       }
       if (gekop) { if (hoofd && !mini) lijn(P(0, zh), P(1, zh), '#0E7490', 3 * lw, 0.02); continue; }
       // Wand in panelen van ± 1 m: per paneel een soort (raam, paneel, deur …); een dubbele deur is 2 panelen breed.
-      const panelen = gDoek ? [{ i: 0, n: 1, f0: 0, f1: 1, soort: 'doek', w: wandSoort('doek') }] : wandPanelen(m, t, sg, sg.zijde === 'I' ? 'wit' : standaardWand(m));
+      const panelen = gDoek ? [{ i: 0, n: 1, f0: 0, f1: 1, soort: 'doek', w: wandSoort('doek') }] : wandPanelen(m, t, sg, sg.zijde === 'I' ? 'wit' : standaardWand(m, sg));
       const heelDoek = w.doek && panelen.length === 1 || (w.doek && panelen.every((x) => x.w.doek));
       for (const pn of panelen) {
         const pw = pn.w; const F = (u) => pn.f0 + (pn.f1 - pn.f0) * u; const Q = (u, z) => P(F(u), z); const pl = len * (pn.f1 - pn.f0);
@@ -564,7 +566,7 @@ function TentSchema({ m, t, gekozen, onKies, onDrop, open = new Set(), onInter }
       ))}
       {tentSegmenten(m, t).map((sg) => {
         const gekop = open.has(sg.key) && !t.wanden?.[sg.key];
-        const w = gekop ? wandSoort('open') : wandSoort(t.wanden?.[sg.key] || (sg.zijde === 'I' ? 'wit' : standaardWand(m))); const aan = gekozen === sg.key;
+        const w = gekop ? wandSoort('open') : wandSoort(t.wanden?.[sg.key] || (sg.zijde === 'I' ? 'wit' : standaardWand(m, sg))); const aan = gekozen === sg.key;
         return (
           <g key={sg.key} style={{ cursor: 'pointer' }} onClick={() => onKies(sg.key)} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDrop({ seg: sg.key }, e.dataTransfer.getData('text/fm-tent')); }}>
             <line x1={X(sg.a[0])} y1={Y(sg.a[1])} x2={X(sg.b[0])} y2={Y(sg.b[1])} stroke="transparent" strokeWidth={16} />
@@ -678,7 +680,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
   const zetPaneel = (key, i, soort) => {
     if (!schrijven || key == null || i == null) return;
     const sg = segs.find((x) => x.key === key); if (!sg) return;
-    const n = wandPanelen(m, t, sg, sg.zijde === 'I' ? 'wit' : standaardWand(m)); const max = n.length ? n[n.length - 1].i + n[n.length - 1].n : 1;
+    const n = wandPanelen(m, t, sg, sg.zijde === 'I' ? 'wit' : standaardWand(m, sg)); const max = n.length ? n[n.length - 1].i + n[n.length - 1].n : 1;
     let j = i; if (wandSoort(soort).deur === 2 && j >= max - 1) j = Math.max(0, max - 2);
     const pan = { ...(t.panelen || {}) }; const rij = { ...(pan[key] || {}) };
     rij[j] = soort; if (wandSoort(soort).deur === 2) delete rij[j + 1];
@@ -728,7 +730,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
     window.addEventListener('keydown', kb, true); return () => window.removeEventListener('keydown', kb, true);
   });
 
-  const gw = gekozen ? wandSoort(t.wanden?.[gekozen] || (open.has(gekozen) ? 'open' : gekozen.startsWith('I-') ? 'wit' : standaardWand(m))) : null;
+  const gw = gekozen ? wandSoort(t.wanden?.[gekozen] || (open.has(gekozen) ? 'open' : gekozen.startsWith('I-') ? 'wit' : standaardWand(m, { zijde: gekozen[0], i: Number(gekozen.split('-')[1]) }))) : null;
   const buren = (groep || []).slice(1);
   useBouwerSchild();
   return createPortal(
@@ -892,7 +894,7 @@ function TentStudioLid({ it, el, schrijven, onZet, onSluit, doeken: ontwerpen = 
               <label className="fm-veld">Hele wand<select disabled={!schrijven} value={gw.k} onChange={(e) => zetWand(gekozen, e.target.value, e.target.value === 'doek' ? t.doeken?.[gekozen] || ontwerp || null : null, true)}>{WANDEN.map((w) => <option key={w.k} value={w.k}>{w.naam}</option>)}</select></label>
               {!vrij && (() => {
                 const sg = segs.find((x) => x.key === gekozen); if (!sg) return null;
-                const pl = wandPanelen(m, t, sg, sg.zijde === 'I' ? 'wit' : standaardWand(m)); const pk = pl.find((x) => x.i === gekozenPan || (gekozenPan != null && gekozenPan > x.i && gekozenPan < x.i + x.n));
+                const pl = wandPanelen(m, t, sg, sg.zijde === 'I' ? 'wit' : standaardWand(m, sg)); const pk = pl.find((x) => x.i === gekozenPan || (gekozenPan != null && gekozenPan > x.i && gekozenPan < x.i + x.n));
                 return (
                   <div className="fm-veld">Panelen van 1 m (klik een paneel)
                     <div className="fm-tb-panelen">{pl.map((p) => <button key={p.i} type="button" style={{ flex: p.n }} className={pk?.i === p.i ? 'aan' : ''} title={`Paneel ${p.i + 1}${p.n > 1 ? `–${p.i + p.n}` : ''}: ${p.w.naam}`} onClick={() => setGekozenPan(p.i)}><WandStaal w={p.w} /></button>)}</div>

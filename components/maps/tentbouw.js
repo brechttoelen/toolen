@@ -30,13 +30,26 @@ export const TENTTYPES = [
 //   wandMaat: 2 | 3 (m per wandelement), wandAfstand: afstand van de wanden tot de rand (0 = aan de rand)
 // Sailcloth tent: ronde of lange vorm (halve cirkels aan de uiteinden), pieken op de middellijn: pieken, nokH, zijH.
 export const RAND_H = 2.2; export const PAAL_AFSTAND = 3;
-export const standaardWandVan = (m) => (m.type === 'vouw' || m.type === 'stretch' ? 'open' : m.type === 'sail' ? 'opgerold' : 'wit');
+// The Ark (houten spitsboogspanten, GBS): 50 × 30,5 m, nok 14,84 m. De boog is een spitsboog uit twee cirkelbogen
+// (straal 17,43 m, middelpunt 2 m voorbij de as en 2,47 m onder de vloer), geschaald met de breedte.
+export const isArk = (el) => el?.eigenschappen?.tentVorm === 'ark' || /\bark\b/i.test(`${el?.eigenschappen?.familie || ''} ${el?.naam || ''}`);
+const ARK = { B: 30.5, c: 2, m0: 2.47, nok: 14.84 };
+export function arkHoogte(B, zijH, d) {
+  const s = B / ARK.B; const c = ARK.c * s; const m0 = ARK.m0 * s; const R = Math.hypot(B / 2 + c, m0);
+  // De zijwand (tot zijH) staat recht; daarboven volgt het dak de boog tot de nok.
+  const xZ = Math.sqrt(Math.max(0, R * R - (zijH + m0) ** 2)) - c; const x = (Math.min(1, Math.abs(d) / (B / 2))) * xZ;
+  return -m0 + Math.sqrt(Math.max(0, R * R - (x + c) ** 2));
+}
+// Standaardwand per segment. The Ark: lange zijden open onder de dakrand behalve de eerste twee, de middelste en de
+// laatste twee traveeën; voorgevel open (ingang), achtergevel dicht.
+export const standaardWandVan = (m, sg = null) => (m.vorm === 'ark' ? (!sg ? 'goudzand' : sg.zijde === 'V' ? 'open' : sg.zijde === 'A' ? 'goudzand' : (sg.i < 2 || sg.i >= m.n - 2 || sg.i === Math.floor((m.n - 1) / 2) ? 'goudzand' : 'open')) : m.type === 'vouw' || m.type === 'stretch' ? 'open' : m.type === 'sail' ? 'opgerold' : 'wit');
 export const isVrijeTent = (m) => m.type === 'stretch' || m.type === 'sail';
 
 export const WANDEN = [
   { k: 'wit', naam: 'PVC wit', kleur: '#F8FAFC', dekking: 0.96 },
   { k: 'zwart', naam: 'PVC zwart', kleur: '#1F2937', dekking: 0.96 },
   { k: 'mokka', naam: 'PVC mokka', kleur: '#9C9285', dekking: 0.96 },
+  { k: 'goudzand', naam: 'PVC goudzand', kleur: '#D8B56E', dekking: 0.97 },
   { k: 'transparant', naam: 'PVC transparant', kleur: '#BFDBFE', dekking: 0.28 },
   { k: 'venster', naam: 'Met vensterstrook', kleur: '#F8FAFC', dekking: 0.96, strook: true },
   // Houtlook: wanden met houten bekleding (planken), ook met ramen.
@@ -90,6 +103,7 @@ export const DAKEN = [
   { k: 'zwart', naam: 'Zwart', kleur: '#1F2937', dekking: 0.97 },
   { k: 'mokka', naam: 'Mokka', kleur: '#9C9285', dekking: 0.97 },
   { k: 'zand', naam: 'Zand', kleur: '#D9C7A3', dekking: 0.97 },
+  { k: 'goudzand', naam: 'Goudzand', kleur: '#D8B56E', dekking: 0.97 },
   { k: 'zeildoek', naam: 'Zeildoek (ivoor)', kleur: '#F7F1E1', dekking: 0.9 },
   { k: 'gestreept', naam: 'Gestreept', kleur: '#FFFFFF', dekking: 0.97, streep: '#DC2626' },
 ];
@@ -101,7 +115,7 @@ export function tentTypeVan(el) {
   const f = `${el?.eigenschappen?.familie || ''} ${el?.naam || ''}`.toLowerCase();
   if (/stretch/.test(f)) return 'stretch';
   if (/sailcloth|sperry|zeildoek/.test(f)) return 'sail';
-  if (/boog|arcum|booghal/.test(f)) return 'boog';
+  if (/boog|arcum|booghal|\bark\b/.test(f)) return 'boog';
   if (/pagode/.test(f)) return 'pagode';
   if (/flcs tent|vouwtent|easy/.test(f)) return 'vouw';
   if (/kader|alu-hal|feesttent/.test(f)) return 'kader';
@@ -121,16 +135,18 @@ export function tentMaten(it, el) {
   const modul = type === 'kader' || type === 'boog' || type === 'pagode';
   const travee = modul ? Number(el?.breedte_m) || 5 : L;
   const n = Math.max(1, Math.round(L / travee));
-  const zijH = Number(t.zijH) > 0 ? Number(t.zijH) : type === 'stretch' ? RAND_H : type === 'sail' ? 2.4 : type === 'pagode' ? 2.4 : type === 'vouw' ? 2.1 : B >= 15 ? 4 : 3;
+  const vorm = type === 'boog' && isArk(el) ? 'ark' : null;
+  const zijH = Number(t.zijH) > 0 ? Number(t.zijH) : vorm === 'ark' ? 4 : type === 'stretch' ? RAND_H : type === 'sail' ? 2.4 : type === 'pagode' ? 2.4 : type === 'vouw' ? 2.1 : B >= 15 ? 4 : 3;
   // Nokhoogte volgt uit het type en de breedte (niet vrij in te stellen).
   const nok = type === 'stretch' ? (Number(t.mastH) > 0 ? Number(t.mastH) : Math.min(B, L) >= 10 ? 5 : 4.2)
     : type === 'sail' ? (Number(t.nokH) > 0 ? Number(t.nokH) : zijH + Math.min(B, L) * 0.33)
     : type === 'kader' ? zijH + (B / 2) * Math.tan(((B <= 5 ? 23 : B <= 7.5 ? 19.5 : B <= 10 ? 17.2 : B <= 12.5 ? 16.8 : B <= 15 ? 16.3 : 15.1) * Math.PI) / 180)
+    : vorm === 'ark' ? arkHoogte(B, zijH, 0)
     : type === 'boog' ? zijH + B * 0.148
       : type === 'pagode' ? zijH + Math.min(B, L / n) * 0.48
         // Vouwtent (easy-up): de punt staat duidelijk boven de rand, ± 1 m bij 3 × 3 m.
         : zijH + Math.min(B, L) * 0.3;
-  return { type, L, B, travee: L / n, n, zijH, nok: Math.round(nok * 100) / 100 };
+  return { type, vorm, L, B, travee: L / n, n, zijH, nok: Math.round(nok * 100) / 100 };
 }
 
 // Wandsegmenten: [{ key, zijde, i, a: [x, y], b: [x, y] }] (a → b, met de buitenkant rechts).
@@ -297,6 +313,7 @@ export const runBuren = (runs, r) => (r ? { links: runs.find((q) => q !== r && s
 export function dakHoogte(m, x, y) {
   if (m.type === 'kader') return m.zijH + (m.nok - m.zijH) * (1 - Math.abs(y - m.B / 2) / (m.B / 2));
   // Booghal: vlakke cirkelboog (pijl ± 15 % van de breedte), niet half rond.
+  if (m.vorm === 'ark') return arkHoogte(m.B, m.zijH, y - m.B / 2);
   if (m.type === 'boog') {
     // Booghal: vanaf de dakrand een flauwe, bijna rechte helling (± 21°) die bovenaan overgaat in een ruime boog,
     // zoals de gebogen gevel van een curve-tent. De hoogte schaalt mee met de nokhoogte.
@@ -325,7 +342,7 @@ export function tentTelling(it, el, open = new Set(), groep = null) {
   else bij('Staander', 4);
   for (const s of tentSegmenten(m, t)) {
     if (open.has(s.key) && !t.wanden?.[s.key]) { bij('Koppeling met regengoot'); continue; }
-    for (const p of wandPanelen(m, t, s, s.zijde === 'I' ? 'wit' : standaardWandVan(m))) {
+    for (const p of wandPanelen(m, t, s, s.zijde === 'I' ? 'wit' : standaardWandVan(m, s))) {
       if (p.w.k === 'open' || p.w.rol) continue; const nm = /^[A-Z]{3}/.test(p.w.naam) ? p.w.naam : p.w.naam[0].toLowerCase() + p.w.naam.slice(1);
       bij(m.type === 'stretch' || m.type === 'sail' ? `Wand ${nm} (${ZIJDEN[s.zijde].toLowerCase()})` : p.w.deur || p.w.rits ? `${p.w.naam} (${p.n} m)` : `Paneel ${nm} 1 m`);
     }
@@ -406,7 +423,7 @@ export function tentOpeningen(it, el, open = new Set()) {
     const gekop = open.has(sg.key) && !t.wanden?.[sg.key];
     const P = (f) => A.naarGeo([sg.a[0] + (sg.b[0] - sg.a[0]) * f, sg.a[1] + (sg.b[1] - sg.a[1]) * f]);
     if (gekop) { uit.push({ key: sg.key, soort: 'koppeling', a: P(0), b: P(1) }); continue; }
-    for (const p of wandPanelen(m, t, sg, sg.zijde === 'I' ? 'wit' : standaardWandVan(m))) {
+    for (const p of wandPanelen(m, t, sg, sg.zijde === 'I' ? 'wit' : standaardWandVan(m, sg))) {
       const w = p.w; const d = (p.f1 - p.f0) * 0.05; const a = P(p.f0 + d); const b = P(p.f1 - d);
       if (w.k === 'open' || w.rol) uit.push({ key: sg.key, soort: 'open', a: P(p.f0), b: P(p.f1) });
       else if (w.deur || w.rits) uit.push({ key: sg.key, soort: w.nood ? 'nood' : 'deur', a, b, naam: w.naam });
